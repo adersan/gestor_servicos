@@ -13,6 +13,13 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); }
+.auth-loading > .topbar, .auth-loading > .tabs, .auth-loading > main { visibility: hidden; }
+.auth-screen { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: linear-gradient(145deg, #102e27, #24584a); }
+.auth-screen.hidden { display: none; }
+.login-card { width: min(100%, 420px); display: grid; gap: 16px; padding: 30px; border-radius: 22px; background: white; box-shadow: 0 28px 80px rgba(0,0,0,.3); }
+.login-card h1 { color: var(--brand); }
+.login-card p { color: var(--muted); }
+.login-message { min-height: 20px; color: var(--danger) !important; font-size: 13px; }
 button, input, select, textarea { font-family: Arial, Helvetica, sans-serif; font-size: inherit; }
 button { cursor: pointer; }
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 24px max(20px, calc((100vw - 1180px) / 2)); background: var(--brand); color: white; }

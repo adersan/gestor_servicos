@@ -1,5 +1,5 @@
-const CACHE = "gestor-servicos-v7";
-const ASSETS = ["./", "index.html", "styles.css", "app.js", "manifest.webmanifest"];
+const CACHE = "gestor-servicos-v8";
+const ASSETS = ["./", "index.html", "styles.css", "config.js", "auth.js", "app.js", "manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting()));

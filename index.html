@@ -8,13 +8,25 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="auth-loading">
+  <section id="authScreen" class="auth-screen" aria-live="polite">
+    <form id="loginForm" class="login-card">
+      <span class="eyebrow">Acesso administrativo</span>
+      <h1>Gestor de Serviços</h1>
+      <p>Entre com o usuário criado no Supabase.</p>
+      <label>E-mail<input name="email" type="email" autocomplete="username" required></label>
+      <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
+      <p id="loginMessage" class="login-message"></p>
+      <button class="primary full" type="submit">Entrar</button>
+    </form>
+  </section>
   <header class="topbar">
     <div>
       <span class="eyebrow">Painel administrativo</span>
       <h1>Gestor de Serviços</h1>
     </div>
     <button id="installButton" class="secondary hidden">Instalar aplicativo</button>
+    <button id="logoutButton" class="secondary hidden">Sair</button>
   </header>
 
   <nav class="tabs" aria-label="Navegação principal">
@@ -238,6 +250,9 @@
     <div class="empty"><strong>Nenhum registro por aqui.</strong><span>Use o botão acima para começar.</span></div>
   </template>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

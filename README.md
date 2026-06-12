@@ -34,9 +34,9 @@ arquivo `netlify.toml`.
 3. Execute `supabase/schema.sql`.
 4. Crie seu usuário em Authentication.
 5. Insira o UUID desse usuário em `admin_users`.
-6. Copie `config.example.js` para `config.js` e informe URL e chave pública.
+6. Configure `config.js` com a URL e a chave publicável do projeto.
 
-Nunca coloque a `service_role` no navegador ou no GitHub. Ela deverá existir
+Nunca coloque uma chave secreta ou a antiga `service_role` no navegador ou no GitHub. Ela deverá existir
 somente nas variáveis protegidas das funções do Netlify.
 
 ## Próximas etapas
@@ -47,4 +47,3 @@ somente nas variáveis protegidas das funções do Netlify.
 - Gerar PDF no servidor.
 - Integrar a API de WhatsApp.
 - Importar os dados da planilha.
-
