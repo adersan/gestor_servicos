@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#173f35">
+  <title>Gestor de Serviços</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <span class="eyebrow">Painel administrativo</span>
+      <h1>Gestor de Serviços</h1>
+    </div>
+    <button id="installButton" class="secondary hidden">Instalar aplicativo</button>
+  </header>
+
+  <nav class="tabs" aria-label="Navegação principal">
+    <button class="tab active" data-view="dashboard">Resumo</button>
+    <button class="tab" data-view="clients">Clientes</button>
+    <button class="tab" data-view="tables">Tabelas</button>
+    <button class="tab" data-view="catalog">Serviços</button>
+    <button class="tab" data-view="services">Lançamentos</button>
+    <button class="tab" data-view="payments">Pagamentos</button>
+    <button class="tab" data-view="paymentMethods">Formas de pagamento</button>
+    <button class="tab" data-view="billing">Cobranças</button>
+  </nav>
+
+  <main>
+    <section id="dashboard" class="view active">
+      <div class="dashboard-heading">
+        <div>
+          <span class="eyebrow">Visão geral</span>
+          <h2>Resumo financeiro</h2>
+          <p class="meta">Acompanhe rapidamente o movimento atual.</p>
+        </div>
+        <button class="primary" data-open-view="services">Novo lançamento</button>
+      </div>
+      <div class="dashboard-grid">
+        <article class="metric-card metric-main">
+          <span>Saldo em aberto</span>
+          <strong id="totalOpen">R$ 0,00</strong>
+          <small>Serviços menos pagamentos</small>
+        </article>
+        <article class="metric-card">
+          <span>Clientes</span>
+          <strong id="clientCount">0</strong>
+          <small>Cadastros ativos</small>
+        </article>
+        <article class="metric-card">
+          <span>Serviços lançados</span>
+          <strong id="serviceTotal">R$ 0,00</strong>
+          <small>Movimento acumulado</small>
+        </article>
+        <article class="metric-card">
+          <span>Pagamentos</span>
+          <strong id="paymentTotal">R$ 0,00</strong>
+          <small>Valores recebidos</small>
+        </article>
+      </div>
+      <div class="quick-actions">
+        <button data-dialog="clientDialog"><strong>+ Cliente</strong><span>Novo cadastro</span></button>
+        <button data-dialog="serviceDialog"><strong>+ Serviço</strong><span>Novo lançamento</span></button>
+        <button data-dialog="paymentDialog"><strong>+ Pagamento</strong><span>Registrar baixa</span></button>
+        <button data-dialog="billingDialog"><strong>+ Cobrança</strong><span>Fechar período</span></button>
+      </div>
+      <section class="panel">
+        <div class="panel-title">
+          <div><span class="eyebrow">Clientes</span><h2>Contas em andamento</h2></div>
+          <button class="table-action" data-open-view="clients">Ver clientes</button>
+        </div>
+        <div id="accountList" class="account-list"></div>
+      </section>
+    </section>
+
+    <section id="clients" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Cadastro</span><h2>Clientes</h2></div>
+        <button class="primary" data-dialog="clientDialog">Adicionar cliente</button>
+      </div>
+      <div id="clientList" class="card-grid"></div>
+    </section>
+
+    <section id="tables" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Grupos de preço</span><h2>Tabelas</h2></div>
+        <button class="primary" data-dialog="priceTableDialog">Adicionar tabela</button>
+      </div>
+      <div id="priceTableList" class="card-grid"></div>
+    </section>
+
+    <section id="catalog" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Catálogo</span><h2>Serviços</h2></div>
+        <button class="primary" data-dialog="catalogDialog">Adicionar serviço</button>
+      </div>
+      <p class="section-note">Cadastre cada serviço e seus preços. O valor poderá ser alterado em um lançamento específico.</p>
+      <div id="catalogTable"></div>
+    </section>
+
+    <section id="services" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Movimento diário</span><h2>Lançamentos</h2></div>
+        <button class="primary" data-dialog="serviceDialog">Lançar serviço</button>
+      </div>
+      <div class="filters">
+        <select id="serviceClientFilter"><option value="">Todos os clientes</option></select>
+        <input id="serviceSearch" placeholder="Buscar placa ou descrição">
+      </div>
+      <div id="serviceList" class="timeline"></div>
+    </section>
+
+    <section id="payments" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Baixas</span><h2>Pagamentos</h2></div>
+        <button class="primary" data-dialog="paymentDialog">Registrar pagamento</button>
+      </div>
+      <div id="paymentList" class="timeline"></div>
+    </section>
+
+    <section id="paymentMethods" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Recebimento</span><h2>Formas de pagamento</h2></div>
+        <button class="primary" data-dialog="paymentMethodDialog">Adicionar forma</button>
+      </div>
+      <p class="section-note">As formas ativas serão incluídas automaticamente nas próximas cobranças e no PDF.</p>
+      <div id="paymentMethodList" class="card-grid"></div>
+    </section>
+
+    <section id="billing" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Fechamento flexível</span><h2>Cobranças</h2></div>
+        <button class="primary" data-dialog="billingDialog">Gerar cobrança</button>
+      </div>
+      <div id="billingList" class="card-grid"></div>
+    </section>
+  </main>
+
+  <dialog id="clientDialog">
+    <form id="clientForm" method="dialog">
+      <div class="dialog-heading"><h2 id="clientDialogTitle">Novo cliente</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="clientId" type="hidden">
+      <label>Nome<input name="name" required></label>
+      <label>WhatsApp<input name="phone" required placeholder="(00) 00000-0000"></label>
+      <label>Tabela de preços<select name="priceGroup" required></select></label>
+      <button class="primary full" value="default">Salvar cliente</button>
+    </form>
+  </dialog>
+
+  <dialog id="priceTableDialog">
+    <form id="priceTableForm" method="dialog">
+      <div class="dialog-heading"><h2 id="priceTableDialogTitle">Nova tabela</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="originalName" type="hidden">
+      <label>Nome da tabela<input name="name" required placeholder="Ex.: Tabela 04"></label>
+      <button class="primary full" value="default">Salvar tabela</button>
+    </form>
+  </dialog>
+
+  <dialog id="serviceDialog">
+    <form id="serviceForm" method="dialog">
+      <div class="dialog-heading"><h2 id="serviceDialogTitle">Lançar serviço</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="entryId" type="hidden">
+      <label>Cliente<select name="clientId" required></select></label>
+      <label>Data<input name="date" type="date" required></label>
+      <label>Serviço<select name="catalogId" required></select></label>
+      <label>Placa ou referência<input name="reference" placeholder="Ex.: ABC1D23"></label>
+      <label>Valor
+        <input name="amount" type="number" min="0" step="0.01" required>
+        <span id="suggestedPrice" class="field-hint">Selecione o cliente e o serviço para preencher o valor.</span>
+      </label>
+      <label>Situação
+        <select name="status"><option>A fazer</option><option>Pronto</option><option>Entregue</option></select>
+      </label>
+      <button class="primary full" value="default">Salvar lançamento</button>
+    </form>
+  </dialog>
+
+  <dialog id="catalogDialog">
+    <form id="catalogForm" method="dialog">
+      <div class="dialog-heading"><h2 id="catalogDialogTitle">Serviço e preços</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="catalogId" type="hidden">
+      <label>Nome do serviço<input name="name" required placeholder="Ex.: Vistoria"></label>
+      <div id="catalogPriceFields" class="price-fields"></div>
+      <button class="primary full" value="default">Salvar serviço</button>
+    </form>
+  </dialog>
+
+  <dialog id="paymentDialog">
+    <form id="paymentForm" method="dialog">
+      <div class="dialog-heading"><h2 id="paymentDialogTitle">Registrar pagamento</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="paymentId" type="hidden">
+      <label>Cliente<select name="clientId" required></select></label>
+      <label>Data<input name="date" type="date" required></label>
+      <label>Valor recebido<input name="amount" type="number" min="0.01" step="0.01" required></label>
+      <label>Observação<input name="note" placeholder="Ex.: PIX parcial"></label>
+      <button class="primary full" value="default">Dar baixa</button>
+    </form>
+  </dialog>
+
+  <dialog id="billingDialog">
+    <form id="billingForm" method="dialog">
+      <div class="dialog-heading"><h2>Gerar cobrança</h2><button class="icon-button" value="cancel">×</button></div>
+      <label>Cliente<select name="clientId" required></select></label>
+      <label>Data inicial<input name="startDate" type="date" required></label>
+      <label>Data final<input name="endDate" type="date" required></label>
+      <p class="hint">Será criada uma cobrança com identificador e senha novos. O acesso anterior será invalidado.</p>
+      <button class="primary full" value="default">Fechar período</button>
+    </form>
+  </dialog>
+
+  <dialog id="paymentMethodDialog">
+    <form id="paymentMethodForm" method="dialog">
+      <div class="dialog-heading"><h2 id="paymentMethodDialogTitle">Nova forma de pagamento</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="methodId" type="hidden">
+      <label>Tipo
+        <select name="type" required>
+          <option value="PIX">PIX</option>
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Cartão de crédito">Cartão de crédito</option>
+          <option value="Outro">Outro</option>
+        </select>
+      </label>
+      <label>Nome para exibição<input name="name" required placeholder="Ex.: PIX Nubank"></label>
+      <label>Chave ou instruções<textarea name="details" rows="3" placeholder="CPF, telefone, e-mail, chave aleatória ou instruções"></textarea></label>
+      <label>Link de pagamento<input name="link" type="url" placeholder="Futuro link do Nubank"></label>
+      <label class="checkbox-label"><input name="active" type="checkbox" checked> Disponível nas cobranças</label>
+      <button class="primary full" value="default">Salvar forma de pagamento</button>
+    </form>
+  </dialog>
+
+  <dialog id="reportDialog" class="report-dialog">
+    <div id="reportContent"></div>
+  </dialog>
+
+  <template id="emptyTemplate">
+    <div class="empty"><strong>Nenhum registro por aqui.</strong><span>Use o botão acima para começar.</span></div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
