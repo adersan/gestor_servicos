@@ -93,6 +93,9 @@
         <div><span class="eyebrow">Cadastro</span><h2>Clientes</h2></div>
         <button class="primary" data-dialog="clientDialog">Adicionar cliente</button>
       </div>
+      <div class="filters filters-compact">
+        <input id="clientSearch" type="search" placeholder="Buscar cliente, telefone ou tabela">
+      </div>
       <div id="clientList" class="card-grid"></div>
     </section>
 
@@ -100,6 +103,9 @@
       <div class="section-heading">
         <div><span class="eyebrow">Grupos de preço</span><h2>Tabelas</h2></div>
         <button class="primary" data-dialog="priceTableDialog">Adicionar tabela</button>
+      </div>
+      <div class="filters filters-compact">
+        <input id="priceTableSearch" type="search" placeholder="Buscar tabela de preço">
       </div>
       <div id="priceTableList" class="card-grid"></div>
     </section>
@@ -110,6 +116,9 @@
         <button class="primary" data-dialog="catalogDialog">Adicionar serviço</button>
       </div>
       <p class="section-note">Cadastre cada serviço e seus preços. O valor poderá ser alterado em um lançamento específico.</p>
+      <div class="filters filters-compact">
+        <input id="catalogSearch" type="search" placeholder="Buscar nome do serviço">
+      </div>
       <div id="catalogTable"></div>
     </section>
 
@@ -120,7 +129,14 @@
       </div>
       <div class="filters">
         <select id="serviceClientFilter"><option value="">Todos os clientes</option></select>
-        <input id="serviceSearch" placeholder="Buscar placa ou descrição">
+        <select id="serviceStatusFilter">
+          <option value="">Todas as situações</option>
+          <option value="A fazer">A fazer</option>
+          <option value="Pronto">Feito</option>
+          <option value="Entregue">Entregue</option>
+          <option value="Cancelado">Cancelado</option>
+        </select>
+        <input id="serviceSearch" type="search" placeholder="Buscar cliente, placa ou serviço">
       </div>
       <div id="serviceList" class="timeline"></div>
     </section>
@@ -129,6 +145,10 @@
       <div class="section-heading">
         <div><span class="eyebrow">Baixas</span><h2>Pagamentos</h2></div>
         <button class="primary" data-dialog="paymentDialog">Registrar pagamento</button>
+      </div>
+      <div class="filters">
+        <select id="paymentClientFilter"><option value="">Todos os clientes</option></select>
+        <input id="paymentSearch" type="search" placeholder="Buscar cliente ou observação">
       </div>
       <div id="paymentList" class="timeline"></div>
     </section>
@@ -139,6 +159,14 @@
         <button class="primary" data-dialog="paymentMethodDialog">Adicionar forma</button>
       </div>
       <p class="section-note">As formas ativas serão incluídas automaticamente nas próximas cobranças e no PDF.</p>
+      <div class="filters">
+        <select id="paymentMethodStatusFilter">
+          <option value="">Ativas e inativas</option>
+          <option value="active">Somente ativas</option>
+          <option value="inactive">Somente inativas</option>
+        </select>
+        <input id="paymentMethodSearch" type="search" placeholder="Buscar tipo, nome ou chave">
+      </div>
       <div id="paymentMethodList" class="card-grid"></div>
     </section>
 
@@ -146,6 +174,10 @@
       <div class="section-heading">
         <div><span class="eyebrow">Fechamento flexível</span><h2>Cobranças</h2></div>
         <button class="primary" data-dialog="billingDialog">Gerar cobrança</button>
+      </div>
+      <div class="filters">
+        <select id="billingClientFilter"><option value="">Todos os clientes</option></select>
+        <input id="billingSearch" type="search" placeholder="Buscar cliente, identificador ou situação">
       </div>
       <div id="billingList" class="card-grid"></div>
     </section>

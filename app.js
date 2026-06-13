@@ -119,6 +119,17 @@ function emptyMarkup() {
   return document.getElementById("emptyTemplate").innerHTML;
 }
 
+function searchableText(...values) {
+  return values.join(" ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function matchesSearch(search, ...values) {
+  return !search || searchableText(...values).includes(searchableText(search));
+}
+
 function renderSelects() {
   const options = state.clients.map((client) => `<option value="${client.id}">${escapeHtml(client.name)}</option>`).join("");
   document.querySelectorAll('select[name="clientId"]').forEach((select) => {
@@ -126,10 +137,12 @@ function renderSelects() {
     select.innerHTML = `<option value="">Selecione</option>${options}`;
     select.value = current;
   });
-  const filter = document.getElementById("serviceClientFilter");
-  const currentFilter = filter.value;
-  filter.innerHTML = `<option value="">Todos os clientes</option>${options}`;
-  filter.value = currentFilter;
+  ["serviceClientFilter", "paymentClientFilter", "billingClientFilter"].forEach((id) => {
+    const filter = document.getElementById(id);
+    const currentFilter = filter.value;
+    filter.innerHTML = `<option value="">Todos os clientes</option>${options}`;
+    filter.value = currentFilter;
+  });
 
   const catalogSelect = document.querySelector('#serviceForm select[name="catalogId"]');
   const selectedCatalog = catalogSelect.value;
@@ -148,8 +161,10 @@ function renderSelects() {
 
 function renderCatalog() {
   const target = document.getElementById("catalogTable");
+  const search = document.getElementById("catalogSearch").value.trim();
+  const items = state.catalog.filter((item) => matchesSearch(search, item.name));
   const header = state.priceTables.map((name) => `<th>${escapeHtml(name)}</th>`).join("");
-  const rows = state.catalog.length ? state.catalog
+  const rows = items.length ? items
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
     .map((item) => `
       <tr>
@@ -169,7 +184,9 @@ function renderCatalog() {
 
 function renderPriceTables() {
   const target = document.getElementById("priceTableList");
-  target.innerHTML = state.priceTables.length ? state.priceTables.map((name) => {
+  const search = document.getElementById("priceTableSearch").value.trim();
+  const items = state.priceTables.filter((name) => matchesSearch(search, name));
+  target.innerHTML = items.length ? items.map((name) => {
     const clients = state.clients.filter((client) => client.priceGroup === name).length;
     return `<article class="price-table-card">
       <h3>${escapeHtml(name)}</h3>
@@ -219,7 +236,10 @@ function renderDashboard() {
 
 function renderClients() {
   const target = document.getElementById("clientList");
-  target.innerHTML = state.clients.length ? state.clients.map((client) => `
+  const search = document.getElementById("clientSearch").value.trim();
+  const items = state.clients.filter((client) =>
+    matchesSearch(search, client.name, client.phone, client.priceGroup));
+  target.innerHTML = items.length ? items.map((client) => `
     <article class="client-card">
       <h3>${escapeHtml(client.name)}</h3>
       <p class="meta">${escapeHtml(client.phone)}</p>
@@ -234,10 +254,18 @@ function renderClients() {
 
 function renderServices() {
   const clientFilter = document.getElementById("serviceClientFilter").value;
-  const search = document.getElementById("serviceSearch").value.trim().toLowerCase();
+  const statusFilter = document.getElementById("serviceStatusFilter").value;
+  const search = document.getElementById("serviceSearch").value.trim();
   const items = state.services
     .filter((item) => !clientFilter || item.clientId === clientFilter)
-    .filter((item) => !search || `${item.description} ${item.reference}`.toLowerCase().includes(search))
+    .filter((item) => !statusFilter || item.status === statusFilter)
+    .filter((item) => matchesSearch(
+      search,
+      item.description,
+      item.reference,
+      clientById(item.clientId)?.name,
+      serviceStatusLabel(item.status)
+    ))
     .sort((a, b) => b.date.localeCompare(a.date));
   document.getElementById("serviceList").innerHTML = items.length ? items.map((item) => `
     <article class="timeline-item ${isOverdueService(item) ? "service-overdue" : ""}">
@@ -255,7 +283,12 @@ function renderServices() {
 }
 
 function renderPayments() {
-  const items = [...state.payments].sort((a, b) => b.date.localeCompare(a.date));
+  const clientFilter = document.getElementById("paymentClientFilter").value;
+  const search = document.getElementById("paymentSearch").value.trim();
+  const items = state.payments
+    .filter((item) => !clientFilter || item.clientId === clientFilter)
+    .filter((item) => matchesSearch(search, clientById(item.clientId)?.name, item.note))
+    .sort((a, b) => b.date.localeCompare(a.date));
   document.getElementById("paymentList").innerHTML = items.length ? items.map((item) => `
     <article class="timeline-item">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
@@ -267,7 +300,12 @@ function renderPayments() {
 
 function renderPaymentMethods() {
   const target = document.getElementById("paymentMethodList");
-  target.innerHTML = state.paymentMethods.length ? state.paymentMethods.map((method) => `
+  const search = document.getElementById("paymentMethodSearch").value.trim();
+  const statusFilter = document.getElementById("paymentMethodStatusFilter").value;
+  const items = state.paymentMethods
+    .filter((method) => !statusFilter || (statusFilter === "active" ? method.active : !method.active))
+    .filter((method) => matchesSearch(search, method.type, method.name, method.details, method.link));
+  target.innerHTML = items.length ? items.map((method) => `
     <article class="payment-method-card">
       <span class="method-type">${escapeHtml(method.type)}</span>
       <h3>${escapeHtml(method.name)}</h3>
@@ -282,7 +320,19 @@ function renderPaymentMethods() {
 }
 
 function renderBillings() {
-  const items = [...state.billings].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const clientFilter = document.getElementById("billingClientFilter").value;
+  const search = document.getElementById("billingSearch").value.trim();
+  const items = state.billings
+    .filter((item) => !clientFilter || item.clientId === clientFilter)
+    .filter((item) => matchesSearch(
+      search,
+      clientById(item.clientId)?.name,
+      item.identifier,
+      item.status,
+      item.startDate,
+      item.endDate
+    ))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   document.getElementById("billingList").innerHTML = items.length ? items.map((item) => `
     <article class="billing-card">
       <span class="eyebrow">${item.startDate.split("-").reverse().join("/")} a ${item.endDate.split("-").reverse().join("/")}</span>
@@ -884,8 +934,22 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   }
 });
 
-document.getElementById("serviceClientFilter").addEventListener("change", renderServices);
-document.getElementById("serviceSearch").addEventListener("input", renderServices);
+[
+  ["clientSearch", "input", renderClients],
+  ["priceTableSearch", "input", renderPriceTables],
+  ["catalogSearch", "input", renderCatalog],
+  ["serviceClientFilter", "change", renderServices],
+  ["serviceStatusFilter", "change", renderServices],
+  ["serviceSearch", "input", renderServices],
+  ["paymentClientFilter", "change", renderPayments],
+  ["paymentSearch", "input", renderPayments],
+  ["paymentMethodStatusFilter", "change", renderPaymentMethods],
+  ["paymentMethodSearch", "input", renderPaymentMethods],
+  ["billingClientFilter", "change", renderBillings],
+  ["billingSearch", "input", renderBillings]
+].forEach(([id, eventName, handler]) => {
+  document.getElementById(id).addEventListener(eventName, handler);
+});
 document.querySelector('#serviceForm select[name="clientId"]').addEventListener("change", updateSuggestedPrice);
 document.querySelector('#serviceForm select[name="catalogId"]').addEventListener("change", updateSuggestedPrice);
 
