@@ -692,7 +692,10 @@ document.getElementById("paymentMethodForm").addEventListener("submit", (event) 
 document.getElementById("billingForm").addEventListener("submit", async (event) => {
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
-  const data = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const dialog = form.closest("dialog");
+  const submitButton = event.submitter;
+  const data = new FormData(form);
   const clientId = data.get("clientId");
   const startDate = data.get("startDate");
   const endDate = data.get("endDate");
@@ -722,9 +725,9 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   };
   state.billings.push(billing);
 
-  const submitButton = event.submitter;
   submitButton.disabled = true;
   submitButton.textContent = "Gerando acesso...";
+  let persisted = false;
   try {
     await window.dataStore.upsertState(state);
     const credentials = await issueClientAccess(billing);
@@ -733,17 +736,22 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     services.forEach((item) => { item.billingId = billingId; });
     payments.forEach((item) => { item.billingId = billingId; });
     await window.dataStore.upsertState(state);
-    event.currentTarget.reset();
-    event.currentTarget.closest("dialog").close();
+    persisted = true;
+    form.reset();
+    dialog.close();
     render();
     alert(`Cobrança criada.\n\nIdentificador: ${billing.identifier}\nSenha: ${billing.password}\n\nA senha será exibida somente agora e na mensagem copiada antes de recarregar.`);
   } catch (error) {
     console.error(error);
-    state.billings = state.billings.filter((item) => item.id !== billingId);
-    try {
-      await window.dataStore.upsertState(state);
-    } catch (rollbackError) {
-      console.error("Falha ao desfazer a cobrança incompleta:", rollbackError);
+    if (!persisted) {
+      state.billings = state.billings.filter((item) => item.id !== billingId);
+      services.forEach((item) => { item.billingId = null; });
+      payments.forEach((item) => { item.billingId = null; });
+      try {
+        await window.dataStore.upsertState(state);
+      } catch (rollbackError) {
+        console.error("Falha ao desfazer a cobrança incompleta:", rollbackError);
+      }
     }
     alert(error.message);
     render();
