@@ -202,6 +202,11 @@ alter table public.billings enable row level security;
 alter table public.client_access_credentials enable row level security;
 
 grant usage on schema public to authenticated;
+grant usage on schema public to service_role;
+grant all privileges on all tables in schema public to service_role;
+grant all privileges on all sequences in schema public to service_role;
+alter default privileges in schema public grant all privileges on tables to service_role;
+alter default privileges in schema public grant all privileges on sequences to service_role;
 grant select, insert, update, delete on table public.admin_users to authenticated;
 grant select, insert, update, delete on table public.price_tables to authenticated;
 grant select, insert, update, delete on table public.clients to authenticated;
