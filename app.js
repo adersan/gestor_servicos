@@ -27,6 +27,7 @@ const initialState = {
 
 let state = loadState();
 let deferredInstallPrompt;
+let remoteReady = false;
 
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -44,6 +45,35 @@ function loadState() {
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   render();
+  if (remoteReady && window.dataStore) {
+    window.dataStore.scheduleSave(state, (error) => {
+      console.error("Falha ao salvar no Supabase:", error.code, error.message);
+      alert("Não foi possível sincronizar os dados com o banco.");
+    });
+  }
+}
+
+async function initializeRemoteState() {
+  if (!window.dataStore || remoteReady) return;
+  try {
+    const remoteState = await window.dataStore.fetchAll();
+    const hasRemoteData = remoteState.priceTables.length
+      || remoteState.clients.length
+      || remoteState.catalog.length;
+
+    if (hasRemoteData) {
+      state = remoteState;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } else {
+      await window.dataStore.upsertState(state);
+    }
+
+    remoteReady = true;
+    render();
+  } catch (error) {
+    console.error("Falha ao carregar dados do Supabase:", error.code, error.message);
+    alert("O login funcionou, mas os dados online não puderam ser carregados.");
+  }
 }
 
 function clientById(id) {
@@ -675,3 +705,4 @@ document.getElementById("installButton").addEventListener("click", async () => {
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 render();
+window.addEventListener("app-authenticated", initializeRemoteState);

@@ -201,6 +201,18 @@ alter table public.payment_methods enable row level security;
 alter table public.billings enable row level security;
 alter table public.client_access_credentials enable row level security;
 
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.admin_users to authenticated;
+grant select, insert, update, delete on table public.price_tables to authenticated;
+grant select, insert, update, delete on table public.clients to authenticated;
+grant select, insert, update, delete on table public.service_catalog to authenticated;
+grant select, insert, update, delete on table public.service_prices to authenticated;
+grant select, insert, update, delete on table public.service_entries to authenticated;
+grant select, insert, update, delete on table public.payments to authenticated;
+grant select, insert, update, delete on table public.payment_methods to authenticated;
+grant select, insert, update, delete on table public.billings to authenticated;
+grant select, insert, update, delete on table public.client_access_credentials to authenticated;
+
 drop policy if exists "admin_users_admin_all" on public.admin_users;
 drop policy if exists "price_tables_admin_all" on public.price_tables;
 drop policy if exists "clients_admin_all" on public.clients;

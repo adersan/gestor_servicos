@@ -1,0 +1,11 @@
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.admin_users to authenticated;
+grant select, insert, update, delete on table public.price_tables to authenticated;
+grant select, insert, update, delete on table public.clients to authenticated;
+grant select, insert, update, delete on table public.service_catalog to authenticated;
+grant select, insert, update, delete on table public.service_prices to authenticated;
+grant select, insert, update, delete on table public.service_entries to authenticated;
+grant select, insert, update, delete on table public.payments to authenticated;
+grant select, insert, update, delete on table public.payment_methods to authenticated;
+grant select, insert, update, delete on table public.billings to authenticated;
+grant select, insert, update, delete on table public.client_access_credentials to authenticated;

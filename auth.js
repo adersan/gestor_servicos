@@ -49,9 +49,12 @@
       authScreen.classList.add("hidden");
       logoutButton.classList.remove("hidden");
       document.body.classList.remove("auth-loading");
+      window.dispatchEvent(new CustomEvent("app-authenticated", {
+        detail: { user: session.user }
+      }));
     } catch (error) {
       loginMessage.textContent = "Não foi possível validar o acesso administrativo.";
-      console.error(error);
+      console.error("Falha ao validar administrador:", error.code, error.message);
     }
   }
 
