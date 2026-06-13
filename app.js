@@ -593,6 +593,9 @@ function renderBillings() {
       <h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3>
       <p class="meta">${billingCurrentStatus(item)} · Saldo em aberto</p>
       <strong class="hero-value" style="font-size:30px">${money.format(billingOpenAmount(item))}</strong>
+      <p class="billing-history">${item.sendHistory?.length
+        ? `Último envio: ${new Date(item.sendHistory[item.sendHistory.length - 1].sentAt).toLocaleString("pt-BR")}`
+        : "Ainda não enviada pelo sistema"}</p>
       <div class="access-box">${item.identifier
         ? `<div class="access-data">
             <span><small>ID</small><strong>${escapeHtml(item.identifier)}</strong></span>
@@ -609,6 +612,7 @@ function renderBillings() {
         <button class="table-action" data-view-report="${item.id}">Ver relatório</button>
         <button class="table-action" data-copy-whatsapp="${item.id}">WhatsApp</button>
         <button class="table-action" data-renew-access="${item.id}">Gerar novo acesso</button>
+        ${billingCurrentStatus(item) === "Aberta" ? `<button class="table-action danger" data-cancel-billing="${item.id}">Cancelar</button>` : ""}
       </div>
     </article>`).join("") : emptyMarkup();
 }
@@ -654,6 +658,16 @@ function setDefaultDates() {
   document.querySelectorAll('input[type="date"]').forEach((input) => {
     if (!input.value) input.value = today;
   });
+}
+
+function renderBillingPaymentMethods() {
+  const target = document.getElementById("billingPaymentMethods");
+  const activeMethods = state.paymentMethods.filter((method) => method.active);
+  target.innerHTML = activeMethods.length ? activeMethods.map((method) => `
+    <label class="checkbox-label">
+      <input type="checkbox" name="paymentMethodId" value="${method.id}" checked>
+      ${escapeHtml(method.name)} (${escapeHtml(method.type)})
+    </label>`).join("") : `<p class="meta">Cadastre uma forma de pagamento ativa.</p>`;
 }
 
 function updateSuggestedPrice() {
@@ -774,7 +788,12 @@ function openBillingReport(billingId) {
   const client = clientById(billing.clientId);
   const details = billingDetails(billing);
   const maxValue = Math.max(details.serviceTotal, details.paymentTotal, Math.abs(details.previousBalance), 1);
-  const methods = state.paymentMethods.filter((method) => method.active);
+  const selectedMethodIds = billing.paymentMethodIds || [];
+  const methods = billing.paymentMethods?.length
+    ? billing.paymentMethods
+    : state.paymentMethods.filter((method) =>
+      selectedMethodIds.length ? selectedMethodIds.includes(method.id) : method.active);
+  const laterPayments = state.payments.filter((payment) => paymentWasAfterBilling(payment, billing));
   const serviceRows = details.services.length ? details.services.map((item) => `
     <tr><td>${item.date.split("-").reverse().join("/")}</td><td>${escapeHtml(item.description)}</td><td>${escapeHtml(item.reference || "-")}</td><td>${money.format(item.amount)}</td></tr>
   `).join("") : `<tr><td colspan="4">Nenhum serviço neste período.</td></tr>`;
@@ -793,12 +812,13 @@ function openBillingReport(billingId) {
     </div>
     <header class="report-header">
       <div><span class="eyebrow">Relatório de cobrança</span><h2>${escapeHtml(client?.name || "")}</h2><p class="meta">${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")}</p></div>
-      <div><span class="meta">Total em aberto</span><strong class="hero-value" style="font-size:36px">${money.format(billing.amount)}</strong></div>
+      <div><span class="meta">${billingCurrentStatus(billing)}</span><strong class="hero-value" style="font-size:36px">${money.format(billingOpenAmount(billing))}</strong></div>
     </header>
     <div class="report-summary">
       <article><span class="meta">Saldo anterior</span><strong>${money.format(details.previousBalance)}</strong></article>
       <article><span class="meta">Serviços</span><strong>${money.format(details.serviceTotal)}</strong></article>
       <article><span class="meta">Pagamentos</span><strong>${money.format(details.paymentTotal)}</strong></article>
+      <article><span class="meta">Baixas após cobrança</span><strong>${money.format(laterPayments.reduce((sum, item) => sum + Number(item.amount), 0))}</strong></article>
     </div>
     <h3>Resumo gráfico</h3>
     <div class="chart">
@@ -817,11 +837,16 @@ function openBillingReport(billingId) {
 
 function whatsappMessage(billing) {
   const client = clientById(billing.clientId);
-  const methods = state.paymentMethods.filter((method) => method.active)
+  const selectedMethodIds = billing.paymentMethodIds || [];
+  const billingMethods = billing.paymentMethods?.length
+    ? billing.paymentMethods
+    : state.paymentMethods.filter((method) =>
+      selectedMethodIds.length ? selectedMethodIds.includes(method.id) : method.active);
+  const methods = billingMethods
     .map((method) => `${method.name}: ${method.details || method.link || "Consulte as instruções no relatório"}`)
     .join("\n");
   const portalUrl = `${location.origin}/cliente.html`;
-  return `Olá, ${client?.name || ""}!\n\nSua cobrança de ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")} foi gerada.\n\nTotal em aberto: ${money.format(billing.amount)}\n\nFormas de pagamento:\n${methods}\n\nAcesse seu relatório:\n${portalUrl}\nIdentificador: ${billing.identifier}\nSenha: ${billing.password || "solicite um novo acesso"}\n\nO PDF detalhado seguirá junto com esta mensagem.`;
+  return `Olá, ${client?.name || ""}!\n\nSua cobrança de ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")} foi gerada.\n\nTotal em aberto: ${money.format(billingOpenAmount(billing))}\n\nFormas de pagamento:\n${methods}\n\nAcesse seu relatório:\n${portalUrl}\nIdentificador: ${billing.identifier}\nSenha: ${billing.password || "solicite um novo acesso"}\n\nO PDF detalhado seguirá junto com esta mensagem.`;
 }
 
 async function issueClientAccess(billing) {
@@ -839,6 +864,26 @@ async function issueClientAccess(billing) {
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || "Não foi possível gerar o acesso do cliente.");
+  return result;
+}
+
+async function cancelClientAccess(billing) {
+  const { data } = await window.supabaseClient.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+
+  const response = await fetch("/.netlify/functions/cancel-client-access", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ billingId: billing.id })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || "Não foi possível cancelar o acesso do cliente.");
+  }
   return result;
 }
 
@@ -885,6 +930,7 @@ document.addEventListener("click", async (event) => {
     }
     else {
       setDefaultDates();
+      if (dialogButton.dataset.dialog === "billingDialog") renderBillingPaymentMethods();
       document.getElementById(dialogButton.dataset.dialog).showModal();
     }
   }
@@ -1028,13 +1074,41 @@ document.addEventListener("click", async (event) => {
       renewAccessButton.textContent = "Gerar novo acesso";
     }
   }
+  const cancelBillingButton = event.target.closest("[data-cancel-billing]");
+  if (cancelBillingButton) {
+    const billing = state.billings.find((item) => item.id === cancelBillingButton.dataset.cancelBilling);
+    if (billing && billingPaidAmount(billing) > 0) {
+      alert("Esta cobrança possui pagamento posterior e não pode ser cancelada.");
+    } else if (billing && confirm("Cancelar esta cobrança e liberar os lançamentos para um novo fechamento?")) {
+      try {
+        await cancelClientAccess(billing);
+        billing.status = "Cancelada";
+        billing.active = false;
+        state.services.forEach((item) => {
+          if (item.billingId === billing.id) item.billingId = null;
+        });
+        state.payments.forEach((item) => {
+          if (item.billingId === billing.id && !paymentWasAfterBilling(item, billing)) item.billingId = null;
+        });
+        saveState();
+      } catch (error) {
+        console.error(error);
+        alert(error.message);
+      }
+    }
+  }
   if (event.target.closest("[data-close-report]")) document.getElementById("reportDialog").close();
   if (event.target.closest("[data-print-report]")) window.print();
   const whatsappButton = event.target.closest("[data-copy-whatsapp]");
   if (whatsappButton) {
     const billing = state.billings.find((item) => item.id === whatsappButton.dataset.copyWhatsapp);
     navigator.clipboard.writeText(whatsappMessage(billing))
-      .then(() => alert("Mensagem copiada. O envio automático será conectado à API do WhatsApp."))
+      .then(() => {
+        billing.sendHistory ||= [];
+        billing.sendHistory.push({ sentAt: new Date().toISOString(), channel: "WhatsApp", mode: "Copiada" });
+        saveState();
+        alert("Mensagem copiada e envio registrado no histórico.");
+      })
       .catch(() => alert(whatsappMessage(billing)));
   }
 });
@@ -1210,6 +1284,11 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   const startDate = data.get("startDate");
   const endDate = data.get("endDate");
   const billingId = crypto.randomUUID();
+  const paymentMethodIds = data.getAll("paymentMethodId");
+  if (!paymentMethodIds.length) {
+    alert("Selecione pelo menos uma forma de pagamento.");
+    return;
+  }
   const services = state.services.filter((item) =>
     !item.billingId && item.status !== "Cancelado"
     && item.clientId === clientId && item.date >= startDate && item.date <= endDate);
@@ -1242,6 +1321,11 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     password: "",
     status: "Aberta",
     active: true,
+    paymentMethodIds,
+    paymentMethods: state.paymentMethods
+      .filter((method) => paymentMethodIds.includes(method.id))
+      .map((method) => ({ ...method })),
+    sendHistory: [],
     createdAt: new Date().toISOString()
   };
   state.billings.push(billing);

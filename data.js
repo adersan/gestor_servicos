@@ -110,6 +110,9 @@
         servicesTotal: Number(billing.services_total),
         paymentsTotal: Number(billing.payments_total),
         identifier: billing.snapshot?.identifier || "",
+        paymentMethodIds: billing.snapshot?.paymentMethodIds || [],
+        paymentMethods: billing.snapshot?.paymentMethods || [],
+        sendHistory: billing.snapshot?.sendHistory || [],
         password: "",
         status: billing.status,
         active: billing.status !== "Cancelada",
@@ -254,7 +257,10 @@
           total_due: Number(item.amount),
           status: item.status || "Aberta",
           snapshot: {
-            identifier: item.identifier
+            identifier: item.identifier,
+            paymentMethodIds: item.paymentMethodIds || [],
+            paymentMethods: item.paymentMethods || [],
+            sendHistory: item.sendHistory || []
           },
           created_at: item.createdAt
         }))

@@ -290,6 +290,10 @@
       <label>Cliente<select name="clientId" required></select></label>
       <label>Data inicial<input name="startDate" type="date" required></label>
       <label>Data final<input name="endDate" type="date" required></label>
+      <fieldset class="method-selector">
+        <legend>Formas de pagamento desta cobrança</legend>
+        <div id="billingPaymentMethods"></div>
+      </fieldset>
       <p class="hint">Será criada uma cobrança com identificador e senha novos. O acesso anterior será invalidado.</p>
       <button class="primary full" value="default">Fechar período</button>
     </form>

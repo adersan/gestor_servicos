@@ -14,16 +14,21 @@ export default async (request) => {
       supabase(`/rest/v1/billings?id=eq.${billingId}&client_id=eq.${clientId}&select=*`),
       supabase(`/rest/v1/service_entries?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,service_name,reference,service_date,amount,status&order=service_date.asc`),
       supabase(`/rest/v1/payments?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,payment_date,amount,method,notes&order=payment_date.asc`),
-      supabase("/rest/v1/payment_methods?active=eq.true&select=type,name,details,payment_link&order=created_at.asc")
+      supabase("/rest/v1/payment_methods?active=eq.true&select=id,type,name,details,payment_link&order=created_at.asc")
     ]);
     if (!clients.length || !billings.length) return json(404, { error: "Cobrança não encontrada." });
+
+    const selectedMethodIds = billings[0].snapshot?.paymentMethodIds || [];
+    const selectedMethods = selectedMethodIds.length
+      ? methods.filter((method) => selectedMethodIds.includes(method.id))
+      : methods;
 
     return json(200, {
       client: clients[0],
       billing: billings[0],
       services,
       payments,
-      paymentMethods: methods
+      paymentMethods: selectedMethods
     });
   } catch (error) {
     console.error(error);
