@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#164f43">
+  <title>Área do cliente | Gestor de Serviços</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="cliente.css">
+</head>
+<body class="client-portal">
+  <header class="client-header">
+    <div>
+      <span class="eyebrow">Gestor de Serviços</span>
+      <h1>Área do cliente</h1>
+    </div>
+    <button id="logoutButton" class="secondary hidden" type="button">Sair</button>
+  </header>
+
+  <main class="client-main">
+    <section id="loginPanel" class="client-login card">
+      <span class="eyebrow">Acesso temporário</span>
+      <h2>Consulte sua cobrança</h2>
+      <p class="meta">Use o identificador e a senha recebidos junto com a cobrança.</p>
+      <form id="clientLoginForm">
+        <label>Identificador<input name="identifier" autocomplete="username" required placeholder="GS-00000000"></label>
+        <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="primary full" type="submit">Entrar</button>
+        <p id="loginError" class="form-error" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="statementPanel" class="hidden">
+      <div class="client-toolbar">
+        <div>
+          <span class="eyebrow">Relatório de cobrança</span>
+          <h2 id="clientName"></h2>
+          <p id="billingPeriod" class="meta"></p>
+        </div>
+        <button id="printButton" class="primary" type="button">Salvar em PDF</button>
+      </div>
+      <div id="statementContent"></div>
+    </section>
+  </main>
+
+  <script src="cliente.js"></script>
+</body>
+</html>

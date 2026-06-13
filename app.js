@@ -245,7 +245,9 @@ function renderBillings() {
       <h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3>
       <p class="meta">Total fechado</p>
       <strong class="hero-value" style="font-size:30px">${money.format(item.amount)}</strong>
-      <div class="access-box">ID: ${item.identifier}<br>Senha: ${item.password}</div>
+      <div class="access-box">${item.identifier
+        ? `ID: ${item.identifier}<br>Senha: ${item.password || "gerada e enviada na criação"}`
+        : "Acesso do cliente ainda não gerado."}</div>
       <div class="card-actions">
         <button class="table-action" data-view-report="${item.id}">Ver relatório</button>
         <button class="table-action" data-copy-whatsapp="${item.id}">WhatsApp</button>
@@ -364,12 +366,18 @@ function openPaymentMethodForm(method = null) {
 
 function billingDetails(billing) {
   const services = state.services.filter((item) =>
-    item.clientId === billing.clientId && item.date >= billing.startDate && item.date <= billing.endDate);
+    item.billingId === billing.id || (
+      !item.billingId && item.clientId === billing.clientId
+      && item.date >= billing.startDate && item.date <= billing.endDate
+    ));
   const payments = state.payments.filter((item) =>
-    item.clientId === billing.clientId && item.date >= billing.startDate && item.date <= billing.endDate);
-  const serviceTotal = services.reduce((sum, item) => sum + item.amount, 0);
-  const paymentTotal = payments.reduce((sum, item) => sum + item.amount, 0);
-  const previousBalance = billing.amount - serviceTotal + paymentTotal;
+    item.billingId === billing.id || (
+      !item.billingId && item.clientId === billing.clientId
+      && item.date >= billing.startDate && item.date <= billing.endDate
+    ));
+  const serviceTotal = billing.servicesTotal ?? services.reduce((sum, item) => sum + item.amount, 0);
+  const paymentTotal = billing.paymentsTotal ?? payments.reduce((sum, item) => sum + item.amount, 0);
+  const previousBalance = billing.previousBalance ?? billing.amount - serviceTotal + paymentTotal;
   return { services, payments, serviceTotal, paymentTotal, previousBalance };
 }
 
@@ -414,7 +422,7 @@ function openBillingReport(billingId) {
     <table class="report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Valor</th></tr></thead><tbody>${serviceRows}</tbody></table>
     <h3>Formas de pagamento</h3>
     <div class="payment-options">${methodRows}</div>
-    <div class="access-box">Acesso do cliente — Identificador: ${billing.identifier} | Senha: ${billing.password}</div>
+    <div class="access-box">Acesso do cliente — Identificador: ${billing.identifier || "não gerado"} | Senha: ${billing.password || "exibida somente ao gerar o acesso"}</div>
   </section>`;
   document.getElementById("reportDialog").showModal();
 }
@@ -424,7 +432,26 @@ function whatsappMessage(billing) {
   const methods = state.paymentMethods.filter((method) => method.active)
     .map((method) => `${method.name}: ${method.details || method.link || "Consulte as instruções no relatório"}`)
     .join("\n");
-  return `Olá, ${client?.name || ""}!\n\nSua cobrança de ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")} foi gerada.\n\nTotal em aberto: ${money.format(billing.amount)}\n\nFormas de pagamento:\n${methods}\n\nIdentificador: ${billing.identifier}\nSenha: ${billing.password}\n\nO PDF detalhado seguirá junto com esta mensagem.`;
+  const portalUrl = `${location.origin}/cliente.html`;
+  return `Olá, ${client?.name || ""}!\n\nSua cobrança de ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")} foi gerada.\n\nTotal em aberto: ${money.format(billing.amount)}\n\nFormas de pagamento:\n${methods}\n\nAcesse seu relatório:\n${portalUrl}\nIdentificador: ${billing.identifier}\nSenha: ${billing.password || "solicite um novo acesso"}\n\nO PDF detalhado seguirá junto com esta mensagem.`;
+}
+
+async function issueClientAccess(billing) {
+  const { data } = await window.supabaseClient.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+
+  const response = await fetch("/.netlify/functions/issue-client-access", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({ clientId: billing.clientId, billingId: billing.id })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Não foi possível gerar o acesso do cliente.");
+  return result;
 }
 
 document.addEventListener("click", (event) => {
@@ -662,27 +689,68 @@ document.getElementById("paymentMethodForm").addEventListener("submit", (event) 
   saveState();
 });
 
-document.getElementById("billingForm").addEventListener("submit", (event) => {
+document.getElementById("billingForm").addEventListener("submit", async (event) => {
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const clientId = data.get("clientId");
+  const startDate = data.get("startDate");
   const endDate = data.get("endDate");
-  state.billings = state.billings.map((billing) => billing.clientId === clientId ? { ...billing, active: false } : billing);
-  state.billings.push({
-    id: crypto.randomUUID(),
+  const billingId = crypto.randomUUID();
+  const services = state.services.filter((item) =>
+    !item.billingId && item.clientId === clientId && item.date >= startDate && item.date <= endDate);
+  const payments = state.payments.filter((item) =>
+    !item.billingId && item.clientId === clientId && item.date >= startDate && item.date <= endDate);
+  const servicesTotal = services.reduce((sum, item) => sum + item.amount, 0);
+  const paymentsTotal = payments.reduce((sum, item) => sum + item.amount, 0);
+  const amount = balanceFor(clientId, endDate);
+
+  const billing = {
+    id: billingId,
     clientId,
-    startDate: data.get("startDate"),
+    startDate,
     endDate,
-    amount: balanceFor(clientId, endDate),
-    identifier: String(Math.floor(100000 + Math.random() * 900000)),
-    password: String(Math.floor(100000 + Math.random() * 900000)),
+    amount,
+    previousBalance: amount - servicesTotal + paymentsTotal,
+    servicesTotal,
+    paymentsTotal,
+    identifier: "",
+    password: "",
+    status: "Aberta",
     active: true,
     createdAt: new Date().toISOString()
-  });
-  event.currentTarget.reset();
-  event.currentTarget.closest("dialog").close();
-  saveState();
+  };
+  state.billings.push(billing);
+
+  const submitButton = event.submitter;
+  submitButton.disabled = true;
+  submitButton.textContent = "Gerando acesso...";
+  try {
+    await window.dataStore.upsertState(state);
+    const credentials = await issueClientAccess(billing);
+    billing.identifier = credentials.identifier;
+    billing.password = credentials.password;
+    services.forEach((item) => { item.billingId = billingId; });
+    payments.forEach((item) => { item.billingId = billingId; });
+    await window.dataStore.upsertState(state);
+    event.currentTarget.reset();
+    event.currentTarget.closest("dialog").close();
+    render();
+    alert(`Cobrança criada.\n\nIdentificador: ${billing.identifier}\nSenha: ${billing.password}\n\nA senha será exibida somente agora e na mensagem copiada antes de recarregar.`);
+  } catch (error) {
+    console.error(error);
+    state.billings = state.billings.filter((item) => item.id !== billingId);
+    try {
+      await window.dataStore.upsertState(state);
+    } catch (rollbackError) {
+      console.error("Falha ao desfazer a cobrança incompleta:", rollbackError);
+    }
+    alert(error.message);
+    render();
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Fechar período";
+  }
 });
 
 document.getElementById("serviceClientFilter").addEventListener("change", renderServices);

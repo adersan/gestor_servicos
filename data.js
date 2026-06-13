@@ -66,6 +66,7 @@
         id: entry.id,
         clientId: entry.client_id,
         catalogId: entry.service_id,
+        billingId: entry.billing_id,
         date: entry.service_date,
         description: entry.service_name,
         reference: entry.reference || "",
@@ -75,6 +76,7 @@
       payments: paymentsResult.data.map((payment) => ({
         id: payment.id,
         clientId: payment.client_id,
+        billingId: payment.billing_id,
         date: payment.payment_date,
         amount: Number(payment.amount),
         note: payment.notes || ""
@@ -93,8 +95,12 @@
         startDate: billing.period_start,
         endDate: billing.period_end,
         amount: Number(billing.total_due),
+        previousBalance: Number(billing.previous_balance),
+        servicesTotal: Number(billing.services_total),
+        paymentsTotal: Number(billing.payments_total),
         identifier: billing.snapshot?.identifier || "",
-        password: billing.snapshot?.password || "",
+        password: "",
+        status: billing.status,
         active: billing.status !== "Cancelada",
         createdAt: billing.created_at
       }))
@@ -163,7 +169,8 @@
           reference: item.reference || null,
           service_date: item.date,
           amount: Number(item.amount),
-          status: item.status
+          status: item.status,
+          billing_id: item.billingId || null
         }))
       );
       if (entriesResult.error) throw entriesResult.error;
@@ -176,7 +183,8 @@
           client_id: item.clientId,
           payment_date: item.date,
           amount: Number(item.amount),
-          notes: item.note || null
+          notes: item.note || null,
+          billing_id: item.billingId || null
         }))
       );
       if (paymentsResult.error) throw paymentsResult.error;
@@ -203,11 +211,13 @@
           client_id: item.clientId,
           period_start: item.startDate,
           period_end: item.endDate,
+          previous_balance: Number(item.previousBalance || 0),
+          services_total: Number(item.servicesTotal || 0),
+          payments_total: Number(item.paymentsTotal || 0),
           total_due: Number(item.amount),
-          status: item.active ? "Aberta" : "Cancelada",
+          status: item.status || "Aberta",
           snapshot: {
-            identifier: item.identifier,
-            password: item.password
+            identifier: item.identifier
           },
           created_at: item.createdAt
         }))

@@ -43,6 +43,16 @@ arquivo `netlify.toml`.
 Nunca coloque uma chave secreta ou a antiga `service_role` no navegador ou no GitHub. Ela deverá existir
 somente nas variáveis protegidas das funções do Netlify.
 
+### Variáveis protegidas do Netlify
+
+- `SUPABASE_URL`: URL do projeto Supabase.
+- `SUPABASE_SECRET_KEY`: chave secreta do Supabase. Nunca coloque esta chave em `config.js`.
+- `CLIENT_PORTAL_SECRET`: texto aleatório longo usado para assinar a sessão do cliente.
+
+Portal do cliente:
+
+https://gestor-servicos-adersan.netlify.app/cliente.html
+
 ## Próximas etapas
 
 - Trocar `localStorage` pelo Supabase.
