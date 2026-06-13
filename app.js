@@ -246,7 +246,16 @@ function renderBillings() {
       <p class="meta">Total fechado</p>
       <strong class="hero-value" style="font-size:30px">${money.format(item.amount)}</strong>
       <div class="access-box">${item.identifier
-        ? `ID: ${item.identifier}<br>Senha: ${item.password || "gerada e enviada na criação"}`
+        ? `<div class="access-data">
+            <span><small>ID</small><strong>${escapeHtml(item.identifier)}</strong></span>
+            <button type="button" data-copy-access="identifier" data-billing-id="${item.id}">Copiar ID</button>
+          </div>
+          ${item.password
+            ? `<div class="access-data">
+                <span><small>Senha</small><strong>${escapeHtml(item.password)}</strong></span>
+                <button type="button" data-copy-access="password" data-billing-id="${item.id}">Copiar senha</button>
+              </div>`
+            : `<span class="access-note">Senha exibida somente ao gerar o acesso.</span>`}`
         : "Acesso do cliente ainda não gerado."}</div>
       <div class="card-actions">
         <button class="table-action" data-view-report="${item.id}">Ver relatório</button>
@@ -254,6 +263,23 @@ function renderBillings() {
         <button class="table-action" data-renew-access="${item.id}">Gerar novo acesso</button>
       </div>
     </article>`).join("") : emptyMarkup();
+}
+
+async function copyText(value, label) {
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch {
+    const field = document.createElement("textarea");
+    field.value = value;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.appendChild(field);
+    field.select();
+    document.execCommand("copy");
+    field.remove();
+  }
+  alert(`${label} copiado.`);
 }
 
 function render() {
@@ -554,6 +580,13 @@ document.addEventListener("click", async (event) => {
 
   const reportButton = event.target.closest("[data-view-report]");
   if (reportButton) openBillingReport(reportButton.dataset.viewReport);
+  const copyAccessButton = event.target.closest("[data-copy-access]");
+  if (copyAccessButton) {
+    const billing = state.billings.find((item) => item.id === copyAccessButton.dataset.billingId);
+    const isPassword = copyAccessButton.dataset.copyAccess === "password";
+    const value = isPassword ? billing?.password : billing?.identifier;
+    if (value) await copyText(value, isPassword ? "Senha" : "Identificador");
+  }
   const renewAccessButton = event.target.closest("[data-renew-access]");
   if (renewAccessButton) {
     const billing = state.billings.find((item) => item.id === renewAccessButton.dataset.renewAccess);

@@ -83,7 +83,13 @@ dialog form { display: grid; gap: 14px; padding: 24px; }
 .dialog-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .icon-button { width: 36px; height: 36px; border: 0; border-radius: 50%; background: #eef0ec; font-size: 24px; }
 label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
-.access-box { margin-top: 16px; padding: 12px; border-radius: 12px; background: #f2f6f4; font-family: ui-monospace, monospace; font-size: 13px; }
+.access-box { display: grid; gap: 8px; margin-top: 16px; padding: 12px; border-radius: 12px; background: #f2f6f4; font-family: ui-monospace, monospace; font-size: 13px; }
+.access-data { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.access-data span { min-width: 0; }
+.access-data small { display: block; color: var(--muted); font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
+.access-data strong { display: block; overflow-wrap: anywhere; user-select: all; }
+.access-data button { padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--brand); font-family: Arial, Helvetica, sans-serif; font-size: 11px; font-weight: 750; }
+.access-note { color: var(--muted); font-family: Arial, Helvetica, sans-serif; font-size: 11px; }
 .catalog-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 18px; background: white; }
 .catalog-table { width: 100%; min-width: 680px; border-collapse: collapse; }
 .catalog-table th, .catalog-table td { padding: 16px; border-bottom: 1px solid var(--line); text-align: left; }
