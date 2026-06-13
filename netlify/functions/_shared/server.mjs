@@ -24,11 +24,14 @@ export function json(status, body) {
 
 export async function supabase(path, options = {}) {
   const secret = env("SUPABASE_SECRET_KEY");
+  const authorization = options.token
+    ? { Authorization: `Bearer ${options.token}` }
+    : {};
   const response = await fetch(`${env("SUPABASE_URL")}${path}`, {
     ...options,
     headers: {
       apikey: secret,
-      Authorization: `Bearer ${options.token || secret}`,
+      ...authorization,
       "Content-Type": "application/json",
       Prefer: options.prefer || "",
       ...options.headers
