@@ -33,14 +33,14 @@ function renderStatement(data) {
         <td>${formatDate(item.service_date)}</td>
         <td>${escapeHtml(item.service_name)}</td>
         <td>${escapeHtml(item.reference || "-")}</td>
-        <td>${money.format(Number(item.amount))}</td>
+        <td class="amount-service">${money.format(Number(item.amount))}</td>
       </tr>`).join("")
     : `<tr><td colspan="4">Nenhum serviço neste fechamento.</td></tr>`;
   const paymentRows = payments.length
     ? payments.map((item) => `<tr>
         <td>${formatDate(item.payment_date)}</td>
         <td>${escapeHtml(item.method || item.notes || "-")}</td>
-        <td>${money.format(Number(item.amount))}</td>
+        <td class="amount-payment">${money.format(Number(item.amount))}</td>
       </tr>`).join("")
     : `<tr><td colspan="3">Nenhum pagamento neste fechamento.</td></tr>`;
   const methods = paymentMethods.length
@@ -53,16 +53,16 @@ function renderStatement(data) {
 
   document.getElementById("statementContent").innerHTML = `
     <div class="client-summary">
-      <article><span class="meta">Saldo anterior</span><strong>${money.format(Number(billing.previous_balance))}</strong></article>
-      <article><span class="meta">Serviços</span><strong>${money.format(Number(billing.services_total))}</strong></article>
-      <article><span class="meta">Pagamentos</span><strong>${money.format(Number(billing.payments_total))}</strong></article>
-      <article><span class="meta">Total em aberto</span><strong>${money.format(Number(billing.total_due))}</strong></article>
+      <article class="summary-card summary-previous"><span class="summary-dot"></span><span class="meta">Saldo anterior</span><strong>${money.format(Number(billing.previous_balance))}</strong></article>
+      <article class="summary-card summary-services"><span class="summary-dot"></span><span class="meta">Serviços</span><strong>${money.format(Number(billing.services_total))}</strong></article>
+      <article class="summary-card summary-payments"><span class="summary-dot"></span><span class="meta">Pagamentos</span><strong>${money.format(Number(billing.payments_total))}</strong></article>
+      <article class="summary-card summary-total"><span class="summary-dot"></span><span class="meta">Total em aberto</span><strong>${money.format(Number(billing.total_due))}</strong></article>
     </div>
-    <section class="client-section">
+    <section class="client-section section-services">
       <h3>Serviços do período</h3>
       <table class="report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Valor</th></tr></thead><tbody>${serviceRows}</tbody></table>
     </section>
-    <section class="client-section">
+    <section class="client-section section-payments">
       <h3>Pagamentos considerados</h3>
       <table class="report-table"><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>${paymentRows}</tbody></table>
     </section>

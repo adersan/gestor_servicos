@@ -59,6 +59,60 @@
   background: white;
 }
 
+.client-summary .summary-card {
+  position: relative;
+  overflow: hidden;
+  border-top: 4px solid var(--summary-color);
+  background: var(--summary-bg);
+}
+
+.summary-card .summary-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--summary-color);
+}
+
+.summary-card .meta {
+  color: #42514d;
+}
+
+.summary-previous {
+  --summary-color: #74817d;
+  --summary-bg: #f5f7f6;
+}
+
+.summary-services {
+  --summary-color: #2d72c4;
+  --summary-bg: #eef6ff;
+}
+
+.summary-payments {
+  --summary-color: #18864b;
+  --summary-bg: #edf9f2;
+}
+
+.summary-total {
+  --summary-color: #cf6c12;
+  --summary-bg: #fff5e8;
+}
+
+.summary-services strong,
+.amount-service {
+  color: #1e5fa8;
+}
+
+.summary-payments strong,
+.amount-payment {
+  color: #117440;
+}
+
+.summary-total strong {
+  color: #b54d0c;
+}
+
 .client-summary strong {
   display: block;
   margin-top: 8px;
@@ -72,6 +126,26 @@
 
 .client-section h3 {
   margin-top: 0;
+}
+
+.section-services {
+  border-top: 4px solid #2d72c4;
+}
+
+.section-payments {
+  border-top: 4px solid #18864b;
+}
+
+.section-services .report-table thead {
+  background: #eef6ff;
+}
+
+.section-payments .report-table thead {
+  background: #edf9f2;
+}
+
+.client-section .report-table th {
+  color: #30413c;
 }
 
 .form-error {
