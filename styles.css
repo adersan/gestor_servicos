@@ -23,6 +23,10 @@ body { margin: 0; background: var(--paper); color: var(--ink); }
 button, input, select, textarea { font-family: Arial, Helvetica, sans-serif; font-size: inherit; }
 button { cursor: pointer; }
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 24px max(20px, calc((100vw - 1180px) / 2)); background: var(--brand); color: white; }
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
+.notification-button { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid rgba(255,255,255,.26); border-radius: 12px; background: transparent; color: white; font-weight: 750; }
+.notification-button.has-alerts { border-color: #f0b55f; background: rgba(216,155,69,.18); }
+.notification-button span { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #241b0d; font-size: 11px; }
 h1, h2, p { margin: 0; }
 h1 { font-family: Georgia, serif; font-size: clamp(26px, 4vw, 40px); }
 h2 { font-family: Georgia, serif; font-size: 28px; }
@@ -146,6 +150,22 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 dialog { width: min(92vw, 480px); padding: 0; border: 0; border-radius: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
 dialog::backdrop { background: rgba(12,31,26,.58); backdrop-filter: blur(4px); }
 dialog form { display: grid; gap: 14px; padding: 24px; }
+.notification-dialog { width: min(92vw, 620px); }
+.notification-content { padding: 24px; }
+.notification-daily-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+.notification-daily-summary article { padding: 14px; border-radius: 12px; background: #f2f6f4; }
+.notification-daily-summary span { display: block; color: var(--muted); font-size: 11px; }
+.notification-daily-summary strong { display: block; margin-top: 5px; font-size: 19px; }
+.notification-list { display: grid; gap: 8px; max-height: min(55vh, 460px); overflow-y: auto; }
+.notification-item { display: grid; grid-template-columns: 10px 1fr auto; gap: 12px; align-items: center; width: 100%; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--ink); text-align: left; }
+.notification-item:hover { background: #f8faf8; }
+.notification-item i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.notification-service i { background: var(--danger); }
+.notification-item span, .notification-item strong, .notification-item small { display: block; }
+.notification-item small { margin-top: 4px; color: var(--muted); }
+.notification-item b { color: var(--brand); font-size: 12px; }
+.notification-empty { display: grid; gap: 5px; padding: 26px; border-radius: 12px; background: #f2f6f4; text-align: center; }
+.notification-empty span { color: var(--muted); font-size: 13px; }
 .dialog-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .icon-button { width: 36px; height: 36px; border: 0; border-radius: 50%; background: #eef0ec; font-size: 24px; }
 label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
@@ -195,6 +215,9 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .payment-option { padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
 .payment-option strong { display: block; margin-bottom: 5px; }
 @media (max-width: 700px) {
+  .topbar { align-items: flex-start; }
+  .topbar-actions { align-items: stretch; flex-direction: column; }
+  .notification-button { justify-content: center; }
   .topbar { padding: 16px 18px; }
   .topbar .eyebrow { display: none; }
   h1 { font-size: 26px; }
@@ -235,6 +258,7 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
   .alert-summary { grid-template-columns: 1fr 1fr; }
   .alert-list div { align-items: flex-start; flex-direction: column; }
   .alert-list span { text-align: left; }
+  .notification-daily-summary { grid-template-columns: 1fr; }
   .price-fields { grid-template-columns: 1fr; }
   .report { padding: 18px; }
   .report-header, .report-summary { flex-direction: column; }

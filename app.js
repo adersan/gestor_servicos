@@ -163,6 +163,16 @@ function currentBillings() {
   return [...latestByClient.values()];
 }
 
+function dashboardNotifications() {
+  const overdueServices = state.services
+    .filter(isOverdueService)
+    .sort((a, b) => serviceAgeHours(b) - serviceAgeHours(a));
+  const overdueBillings = currentBillings()
+    .filter((billing) => billingOpenAmount(billing) > 0 && billingAgeDays(billing) >= 7)
+    .sort((a, b) => billingAgeDays(b) - billingAgeDays(a));
+  return { overdueServices, overdueBillings };
+}
+
 function showView(viewId) {
   document.querySelectorAll(".view, .tab").forEach((element) => element.classList.remove("active"));
   document.getElementById(viewId).classList.add("active");
@@ -354,6 +364,47 @@ function renderDashboard() {
       <strong class="amount ${balance < 0 ? "negative" : ""}">${money.format(balance)}</strong>
     </div>`;
   }).join("") : emptyMarkup();
+}
+
+function renderNotifications() {
+  const { overdueServices, overdueBillings } = dashboardNotifications();
+  const alertCount = overdueServices.length + overdueBillings.length;
+  const today = new Date().toISOString().slice(0, 10);
+  const receivedToday = state.payments
+    .filter((payment) => payment.date === today)
+    .reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const openTotal = currentBillings()
+    .reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
+  const count = document.getElementById("notificationCount");
+  count.textContent = alertCount > 99 ? "99+" : String(alertCount);
+  count.classList.toggle("hidden", alertCount === 0);
+  document.getElementById("notificationButton").classList.toggle("has-alerts", alertCount > 0);
+  document.getElementById("notificationDailySummary").innerHTML = `
+    <article><span>Recebido hoje</span><strong>${money.format(receivedToday)}</strong></article>
+    <article><span>Total em aberto</span><strong>${money.format(openTotal)}</strong></article>`;
+
+  const items = [
+    ...overdueServices.map((service) => ({
+      type: "service",
+      title: `${clientById(service.clientId)?.name || "Cliente"}: ${service.description}`,
+      detail: `${formatServiceAge(service)} · ${service.reference || "Sem referência"}`
+    })),
+    ...overdueBillings.map((billing) => ({
+      type: "billing",
+      title: `Cobrança de ${clientById(billing.clientId)?.name || "Cliente"}`,
+      detail: `${money.format(billingOpenAmount(billing))} · ${billingAgeDays(billing)} dias em aberto`
+    }))
+  ];
+  document.getElementById("notificationList").innerHTML = items.length ? items.map((item) => `
+    <button class="notification-item notification-${item.type}" data-notification-target="${item.type}">
+      <i></i>
+      <span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail)}</small></span>
+      <b>Ver</b>
+    </button>`).join("") : `
+    <div class="notification-empty">
+      <strong>Tudo em dia.</strong>
+      <span>Não há serviços acima de 24 horas nem cobranças atrasadas.</span>
+    </div>`;
 }
 
 function renderClients() {
@@ -562,6 +613,7 @@ async function copyText(value, label) {
 function render() {
   renderSelects();
   renderDashboard();
+  renderNotifications();
   renderClients();
   renderPriceTables();
   renderCatalog();
@@ -780,6 +832,23 @@ document.addEventListener("click", async (event) => {
     document.getElementById("paymentStatusFilter").value = paymentDashboardFilter.dataset.paymentDashboardFilter;
     showView("payments");
     renderPayments();
+  }
+  if (event.target.closest("#notificationButton")) {
+    renderNotifications();
+    document.getElementById("notificationDialog").showModal();
+  }
+  const notificationTarget = event.target.closest("[data-notification-target]");
+  if (notificationTarget) {
+    document.getElementById("notificationDialog").close();
+    if (notificationTarget.dataset.notificationTarget === "service") {
+      document.getElementById("serviceStatusFilter").value = "A fazer";
+      showView("services");
+      renderServices();
+    } else {
+      document.getElementById("paymentStatusFilter").value = "overdue";
+      showView("payments");
+      renderPayments();
+    }
   }
   if (dialogButton) {
     if (dialogButton.dataset.dialog === "clientDialog") openClientForm();

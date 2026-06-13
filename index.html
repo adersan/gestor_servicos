@@ -25,8 +25,13 @@
       <span class="eyebrow">Painel administrativo</span>
       <h1>Gestor de Serviços</h1>
     </div>
-    <button id="installButton" class="secondary hidden">Instalar aplicativo</button>
-    <button id="logoutButton" class="secondary hidden">Sair</button>
+    <div class="topbar-actions">
+      <button id="notificationButton" class="notification-button" aria-label="Abrir notificações">
+        Alertas <span id="notificationCount">0</span>
+      </button>
+      <button id="installButton" class="secondary hidden">Instalar aplicativo</button>
+      <button id="logoutButton" class="secondary hidden">Sair</button>
+    </div>
   </header>
 
   <nav class="tabs" aria-label="Navegação principal">
@@ -311,6 +316,17 @@
 
   <dialog id="reportDialog" class="report-dialog">
     <div id="reportContent"></div>
+  </dialog>
+
+  <dialog id="notificationDialog" class="notification-dialog">
+    <div class="notification-content">
+      <div class="dialog-heading">
+        <div><span class="eyebrow">Acompanhamento diário</span><h2>Central de alertas</h2></div>
+        <button class="icon-button" type="button" data-close-dialog>×</button>
+      </div>
+      <div id="notificationDailySummary" class="notification-daily-summary"></div>
+      <div id="notificationList" class="notification-list"></div>
+    </div>
   </dialog>
 
   <template id="emptyTemplate">
