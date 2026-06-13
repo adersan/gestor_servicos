@@ -93,6 +93,9 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .table-action.danger { color: var(--danger); }
 .card-actions, .row-actions { display: flex; gap: 8px; margin-top: 16px; }
 .row-actions { margin-top: 0; }
+.billing-card .card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.billing-card .card-actions .table-action { width: 100%; min-width: 0; white-space: normal; }
+.billing-card .card-actions .table-action:last-child { grid-column: 1 / -1; }
 .price-table-card { padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); }
 .price-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .field-hint { color: var(--muted); font-size: 12px; font-weight: 400; }
@@ -146,9 +149,6 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
   .timeline-item { grid-template-columns: 1fr auto; }
   .timeline-item > time { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
   .timeline-item .row-actions { grid-column: 1 / -1; }
-  .billing-card .card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .billing-card .card-actions .table-action { width: 100%; min-width: 0; white-space: normal; }
-  .billing-card .card-actions .table-action:last-child { grid-column: 1 / -1; }
   .price-fields { grid-template-columns: 1fr; }
   .report { padding: 18px; }
   .report-header, .report-summary { flex-direction: column; }
