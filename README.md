@@ -81,3 +81,24 @@ para o serviço, por exemplo: `RECEBIDO ABC123`.
 Antes de publicar essa funcionalidade, execute novamente
 `supabase/schema.sql` no SQL Editor do Supabase para criar os campos de
 confirmação.
+
+## Baixa automática de pagamentos
+
+A função `/.netlify/functions/payment-webhook` recebe confirmações de
+pagamento e registra a baixa sem duplicar uma transação já processada.
+
+Configure `PAYMENT_WEBHOOK_SECRET` no Netlify. O corpo esperado é:
+
+```json
+{
+  "externalId": "identificador-unico-da-transacao",
+  "billingId": "uuid-da-cobranca",
+  "amount": 100,
+  "date": "2026-06-13",
+  "method": "PIX",
+  "source": "Nome da API"
+}
+```
+
+O cabeçalho de autenticação segue o formato
+`Authorization: Bearer PAYMENT_WEBHOOK_SECRET`.

@@ -85,7 +85,10 @@
         billingId: payment.billing_id,
         date: payment.payment_date,
         amount: Number(payment.amount),
+        method: payment.method || "",
         note: payment.notes || "",
+        externalPaymentId: payment.external_payment_id || "",
+        paymentSource: payment.payment_source || "Manual",
         createdAt: payment.created_at,
         updatedAt: payment.updated_at
       })),
@@ -201,17 +204,26 @@
     }
 
     if (state.payments.length) {
-      const paymentsResult = await client.from("payments").upsert(
-        state.payments.map((item) => ({
+      const payments = state.payments.map((item) => ({
           id: item.id,
           client_id: item.clientId,
           payment_date: item.date,
           amount: Number(item.amount),
+          method: item.method || null,
           notes: item.note || null,
           billing_id: item.billingId || null,
+          external_payment_id: item.externalPaymentId || null,
+          payment_source: item.paymentSource || "Manual",
           created_at: item.createdAt
-        }))
-      );
+        }));
+      let paymentsResult = await client.from("payments").upsert(payments);
+      if (paymentsResult.error && /external_payment_id|payment_source/i.test(paymentsResult.error.message || "")) {
+        const compatiblePayments = payments.map((payment) => {
+          const { external_payment_id, payment_source, ...compatiblePayment } = payment;
+          return compatiblePayment;
+        });
+        paymentsResult = await client.from("payments").upsert(compatiblePayments);
+      }
       if (paymentsResult.error) throw paymentsResult.error;
     }
 

@@ -236,6 +236,14 @@ function renderSelects() {
     .map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
     .join("")}`;
   priceGroupSelect.value = selectedPriceGroup;
+
+  const paymentMethodSelect = document.querySelector('#paymentForm select[name="method"]');
+  const selectedPaymentMethod = paymentMethodSelect.value;
+  paymentMethodSelect.innerHTML = `<option value="">Não informada</option>${state.paymentMethods
+    .filter((method) => method.active)
+    .map((method) => `<option value="${escapeHtml(method.name)}">${escapeHtml(method.name)}</option>`)
+    .join("")}`;
+  paymentMethodSelect.value = selectedPaymentMethod;
 }
 
 function renderCatalog() {
@@ -538,7 +546,7 @@ function renderPayments() {
   document.getElementById("paymentList").innerHTML = items.length ? items.map((item) => `
     <article class="timeline-item">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
-      <div><h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3><p class="meta">${escapeHtml(item.note || "Pagamento registrado")}</p></div>
+      <div><h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3><p class="meta">${escapeHtml(item.note || "Pagamento registrado")}</p><span class="payment-origin">${escapeHtml(item.method || "Forma não informada")} · ${escapeHtml(item.paymentSource || "Manual")}</span></div>
       <strong>${money.format(item.amount)}</strong>
       <div class="row-actions"><button class="table-action" data-edit-payment="${item.id}">Editar</button><button class="table-action danger" data-delete-payment="${item.id}">Excluir</button></div>
     </article>`).join("") : emptyMarkup();
@@ -717,6 +725,7 @@ function openPaymentForm(item = null, billing = null, mode = "partial") {
   form.elements.amount.value = item
     ? Number(item.amount).toFixed(2)
     : billing && mode === "full" ? billingOpenAmount(billing).toFixed(2) : "";
+  form.elements.method.value = item?.method || "";
   form.elements.note.value = item?.note || "";
   const hint = document.getElementById("paymentBillingHint");
   if (billing) {
@@ -1154,7 +1163,10 @@ document.getElementById("paymentForm").addEventListener("submit", (event) => {
     billingId,
     date: data.get("date"),
     amount,
+    method: data.get("method"),
     note: data.get("note"),
+    externalPaymentId: existingPayment?.externalPaymentId || "",
+    paymentSource: existingPayment?.paymentSource || "Manual",
     createdAt: existingPayment?.createdAt || now,
     updatedAt: now
   };

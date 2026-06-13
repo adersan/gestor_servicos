@@ -86,9 +86,14 @@ create table if not exists public.payments (
   method text,
   notes text,
   billing_id uuid,
+  external_payment_id text,
+  payment_source text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.payments add column if not exists external_payment_id text;
+alter table public.payments add column if not exists payment_source text;
 
 create table if not exists public.payment_methods (
   id uuid primary key default gen_random_uuid(),
@@ -157,6 +162,9 @@ create unique index if not exists service_entries_delivery_code_idx
   where delivery_code is not null;
 create index if not exists payments_client_date_idx
   on public.payments(client_id, payment_date);
+create unique index if not exists payments_external_id_idx
+  on public.payments(external_payment_id)
+  where external_payment_id is not null;
 create index if not exists billings_client_period_idx
   on public.billings(client_id, period_end desc);
 create unique index if not exists one_active_client_credential_idx
