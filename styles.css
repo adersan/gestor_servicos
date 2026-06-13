@@ -146,6 +146,9 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
   .timeline-item { grid-template-columns: 1fr auto; }
   .timeline-item > time { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
   .timeline-item .row-actions { grid-column: 1 / -1; }
+  .billing-card .card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .billing-card .card-actions .table-action { width: 100%; min-width: 0; white-space: normal; }
+  .billing-card .card-actions .table-action:last-child { grid-column: 1 / -1; }
   .price-fields { grid-template-columns: 1fr; }
   .report { padding: 18px; }
   .report-header, .report-summary { flex-direction: column; }
