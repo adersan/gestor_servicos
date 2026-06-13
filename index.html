@@ -78,6 +78,7 @@
         <button data-dialog="paymentDialog"><strong>+ Pagamento</strong><span>Registrar baixa</span></button>
         <button data-dialog="billingDialog"><strong>+ Cobrança</strong><span>Fechar período</span></button>
       </div>
+      <section id="serviceAlertPanel" class="panel alert-panel"></section>
       <section class="panel">
         <div class="panel-title">
           <div><span class="eyebrow">Clientes</span><h2>Contas em andamento</h2></div>
@@ -183,7 +184,7 @@
         <span id="suggestedPrice" class="field-hint">Selecione o cliente e o serviço para preencher o valor.</span>
       </label>
       <label>Situação
-        <select name="status"><option>A fazer</option><option>Pronto</option><option>Entregue</option></select>
+        <select name="status"><option value="A fazer">A fazer</option><option value="Pronto">Feito</option><option value="Entregue">Entregue</option><option value="Cancelado">Cancelado</option></select>
       </label>
       <button class="primary full" value="default">Salvar lançamento</button>
     </form>
@@ -207,7 +208,10 @@
       <label>Data<input name="date" type="date" required></label>
       <label>Valor recebido<input name="amount" type="number" min="0.01" step="0.01" required></label>
       <label>Observação<input name="note" placeholder="Ex.: PIX parcial"></label>
-      <button class="primary full" value="default">Dar baixa</button>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Cancelar</button>
+        <button class="primary" value="default">Dar baixa</button>
+      </div>
     </form>
   </dialog>
 

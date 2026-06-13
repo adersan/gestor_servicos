@@ -82,9 +82,31 @@ function clientById(id) {
 
 function balanceFor(clientId, endDate = null) {
   const allowed = (item) => item.clientId === clientId && (!endDate || item.date <= endDate);
-  const debits = state.services.filter(allowed).reduce((sum, item) => sum + item.amount, 0);
+  const debits = state.services.filter((item) => allowed(item) && item.status !== "Cancelado")
+    .reduce((sum, item) => sum + item.amount, 0);
   const credits = state.payments.filter(allowed).reduce((sum, item) => sum + item.amount, 0);
   return debits - credits;
+}
+
+function serviceStatusLabel(status) {
+  return status === "Pronto" ? "Feito" : status;
+}
+
+function serviceAgeHours(item) {
+  const startedAt = item.createdAt || `${item.date}T00:00:00`;
+  const timestamp = new Date(startedAt).getTime();
+  return Number.isFinite(timestamp) ? Math.max(0, (Date.now() - timestamp) / 3600000) : 0;
+}
+
+function isOverdueService(item) {
+  return item.status === "A fazer" && serviceAgeHours(item) >= 24;
+}
+
+function formatServiceAge(item) {
+  const hours = Math.floor(serviceAgeHours(item));
+  if (hours < 24) return `${hours}h aguardando`;
+  const days = Math.floor(hours / 24);
+  return `${days} dia${days === 1 ? "" : "s"} aguardando`;
 }
 
 function showView(viewId) {
@@ -161,12 +183,28 @@ function renderPriceTables() {
 }
 
 function renderDashboard() {
-  const serviceTotal = state.services.reduce((sum, item) => sum + item.amount, 0);
+  const serviceTotal = state.services.filter((item) => item.status !== "Cancelado")
+    .reduce((sum, item) => sum + item.amount, 0);
   const paymentTotal = state.payments.reduce((sum, item) => sum + item.amount, 0);
   document.getElementById("totalOpen").textContent = money.format(serviceTotal - paymentTotal);
   document.getElementById("clientCount").textContent = state.clients.length;
   document.getElementById("serviceTotal").textContent = money.format(serviceTotal);
   document.getElementById("paymentTotal").textContent = money.format(paymentTotal);
+  const pending = state.services.filter((item) => item.status === "A fazer");
+  const overdue = pending.filter(isOverdueService);
+  const alertPanel = document.getElementById("serviceAlertPanel");
+  alertPanel.classList.toggle("has-alerts", overdue.length > 0);
+  alertPanel.innerHTML = `
+    <div class="panel-title">
+      <div><span class="eyebrow">Alertas operacionais</span><h2>Serviços pendentes</h2></div>
+      <button class="table-action" data-open-view="services">Ver lançamentos</button>
+    </div>
+    <div class="alert-summary">
+      <article><span>A fazer</span><strong>${pending.length}</strong></article>
+      <article class="${overdue.length ? "alert-danger" : ""}"><span>Acima de 24h</span><strong>${overdue.length}</strong></article>
+    </div>
+    ${overdue.length ? `<div class="alert-list">${overdue.slice(0, 5).map((item) => `
+      <div><strong>${escapeHtml(clientById(item.clientId)?.name || "")}: ${escapeHtml(item.description)}</strong><span>${escapeHtml(item.reference || "Sem referência")} · ${formatServiceAge(item)}</span></div>`).join("")}</div>` : `<p class="meta">Nenhum serviço ultrapassou 24 horas.</p>`}`;
   const list = document.getElementById("accountList");
   list.innerHTML = state.clients.length ? state.clients.map((client) => {
     const balance = balanceFor(client.id);
@@ -202,11 +240,17 @@ function renderServices() {
     .filter((item) => !search || `${item.description} ${item.reference}`.toLowerCase().includes(search))
     .sort((a, b) => b.date.localeCompare(a.date));
   document.getElementById("serviceList").innerHTML = items.length ? items.map((item) => `
-    <article class="timeline-item">
+    <article class="timeline-item ${isOverdueService(item) ? "service-overdue" : ""}">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
-      <div><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(clientById(item.clientId)?.name || "")} · ${escapeHtml(item.reference || "Sem referência")}</p><span class="status">${escapeHtml(item.status)}</span></div>
+      <div><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(clientById(item.clientId)?.name || "")} · ${escapeHtml(item.reference || "Sem referência")}</p><span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}</div>
       <strong>${money.format(item.amount)}</strong>
-      <div class="row-actions"><button class="table-action" data-edit-entry="${item.id}">Editar</button><button class="table-action danger" data-delete-entry="${item.id}">Excluir</button></div>
+      <div class="service-actions">
+        <div class="status-actions">
+          ${item.status === "A fazer" ? `<button class="table-action success" data-service-status="Pronto" data-entry-id="${item.id}">Marcar feito</button>` : ""}
+          ${item.status === "Pronto" ? `<button class="table-action success" data-service-status="Entregue" data-entry-id="${item.id}">Marcar entregue</button>` : ""}
+        </div>
+        <div class="row-actions"><button class="table-action" data-edit-entry="${item.id}">Editar</button><button class="table-action danger" data-delete-entry="${item.id}">Excluir</button></div>
+      </div>
     </article>`).join("") : emptyMarkup();
 }
 
@@ -504,6 +548,8 @@ document.addEventListener("click", async (event) => {
       document.getElementById(dialogButton.dataset.dialog).showModal();
     }
   }
+  const closeDialogButton = event.target.closest("[data-close-dialog]");
+  if (closeDialogButton) closeDialogButton.closest("dialog")?.close();
 
   const editClient = event.target.closest("[data-edit-client]");
   if (editClient) openClientForm(clientById(editClient.dataset.editClient));
@@ -556,6 +602,15 @@ document.addEventListener("click", async (event) => {
 
   const editEntry = event.target.closest("[data-edit-entry]");
   if (editEntry) openEntryForm(state.services.find((item) => item.id === editEntry.dataset.editEntry));
+  const serviceStatusButton = event.target.closest("[data-service-status]");
+  if (serviceStatusButton) {
+    const entry = state.services.find((item) => item.id === serviceStatusButton.dataset.entryId);
+    if (entry) {
+      entry.status = serviceStatusButton.dataset.serviceStatus;
+      entry.updatedAt = new Date().toISOString();
+      saveState();
+    }
+  }
   const deleteEntry = event.target.closest("[data-delete-entry]");
   if (deleteEntry && confirm("Excluir este lançamento?")) {
     state.services = state.services.filter((item) => item.id !== deleteEntry.dataset.deleteEntry);
@@ -685,6 +740,8 @@ document.getElementById("serviceForm").addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const catalogItem = state.catalog.find((item) => item.id === data.get("catalogId"));
+  const existingEntry = state.services.find((item) => item.id === data.get("entryId"));
+  const now = new Date().toISOString();
   const entry = {
     id: data.get("entryId") || crypto.randomUUID(),
     clientId: data.get("clientId"),
@@ -693,7 +750,9 @@ document.getElementById("serviceForm").addEventListener("submit", (event) => {
     description: catalogItem.name,
     reference: data.get("reference"),
     amount: Number(data.get("amount")),
-    status: data.get("status")
+    status: data.get("status"),
+    createdAt: existingEntry?.createdAt || now,
+    updatedAt: now
   };
   const index = state.services.findIndex((item) => item.id === entry.id);
   if (index >= 0) state.services[index] = entry;
@@ -754,12 +813,23 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   const endDate = data.get("endDate");
   const billingId = crypto.randomUUID();
   const services = state.services.filter((item) =>
-    !item.billingId && item.clientId === clientId && item.date >= startDate && item.date <= endDate);
+    !item.billingId && item.status !== "Cancelado"
+    && item.clientId === clientId && item.date >= startDate && item.date <= endDate);
   const payments = state.payments.filter((item) =>
     !item.billingId && item.clientId === clientId && item.date >= startDate && item.date <= endDate);
   const servicesTotal = services.reduce((sum, item) => sum + item.amount, 0);
   const paymentsTotal = payments.reduce((sum, item) => sum + item.amount, 0);
   const amount = balanceFor(clientId, endDate);
+  const pendingServices = services.filter((item) => item.status === "A fazer");
+  if (pendingServices.length) {
+    const names = pendingServices.slice(0, 5)
+      .map((item) => `• ${item.description}${item.reference ? ` (${item.reference})` : ""}`)
+      .join("\n");
+    const confirmed = confirm(
+      `Existem ${pendingServices.length} serviço(s) ainda marcados como "A fazer":\n\n${names}\n\nOK: gerar a cobrança mesmo assim.\nCancelar: voltar e atualizar os status.`
+    );
+    if (!confirmed) return;
+  }
 
   const billing = {
     id: billingId,

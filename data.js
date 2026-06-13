@@ -71,7 +71,9 @@
         description: entry.service_name,
         reference: entry.reference || "",
         amount: Number(entry.amount),
-        status: entry.status
+        status: entry.status,
+        createdAt: entry.created_at,
+        updatedAt: entry.updated_at
       })),
       payments: paymentsResult.data.map((payment) => ({
         id: payment.id,
