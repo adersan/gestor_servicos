@@ -109,6 +109,51 @@ function formatServiceAge(item) {
   return `${days} dia${days === 1 ? "" : "s"} aguardando`;
 }
 
+function paymentWasAfterBilling(payment, billing) {
+  if (payment.billingId !== billing.id) return false;
+  const paymentCreated = new Date(payment.createdAt || `${payment.date}T23:59:59`).getTime();
+  const billingCreated = new Date(billing.createdAt).getTime();
+  return paymentCreated > billingCreated;
+}
+
+function billingPaidAmount(billing) {
+  return state.payments
+    .filter((payment) => paymentWasAfterBilling(payment, billing))
+    .reduce((sum, payment) => sum + Number(payment.amount), 0);
+}
+
+function billingOpenAmount(billing) {
+  return Math.max(0, Number(billing.amount) - billingPaidAmount(billing));
+}
+
+function billingCurrentStatus(billing) {
+  if (billing.status === "Cancelada") return "Cancelada";
+  const paid = billingPaidAmount(billing);
+  if (paid <= 0) return "Aberta";
+  return billingOpenAmount(billing) <= 0 ? "Paga" : "Parcial";
+}
+
+function billingAgeDays(billing) {
+  return Math.max(0, Math.floor((Date.now() - new Date(billing.createdAt).getTime()) / 86400000));
+}
+
+function updateBillingStatuses() {
+  state.billings.forEach((billing) => {
+    if (billing.status !== "Cancelada") billing.status = billingCurrentStatus(billing);
+  });
+}
+
+function currentBillings() {
+  const latestByClient = new Map();
+  [...state.billings]
+    .filter((billing) => billing.status !== "Cancelada")
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .forEach((billing) => {
+      if (!latestByClient.has(billing.clientId)) latestByClient.set(billing.clientId, billing);
+    });
+  return [...latestByClient.values()];
+}
+
 function showView(viewId) {
   document.querySelectorAll(".view, .tab").forEach((element) => element.classList.remove("active"));
   document.getElementById(viewId).classList.add("active");
@@ -128,6 +173,10 @@ function searchableText(...values) {
 
 function matchesSearch(search, ...values) {
   return !search || searchableText(...values).includes(searchableText(search));
+}
+
+function formatDate(value) {
+  return value ? value.split("-").reverse().join("/") : "-";
 }
 
 function renderSelects() {
@@ -284,9 +333,70 @@ function renderServices() {
 
 function renderPayments() {
   const clientFilter = document.getElementById("paymentClientFilter").value;
+  const statusFilter = document.getElementById("paymentStatusFilter").value;
+  const startFilter = document.getElementById("paymentStartFilter").value;
+  const endFilter = document.getElementById("paymentEndFilter").value;
   const search = document.getElementById("paymentSearch").value.trim();
+  const billings = currentBillings()
+    .map((billing) => ({
+      ...billing,
+      currentStatus: billingCurrentStatus(billing),
+      paidAmount: billingPaidAmount(billing),
+      openAmount: billingOpenAmount(billing),
+      ageDays: billingAgeDays(billing)
+    }))
+    .filter((billing) => !clientFilter || billing.clientId === clientFilter)
+    .filter((billing) => !startFilter || billing.endDate >= startFilter)
+    .filter((billing) => !endFilter || billing.endDate <= endFilter)
+    .filter((billing) => {
+      if (!statusFilter) return true;
+      if (statusFilter === "open") return billing.openAmount > 0 && billing.currentStatus !== "Cancelada";
+      if (statusFilter === "overdue") return billing.openAmount > 0 && billing.ageDays >= 7;
+      if (statusFilter === "paid") return billing.currentStatus === "Paga";
+      return true;
+    })
+    .filter((billing) => matchesSearch(
+      search,
+      clientById(billing.clientId)?.name,
+      billing.currentStatus,
+      billing.identifier
+    ))
+    .sort((a, b) => b.endDate.localeCompare(a.endDate));
+
+  const allActiveBillings = currentBillings();
+  const totalOpen = allActiveBillings.reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
+  const overdueTotal = allActiveBillings
+    .filter((billing) => billingOpenAmount(billing) > 0 && billingAgeDays(billing) >= 7)
+    .reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
+  const receivedTotal = state.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+  document.getElementById("paymentSummary").innerHTML = `
+    <article class="metric-card metric-main"><span>Total em aberto</span><strong>${money.format(totalOpen)}</strong><small>${allActiveBillings.filter((billing) => billingOpenAmount(billing) > 0).length} cobrança(s)</small></article>
+    <article class="metric-card"><span>Atrasado há 7 dias</span><strong>${money.format(overdueTotal)}</strong><small>Requer atenção</small></article>
+    <article class="metric-card"><span>Total recebido</span><strong>${money.format(receivedTotal)}</strong><small>Histórico acumulado</small></article>`;
+
+  document.getElementById("openBillingList").innerHTML = billings.length ? billings.map((billing) => `
+    <article class="receivable-card ${billing.ageDays >= 7 && billing.openAmount > 0 ? "receivable-overdue" : ""}">
+      <div class="receivable-heading">
+        <div><span class="eyebrow">${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</span><h3>${escapeHtml(clientById(billing.clientId)?.name || "")}</h3></div>
+        <span class="billing-status billing-${billing.currentStatus.toLowerCase()}">${billing.currentStatus}</span>
+      </div>
+      <div class="receivable-values">
+        <span>Valor original<strong>${money.format(billing.amount)}</strong></span>
+        <span>Pago depois da cobrança<strong>${money.format(billing.paidAmount)}</strong></span>
+        <span>Saldo em aberto<strong>${money.format(billing.openAmount)}</strong></span>
+      </div>
+      ${billing.openAmount > 0 && billing.currentStatus !== "Cancelada" ? `
+        <div class="receivable-actions">
+          <button class="table-action" data-pay-billing="${billing.id}" data-payment-mode="partial">Baixa parcial</button>
+          <button class="table-action success" data-pay-billing="${billing.id}" data-payment-mode="full">Quitar ${money.format(billing.openAmount)}</button>
+        </div>` : ""}
+      ${billing.ageDays >= 7 && billing.openAmount > 0 ? `<p class="overdue-message">Cobrança aberta há ${billing.ageDays} dias.</p>` : ""}
+    </article>`).join("") : emptyMarkup();
+
   const items = state.payments
     .filter((item) => !clientFilter || item.clientId === clientFilter)
+    .filter((item) => !startFilter || item.date >= startFilter)
+    .filter((item) => !endFilter || item.date <= endFilter)
     .filter((item) => matchesSearch(search, clientById(item.clientId)?.name, item.note))
     .sort((a, b) => b.date.localeCompare(a.date));
   document.getElementById("paymentList").innerHTML = items.length ? items.map((item) => `
@@ -337,8 +447,8 @@ function renderBillings() {
     <article class="billing-card">
       <span class="eyebrow">${item.startDate.split("-").reverse().join("/")} a ${item.endDate.split("-").reverse().join("/")}</span>
       <h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3>
-      <p class="meta">Total fechado</p>
-      <strong class="hero-value" style="font-size:30px">${money.format(item.amount)}</strong>
+      <p class="meta">${billingCurrentStatus(item)} · Saldo em aberto</p>
+      <strong class="hero-value" style="font-size:30px">${money.format(billingOpenAmount(item))}</strong>
       <div class="access-box">${item.identifier
         ? `<div class="access-data">
             <span><small>ID</small><strong>${escapeHtml(item.identifier)}</strong></span>
@@ -460,14 +570,25 @@ function openEntryForm(item = null) {
   document.getElementById("serviceDialog").showModal();
 }
 
-function openPaymentForm(item = null) {
+function openPaymentForm(item = null, billing = null, mode = "partial") {
   const form = document.getElementById("paymentForm");
   form.reset();
   form.elements.paymentId.value = item?.id || "";
-  form.elements.clientId.value = item?.clientId || "";
+  form.elements.billingId.value = item?.billingId || billing?.id || "";
+  form.elements.clientId.value = item?.clientId || billing?.clientId || "";
   form.elements.date.value = item?.date || new Date().toISOString().slice(0, 10);
-  form.elements.amount.value = item ? Number(item.amount).toFixed(2) : "";
+  form.elements.amount.value = item
+    ? Number(item.amount).toFixed(2)
+    : billing && mode === "full" ? billingOpenAmount(billing).toFixed(2) : "";
   form.elements.note.value = item?.note || "";
+  const hint = document.getElementById("paymentBillingHint");
+  if (billing) {
+    hint.textContent = `Cobrança de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}. Saldo atual: ${money.format(billingOpenAmount(billing))}.`;
+    hint.classList.remove("hidden");
+  } else {
+    hint.textContent = "";
+    hint.classList.add("hidden");
+  }
   document.getElementById("paymentDialogTitle").textContent = item ? "Editar pagamento" : "Registrar pagamento";
   document.getElementById("paymentDialog").showModal();
 }
@@ -669,9 +790,15 @@ document.addEventListener("click", async (event) => {
 
   const editPayment = event.target.closest("[data-edit-payment]");
   if (editPayment) openPaymentForm(state.payments.find((item) => item.id === editPayment.dataset.editPayment));
+  const payBillingButton = event.target.closest("[data-pay-billing]");
+  if (payBillingButton) {
+    const billing = state.billings.find((item) => item.id === payBillingButton.dataset.payBilling);
+    if (billing) openPaymentForm(null, billing, payBillingButton.dataset.paymentMode);
+  }
   const deletePayment = event.target.closest("[data-delete-payment]");
   if (deletePayment && confirm("Excluir este pagamento?")) {
     state.payments = state.payments.filter((item) => item.id !== deletePayment.dataset.deletePayment);
+    updateBillingStatuses();
     saveState();
   }
 
@@ -816,16 +943,36 @@ document.getElementById("paymentForm").addEventListener("submit", (event) => {
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
   const data = new FormData(event.currentTarget);
+  const existingPayment = state.payments.find((item) => item.id === data.get("paymentId"));
+  const now = new Date().toISOString();
+  const billingId = data.get("billingId") || existingPayment?.billingId || null;
+  const amount = Number(data.get("amount"));
+  const linkedBilling = state.billings.find((item) => item.id === billingId);
+  if (linkedBilling) {
+    if (data.get("clientId") !== linkedBilling.clientId) {
+      alert("O cliente do pagamento deve ser o mesmo da cobrança.");
+      return;
+    }
+    const available = billingOpenAmount(linkedBilling) + Number(existingPayment?.amount || 0);
+    if (amount > available + 0.001) {
+      alert(`O valor máximo para esta cobrança é ${money.format(available)}.`);
+      return;
+    }
+  }
   const payment = {
     id: data.get("paymentId") || crypto.randomUUID(),
     clientId: data.get("clientId"),
+    billingId,
     date: data.get("date"),
-    amount: Number(data.get("amount")),
-    note: data.get("note")
+    amount,
+    note: data.get("note"),
+    createdAt: existingPayment?.createdAt || now,
+    updatedAt: now
   };
   const index = state.payments.findIndex((item) => item.id === payment.id);
   if (index >= 0) state.payments[index] = payment;
   else state.payments.push(payment);
+  updateBillingStatuses();
   event.currentTarget.reset();
   event.currentTarget.closest("dialog").close();
   saveState();
@@ -942,6 +1089,9 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   ["serviceStatusFilter", "change", renderServices],
   ["serviceSearch", "input", renderServices],
   ["paymentClientFilter", "change", renderPayments],
+  ["paymentStatusFilter", "change", renderPayments],
+  ["paymentStartFilter", "change", renderPayments],
+  ["paymentEndFilter", "change", renderPayments],
   ["paymentSearch", "input", renderPayments],
   ["paymentMethodStatusFilter", "change", renderPaymentMethods],
   ["paymentMethodSearch", "input", renderPaymentMethods],

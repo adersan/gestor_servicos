@@ -71,6 +71,24 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .badge { display: inline-block; margin-top: 14px; padding: 6px 9px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 12px; font-weight: 800; }
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .filters-compact { grid-template-columns: minmax(240px, 520px); }
+.payment-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
+.receivable-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; margin-bottom: 28px; }
+.receivable-card { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: white; }
+.receivable-overdue { border-color: #dca59f; box-shadow: inset 4px 0 0 var(--danger); }
+.receivable-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.receivable-heading h3 { margin: 0; }
+.billing-status { padding: 5px 8px; border-radius: 999px; background: #eef0ec; font-size: 11px; font-weight: 800; }
+.billing-aberta { color: #a45b10; background: #fff5e8; }
+.billing-parcial { color: #1768ad; background: #eef6ff; }
+.billing-paga { color: #117440; background: #edf9f2; }
+.billing-cancelada { color: var(--danger); background: #fde8e5; }
+.receivable-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 18px 0; }
+.receivable-values span { color: var(--muted); font-size: 11px; }
+.receivable-values strong { display: block; margin-top: 5px; color: var(--ink); font-size: 16px; }
+.receivable-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.overdue-message { margin-top: 12px; color: var(--danger); font-size: 12px; font-weight: 750; }
+.subsection-heading { margin: 24px 0 14px; }
+.subsection-heading h3 { margin: 0; font-size: 20px; }
 .filters input, .filters select, label input, label select, label textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: white; color: var(--ink); }
 .timeline { display: grid; gap: 10px; }
 .timeline-item { display: grid; grid-template-columns: 100px 1fr auto auto; gap: 18px; align-items: center; padding: 18px; border: 1px solid var(--line); border-radius: 15px; background: white; }
@@ -160,6 +178,9 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
   .dashboard-heading { align-items: stretch; flex-direction: column; }
   .dashboard-heading .primary { width: 100%; }
   .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .payment-summary { grid-template-columns: 1fr; }
+  .payment-filters { grid-template-columns: 1fr; }
+  .receivable-values { grid-template-columns: 1fr; }
   .metric-card { padding: 15px; }
   .metric-card strong { font-size: 20px; }
   .metric-card small { display: none; }

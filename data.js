@@ -81,7 +81,9 @@
         billingId: payment.billing_id,
         date: payment.payment_date,
         amount: Number(payment.amount),
-        note: payment.notes || ""
+        note: payment.notes || "",
+        createdAt: payment.created_at,
+        updatedAt: payment.updated_at
       })),
       paymentMethods: methodsResult.data.map((method) => ({
         id: method.id,
@@ -186,7 +188,8 @@
           payment_date: item.date,
           amount: Number(item.amount),
           notes: item.note || null,
-          billing_id: item.billingId || null
+          billing_id: item.billingId || null,
+          created_at: item.createdAt
         }))
       );
       if (paymentsResult.error) throw paymentsResult.error;
