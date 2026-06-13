@@ -24,8 +24,9 @@ export function json(status, body) {
 
 export async function supabase(path, options = {}) {
   const secret = env("SUPABASE_SECRET_KEY");
-  const authorization = options.token
-    ? { Authorization: `Bearer ${options.token}` }
+  const authorizationToken = options.token || (secret.startsWith("eyJ") ? secret : "");
+  const authorization = authorizationToken
+    ? { Authorization: `Bearer ${authorizationToken}` }
     : {};
   const response = await fetch(`${env("SUPABASE_URL")}${path}`, {
     ...options,
