@@ -251,6 +251,7 @@ function renderBillings() {
       <div class="card-actions">
         <button class="table-action" data-view-report="${item.id}">Ver relatório</button>
         <button class="table-action" data-copy-whatsapp="${item.id}">WhatsApp</button>
+        <button class="table-action" data-renew-access="${item.id}">Gerar novo acesso</button>
       </div>
     </article>`).join("") : emptyMarkup();
 }
@@ -454,7 +455,7 @@ async function issueClientAccess(billing) {
   return result;
 }
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   const tab = event.target.closest("[data-view]");
   const opener = event.target.closest("[data-open-view]");
   const dialogButton = event.target.closest("[data-dialog]");
@@ -553,6 +554,25 @@ document.addEventListener("click", (event) => {
 
   const reportButton = event.target.closest("[data-view-report]");
   if (reportButton) openBillingReport(reportButton.dataset.viewReport);
+  const renewAccessButton = event.target.closest("[data-renew-access]");
+  if (renewAccessButton) {
+    const billing = state.billings.find((item) => item.id === renewAccessButton.dataset.renewAccess);
+    renewAccessButton.disabled = true;
+    renewAccessButton.textContent = "Gerando...";
+    try {
+      const credentials = await issueClientAccess(billing);
+      billing.identifier = credentials.identifier;
+      billing.password = credentials.password;
+      await window.dataStore.upsertState(state);
+      render();
+      alert(`Novo acesso gerado.\n\nIdentificador: ${billing.identifier}\nSenha: ${billing.password}\n\nO acesso anterior foi invalidado.`);
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
+      renewAccessButton.disabled = false;
+      renewAccessButton.textContent = "Gerar novo acesso";
+    }
+  }
   if (event.target.closest("[data-close-report]")) document.getElementById("reportDialog").close();
   if (event.target.closest("[data-print-report]")) window.print();
   const whatsappButton = event.target.closest("[data-copy-whatsapp]");
