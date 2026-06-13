@@ -137,6 +137,15 @@ function billingAgeDays(billing) {
   return Math.max(0, Math.floor((Date.now() - new Date(billing.createdAt).getTime()) / 86400000));
 }
 
+function recentDateKeys(days) {
+  return Array.from({ length: days }, (_, index) => {
+    const date = new Date();
+    date.setHours(12, 0, 0, 0);
+    date.setDate(date.getDate() - (days - index - 1));
+    return date.toISOString().slice(0, 10);
+  });
+}
+
 function updateBillingStatuses() {
   state.billings.forEach((billing) => {
     if (billing.status !== "Cancelada") billing.status = billingCurrentStatus(billing);
@@ -271,6 +280,70 @@ function renderDashboard() {
     </div>
     ${overdue.length ? `<div class="alert-list">${overdue.slice(0, 5).map((item) => `
       <div><strong>${escapeHtml(clientById(item.clientId)?.name || "")}: ${escapeHtml(item.description)}</strong><span>${escapeHtml(item.reference || "Sem referência")} · ${formatServiceAge(item)}</span></div>`).join("")}</div>` : `<p class="meta">Nenhum serviço ultrapassou 24 horas.</p>`}`;
+
+  const billings = currentBillings().map((billing) => ({
+    ...billing,
+    openAmount: billingOpenAmount(billing),
+    ageDays: billingAgeDays(billing),
+    currentStatus: billingCurrentStatus(billing)
+  }));
+  const openBillings = billings.filter((billing) => billing.openAmount > 0);
+  const overdueBillings = openBillings.filter((billing) => billing.ageDays >= 7);
+  const openTotal = openBillings.reduce((sum, billing) => sum + billing.openAmount, 0);
+  const overdueTotal = overdueBillings.reduce((sum, billing) => sum + billing.openAmount, 0);
+  const billingAlertPanel = document.getElementById("billingAlertPanel");
+  billingAlertPanel.classList.toggle("has-alerts", overdueBillings.length > 0);
+  billingAlertPanel.innerHTML = `
+    <div class="panel-title">
+      <div><span class="eyebrow">Alertas financeiros</span><h2>Cobranças em aberto</h2></div>
+      <button class="table-action" data-payment-dashboard-filter="open">Ver pagamentos</button>
+    </div>
+    <div class="alert-summary finance-alert-summary">
+      <article><span>Em aberto</span><strong>${money.format(openTotal)}</strong><small>${openBillings.length} cliente(s)</small></article>
+      <article class="${overdueBillings.length ? "alert-danger" : ""}"><span>Há 7 dias ou mais</span><strong>${money.format(overdueTotal)}</strong><small>${overdueBillings.length} cobrança(s)</small></article>
+    </div>
+    ${overdueBillings.length ? `<div class="alert-list">${overdueBillings.slice(0, 5).map((billing) => `
+      <div><strong>${escapeHtml(clientById(billing.clientId)?.name || "")}</strong><span>${money.format(billing.openAmount)} · ${billing.ageDays} dias em aberto</span></div>`).join("")}</div>
+      <button class="table-action alert-link" data-payment-dashboard-filter="overdue">Ver todas as atrasadas</button>`
+    : `<p class="meta">Nenhuma cobrança está aberta há 7 dias ou mais.</p>`}`;
+
+  const dateKeys = recentDateKeys(7);
+  const dailyPayments = dateKeys.map((date) => ({
+    date,
+    amount: state.payments
+      .filter((payment) => payment.date === date)
+      .reduce((sum, payment) => sum + Number(payment.amount), 0)
+  }));
+  const recentTotal = dailyPayments.reduce((sum, day) => sum + day.amount, 0);
+  const dailyMaximum = Math.max(...dailyPayments.map((day) => day.amount), 1);
+  document.getElementById("recentPaymentTotal").textContent = money.format(recentTotal);
+  document.getElementById("paymentChart").innerHTML = dailyPayments.map((day) => {
+    const height = day.amount ? Math.max(8, Math.round((day.amount / dailyMaximum) * 100)) : 2;
+    const label = new Intl.DateTimeFormat("pt-BR", { weekday: "short" })
+      .format(new Date(`${day.date}T12:00:00`))
+      .replace(".", "");
+    return `<div class="bar-column" title="${formatDate(day.date)}: ${money.format(day.amount)}">
+      <span>${day.amount ? money.format(day.amount) : "—"}</span>
+      <div class="bar-track"><i style="height:${height}%"></i></div>
+      <strong>${label}</strong>
+    </div>`;
+  }).join("");
+
+  const paidCount = billings.filter((billing) => billing.currentStatus === "Paga").length;
+  const partialCount = billings.filter((billing) => billing.currentStatus === "Parcial").length;
+  const openCount = billings.filter((billing) => billing.currentStatus === "Aberta").length;
+  const billingCount = paidCount + partialCount + openCount;
+  const paidDegrees = billingCount ? (paidCount / billingCount) * 360 : 0;
+  const partialDegrees = billingCount ? (partialCount / billingCount) * 360 : 0;
+  document.getElementById("billingStatusChart").innerHTML = `
+    <div class="donut-chart" style="--paid:${paidDegrees}deg;--partial:${paidDegrees + partialDegrees}deg">
+      <div><strong>${billingCount}</strong><span>cobranças</span></div>
+    </div>
+    <div class="chart-legend">
+      <button data-payment-dashboard-filter="paid"><i class="legend-paid"></i><span>Pagas</span><strong>${paidCount}</strong></button>
+      <button data-payment-dashboard-filter="open"><i class="legend-partial"></i><span>Parciais</span><strong>${partialCount}</strong></button>
+      <button data-payment-dashboard-filter="open"><i class="legend-open"></i><span>Em aberto</span><strong>${openCount}</strong></button>
+    </div>`;
   const list = document.getElementById("accountList");
   list.innerHTML = state.clients.length ? state.clients.map((client) => {
     const balance = balanceFor(client.id);
@@ -702,6 +775,12 @@ document.addEventListener("click", async (event) => {
   const dialogButton = event.target.closest("[data-dialog]");
   if (tab) showView(tab.dataset.view);
   if (opener) showView(opener.dataset.openView);
+  const paymentDashboardFilter = event.target.closest("[data-payment-dashboard-filter]");
+  if (paymentDashboardFilter) {
+    document.getElementById("paymentStatusFilter").value = paymentDashboardFilter.dataset.paymentDashboardFilter;
+    showView("payments");
+    renderPayments();
+  }
   if (dialogButton) {
     if (dialogButton.dataset.dialog === "clientDialog") openClientForm();
     else if (dialogButton.dataset.dialog === "catalogDialog") openCatalogForm();

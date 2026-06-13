@@ -79,6 +79,22 @@
         <button data-dialog="billingDialog"><strong>+ Cobrança</strong><span>Fechar período</span></button>
       </div>
       <section id="serviceAlertPanel" class="panel alert-panel"></section>
+      <section id="billingAlertPanel" class="panel alert-panel"></section>
+      <section class="dashboard-charts">
+        <article class="panel chart-panel">
+          <div class="panel-title">
+            <div><span class="eyebrow">Últimos 7 dias</span><h2>Pagamentos recebidos</h2></div>
+            <strong id="recentPaymentTotal" class="chart-total">R$ 0,00</strong>
+          </div>
+          <div id="paymentChart" class="bar-chart"></div>
+        </article>
+        <article class="panel chart-panel">
+          <div class="panel-title">
+            <div><span class="eyebrow">Cobranças atuais</span><h2>Situação financeira</h2></div>
+          </div>
+          <div id="billingStatusChart" class="status-chart"></div>
+        </article>
+      </section>
       <section class="panel">
         <div class="panel-title">
           <div><span class="eyebrow">Clientes</span><h2>Contas em andamento</h2></div>
