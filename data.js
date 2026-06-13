@@ -72,6 +72,10 @@
         reference: entry.reference || "",
         amount: Number(entry.amount),
         status: entry.status,
+        deliveryCode: entry.delivery_code || "",
+        confirmationRequestedAt: entry.confirmation_requested_at,
+        deliveredAt: entry.delivered_at,
+        deliverySource: entry.delivery_source || "",
         createdAt: entry.created_at,
         updatedAt: entry.updated_at
       })),
@@ -164,8 +168,7 @@
     }
 
     if (state.services.length) {
-      const entriesResult = await client.from("service_entries").upsert(
-        state.services.map((item) => ({
+      const entries = state.services.map((item) => ({
           id: item.id,
           client_id: item.clientId,
           service_id: item.catalogId || null,
@@ -174,9 +177,26 @@
           service_date: item.date,
           amount: Number(item.amount),
           status: item.status,
-          billing_id: item.billingId || null
-        }))
-      );
+          billing_id: item.billingId || null,
+          delivery_code: item.deliveryCode || null,
+          confirmation_requested_at: item.confirmationRequestedAt || null,
+          delivered_at: item.deliveredAt || null,
+          delivery_source: item.deliverySource || null
+        }));
+      let entriesResult = await client.from("service_entries").upsert(entries);
+      if (entriesResult.error && /delivery_(code|source)|confirmation_requested_at|delivered_at/i.test(entriesResult.error.message || "")) {
+        const compatibleEntries = entries.map((entry) => {
+          const {
+            delivery_code,
+            confirmation_requested_at,
+            delivered_at,
+            delivery_source,
+            ...compatibleEntry
+          } = entry;
+          return compatibleEntry;
+        });
+        entriesResult = await client.from("service_entries").upsert(compatibleEntries);
+      }
       if (entriesResult.error) throw entriesResult.error;
     }
 

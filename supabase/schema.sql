@@ -65,9 +65,18 @@ create table if not exists public.service_entries (
     check (status in ('A fazer', 'Pronto', 'Entregue', 'Cancelado')),
   billing_id uuid,
   notes text,
+  delivery_code text,
+  confirmation_requested_at timestamptz,
+  delivered_at timestamptz,
+  delivery_source text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.service_entries add column if not exists delivery_code text;
+alter table public.service_entries add column if not exists confirmation_requested_at timestamptz;
+alter table public.service_entries add column if not exists delivered_at timestamptz;
+alter table public.service_entries add column if not exists delivery_source text;
 
 create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
@@ -143,6 +152,9 @@ create table if not exists public.client_access_credentials (
 
 create index if not exists service_entries_client_date_idx
   on public.service_entries(client_id, service_date);
+create unique index if not exists service_entries_delivery_code_idx
+  on public.service_entries(delivery_code)
+  where delivery_code is not null;
 create index if not exists payments_client_date_idx
   on public.payments(client_id, payment_date);
 create index if not exists billings_client_period_idx

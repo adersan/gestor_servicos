@@ -92,6 +92,17 @@ function serviceStatusLabel(status) {
   return status === "Pronto" ? "Feito" : status;
 }
 
+function randomDeliveryCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+}
+
+function deliveryConfirmationMessage(item) {
+  const client = clientById(item.clientId);
+  return `Olá, ${client?.name || ""}. O serviço "${item.description}"${item.reference ? ` (${item.reference})` : ""} foi concluído. Para confirmar o recebimento, responda: RECEBIDO ${item.deliveryCode}`;
+}
+
 function serviceAgeHours(item) {
   const startedAt = item.createdAt || `${item.date}T00:00:00`;
   const timestamp = new Date(startedAt).getTime();
@@ -443,11 +454,12 @@ function renderServices() {
   document.getElementById("serviceList").innerHTML = items.length ? items.map((item) => `
     <article class="timeline-item ${isOverdueService(item) ? "service-overdue" : ""}">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
-      <div><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(clientById(item.clientId)?.name || "")} · ${escapeHtml(item.reference || "Sem referência")}</p><span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}</div>
+      <div><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(clientById(item.clientId)?.name || "")} · ${escapeHtml(item.reference || "Sem referência")}</p><span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">Confirmado pelo cliente</span>` : ""}</div>
       <strong>${money.format(item.amount)}</strong>
       <div class="service-actions">
         <div class="status-actions">
           ${item.status === "A fazer" ? `<button class="table-action success" data-service-status="Pronto" data-entry-id="${item.id}">Marcar feito</button>` : ""}
+          ${item.status === "Pronto" ? `<button class="table-action" data-request-delivery="${item.id}">Solicitar confirmação</button>` : ""}
           ${item.status === "Pronto" ? `<button class="table-action success" data-service-status="Entregue" data-entry-id="${item.id}">Marcar entregue</button>` : ""}
         </div>
         <div class="row-actions"><button class="table-action" data-edit-entry="${item.id}">Editar</button><button class="table-action danger" data-delete-entry="${item.id}">Excluir</button></div>
@@ -926,7 +938,28 @@ document.addEventListener("click", async (event) => {
     const entry = state.services.find((item) => item.id === serviceStatusButton.dataset.entryId);
     if (entry) {
       entry.status = serviceStatusButton.dataset.serviceStatus;
+      if (entry.status === "Pronto" && !entry.deliveryCode) entry.deliveryCode = randomDeliveryCode();
+      if (entry.status === "Entregue") {
+        entry.deliveredAt = new Date().toISOString();
+        entry.deliverySource = "Administrador";
+      }
       entry.updatedAt = new Date().toISOString();
+      saveState();
+    }
+  }
+  const requestDeliveryButton = event.target.closest("[data-request-delivery]");
+  if (requestDeliveryButton) {
+    const entry = state.services.find((item) => item.id === requestDeliveryButton.dataset.requestDelivery);
+    if (entry) {
+      if (!entry.deliveryCode) entry.deliveryCode = randomDeliveryCode();
+      entry.confirmationRequestedAt = new Date().toISOString();
+      entry.updatedAt = entry.confirmationRequestedAt;
+      try {
+        await navigator.clipboard.writeText(deliveryConfirmationMessage(entry));
+        alert("Mensagem de confirmação copiada para enviar no WhatsApp.");
+      } catch {
+        alert(deliveryConfirmationMessage(entry));
+      }
       saveState();
     }
   }
@@ -1076,6 +1109,14 @@ document.getElementById("serviceForm").addEventListener("submit", (event) => {
     reference: data.get("reference"),
     amount: Number(data.get("amount")),
     status: data.get("status"),
+    deliveryCode: existingEntry?.deliveryCode || randomDeliveryCode(),
+    confirmationRequestedAt: existingEntry?.confirmationRequestedAt || null,
+    deliveredAt: data.get("status") === "Entregue"
+      ? existingEntry?.deliveredAt || now
+      : null,
+    deliverySource: data.get("status") === "Entregue"
+      ? existingEntry?.deliverySource || "Administrador"
+      : "",
     createdAt: existingEntry?.createdAt || now,
     updatedAt: now
   };

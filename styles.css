@@ -103,6 +103,9 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .status-entregue { color: #117440; }
 .status-cancelado { color: var(--danger); }
 .overdue-label { display: inline-block; margin-left: 8px; padding: 4px 7px; border-radius: 999px; background: #fde8e5; color: var(--danger); font-size: 11px; font-weight: 800; }
+.confirmation-label, .delivered-label { display: inline-block; margin: 6px 0 0 8px; padding: 4px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.confirmation-label { background: #fff5e8; color: #a45b10; }
+.delivered-label { background: #edf9f2; color: #117440; }
 .service-overdue { border-color: #dca59f; background: #fffafa; box-shadow: inset 4px 0 0 var(--danger); }
 .service-actions { display: grid; gap: 8px; justify-items: end; }
 .status-actions { display: flex; gap: 8px; }

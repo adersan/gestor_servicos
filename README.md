@@ -61,3 +61,23 @@ https://gestor-servicos-adersan.netlify.app/cliente.html
 - Gerar PDF no servidor.
 - Integrar a API de WhatsApp.
 - Importar os dados da planilha.
+
+## Confirmação de entrega pelo WhatsApp
+
+O projeto inclui a função `/.netlify/functions/whatsapp-status-webhook`.
+Quando a API do WhatsApp for conectada, configure no Netlify:
+
+- `WHATSAPP_WEBHOOK_SECRET`: senha longa e exclusiva usada para autenticar o webhook.
+
+A API deve enviar uma requisição `POST` com o cabeçalho:
+
+```text
+Authorization: Bearer SUA_SENHA_DO_WEBHOOK
+```
+
+O texto recebido deve conter `RECEBIDO` e o código de seis caracteres gerado
+para o serviço, por exemplo: `RECEBIDO ABC123`.
+
+Antes de publicar essa funcionalidade, execute novamente
+`supabase/schema.sql` no SQL Editor do Supabase para criar os campos de
+confirmação.
