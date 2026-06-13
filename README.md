@@ -3,10 +3,14 @@
 Aplicação para administrar clientes, tabelas de preço, serviços, lançamentos,
 pagamentos, cobranças e relatórios enviados por WhatsApp.
 
+## Aplicação publicada
+
+https://gestor-servicos-adersan.netlify.app
+
 ## Estado atual
 
-O protótipo funciona no navegador e ainda salva os dados em `localStorage`.
-O esquema do banco definitivo está em `supabase/schema.sql`.
+A aplicação possui login administrativo pelo Supabase e sincroniza os dados
+com o banco online. O esquema do banco está em `supabase/schema.sql`.
 
 ## Executar localmente
 
