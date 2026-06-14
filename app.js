@@ -2254,6 +2254,8 @@ document.getElementById("installButton").addEventListener("click", async () => {
   deferredInstallPrompt = null;
 });
 
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js?v=11").then((registration) => registration.update());
+}
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
