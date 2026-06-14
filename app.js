@@ -616,7 +616,7 @@ function renderBillings() {
         : "Acesso do cliente ainda não gerado."}</div>
       <div class="card-actions">
         <button class="table-action" data-view-report="${item.id}">Ver relatório</button>
-        <button class="table-action" data-copy-whatsapp="${item.id}">WhatsApp</button>
+        <button class="table-action" data-copy-whatsapp="${item.id}">Compartilhar</button>
         <button class="table-action" data-renew-access="${item.id}">Gerar novo acesso</button>
         ${item.identifier && accessBillingByClient.get(item.clientId) === item.id
           ? `<button class="table-action" data-toggle-history="${item.id}">${item.historyEnabled ? "Bloquear histórico" : "Liberar histórico"}</button>`
@@ -816,7 +816,7 @@ function openBillingReport(billingId) {
   document.getElementById("reportContent").innerHTML = `<section class="report">
     <div class="report-actions">
       <button class="primary" data-print-report>Imprimir / Salvar PDF</button>
-      <button class="secondary" data-copy-whatsapp="${billing.id}">Copiar mensagem do WhatsApp</button>
+      <button class="secondary" data-copy-whatsapp="${billing.id}">Compartilhar cobrança</button>
       <button class="icon-button" data-close-report>×</button>
     </div>
     <header class="report-header">
@@ -856,6 +856,37 @@ function whatsappMessage(billing) {
     .join("\n");
   const portalUrl = `${location.origin}/cliente.html`;
   return `Olá, ${client?.name || ""}!\n\nSua cobrança de ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")} foi gerada.\n\nTotal em aberto: ${money.format(billingOpenAmount(billing))}\n\nFormas de pagamento:\n${methods}\n\nAcesse seu relatório:\n${portalUrl}\nIdentificador: ${billing.identifier}\nSenha: ${billing.password || "solicite um novo acesso"}\n\nO PDF detalhado seguirá junto com esta mensagem.`;
+}
+
+function whatsappPhone(client) {
+  const digits = String(client?.phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
+}
+
+async function shareBilling(billing) {
+  const client = clientById(billing.clientId);
+  const text = whatsappMessage(billing);
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: `Cobrança - ${client?.name || "Cliente"}`,
+        text
+      });
+      return "Compartilhada";
+    } catch (error) {
+      if (error?.name === "AbortError") return "";
+    }
+  }
+
+  const phone = whatsappPhone(client);
+  const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
+  const opened = window.open(`https://api.whatsapp.com/send?${query}`, "_blank", "noopener,noreferrer");
+  if (!opened) {
+    await copyText(text, "Mensagem");
+    return "Copiada";
+  }
+  return "WhatsApp";
 }
 
 async function issueClientAccess(billing) {
@@ -1228,14 +1259,18 @@ document.addEventListener("click", async (event) => {
   const whatsappButton = event.target.closest("[data-copy-whatsapp]");
   if (whatsappButton) {
     const billing = state.billings.find((item) => item.id === whatsappButton.dataset.copyWhatsapp);
-    navigator.clipboard.writeText(whatsappMessage(billing))
-      .then(() => {
+    if (billing) {
+      try {
+        const mode = await shareBilling(billing);
+        if (!mode) return;
         billing.sendHistory ||= [];
-        billing.sendHistory.push({ sentAt: new Date().toISOString(), channel: "WhatsApp", mode: "Copiada" });
+        billing.sendHistory.push({ sentAt: new Date().toISOString(), channel: "WhatsApp", mode });
         saveState();
-        alert("Mensagem copiada e envio registrado no histórico.");
-      })
-      .catch(() => alert(whatsappMessage(billing)));
+      } catch (error) {
+        console.error(error);
+        alert("Não foi possível compartilhar a cobrança.");
+      }
+    }
   }
 });
 

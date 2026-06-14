@@ -83,6 +83,23 @@ Ao iniciar a sessão pela função da APIBrasil, a mesma senha é incluída
 automaticamente na URL de callback porque a configuração apresentada pela
 APIBrasil não oferece um campo para cabeçalhos personalizados.
 
+No painel da APIBrasil, configure os quatro campos com a função publicada,
+alterando apenas o parâmetro `event`:
+
+```text
+Mudança de conexão:
+https://gestor-servicos-adersan.netlify.app/.netlify/functions/whatsapp-status-webhook?token=SEU_WHATSAPP_WEBHOOK_SECRET&event=connect
+
+Status do dispositivo:
+https://gestor-servicos-adersan.netlify.app/.netlify/functions/whatsapp-status-webhook?token=SEU_WHATSAPP_WEBHOOK_SECRET&event=status
+
+Recebimento de mensagens:
+https://gestor-servicos-adersan.netlify.app/.netlify/functions/whatsapp-status-webhook?token=SEU_WHATSAPP_WEBHOOK_SECRET&event=message
+
+Atualização de QR Code:
+https://gestor-servicos-adersan.netlify.app/.netlify/functions/whatsapp-status-webhook?token=SEU_WHATSAPP_WEBHOOK_SECRET&event=qrcode
+```
+
 O texto recebido deve conter `RECEBIDO` e o código de seis caracteres gerado
 para o serviço, por exemplo: `RECEBIDO ABC123`.
 
