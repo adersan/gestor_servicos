@@ -616,7 +616,7 @@ function renderBillings() {
         : "Acesso do cliente ainda não gerado."}</div>
       <div class="card-actions">
         <button class="table-action" data-view-report="${item.id}">Ver relatório</button>
-        <button class="table-action" data-copy-whatsapp="${item.id}">Compartilhar</button>
+        <button class="table-action" data-share-report="${item.id}">Compartilhar relatório</button>
         <button class="table-action" data-renew-access="${item.id}">Gerar novo acesso</button>
         ${item.identifier && accessBillingByClient.get(item.clientId) === item.id
           ? `<button class="table-action" data-toggle-history="${item.id}">${item.historyEnabled ? "Bloquear histórico" : "Liberar histórico"}</button>`
@@ -792,6 +792,227 @@ function billingDetails(billing) {
   return { services, payments, serviceTotal, paymentTotal, previousBalance };
 }
 
+function pdfSafeText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+}
+
+function billingReportFileName(billing) {
+  const client = clientById(billing.clientId);
+  const name = String(client?.name || "cliente")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+  return `relatorio-${name || "cliente"}-${billing.endDate}.pdf`;
+}
+
+function createBillingReportPdf(billing) {
+  const client = clientById(billing.clientId);
+  const details = billingDetails(billing);
+  const laterPayments = state.payments.filter((payment) => paymentWasAfterBilling(payment, billing));
+  const selectedMethodIds = billing.paymentMethodIds || [];
+  const methods = billing.paymentMethods?.length
+    ? billing.paymentMethods
+    : state.paymentMethods.filter((method) =>
+      selectedMethodIds.length ? selectedMethodIds.includes(method.id) : method.active);
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const margin = 42;
+  const pages = [];
+  let commands = [];
+  let y = 800;
+  const colors = {
+    green: "0.086 0.31 0.263",
+    blue: "0.176 0.447 0.769",
+    payment: "0.094 0.525 0.294",
+    orange: "0.812 0.424 0.071",
+    gray: "0.455 0.506 0.49",
+    dark: "0.12 0.18 0.16"
+  };
+
+  function addPage() {
+    if (commands.length) pages.push(commands.join("\n"));
+    commands = [
+      `${colors.green} rg 0 790 ${pageWidth} 52 re f`,
+      "1 1 1 rg BT /F2 17 Tf 42 812 Td (Gestor de Servicos) Tj ET"
+    ];
+    y = 766;
+  }
+
+  function text(value, x, size = 10, color = colors.dark, bold = false) {
+    commands.push(`${color} rg BT /${bold ? "F2" : "F1"} ${size} Tf ${x} ${y} Td (${pdfSafeText(value)}) Tj ET`);
+  }
+
+  function line() {
+    commands.push(`0.86 0.86 0.83 RG ${margin} ${y - 7} m ${pageWidth - margin} ${y - 7} l S`);
+  }
+
+  function ensureSpace(height = 28) {
+    if (y - height < 44) addPage();
+  }
+
+  function heading(value) {
+    ensureSpace(38);
+    y -= 12;
+    text(value, margin, 13, colors.green, true);
+    y -= 12;
+    line();
+    y -= 18;
+  }
+
+  addPage();
+  text("Relatorio de cobranca", margin, 9, colors.gray, true);
+  y -= 25;
+  text(client?.name || "Cliente", margin, 22, colors.dark, true);
+  y -= 19;
+  text(
+    `Periodo: ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")}`,
+    margin,
+    10,
+    colors.gray
+  );
+  y -= 34;
+
+  const cards = [
+    ["Saldo anterior", details.previousBalance, colors.gray],
+    ["Servicos", details.serviceTotal, colors.blue],
+    ["Pagamentos", details.paymentTotal, colors.payment],
+    ["Total em aberto", billingOpenAmount(billing), colors.orange]
+  ];
+  cards.forEach(([label, amount, color], index) => {
+    const x = margin + index * 128;
+    commands.push(`${color} rg ${x} ${y - 36} 116 58 re f`);
+    commands.push(`1 1 1 rg BT /F1 8 Tf ${x + 9} ${y + 5} Td (${pdfSafeText(label)}) Tj ET`);
+    commands.push(`1 1 1 rg BT /F2 12 Tf ${x + 9} ${y - 17} Td (${pdfSafeText(money.format(Number(amount)))}) Tj ET`);
+  });
+  y -= 72;
+
+  heading("Servicos do periodo");
+  if (!details.services.length) {
+    text("Nenhum servico neste fechamento.", margin);
+    y -= 22;
+  } else {
+    details.services.forEach((item) => {
+      ensureSpace(34);
+      text(item.date.split("-").reverse().join("/"), margin, 9, colors.gray);
+      text(item.description, 112, 9, colors.dark, true);
+      text(item.reference || "-", 315, 9, colors.gray);
+      text(money.format(Number(item.amount)), 462, 9, colors.blue, true);
+      y -= 17;
+      line();
+      y -= 8;
+    });
+  }
+
+  heading("Pagamentos");
+  const reportPayments = [...details.payments, ...laterPayments.filter((payment) =>
+    !details.payments.some((item) => item.id === payment.id))];
+  if (!reportPayments.length) {
+    text("Nenhum pagamento registrado.", margin);
+    y -= 22;
+  } else {
+    reportPayments.forEach((item) => {
+      ensureSpace(32);
+      text(item.date.split("-").reverse().join("/"), margin, 9, colors.gray);
+      text(item.method || item.note || "-", 145, 9, colors.dark);
+      text(money.format(Number(item.amount)), 462, 9, colors.payment, true);
+      y -= 17;
+      line();
+      y -= 8;
+    });
+  }
+
+  heading("Formas de pagamento");
+  if (!methods.length) {
+    text("Consulte as formas de pagamento com o responsavel.", margin);
+  } else {
+    methods.forEach((method) => {
+      ensureSpace(44);
+      text(`${method.name} (${method.type})`, margin, 10, colors.green, true);
+      y -= 15;
+      text(method.details || method.link || "-", margin, 9, colors.dark);
+      y -= 24;
+    });
+  }
+
+  pages.push(commands.join("\n"));
+  const objects = [];
+  const pageObjectNumbers = pages.map((_, index) => 5 + index * 2);
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pages.length} >>`;
+  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  objects[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
+  pages.forEach((content, index) => {
+    const pageNumber = pageObjectNumbers[index];
+    const contentNumber = pageNumber + 1;
+    objects[pageNumber] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentNumber} 0 R >>`;
+    objects[contentNumber] = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+  });
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (let index = 1; index < objects.length; index += 1) {
+    offsets[index] = pdf.length;
+    pdf += `${index} 0 obj\n${objects[index]}\nendobj\n`;
+  }
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
+  for (let index = 1; index < objects.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function downloadBillingReport(billing, blob = createBillingReportPdf(billing)) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = billingReportFileName(billing);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function shareBillingReport(billing) {
+  const client = clientById(billing.clientId);
+  const blob = createBillingReportPdf(billing);
+  const file = new File([blob], billingReportFileName(billing), { type: "application/pdf" });
+  const shareData = {
+    title: `Relatorio de cobranca - ${client?.name || "Cliente"}`,
+    text: `Segue o relatorio de cobranca de ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")}.`,
+    files: [file]
+  };
+
+  if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+    try {
+      await navigator.share(shareData);
+      return "PDF compartilhado";
+    } catch (error) {
+      if (error?.name === "AbortError") return "";
+    }
+  }
+
+  downloadBillingReport(billing, blob);
+  const phone = whatsappPhone(client);
+  const message = "Segue o relatorio de cobranca em PDF. O arquivo foi salvo para ser anexado nesta conversa.";
+  const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(message)}`;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  window.open(
+    isMobile ? `https://api.whatsapp.com/send?${query}` : `https://web.whatsapp.com/send?${query}`,
+    "gestor_servicos_whatsapp"
+  )?.focus();
+  return "PDF salvo";
+}
+
 function openBillingReport(billingId) {
   const billing = state.billings.find((item) => item.id === billingId);
   const client = clientById(billing.clientId);
@@ -816,7 +1037,7 @@ function openBillingReport(billingId) {
   document.getElementById("reportContent").innerHTML = `<section class="report">
     <div class="report-actions">
       <button class="primary" data-print-report>Imprimir / Salvar PDF</button>
-      <button class="secondary" data-copy-whatsapp="${billing.id}">Compartilhar cobrança</button>
+      <button class="secondary" data-share-report="${billing.id}">Compartilhar relatório</button>
       <button class="icon-button" data-close-report>×</button>
     </div>
     <header class="report-header">
@@ -839,47 +1060,14 @@ function openBillingReport(billingId) {
     <table class="report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Valor</th></tr></thead><tbody>${serviceRows}</tbody></table>
     <h3>Formas de pagamento</h3>
     <div class="payment-options">${methodRows}</div>
-    <div class="access-box">Acesso do cliente — Identificador: ${billing.identifier || "não gerado"} | Senha: ${billing.password || "exibida somente ao gerar o acesso"}</div>
   </section>`;
   document.getElementById("reportDialog").showModal();
-}
-
-function whatsappMessage(billing) {
-  const client = clientById(billing.clientId);
-  const selectedMethodIds = billing.paymentMethodIds || [];
-  const billingMethods = billing.paymentMethods?.length
-    ? billing.paymentMethods
-    : state.paymentMethods.filter((method) =>
-      selectedMethodIds.length ? selectedMethodIds.includes(method.id) : method.active);
-  const methods = billingMethods
-    .map((method) => `${method.name}: ${method.details || method.link || "Consulte as instruções no relatório"}`)
-    .join("\n");
-  const portalUrl = `${location.origin}/cliente.html`;
-  return `Olá, ${client?.name || ""}!\n\nSua cobrança de ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")} foi gerada.\n\nTotal em aberto: ${money.format(billingOpenAmount(billing))}\n\nFormas de pagamento:\n${methods}\n\nAcesse seu relatório:\n${portalUrl}\nIdentificador: ${billing.identifier}\nSenha: ${billing.password || "solicite um novo acesso"}\n\nO PDF detalhado seguirá junto com esta mensagem.`;
 }
 
 function whatsappPhone(client) {
   const digits = String(client?.phone || "").replace(/\D/g, "");
   if (!digits) return "";
   return digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
-}
-
-async function shareBilling(billing) {
-  const client = clientById(billing.clientId);
-  const text = whatsappMessage(billing);
-  const phone = whatsappPhone(client);
-  const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const url = isMobile
-    ? `https://api.whatsapp.com/send?${query}`
-    : `https://web.whatsapp.com/send?${query}`;
-  const opened = window.open(url, "gestor_servicos_whatsapp");
-  if (!opened) {
-    await copyText(text, "Mensagem");
-    return "Copiada";
-  }
-  opened.focus();
-  return "WhatsApp";
 }
 
 async function issueClientAccess(billing) {
@@ -1249,19 +1437,19 @@ document.addEventListener("click", async (event) => {
   }
   if (event.target.closest("[data-close-report]")) document.getElementById("reportDialog").close();
   if (event.target.closest("[data-print-report]")) window.print();
-  const whatsappButton = event.target.closest("[data-copy-whatsapp]");
-  if (whatsappButton) {
-    const billing = state.billings.find((item) => item.id === whatsappButton.dataset.copyWhatsapp);
+  const shareReportButton = event.target.closest("[data-share-report]");
+  if (shareReportButton) {
+    const billing = state.billings.find((item) => item.id === shareReportButton.dataset.shareReport);
     if (billing) {
       try {
-        const mode = await shareBilling(billing);
+        const mode = await shareBillingReport(billing);
         if (!mode) return;
         billing.sendHistory ||= [];
-        billing.sendHistory.push({ sentAt: new Date().toISOString(), channel: "WhatsApp", mode });
+        billing.sendHistory.push({ sentAt: new Date().toISOString(), channel: "Relatório", mode });
         saveState();
       } catch (error) {
         console.error(error);
-        alert("Não foi possível compartilhar a cobrança.");
+        alert("Não foi possível compartilhar o relatório.");
       }
     }
   }
@@ -1500,7 +1688,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     form.reset();
     dialog.close();
     render();
-    alert(`Cobrança criada.\n\nIdentificador: ${billing.identifier}\nSenha: ${billing.password}\n\nA senha será exibida somente agora e na mensagem copiada antes de recarregar.`);
+    alert(`Cobrança criada.\n\nIdentificador: ${billing.identifier}\nSenha: ${billing.password}\n\nA senha será exibida somente agora. O relatório compartilhado não inclui esses dados.`);
   } catch (error) {
     console.error(error);
     if (!persisted) {
