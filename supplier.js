@@ -269,7 +269,8 @@
     if (!selection || !entries?.length) return;
     const service = supplierServiceById(selection.supplierServiceId);
     const now = new Date().toISOString();
-    entries.forEach((entry) => state.supplierEntries.push({
+    const entriesByReference = entries.filter((entry) => !entry.isSecondary);
+    entriesByReference.forEach((entry) => state.supplierEntries.push({
       id: crypto.randomUUID(),
       supplierId: selection.supplierId,
       supplierServiceId: selection.supplierServiceId,

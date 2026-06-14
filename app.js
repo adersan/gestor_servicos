@@ -2548,14 +2548,64 @@ document.getElementById("continueEntryDialog").addEventListener("cancel", (event
 
 document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
-  if (event.target.name === "hasAdditionalServices" || event.target.name === "hasSupplierService") {
+  const form = event.currentTarget;
+  const supplierEnabled = form.elements.hasSupplierService.checked
+    && !form.elements.hasSupplierService.disabled;
+  const additionalEnabled = form.elements.hasAdditionalServices.checked
+    && !form.elements.hasAdditionalServices.disabled;
+
+  function focusNextFrom(target) {
+    const fields = [
+      form.elements.clientSearch,
+      form.elements.date,
+      form.elements.catalogSearch,
+      form.elements.reference,
+      form.elements.amount,
+      form.elements.hasAdditionalServices,
+      ...(additionalEnabled ? [
+        form.elements.additionalCatalogSearch,
+        form.elements.additionalAmount
+      ] : []),
+      form.elements.hasSupplierService,
+      ...(supplierEnabled ? [
+        form.elements.supplierId,
+        form.elements.supplierServiceId,
+        form.elements.supplierAmount
+      ] : []),
+      form.elements.status
+    ].filter((field) => field && !field.disabled);
+    const index = fields.indexOf(target);
+    if (index >= 0 && index < fields.length - 1) {
+      fields[index + 1].focus();
+      return true;
+    }
+    if (index === fields.length - 1) {
+      form.requestSubmit(form.querySelector('button[value="default"]'));
+      return true;
+    }
+    return false;
+  }
+
+  if (event.target.name === "hasAdditionalServices") {
     event.preventDefault();
+    if (additionalEnabled) form.elements.additionalCatalogSearch.focus();
+    else form.elements.hasSupplierService.focus();
+    return;
+  }
+  if (event.target.name === "hasSupplierService") {
+    event.preventDefault();
+    if (supplierEnabled) form.elements.supplierId.focus();
+    else form.elements.status.focus();
     return;
   }
   if (event.target.name === "additionalCatalogSearch") {
     event.preventDefault();
+    if (!event.target.value.trim() && additionalServiceValues.length) {
+      form.elements.hasSupplierService.focus();
+      return;
+    }
     syncAdditionalCatalogSelection();
-    event.currentTarget.elements.additionalAmount.focus();
+    form.elements.additionalAmount.focus();
     return;
   }
   if (event.target.name === "additionalAmount") {
@@ -2565,28 +2615,17 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   }
   if (event.target.name === "reference") {
     event.preventDefault();
-    if (event.target.value.includes("\n")) addCurrentReference();
-    event.currentTarget.elements.amount.focus();
+    if (event.target.value.trim()) {
+      addCurrentReference();
+      return;
+    }
+    form.elements.amount.focus();
     return;
   }
   event.preventDefault();
-  const form = event.currentTarget;
   if (event.target.name === "clientSearch") syncServiceClientSelection();
   if (event.target.name === "catalogSearch") syncServiceCatalogSelection();
-  const fields = [
-    form.elements.clientSearch,
-    form.elements.date,
-    form.elements.catalogSearch,
-    form.elements.reference,
-    form.elements.amount,
-    form.elements.status
-  ];
-  const index = fields.indexOf(event.target);
-  if (index >= 0 && index < fields.length - 1) {
-    fields[index + 1].focus();
-    return;
-  }
-  if (index === fields.length - 1) form.requestSubmit(form.querySelector('button[value="default"]'));
+  focusNextFrom(event.target);
 });
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -2603,7 +2642,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=16").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=17").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
