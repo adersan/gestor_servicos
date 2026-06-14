@@ -981,7 +981,13 @@ async function pollApiBrasilWhatsApp(onUpdate) {
     await wait(3000);
     const result = await apiBrasilWhatsAppStatus();
     onUpdate(result);
-    if (result.qr_code || terminalStatuses.has(result.status)) return result;
+    const isErrorStatus = /^(HTTP_\d+|APIBRASIL_|error$)/i.test(result.status || "");
+    if (result.qr_code || terminalStatuses.has(result.status) || isErrorStatus) {
+      if (isErrorStatus) {
+        throw new Error(result.message || `A APIBrasil retornou ${result.status}.`);
+      }
+      return result;
+    }
   }
   throw new Error("A APIBrasil ainda está processando. Aguarde um pouco e tente consultar novamente.");
 }
