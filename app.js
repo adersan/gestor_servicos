@@ -867,25 +867,18 @@ function whatsappPhone(client) {
 async function shareBilling(billing) {
   const client = clientById(billing.clientId);
   const text = whatsappMessage(billing);
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: `Cobrança - ${client?.name || "Cliente"}`,
-        text
-      });
-      return "Compartilhada";
-    } catch (error) {
-      if (error?.name === "AbortError") return "";
-    }
-  }
-
   const phone = whatsappPhone(client);
   const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
-  const opened = window.open(`https://api.whatsapp.com/send?${query}`, "_blank", "noopener,noreferrer");
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const url = isMobile
+    ? `https://api.whatsapp.com/send?${query}`
+    : `https://web.whatsapp.com/send?${query}`;
+  const opened = window.open(url, "gestor_servicos_whatsapp");
   if (!opened) {
     await copyText(text, "Mensagem");
     return "Copiada";
   }
+  opened.focus();
   return "WhatsApp";
 }
 
