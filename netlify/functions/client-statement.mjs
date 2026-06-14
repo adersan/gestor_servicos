@@ -34,9 +34,9 @@ export default async (request) => {
     const [clients, billings, services, payments, currentServices, methods, allBillings] = await Promise.all([
       supabase(`/rest/v1/clients?id=eq.${clientId}&select=id,name`),
       supabase(`/rest/v1/billings?id=eq.${billingId}&client_id=eq.${clientId}&status=neq.Cancelada&select=*`),
-      supabase(`/rest/v1/service_entries?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,service_name,reference,service_date,amount,status&order=service_date.asc`),
+      supabase(`/rest/v1/service_entries?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,service_name,reference,service_date,amount,status,is_secondary&order=service_date.asc`),
       supabase(`/rest/v1/payments?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,payment_date,amount,method,notes,created_at&order=payment_date.asc`),
-      supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,reference,service_date,amount,status&order=service_date.desc`),
+      supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,reference,service_date,amount,status,is_secondary&order=service_date.desc`),
       supabase("/rest/v1/payment_methods?active=eq.true&select=id,type,name,details,payment_link&order=created_at.asc"),
       historyEnabled
         ? supabase(`/rest/v1/billings?client_id=eq.${clientId}&status=neq.Cancelada&select=id,period_start,period_end,total_due,status,created_at&order=period_end.desc`)

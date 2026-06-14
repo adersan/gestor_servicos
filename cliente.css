@@ -226,6 +226,22 @@
   font-weight: 700;
 }
 
+.client-secondary-service {
+  background: #fcfaff;
+  box-shadow: inset 4px 0 0 #7654a8;
+}
+
+.client-secondary-label {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: #654697;
+  background: #eee8fa;
+  font-size: 10px;
+  font-weight: 800;
+}
+
 .history-list {
   display: grid;
   gap: 12px;

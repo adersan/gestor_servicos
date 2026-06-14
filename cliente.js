@@ -213,9 +213,9 @@ function renderStatement(data) {
     `${formatDate(billing.period_start)} a ${formatDate(billing.period_end)}`;
 
   const serviceRows = services.length
-    ? services.map((item) => `<tr>
+    ? services.map((item) => `<tr class="${item.is_secondary ? "client-secondary-service" : ""}">
         <td>${formatDate(item.service_date)}</td>
-        <td>${escapeHtml(item.service_name)}</td>
+        <td>${escapeHtml(item.service_name)}${item.is_secondary ? `<span class="client-secondary-label">Complementar</span>` : ""}</td>
         <td>${escapeHtml(item.reference || "-")}</td>
         <td class="amount-service">${money.format(Number(item.amount))}</td>
       </tr>`).join("")
@@ -275,9 +275,9 @@ function renderCurrentServices(data) {
     && (!filters.end || item.service_date <= filters.end)
     && (!filters.status || item.status === filters.status));
   const total = items.reduce((sum, item) => sum + Number(item.amount), 0);
-  const rows = items.length ? items.map((item) => `<tr>
+  const rows = items.length ? items.map((item) => `<tr class="${item.is_secondary ? "client-secondary-service" : ""}">
     <td>${formatDate(item.service_date)}</td>
-    <td>${escapeHtml(item.service_name)}</td>
+    <td>${escapeHtml(item.service_name)}${item.is_secondary ? `<span class="client-secondary-label">Complementar</span>` : ""}</td>
     <td>${escapeHtml(item.reference || "-")}</td>
     <td><span class="client-status">${escapeHtml(item.status)}</span></td>
     <td class="amount-service">${money.format(Number(item.amount))}</td>

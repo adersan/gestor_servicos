@@ -263,6 +263,24 @@
         <input name="amount" type="number" min="0" step="0.01" required>
         <span id="suggestedPrice" class="field-hint">Selecione o cliente e o serviço para preencher o valor.</span>
       </label>
+      <label class="checkbox-label additional-service-toggle">
+        <input name="hasAdditionalServices" type="checkbox">
+        Adicionar serviços complementares para a mesma referência
+      </label>
+      <section id="additionalServicesSection" class="additional-services-section hidden">
+        <input name="additionalCatalogId" type="hidden">
+        <label>Serviço complementar
+          <input name="additionalCatalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" placeholder="Digite o código ou nome">
+        </label>
+        <label>Valor do complementar
+          <span class="additional-service-entry-row">
+            <input name="additionalAmount" type="number" min="0" step="0.01">
+            <button id="addAdditionalServiceButton" class="secondary" type="button" aria-label="Adicionar serviço complementar">+</button>
+          </span>
+          <span id="additionalSuggestedPrice" class="field-hint">Escolha um serviço complementar.</span>
+        </label>
+        <div id="additionalServiceList" class="additional-service-list"></div>
+      </section>
       <label>Situação
         <select name="status"><option value="A fazer">A fazer</option><option value="Pronto">Feito</option><option value="Entregue">Entregue</option><option value="Cancelado">Cancelado</option></select>
       </label>

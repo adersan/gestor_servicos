@@ -77,6 +77,9 @@
         confirmationRequestedAt: entry.confirmation_requested_at,
         deliveredAt: entry.delivered_at,
         deliverySource: entry.delivery_source || "",
+        serviceGroupId: entry.service_group_id || "",
+        primaryEntryId: entry.primary_entry_id || "",
+        isSecondary: Boolean(entry.is_secondary),
         createdAt: entry.created_at,
         updatedAt: entry.updated_at
       })),
@@ -190,16 +193,22 @@
           delivery_code: item.deliveryCode || null,
           confirmation_requested_at: item.confirmationRequestedAt || null,
           delivered_at: item.deliveredAt || null,
-          delivery_source: item.deliverySource || null
+          delivery_source: item.deliverySource || null,
+          service_group_id: item.serviceGroupId || null,
+          primary_entry_id: item.primaryEntryId || null,
+          is_secondary: Boolean(item.isSecondary)
         }));
       let entriesResult = await client.from("service_entries").upsert(entries);
-      if (entriesResult.error && /delivery_(code|source)|confirmation_requested_at|delivered_at/i.test(entriesResult.error.message || "")) {
+      if (entriesResult.error && /delivery_(code|source)|confirmation_requested_at|delivered_at|service_group_id|primary_entry_id|is_secondary/i.test(entriesResult.error.message || "")) {
         const compatibleEntries = entries.map((entry) => {
           const {
             delivery_code,
             confirmation_requested_at,
             delivered_at,
             delivery_source,
+            service_group_id,
+            primary_entry_id,
+            is_secondary,
             ...compatibleEntry
           } = entry;
           return compatibleEntry;

@@ -29,6 +29,7 @@ let state = loadState();
 let deferredInstallPrompt;
 let remoteReady = false;
 let serviceReferenceValues = [];
+let additionalServiceValues = [];
 let entryContinuationResolver = null;
 
 function loadState() {
@@ -496,9 +497,9 @@ function renderServices() {
         || String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
     });
   document.getElementById("serviceList").innerHTML = items.length ? items.map((item) => `
-    <article class="timeline-item ${isOverdueService(item) ? "service-overdue" : ""}">
+    <article class="timeline-item ${isOverdueService(item) ? "service-overdue" : ""} ${item.isSecondary ? "secondary-service" : ""}">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
-      <div><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(clientById(item.clientId)?.name || "")} · ${escapeHtml(item.reference || "Sem referência")}</p><span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">Confirmado pelo cliente</span>` : ""}</div>
+      <div><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(clientById(item.clientId)?.name || "")} · ${escapeHtml(item.reference || "Sem referência")}</p><span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">Confirmado pelo cliente</span>` : ""}</div>
       <strong>${money.format(item.amount)}</strong>
       <div class="service-actions">
         <div class="status-actions">
@@ -767,6 +768,74 @@ function duplicateOpenReferences({ entryId, clientId, catalogId, amount, referen
   );
 }
 
+function renderAdditionalServiceList() {
+  document.getElementById("additionalServiceList").innerHTML = additionalServiceValues.map((service, index) => `
+    <div class="additional-service-item">
+      <span>${escapeHtml(catalogOptionLabel(state.catalog.find((item) => item.id === service.catalogId)))}</span>
+      <strong>${money.format(service.amount)}</strong>
+      <button type="button" data-remove-additional-service="${index}" aria-label="Remover serviço complementar">×</button>
+    </div>`).join("");
+}
+
+function syncAdditionalCatalogSelection() {
+  const form = document.getElementById("serviceForm");
+  const catalogItem = itemByExactLabel(
+    state.catalog,
+    form.elements.additionalCatalogSearch.value,
+    catalogOptionLabel
+  );
+  form.elements.additionalCatalogId.value = catalogItem?.id || "";
+  const client = clientById(form.elements.clientId.value);
+  const suggested = client && catalogItem
+    ? Number(catalogItem.prices[client.priceGroup] || 0)
+    : 0;
+  form.elements.additionalAmount.value = catalogItem ? suggested.toFixed(2) : "";
+  document.getElementById("additionalSuggestedPrice").textContent = catalogItem && client
+    ? `${client.priceGroup}: ${money.format(suggested)}. Você pode editar este valor.`
+    : "Escolha um serviço complementar.";
+}
+
+function addAdditionalService() {
+  const form = document.getElementById("serviceForm");
+  syncAdditionalCatalogSelection();
+  const catalogId = form.elements.additionalCatalogId.value;
+  const amount = Number(form.elements.additionalAmount.value);
+  if (!catalogId) {
+    alert("Selecione um serviço complementar válido.");
+    form.elements.additionalCatalogSearch.focus();
+    return false;
+  }
+  if (catalogId === form.elements.catalogId.value) {
+    alert("O serviço complementar deve ser diferente do serviço principal.");
+    return false;
+  }
+  if (additionalServiceValues.some((item) => item.catalogId === catalogId)) {
+    alert("Este serviço complementar já foi adicionado.");
+    return false;
+  }
+  additionalServiceValues.push({ catalogId, amount });
+  form.elements.additionalCatalogId.value = "";
+  form.elements.additionalCatalogSearch.value = "";
+  form.elements.additionalAmount.value = "";
+  document.getElementById("additionalSuggestedPrice").textContent = "Escolha outro serviço complementar ou salve o lançamento.";
+  renderAdditionalServiceList();
+  form.elements.additionalCatalogSearch.focus();
+  return true;
+}
+
+function toggleAdditionalServices() {
+  const form = document.getElementById("serviceForm");
+  const enabled = form.elements.hasAdditionalServices.checked;
+  document.getElementById("additionalServicesSection").classList.toggle("hidden", !enabled);
+  if (!enabled) {
+    additionalServiceValues = [];
+    form.elements.additionalCatalogId.value = "";
+    form.elements.additionalCatalogSearch.value = "";
+    form.elements.additionalAmount.value = "";
+    renderAdditionalServiceList();
+  }
+}
+
 function syncServiceClientSelection() {
   const form = document.getElementById("serviceForm");
   const client = itemByExactLabel(state.clients, form.elements.clientSearch.value, clientOptionLabel);
@@ -821,6 +890,7 @@ function openEntryForm(item = null, preferredClientId = "") {
   const form = document.getElementById("serviceForm");
   form.reset();
   serviceReferenceValues = [];
+  additionalServiceValues = [];
   form.elements.entryId.value = item?.id || "";
   form.elements.clientId.value = item?.clientId || preferredClientId || "";
   form.elements.clientSearch.value = clientOptionLabel(clientById(form.elements.clientId.value));
@@ -832,11 +902,15 @@ function openEntryForm(item = null, preferredClientId = "") {
   form.elements.reference.value = item?.reference || "";
   form.elements.amount.value = item ? Number(item.amount).toFixed(2) : "";
   form.elements.status.value = item?.status || "A fazer";
+  form.elements.hasAdditionalServices.checked = false;
+  form.elements.hasAdditionalServices.disabled = Boolean(item);
+  document.getElementById("additionalServicesSection").classList.add("hidden");
   document.getElementById("serviceDialogTitle").textContent = item ? "Editar lançamento" : "Novo lançamento";
   document.getElementById("suggestedPrice").textContent = item
     ? "O valor pode ser alterado somente neste lançamento."
     : "Selecione o cliente e o serviço para preencher o valor.";
   renderReferenceList();
+  renderAdditionalServiceList();
   document.getElementById("serviceDialog").showModal();
   setTimeout(() => form.elements.clientSearch.focus(), 0);
 }
@@ -1398,6 +1472,11 @@ document.addEventListener("click", async (event) => {
     serviceReferenceValues.splice(Number(removeReferenceButton.dataset.removeReference), 1);
     renderReferenceList();
   }
+  const removeAdditionalServiceButton = event.target.closest("[data-remove-additional-service]");
+  if (removeAdditionalServiceButton) {
+    additionalServiceValues.splice(Number(removeAdditionalServiceButton.dataset.removeAdditionalService), 1);
+    renderAdditionalServiceList();
+  }
   const continuationButton = event.target.closest("[data-entry-next]");
   if (continuationButton && entryContinuationResolver) {
     const resolve = entryContinuationResolver;
@@ -1712,44 +1791,88 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     ? [typedReferences.join(" ")]
     : [...new Set([...serviceReferenceValues, ...typedReferences])];
   const entryReferences = references.length ? references : [""];
-  const duplicates = duplicateOpenReferences({
-    entryId: existingEntry?.id || "",
-    clientId: data.get("clientId"),
-    catalogId: data.get("catalogId"),
-    amount: data.get("amount"),
-    references: entryReferences
-  });
+  if (form.elements.hasAdditionalServices.checked && !additionalServiceValues.length) {
+    alert("Adicione pelo menos um serviço complementar ou desmarque a opção.");
+    form.elements.additionalCatalogSearch.focus();
+    return;
+  }
+  if (additionalServiceValues.some((service) => service.catalogId === data.get("catalogId"))) {
+    alert("O serviço principal também está na lista de complementares. Remova-o ou escolha outro serviço.");
+    return;
+  }
+  const serviceDefinitions = [
+    {
+      catalogId: data.get("catalogId"),
+      description: catalogItem.name,
+      amount: Number(data.get("amount")),
+      isSecondary: Boolean(existingEntry?.isSecondary)
+    },
+    ...additionalServiceValues.map((service) => {
+      const additionalCatalog = state.catalog.find((item) => item.id === service.catalogId);
+      return {
+        catalogId: service.catalogId,
+        description: additionalCatalog.name,
+        amount: Number(service.amount),
+        isSecondary: true
+      };
+    })
+  ];
+  const duplicates = serviceDefinitions.flatMap((service) =>
+    duplicateOpenReferences({
+      entryId: existingEntry?.id || "",
+      clientId: data.get("clientId"),
+      catalogId: service.catalogId,
+      amount: service.amount,
+      references: entryReferences
+    }).map((item) => ({ ...item, duplicateDescription: service.description }))
+  );
   if (duplicates.length) {
-    const duplicateNames = [...new Set(duplicates.map((item) => item.reference))].join("\n");
+    const duplicateNames = [...new Set(duplicates.map((item) =>
+      `${item.reference || "Sem referência"} — ${item.duplicateDescription}`
+    ))].join("\n");
     const shouldContinue = confirm(
       `Atenção: estas referências já possuem o mesmo serviço e valor antes da cobrança:\n\n${duplicateNames}\n\nDeseja lançar novamente?`
     );
     if (!shouldContinue) return;
   }
   entryReferences.forEach((reference, referenceIndex) => {
-    const entry = {
-      id: existingEntry && referenceIndex === 0 ? existingEntry.id : crypto.randomUUID(),
-      clientId: data.get("clientId"),
-      catalogId: data.get("catalogId"),
-      date: data.get("date"),
-      description: catalogItem.name,
-      reference,
-      amount: Number(data.get("amount")),
-      status: data.get("status"),
-      deliveryCode: existingEntry?.deliveryCode || randomDeliveryCode(),
-      confirmationRequestedAt: existingEntry?.confirmationRequestedAt || null,
-      deliveredAt: data.get("status") === "Entregue"
-        ? existingEntry?.deliveredAt || now
-        : null,
-      deliverySource: data.get("status") === "Entregue"
-        ? existingEntry?.deliverySource || "Administrador"
-        : "",
-      createdAt: existingEntry?.createdAt || now,
-      updatedAt: now
-    };
-    const index = state.services.findIndex((item) => item.id === entry.id);
-    if (index >= 0) state.services[index] = entry;
-    else state.services.push(entry);
+    const serviceGroupId = existingEntry?.serviceGroupId || crypto.randomUUID();
+    const primaryEntryId = existingEntry && referenceIndex === 0
+      ? existingEntry.id
+      : crypto.randomUUID();
+    serviceDefinitions.forEach((service, serviceIndex) => {
+      const isPrimary = serviceIndex === 0;
+      const entry = {
+        id: isPrimary ? primaryEntryId : crypto.randomUUID(),
+        clientId: data.get("clientId"),
+        catalogId: service.catalogId,
+        date: data.get("date"),
+        description: service.description,
+        reference,
+        amount: service.amount,
+        status: data.get("status"),
+        serviceGroupId,
+        primaryEntryId: existingEntry
+          ? existingEntry.primaryEntryId || ""
+          : isPrimary ? "" : primaryEntryId,
+        isSecondary: service.isSecondary,
+        deliveryCode: isPrimary && existingEntry?.deliveryCode
+          ? existingEntry.deliveryCode
+          : randomDeliveryCode(),
+        confirmationRequestedAt: isPrimary ? existingEntry?.confirmationRequestedAt || null : null,
+        deliveredAt: data.get("status") === "Entregue"
+          ? (isPrimary ? existingEntry?.deliveredAt : null) || now
+          : null,
+        deliverySource: data.get("status") === "Entregue"
+          ? (isPrimary ? existingEntry?.deliverySource : "") || "Administrador"
+          : "",
+        createdAt: isPrimary ? existingEntry?.createdAt || now : now,
+        updatedAt: now
+      };
+      const index = state.services.findIndex((item) => item.id === entry.id);
+      if (index >= 0) state.services[index] = entry;
+      else state.services.push(entry);
+    });
   });
   const savedClientId = data.get("clientId");
   form.reset();
@@ -1986,8 +2109,13 @@ document.querySelector('#serviceForm input[name="clientSearch"]').addEventListen
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("input", syncServiceCatalogSelection);
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("change", syncServiceCatalogSelection);
 document.getElementById("addReferenceButton").addEventListener("click", addCurrentReference);
+document.querySelector('#serviceForm input[name="hasAdditionalServices"]').addEventListener("change", toggleAdditionalServices);
+document.querySelector('#serviceForm input[name="additionalCatalogSearch"]').addEventListener("input", syncAdditionalCatalogSelection);
+document.querySelector('#serviceForm input[name="additionalCatalogSearch"]').addEventListener("change", syncAdditionalCatalogSelection);
+document.getElementById("addAdditionalServiceButton").addEventListener("click", addAdditionalService);
 document.querySelector("[data-cancel-service-entry]").addEventListener("click", () => {
   serviceReferenceValues = [];
+  additionalServiceValues = [];
   document.getElementById("serviceForm").reset();
   document.getElementById("serviceDialog").close();
 });
@@ -2002,6 +2130,21 @@ document.getElementById("continueEntryDialog").addEventListener("cancel", (event
 
 document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+  if (event.target.name === "hasAdditionalServices") {
+    event.preventDefault();
+    return;
+  }
+  if (event.target.name === "additionalCatalogSearch") {
+    event.preventDefault();
+    syncAdditionalCatalogSelection();
+    event.currentTarget.elements.additionalAmount.focus();
+    return;
+  }
+  if (event.target.name === "additionalAmount") {
+    event.preventDefault();
+    addAdditionalService();
+    return;
+  }
   if (event.target.name === "reference") {
     event.preventDefault();
     if (event.target.value.includes("\n")) addCurrentReference();

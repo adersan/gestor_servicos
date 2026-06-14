@@ -84,6 +84,9 @@ alter table public.service_entries add column if not exists delivery_code text;
 alter table public.service_entries add column if not exists confirmation_requested_at timestamptz;
 alter table public.service_entries add column if not exists delivered_at timestamptz;
 alter table public.service_entries add column if not exists delivery_source text;
+alter table public.service_entries add column if not exists service_group_id uuid;
+alter table public.service_entries add column if not exists primary_entry_id uuid;
+alter table public.service_entries add column if not exists is_secondary boolean not null default false;
 
 create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
