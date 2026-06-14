@@ -13,7 +13,7 @@ export default async (request) => {
 
   try {
     await requireAdmin(request);
-    const { clientId, billingId } = await request.json();
+    const { clientId, billingId, historyEnabled = false } = await request.json();
     if (!clientId || !billingId) return json(400, { error: "Cliente e cobrança são obrigatórios." });
 
     const billings = await supabase(
@@ -35,6 +35,7 @@ export default async (request) => {
         billing_id: billingId,
         identifier_hash: identifierHash(identifier),
         password_hash: passwordHash(password),
+        history_enabled: Boolean(historyEnabled),
         active: true,
         expires_at: null
       })

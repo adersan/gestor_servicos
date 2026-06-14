@@ -576,6 +576,11 @@ function renderPaymentMethods() {
 function renderBillings() {
   const clientFilter = document.getElementById("billingClientFilter").value;
   const search = document.getElementById("billingSearch").value.trim();
+  const accessBillingByClient = new Map();
+  state.billings
+    .filter((billing) => billing.status !== "Cancelada")
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .forEach((billing) => accessBillingByClient.set(billing.clientId, billing.id));
   const items = state.billings
     .filter((item) => !clientFilter || item.clientId === clientFilter)
     .filter((item) => matchesSearch(
@@ -596,6 +601,7 @@ function renderBillings() {
       <p class="billing-history">${item.sendHistory?.length
         ? `Último envio: ${new Date(item.sendHistory[item.sendHistory.length - 1].sentAt).toLocaleString("pt-BR")}`
         : "Ainda não enviada pelo sistema"}</p>
+      <p class="meta">Histórico no portal: <strong>${item.historyEnabled ? "Liberado" : "Bloqueado"}</strong></p>
       <div class="access-box">${item.identifier
         ? `<div class="access-data">
             <span><small>ID</small><strong>${escapeHtml(item.identifier)}</strong></span>
@@ -612,6 +618,9 @@ function renderBillings() {
         <button class="table-action" data-view-report="${item.id}">Ver relatório</button>
         <button class="table-action" data-copy-whatsapp="${item.id}">WhatsApp</button>
         <button class="table-action" data-renew-access="${item.id}">Gerar novo acesso</button>
+        ${item.identifier && accessBillingByClient.get(item.clientId) === item.id
+          ? `<button class="table-action" data-toggle-history="${item.id}">${item.historyEnabled ? "Bloquear histórico" : "Liberar histórico"}</button>`
+          : ""}
         ${billingCurrentStatus(item) === "Aberta" ? `<button class="table-action danger" data-cancel-billing="${item.id}">Cancelar</button>` : ""}
       </div>
     </article>`).join("") : emptyMarkup();
@@ -860,10 +869,36 @@ async function issueClientAccess(billing) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`
     },
-    body: JSON.stringify({ clientId: billing.clientId, billingId: billing.id })
+    body: JSON.stringify({
+      clientId: billing.clientId,
+      billingId: billing.id,
+      historyEnabled: Boolean(billing.historyEnabled)
+    })
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || "Não foi possível gerar o acesso do cliente.");
+  return result;
+}
+
+async function updateClientHistoryAccess(billing, enabled) {
+  const { data } = await window.supabaseClient.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+
+  const response = await fetch("/.netlify/functions/update-client-history-access", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      clientId: billing.clientId,
+      billingId: billing.id,
+      enabled
+    })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Não foi possível alterar o acesso ao histórico.");
   return result;
 }
 
@@ -1072,6 +1107,27 @@ document.addEventListener("click", async (event) => {
       alert(error.message);
       renewAccessButton.disabled = false;
       renewAccessButton.textContent = "Gerar novo acesso";
+    }
+  }
+  const toggleHistoryButton = event.target.closest("[data-toggle-history]");
+  if (toggleHistoryButton) {
+    const billing = state.billings.find((item) => item.id === toggleHistoryButton.dataset.toggleHistory);
+    if (billing) {
+      const enabled = !billing.historyEnabled;
+      toggleHistoryButton.disabled = true;
+      try {
+        await updateClientHistoryAccess(billing, enabled);
+        billing.historyEnabled = enabled;
+        await window.dataStore.upsertState(state);
+        render();
+        alert(enabled
+          ? "Histórico liberado para este acesso."
+          : "Histórico bloqueado imediatamente.");
+      } catch (error) {
+        console.error(error);
+        alert(error.message);
+        toggleHistoryButton.disabled = false;
+      }
     }
   }
   const cancelBillingButton = event.target.closest("[data-cancel-billing]");
@@ -1325,6 +1381,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     paymentMethods: state.paymentMethods
       .filter((method) => paymentMethodIds.includes(method.id))
       .map((method) => ({ ...method })),
+    historyEnabled: data.get("historyEnabled") === "on",
     sendHistory: [],
     createdAt: new Date().toISOString()
   };

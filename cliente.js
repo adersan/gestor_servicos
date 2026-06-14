@@ -1,6 +1,8 @@
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const tokenKey = "gestor_servicos_client_token";
 let currentStatement = null;
+let portalData = null;
+let activeView = "billing";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -85,7 +87,7 @@ function createPdf(data) {
     ["Saldo anterior", Number(data.billing.previous_balance), color.gray],
     ["Servicos", Number(data.billing.services_total), color.blue],
     ["Pagamentos", Number(data.billing.payments_total), color.payment],
-    ["Total em aberto", Number(data.billing.total_due), color.orange]
+    ["Total em aberto", Number(data.billing.open_amount ?? data.billing.total_due), color.orange]
   ];
   cards.forEach(([label, amount, selectedColor], index) => {
     const x = margin + index * 128;
@@ -238,7 +240,7 @@ function renderStatement(data) {
       <article class="summary-card summary-previous"><span class="summary-dot"></span><span class="meta">Saldo anterior</span><strong>${money.format(Number(billing.previous_balance))}</strong></article>
       <article class="summary-card summary-services"><span class="summary-dot"></span><span class="meta">Serviços</span><strong>${money.format(Number(billing.services_total))}</strong></article>
       <article class="summary-card summary-payments"><span class="summary-dot"></span><span class="meta">Pagamentos</span><strong>${money.format(Number(billing.payments_total))}</strong></article>
-      <article class="summary-card summary-total"><span class="summary-dot"></span><span class="meta">Total em aberto</span><strong>${money.format(Number(billing.total_due))}</strong></article>
+      <article class="summary-card summary-total"><span class="summary-dot"></span><span class="meta">Total em aberto</span><strong>${money.format(Number(billing.open_amount ?? billing.total_due))}</strong></article>
     </div>
     <section class="client-section section-services">
       <h3>Serviços do período</h3>
@@ -258,14 +260,130 @@ function renderStatement(data) {
   document.getElementById("logoutButton").classList.remove("hidden");
 }
 
-async function loadStatement() {
+function serviceFilters() {
+  return {
+    start: document.getElementById("currentServiceStart")?.value || "",
+    end: document.getElementById("currentServiceEnd")?.value || "",
+    status: document.getElementById("currentServiceStatus")?.value || ""
+  };
+}
+
+function renderCurrentServices(data) {
+  const filters = serviceFilters();
+  const items = data.currentServices.filter((item) =>
+    (!filters.start || item.service_date >= filters.start)
+    && (!filters.end || item.service_date <= filters.end)
+    && (!filters.status || item.status === filters.status));
+  const total = items.reduce((sum, item) => sum + Number(item.amount), 0);
+  const rows = items.length ? items.map((item) => `<tr>
+    <td>${formatDate(item.service_date)}</td>
+    <td>${escapeHtml(item.service_name)}</td>
+    <td>${escapeHtml(item.reference || "-")}</td>
+    <td><span class="client-status">${escapeHtml(item.status)}</span></td>
+    <td class="amount-service">${money.format(Number(item.amount))}</td>
+  </tr>`).join("") : `<tr><td colspan="5">Nenhum serviço encontrado.</td></tr>`;
+
+  document.getElementById("clientName").textContent = data.client.name;
+  document.getElementById("billingPeriod").textContent = "Serviços ainda não incluídos em uma cobrança";
+  document.getElementById("printButton").classList.add("hidden");
+  document.getElementById("statementContent").innerHTML = `
+    <div class="client-summary current-summary">
+      <article class="summary-card summary-services">
+        <span class="summary-dot"></span><span class="meta">Consumo ainda não cobrado</span>
+        <strong>${money.format(total)}</strong>
+      </article>
+      <article class="summary-card summary-previous">
+        <span class="summary-dot"></span><span class="meta">Quantidade de serviços</span>
+        <strong>${items.length}</strong>
+      </article>
+    </div>
+    <section class="client-section section-services">
+      <div class="client-section-heading">
+        <h3>Consumo atual</h3>
+        <div class="client-filters">
+          <label>De<input id="currentServiceStart" type="date" value="${filters.start}"></label>
+          <label>Até<input id="currentServiceEnd" type="date" value="${filters.end}"></label>
+          <label>Status<select id="currentServiceStatus">
+            <option value="">Todos</option>
+            ${["A fazer", "Feito", "Entregue"].map((status) =>
+              `<option value="${status}" ${filters.status === status ? "selected" : ""}>${status}</option>`).join("")}
+          </select></label>
+        </div>
+      </div>
+      <table class="report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Status</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>
+    </section>`;
+}
+
+function historyFilters() {
+  return {
+    start: document.getElementById("historyStart")?.value || "",
+    end: document.getElementById("historyEnd")?.value || "",
+    status: document.getElementById("historyStatus")?.value || ""
+  };
+}
+
+function renderHistory(data) {
+  const filters = historyFilters();
+  const items = data.billingHistory.filter((billing) =>
+    (!filters.start || billing.period_end >= filters.start)
+    && (!filters.end || billing.period_start <= filters.end)
+    && (!filters.status || billing.status === filters.status));
+  const cards = items.length ? items.map((billing) => `
+    <article class="history-card">
+      <div>
+        <span class="eyebrow">${formatDate(billing.period_start)} a ${formatDate(billing.period_end)}</span>
+        <h3>${money.format(Number(billing.total_due))}</h3>
+        <span class="client-status">${escapeHtml(billing.status)}</span>
+      </div>
+      <button class="secondary" type="button" data-open-history="${billing.id}">Ver cobrança</button>
+    </article>`).join("") : `<div class="empty-state">Nenhuma cobrança anterior encontrada.</div>`;
+
+  document.getElementById("clientName").textContent = data.client.name;
+  document.getElementById("billingPeriod").textContent = "Cobranças anteriores autorizadas pelo administrador";
+  document.getElementById("printButton").classList.add("hidden");
+  document.getElementById("statementContent").innerHTML = `
+    <section class="client-section history-section">
+      <div class="client-section-heading">
+        <h3>Histórico de cobranças</h3>
+        <div class="client-filters">
+          <label>De<input id="historyStart" type="date" value="${filters.start}"></label>
+          <label>Até<input id="historyEnd" type="date" value="${filters.end}"></label>
+          <label>Status<select id="historyStatus">
+            <option value="">Todos</option>
+            ${["Aberta", "Parcial", "Paga"].map((status) =>
+              `<option value="${status}" ${filters.status === status ? "selected" : ""}>${status}</option>`).join("")}
+          </select></label>
+        </div>
+      </div>
+      <div class="history-list">${cards}</div>
+    </section>`;
+}
+
+function selectView(view) {
+  activeView = view;
+  document.querySelectorAll("[data-client-view]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.clientView === view);
+  });
+  if (view === "current-services") renderCurrentServices(portalData);
+  else if (view === "history") renderHistory(portalData);
+  else {
+    document.getElementById("printButton").classList.remove("hidden");
+    renderStatement(currentStatement);
+  }
+}
+
+async function loadStatement(billingId = "") {
   const token = sessionStorage.getItem(tokenKey);
   if (!token) return;
   try {
-    const data = await request("client-statement", {
+    const query = billingId ? `?billingId=${encodeURIComponent(billingId)}` : "";
+    const data = await request(`client-statement${query}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
+    portalData = data;
+    document.getElementById("historyTab").classList.toggle("hidden", !data.historyEnabled);
     renderStatement(data);
+    selectView("billing");
   } catch {
     sessionStorage.removeItem(tokenKey);
   }
@@ -303,5 +421,23 @@ document.getElementById("logoutButton").addEventListener("click", () => {
   location.reload();
 });
 document.getElementById("printButton").addEventListener("click", downloadStatementPdf);
+document.getElementById("clientPortalNav").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-client-view]");
+  if (!button || !portalData) return;
+  if (button.dataset.clientView === "billing"
+      && currentStatement?.billing.id !== portalData.accessBillingId) {
+    await loadStatement(portalData.accessBillingId);
+    return;
+  }
+  selectView(button.dataset.clientView);
+});
+document.getElementById("statementContent").addEventListener("click", async (event) => {
+  const historyButton = event.target.closest("[data-open-history]");
+  if (historyButton) await loadStatement(historyButton.dataset.openHistory);
+});
+document.getElementById("statementContent").addEventListener("change", () => {
+  if (activeView === "current-services") renderCurrentServices(portalData);
+  if (activeView === "history") renderHistory(portalData);
+});
 
 loadStatement();

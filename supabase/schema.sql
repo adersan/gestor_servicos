@@ -155,6 +155,9 @@ create table if not exists public.client_access_credentials (
   last_access_at timestamptz
 );
 
+alter table public.client_access_credentials
+  add column if not exists history_enabled boolean not null default false;
+
 create index if not exists service_entries_client_date_idx
   on public.service_entries(client_id, service_date);
 create unique index if not exists service_entries_delivery_code_idx
