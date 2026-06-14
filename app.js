@@ -901,20 +901,35 @@ function createBillingReportPdf(billing) {
   } else {
     const columnWidth = 245;
     const columnGap = 20;
-    for (let index = 0; index < details.services.length; index += 2) {
-      ensureSpace(48);
+    ensureSpace(28);
+    [0, 1].forEach((columnIndex) => {
+      const x = margin + columnIndex * (columnWidth + columnGap);
+      commands.push(`0.91 0.94 0.93 rg ${x} ${y - 15} ${columnWidth} 22 re f`);
+      commands.push(`${colors.dark} rg BT /F2 7 Tf ${x + 6} ${y - 2} Td (Data) Tj ET`);
+      commands.push(`${colors.dark} rg BT /F2 7 Tf ${x + 48} ${y - 2} Td (Servico) Tj ET`);
+      commands.push(`${colors.dark} rg BT /F2 7 Tf ${x + 145} ${y - 2} Td (Ref) Tj ET`);
+      commands.push(`${colors.dark} rg BT /F2 7 Tf ${x + 202} ${y - 2} Td (Valor) Tj ET`);
+    });
+    y -= 27;
+    const splitAt = Math.ceil(details.services.length / 2);
+    const leftServices = details.services.slice(0, splitAt);
+    const rightServices = details.services.slice(splitAt);
+    const rowCount = Math.max(leftServices.length, rightServices.length);
+    for (let index = 0; index < rowCount; index += 1) {
+      ensureSpace(27);
       const rowY = y;
-      details.services.slice(index, index + 2).forEach((item, columnIndex) => {
+      [leftServices[index], rightServices[index]].forEach((item, columnIndex) => {
+        if (!item) return;
         const x = margin + columnIndex * (columnWidth + columnGap);
-        const description = String(item.description || "").slice(0, 30);
-        const reference = String(item.reference || "-").slice(0, 24);
-        commands.push(`0.96 0.97 0.96 rg ${x} ${rowY - 33} ${columnWidth} 43 re f`);
-        commands.push(`${colors.gray} rg BT /F1 8 Tf ${x + 9} ${rowY - 2} Td (${pdfSafeText(item.date.split("-").reverse().join("/"))}) Tj ET`);
-        commands.push(`${colors.dark} rg BT /F2 9 Tf ${x + 68} ${rowY - 2} Td (${pdfSafeText(description)}) Tj ET`);
-        commands.push(`${colors.gray} rg BT /F1 8 Tf ${x + 9} ${rowY - 20} Td (${pdfSafeText(reference)}) Tj ET`);
-        commands.push(`${colors.blue} rg BT /F2 9 Tf ${x + 170} ${rowY - 20} Td (${pdfSafeText(money.format(Number(item.amount)))}) Tj ET`);
+        const description = String(item.description || "").slice(0, 19);
+        const reference = String(item.reference || "-").slice(0, 10);
+        commands.push(`0.97 0.98 0.97 rg ${x} ${rowY - 16} ${columnWidth} 23 re f`);
+        commands.push(`${colors.gray} rg BT /F1 6.5 Tf ${x + 5} ${rowY - 3} Td (${pdfSafeText(item.date.split("-").reverse().join("/"))}) Tj ET`);
+        commands.push(`${colors.dark} rg BT /F1 7 Tf ${x + 48} ${rowY - 3} Td (${pdfSafeText(description)}) Tj ET`);
+        commands.push(`${colors.gray} rg BT /F1 6.5 Tf ${x + 145} ${rowY - 3} Td (${pdfSafeText(reference)}) Tj ET`);
+        commands.push(`${colors.blue} rg BT /F2 7 Tf ${x + 194} ${rowY - 3} Td (${pdfSafeText(money.format(Number(item.amount)))}) Tj ET`);
       });
-      y -= 51;
+      y -= 27;
     }
   }
 
@@ -1030,12 +1045,22 @@ function openBillingReport(billingId) {
     : state.paymentMethods.filter((method) =>
       selectedMethodIds.length ? selectedMethodIds.includes(method.id) : method.active);
   const laterPayments = state.payments.filter((payment) => paymentWasAfterBilling(payment, billing));
-  const serviceRows = details.services.length ? details.services.map((item) => `
-    <article class="report-service-item">
-      <div><time>${item.date.split("-").reverse().join("/")}</time><strong>${escapeHtml(item.description)}</strong></div>
-      <div><span>${escapeHtml(item.reference || "Sem referência")}</span><b>${money.format(item.amount)}</b></div>
-    </article>
-  `).join("") : `<p class="meta">Nenhum serviço neste período.</p>`;
+  function serviceTable(items) {
+    const rows = items.map((item) => `<tr>
+      <td>${item.date.split("-").reverse().join("/")}</td>
+      <td title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</td>
+      <td title="${escapeHtml(item.reference || "-")}">${escapeHtml(item.reference || "-")}</td>
+      <td>${money.format(item.amount)}</td>
+    </tr>`).join("");
+    return `<table class="report-service-table">
+      <thead><tr><th>Data</th><th>Serviço</th><th>Ref</th><th>Valor</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="4">-</td></tr>`}</tbody>
+    </table>`;
+  }
+  const splitAt = Math.ceil(details.services.length / 2);
+  const serviceRows = details.services.length
+    ? `${serviceTable(details.services.slice(0, splitAt))}${serviceTable(details.services.slice(splitAt))}`
+    : `<p class="meta">Nenhum serviço neste período.</p>`;
   const methodRows = methods.length ? methods.map((method) => `
     <div class="payment-option">
       <strong>${escapeHtml(method.name)} (${escapeHtml(method.type)})</strong>
