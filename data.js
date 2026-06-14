@@ -95,6 +95,10 @@
         serviceGroupId: entry.service_group_id || "",
         primaryEntryId: entry.primary_entry_id || "",
         isSecondary: Boolean(entry.is_secondary),
+        cancellationReason: entry.cancellation_reason || "",
+        cancellationOriginalAmount: entry.cancellation_original_amount === null
+          ? null
+          : Number(entry.cancellation_original_amount),
         createdAt: entry.created_at,
         updatedAt: entry.updated_at
       })),
@@ -151,7 +155,12 @@
         clientId: item.client_id, clientServiceEntryId: item.client_service_entry_id,
         payableId: item.payable_id, date: item.service_date, description: item.service_name,
         reference: item.reference || "", amount: Number(item.amount), status: item.status,
-        source: item.source, notes: item.notes || "", createdAt: item.created_at, updatedAt: item.updated_at
+        source: item.source, notes: item.notes || "",
+        cancellationReason: item.cancellation_reason || "",
+        cancellationOriginalAmount: item.cancellation_original_amount === null
+          ? null
+          : Number(item.cancellation_original_amount),
+        createdAt: item.created_at, updatedAt: item.updated_at
       })),
       supplierPayables: supplierPayablesResult.data.map((item) => ({
         id: item.id, supplierId: item.supplier_id, startDate: item.period_start,
@@ -236,10 +245,12 @@
           delivery_source: item.deliverySource || null,
           service_group_id: item.serviceGroupId || null,
           primary_entry_id: item.primaryEntryId || null,
-          is_secondary: Boolean(item.isSecondary)
+          is_secondary: Boolean(item.isSecondary),
+          cancellation_reason: item.cancellationReason || null,
+          cancellation_original_amount: item.cancellationOriginalAmount ?? null
         }));
       let entriesResult = await client.from("service_entries").upsert(entries);
-      if (entriesResult.error && /delivery_(code|source)|confirmation_requested_at|delivered_at|service_group_id|primary_entry_id|is_secondary/i.test(entriesResult.error.message || "")) {
+      if (entriesResult.error && /delivery_(code|source)|confirmation_requested_at|delivered_at|service_group_id|primary_entry_id|is_secondary|cancellation_reason|cancellation_original_amount/i.test(entriesResult.error.message || "")) {
         const compatibleEntries = entries.map((entry) => {
           const {
             delivery_code,
@@ -249,6 +260,8 @@
             service_group_id,
             primary_entry_id,
             is_secondary,
+            cancellation_reason,
+            cancellation_original_amount,
             ...compatibleEntry
           } = entry;
           return compatibleEntry;
@@ -362,7 +375,10 @@
         client_id: item.clientId || null, client_service_entry_id: item.clientServiceEntryId || null,
         payable_id: item.payableId || null, service_date: item.date, service_name: item.description,
         reference: item.reference || null, amount: Number(item.amount), status: item.status,
-        source: item.source || "Direto", notes: item.notes || null, created_at: item.createdAt
+        source: item.source || "Direto", notes: item.notes || null,
+        cancellation_reason: item.cancellationReason || null,
+        cancellation_original_amount: item.cancellationOriginalAmount ?? null,
+        created_at: item.createdAt
       })));
       if (result.error) throw result.error;
     }

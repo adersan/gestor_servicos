@@ -138,9 +138,12 @@
     byId("supplierEntryList").innerHTML = entries.length ? entries.map((item) => `
       <article class="timeline-item ${item.payableId ? "supplier-entry-closed" : ""}">
         <time>${formatDate(item.date)}</time>
-        <div><span class="eyebrow">${escapeHtml(supplierById(item.supplierId)?.name || "")}</span><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(item.reference || "Sem referência")}${item.clientId ? ` · ${escapeHtml(clientName(item.clientId))}` : ""} · ${item.source}</p></div>
+        <div><span class="eyebrow">${escapeHtml(supplierById(item.supplierId)?.name || "")}</span><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(item.reference || "Sem referência")}${item.clientId ? ` · ${escapeHtml(clientName(item.clientId))}` : ""} · ${item.source}</p>${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Custo anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}</div>
         <div><span class="status status-${normalized(item.status).replace(/\s/g, "-")}">${item.status}</span><strong>${money.format(item.amount)}</strong></div>
-        <div class="row-actions"><button class="table-action" data-edit-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Editar</button><button class="table-action danger" data-delete-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Excluir</button></div>
+        <div class="row-actions">
+          ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Editar</button><button class="table-action danger" data-cancel-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Cancelar</button>` : ""}
+          <button class="table-action danger" data-delete-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Excluir</button>
+        </div>
       </article>`).join("") : empty();
   }
 
@@ -410,6 +413,21 @@
     event.currentTarget.closest("dialog").close(); saveState();
   });
 
+  byId("supplierCancelForm").addEventListener("submit", (event) => {
+    if (event.submitter?.value === "cancel") return;
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const entry = state.supplierEntries.find((item) => item.id === data.get("entryId"));
+    if (!entry || entry.payableId) return;
+    entry.cancellationOriginalAmount = Number(entry.amount);
+    entry.cancellationReason = String(data.get("reason") || "").trim();
+    entry.amount = 0;
+    entry.status = "Cancelado";
+    entry.updatedAt = new Date().toISOString();
+    event.currentTarget.closest("dialog").close();
+    saveState();
+  });
+
   byId("supplierPayableForm").addEventListener("submit", (event) => {
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
@@ -481,6 +499,19 @@
     const editSupplier = event.target.closest("[data-edit-supplier]"); if (editSupplier) openSupplier(supplierById(editSupplier.dataset.editSupplier));
     const editService = event.target.closest("[data-edit-supplier-service]"); if (editService) openSupplierService(supplierServiceById(editService.dataset.editSupplierService));
     const editEntry = event.target.closest("[data-edit-supplier-entry]"); if (editEntry) openSupplierEntry(state.supplierEntries.find((item) => item.id === editEntry.dataset.editSupplierEntry));
+    const cancelEntry = event.target.closest("[data-cancel-supplier-entry]");
+    if (cancelEntry) {
+      const entry = state.supplierEntries.find((item) => item.id === cancelEntry.dataset.cancelSupplierEntry);
+      if (entry?.payableId) alert("Este serviço já está em uma conta a pagar e não pode ser cancelado.");
+      else if (entry) {
+        const form = byId("supplierCancelForm");
+        form.reset();
+        form.elements.entryId.value = entry.id;
+        byId("supplierCancelDescription").textContent = `${entry.description} · ${entry.reference || "Sem referência"} · ${supplierById(entry.supplierId)?.name || ""}`;
+        byId("supplierCancelDialog").showModal();
+        setTimeout(() => form.elements.reason.focus(), 0);
+      }
+    }
     const deleteSupplier = event.target.closest("[data-delete-supplier]");
     if (deleteSupplier && !state.supplierEntries.some((item) => item.supplierId === deleteSupplier.dataset.deleteSupplier) && confirm("Excluir este fornecedor?")) { state.suppliers = state.suppliers.filter((item) => item.id !== deleteSupplier.dataset.deleteSupplier); saveState(); }
     else if (deleteSupplier && state.supplierEntries.some((item) => item.supplierId === deleteSupplier.dataset.deleteSupplier)) alert("Este fornecedor possui movimentações e não pode ser excluído.");

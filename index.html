@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=19">
+  <link rel="stylesheet" href="styles.css?v=20">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -513,11 +513,35 @@
         </label>
       </section>
       <label>Situação
-        <select name="status"><option value="A fazer">A fazer</option><option value="Pronto">Feito</option><option value="Entregue">Entregue</option><option value="Cancelado">Cancelado</option></select>
+        <select name="status"><option value="A fazer">A fazer</option><option value="Pronto">Feito</option><option value="Entregue">Entregue</option></select>
       </label>
       <div class="dialog-form-actions">
         <button class="secondary" type="button" data-cancel-service-entry>Cancelar</button>
         <button class="primary" value="default">Salvar lançamento</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="cancelServiceDialog">
+    <form id="cancelServiceForm" method="dialog">
+      <div class="dialog-heading"><h2>Cancelar serviço</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="entryId" type="hidden">
+      <p id="cancelServiceDescription" class="meta"></p>
+      <label>Motivo do cancelamento
+        <textarea name="reason" rows="4" required placeholder="Ex.: CRV não pode ser digitado porque..."></textarea>
+      </label>
+      <label id="cancelComplementaryOption" class="checkbox-label hidden">
+        <input name="cancelComplementary" type="checkbox">
+        Cancelar e zerar também os serviços complementares desta referência
+      </label>
+      <label id="cancelSupplierOption" class="checkbox-label hidden">
+        <input name="cancelSupplier" type="checkbox">
+        Cancelar e zerar também o serviço do fornecedor
+      </label>
+      <p class="hint">O registro permanecerá no histórico com valor zero e o motivo informado.</p>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Voltar</button>
+        <button class="primary" value="default">Confirmar cancelamento</button>
       </div>
     </form>
   </dialog>
@@ -663,9 +687,19 @@
       <label>Data<input name="date" type="date" required></label>
       <label>Referência<input name="reference"></label>
       <label>Valor do fornecedor<input name="amount" type="number" min="0" step="0.01" required></label>
-      <label>Status<select name="status"><option>A fazer</option><option>Feito</option><option>Cancelado</option></select></label>
+      <label>Status<select name="status"><option>A fazer</option><option>Feito</option></select></label>
       <label>Observações<textarea name="notes" rows="2"></textarea></label>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Salvar</button></div>
+    </form>
+  </dialog>
+  <dialog id="supplierCancelDialog">
+    <form id="supplierCancelForm" method="dialog">
+      <div class="dialog-heading"><h2>Cancelar serviço do fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="entryId" type="hidden">
+      <p id="supplierCancelDescription" class="meta"></p>
+      <label>Motivo do cancelamento<textarea name="reason" rows="4" required></textarea></label>
+      <p class="hint">O lançamento continuará visível, mas seu custo será zerado.</p>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Voltar</button><button class="primary" value="default">Confirmar</button></div>
     </form>
   </dialog>
   <dialog id="supplierPayableDialog">
@@ -738,10 +772,10 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=19"></script>
-  <script src="auth.js?v=19"></script>
-  <script src="data.js?v=19"></script>
-  <script src="app.js?v=19"></script>
-  <script src="supplier.js?v=19"></script>
+  <script src="config.js?v=20"></script>
+  <script src="auth.js?v=20"></script>
+  <script src="data.js?v=20"></script>
+  <script src="app.js?v=20"></script>
+  <script src="supplier.js?v=20"></script>
 </body>
 </html>

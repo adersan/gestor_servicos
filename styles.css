@@ -138,6 +138,7 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .confirmation-label, .delivered-label { display: inline-block; margin: 6px 0 0 8px; padding: 4px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .confirmation-label { background: #fff5e8; color: #a45b10; }
 .delivered-label { background: #edf9f2; color: #117440; }
+.cancellation-reason { margin-top: 8px; padding: 9px 11px; border-radius: 10px; background: #fdecea; color: #8d3d35; font-size: 12px; line-height: 1.4; }
 .service-overdue { border-color: #dca59f; background: #fffafa; box-shadow: inset 4px 0 0 var(--danger); }
 .service-actions { display: grid; gap: 8px; justify-items: end; }
 .status-actions { display: flex; gap: 8px; }
@@ -257,6 +258,7 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .continue-entry-dialog { width: min(420px, 88vw); padding: 24px; }
 .continue-entry-actions { display: grid; gap: 10px; margin-top: 20px; }
 .checkbox-label { display: flex; align-items: center; gap: 9px; }
+.checkbox-label.hidden { display: none; }
 .checkbox-label input { width: auto; }
 .method-type { display: inline-block; margin-bottom: 10px; color: var(--brand); font-size: 12px; font-weight: 800; text-transform: uppercase; }
 .report-dialog { width: min(96vw, 900px); max-width: 900px; }

@@ -712,7 +712,7 @@ function renderServices() {
   document.getElementById("serviceList").innerHTML = items.length ? items.map((item) => `
     <article class="timeline-item ${isOverdueService(item) ? "service-overdue" : ""} ${item.isSecondary ? "secondary-service" : ""}">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
-      <div><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(clientById(item.clientId)?.name || "")} · ${escapeHtml(item.reference || "Sem referência")}</p><span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">Confirmado pelo cliente</span>` : ""}</div>
+      <div><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(clientById(item.clientId)?.name || "")} · ${escapeHtml(item.reference || "Sem referência")}</p><span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">Confirmado pelo cliente</span>` : ""}${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}</div>
       <strong>${money.format(item.amount)}</strong>
       <div class="service-actions">
         <div class="status-actions">
@@ -720,7 +720,10 @@ function renderServices() {
           ${item.status === "Pronto" ? `<button class="table-action" data-request-delivery="${item.id}">Solicitar confirmação</button>` : ""}
           ${item.status === "Pronto" ? `<button class="table-action success" data-service-status="Entregue" data-entry-id="${item.id}">Marcar entregue</button>` : ""}
         </div>
-        <div class="row-actions"><button class="table-action" data-edit-entry="${item.id}">Editar</button><button class="table-action danger" data-delete-entry="${item.id}">Excluir</button></div>
+        <div class="row-actions">
+          ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-entry="${item.id}">Editar</button><button class="table-action danger" data-cancel-entry="${item.id}">Cancelar</button>` : ""}
+          <button class="table-action danger" data-delete-entry="${item.id}">Excluir</button>
+        </div>
       </div>
     </article>`).join("") : emptyMarkup();
 }
@@ -1121,6 +1124,39 @@ function openCatalogForm(item = null) {
   renderCatalogPriceFields(item);
   document.getElementById("catalogDialogTitle").textContent = item ? "Editar serviço" : "Novo serviço";
   document.getElementById("catalogDialog").showModal();
+}
+
+function cancellationGroup(entry) {
+  if (!entry?.serviceGroupId) return [entry].filter(Boolean);
+  return state.services.filter((item) =>
+    item.serviceGroupId === entry.serviceGroupId
+    && item.reference === entry.reference
+  );
+}
+
+function openServiceCancellation(entry) {
+  if (!entry) return;
+  if (entry.billingId) {
+    alert("Este serviço já está em uma cobrança. Cancele a cobrança primeiro para alterar o lançamento.");
+    return;
+  }
+  const form = document.getElementById("cancelServiceForm");
+  form.reset();
+  form.elements.entryId.value = entry.id;
+  const group = cancellationGroup(entry);
+  const complementary = group.filter((item) => item.id !== entry.id && item.isSecondary && item.status !== "Cancelado");
+  const linkedEntryIds = new Set(group.map((item) => item.id));
+  const supplierEntries = state.supplierEntries.filter((item) =>
+    linkedEntryIds.has(item.clientServiceEntryId)
+    && item.status !== "Cancelado"
+    && !item.payableId
+  );
+  document.getElementById("cancelServiceDescription").textContent =
+    `${entry.description} · ${entry.reference || "Sem referência"} · ${clientById(entry.clientId)?.name || ""}`;
+  document.getElementById("cancelComplementaryOption").classList.toggle("hidden", !complementary.length || entry.isSecondary);
+  document.getElementById("cancelSupplierOption").classList.toggle("hidden", !supplierEntries.length);
+  document.getElementById("cancelServiceDialog").showModal();
+  setTimeout(() => form.elements.reason.focus(), 0);
 }
 
 function openEntryForm(item = null, preferredClientId = "") {
@@ -1853,6 +1889,8 @@ document.addEventListener("click", async (event) => {
 
   const editEntry = event.target.closest("[data-edit-entry]");
   if (editEntry) openEntryForm(state.services.find((item) => item.id === editEntry.dataset.editEntry));
+  const cancelEntry = event.target.closest("[data-cancel-entry]");
+  if (cancelEntry) openServiceCancellation(state.services.find((item) => item.id === cancelEntry.dataset.cancelEntry));
   const serviceStatusButton = event.target.closest("[data-service-status]");
   if (serviceStatusButton) {
     const entry = state.services.find((item) => item.id === serviceStatusButton.dataset.entryId);
@@ -2229,6 +2267,45 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   const next = await askEntryContinuation();
   if (next === "same") openEntryForm(null, savedClientId);
   if (next === "other") openEntryForm();
+});
+
+document.getElementById("cancelServiceForm").addEventListener("submit", (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  const entry = state.services.find((item) => item.id === data.get("entryId"));
+  if (!entry) return;
+  const reason = String(data.get("reason") || "").trim();
+  if (!reason) return;
+  const group = cancellationGroup(entry);
+  const targets = [entry];
+  if (data.get("cancelComplementary") === "on" && !entry.isSecondary) {
+    targets.push(...group.filter((item) => item.id !== entry.id && item.isSecondary));
+  }
+  const targetIds = new Set(targets.map((item) => item.id));
+  const now = new Date().toISOString();
+  targets.forEach((item) => {
+    if (item.status === "Cancelado") return;
+    item.cancellationOriginalAmount = Number(item.amount);
+    item.cancellationReason = reason;
+    item.amount = 0;
+    item.status = "Cancelado";
+    item.updatedAt = now;
+  });
+  if (data.get("cancelSupplier") === "on") {
+    state.supplierEntries
+      .filter((item) => targetIds.has(item.clientServiceEntryId) && !item.payableId)
+      .forEach((item) => {
+        if (item.status === "Cancelado") return;
+        item.cancellationOriginalAmount = Number(item.amount);
+        item.cancellationReason = reason;
+        item.amount = 0;
+        item.status = "Cancelado";
+        item.updatedAt = now;
+      });
+  }
+  event.currentTarget.closest("dialog").close();
+  saveState();
 });
 
 document.getElementById("paymentForm").addEventListener("submit", (event) => {
@@ -2643,7 +2720,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=19").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=20").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
