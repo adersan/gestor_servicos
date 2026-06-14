@@ -45,6 +45,13 @@ create table if not exists public.service_catalog (
   updated_at timestamptz not null default now()
 );
 
+alter table public.service_catalog
+  add column if not exists code text;
+
+create unique index if not exists service_catalog_code_idx
+  on public.service_catalog(code)
+  where code is not null and code <> '';
+
 create table if not exists public.service_prices (
   service_id uuid not null references public.service_catalog(id) on delete cascade,
   price_table_id uuid not null references public.price_tables(id) on delete cascade,

@@ -150,7 +150,9 @@
         <button class="primary" data-dialog="serviceDialog">Lançar serviço</button>
       </div>
       <div class="filters">
-        <select id="serviceClientFilter"><option value="">Todos os clientes</option></select>
+        <input id="serviceClientNameFilter" type="search" list="serviceClientFilterOptions" placeholder="Digite o cliente">
+        <input id="serviceClientFilter" type="hidden">
+        <datalist id="serviceClientFilterOptions"></datalist>
         <select id="serviceStatusFilter">
           <option value="">Todas as situações</option>
           <option value="A fazer">A fazer</option>
@@ -242,10 +244,20 @@
     <form id="serviceForm" method="dialog">
       <div class="dialog-heading"><h2 id="serviceDialogTitle">Lançar serviço</h2><button class="icon-button" value="cancel">×</button></div>
       <input name="entryId" type="hidden">
-      <label>Cliente<select name="clientId" required></select></label>
+      <input name="clientId" type="hidden">
+      <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
+      <datalist id="serviceClientOptions"></datalist>
       <label>Data<input name="date" type="date" required></label>
-      <label>Serviço<select name="catalogId" required></select></label>
-      <label>Placa ou referência<input name="reference" placeholder="Ex.: ABC1D23"></label>
+      <input name="catalogId" type="hidden">
+      <label>Serviço<input name="catalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
+      <datalist id="serviceCatalogOptions"></datalist>
+      <label>Placa ou referência
+        <span class="reference-entry-row">
+          <input name="reference" placeholder="Ex.: ABC1D23">
+          <button id="addReferenceButton" class="secondary" type="button" aria-label="Adicionar referência">+</button>
+        </span>
+      </label>
+      <div id="referenceList" class="reference-list"></div>
       <label>Valor
         <input name="amount" type="number" min="0" step="0.01" required>
         <span id="suggestedPrice" class="field-hint">Selecione o cliente e o serviço para preencher o valor.</span>
@@ -261,10 +273,23 @@
     <form id="catalogForm" method="dialog">
       <div class="dialog-heading"><h2 id="catalogDialogTitle">Serviço e preços</h2><button class="icon-button" value="cancel">×</button></div>
       <input name="catalogId" type="hidden">
+      <label>Código numérico<input name="code" inputmode="numeric" pattern="[0-9]*" placeholder="Ex.: 10"></label>
       <label>Nome do serviço<input name="name" required placeholder="Ex.: Vistoria"></label>
       <div id="catalogPriceFields" class="price-fields"></div>
       <button class="primary full" value="default">Salvar serviço</button>
     </form>
+  </dialog>
+
+  <dialog id="continueEntryDialog">
+    <div class="continue-entry-dialog">
+      <div class="dialog-heading"><h2>Lançamento salvo</h2></div>
+      <p>Deseja fazer outro lançamento?</p>
+      <div class="continue-entry-actions">
+        <button class="primary" type="button" data-entry-next="same">Sim, mesmo cliente</button>
+        <button class="secondary" type="button" data-entry-next="close">Não, fechar</button>
+        <button class="secondary" type="button" data-entry-next="other">Outro cliente</button>
+      </div>
+    </div>
   </dialog>
 
   <dialog id="paymentDialog">

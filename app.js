@@ -28,6 +28,8 @@ const initialState = {
 let state = loadState();
 let deferredInstallPrompt;
 let remoteReady = false;
+let serviceReferenceValues = [];
+let entryContinuationResolver = null;
 
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -205,6 +207,28 @@ function matchesSearch(search, ...values) {
   return !search || searchableText(...values).includes(searchableText(search));
 }
 
+function clientOptionLabel(client) {
+  return client?.name || "";
+}
+
+function catalogOptionLabel(item) {
+  return item?.code ? `${item.code} - ${item.name}` : item?.name || "";
+}
+
+function itemByExactLabel(items, value, labelBuilder) {
+  const normalized = searchableText(value);
+  return items.find((item) => searchableText(labelBuilder(item)) === normalized)
+    || items.find((item) => searchableText(item.name) === normalized)
+    || items.find((item) => item.code && searchableText(item.code) === normalized);
+}
+
+function uniqueClientMatch(value) {
+  const exact = itemByExactLabel(state.clients, value, clientOptionLabel);
+  if (exact) return exact;
+  const matches = state.clients.filter((client) => matchesSearch(value, client.name));
+  return matches.length === 1 ? matches[0] : null;
+}
+
 function formatDate(value) {
   return value ? value.split("-").reverse().join("/") : "-";
 }
@@ -216,19 +240,24 @@ function renderSelects() {
     select.innerHTML = `<option value="">Selecione</option>${options}`;
     select.value = current;
   });
-  ["serviceClientFilter", "paymentClientFilter", "billingClientFilter"].forEach((id) => {
+  ["paymentClientFilter", "billingClientFilter"].forEach((id) => {
     const filter = document.getElementById(id);
     const currentFilter = filter.value;
     filter.innerHTML = `<option value="">Todos os clientes</option>${options}`;
     filter.value = currentFilter;
   });
 
-  const catalogSelect = document.querySelector('#serviceForm select[name="catalogId"]');
-  const selectedCatalog = catalogSelect.value;
-  catalogSelect.innerHTML = `<option value="">Selecione</option>${state.catalog
-    .map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`)
-    .join("")}`;
-  catalogSelect.value = selectedCatalog;
+  const clientDatalistOptions = [...state.clients]
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+    .map((client) => `<option value="${escapeHtml(clientOptionLabel(client))}"></option>`)
+    .join("");
+  document.getElementById("serviceClientOptions").innerHTML = clientDatalistOptions;
+  document.getElementById("serviceClientFilterOptions").innerHTML = clientDatalistOptions;
+  document.getElementById("serviceCatalogOptions").innerHTML = [...state.catalog]
+    .sort((a, b) => (Number(a.code) || 999999) - (Number(b.code) || 999999)
+      || a.name.localeCompare(b.name, "pt-BR"))
+    .map((item) => `<option value="${escapeHtml(catalogOptionLabel(item))}"></option>`)
+    .join("");
 
   const priceGroupSelect = document.querySelector('#clientForm select[name="priceGroup"]');
   const selectedPriceGroup = priceGroupSelect.value;
@@ -249,13 +278,13 @@ function renderSelects() {
 function renderCatalog() {
   const target = document.getElementById("catalogTable");
   const search = document.getElementById("catalogSearch").value.trim();
-  const items = state.catalog.filter((item) => matchesSearch(search, item.name));
+  const items = state.catalog.filter((item) => matchesSearch(search, item.code, item.name));
   const header = state.priceTables.map((name) => `<th>${escapeHtml(name)}</th>`).join("");
   const rows = items.length ? items
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
     .map((item) => `
       <tr>
-        <td><strong>${escapeHtml(item.name)}</strong></td>
+        <td><strong>${item.code ? `${escapeHtml(item.code)} - ` : ""}${escapeHtml(item.name)}</strong></td>
         ${state.priceTables.map((name) => `<td>${money.format(item.prices[name] || 0)}</td>`).join("")}
         <td><div class="row-actions">
           <button class="table-action" data-edit-catalog="${item.id}">Editar</button>
@@ -446,10 +475,12 @@ function renderClients() {
 
 function renderServices() {
   const clientFilter = document.getElementById("serviceClientFilter").value;
+  const clientNameFilter = document.getElementById("serviceClientNameFilter").value.trim();
   const statusFilter = document.getElementById("serviceStatusFilter").value;
   const search = document.getElementById("serviceSearch").value.trim();
   const items = state.services
     .filter((item) => !clientFilter || item.clientId === clientFilter)
+    .filter((item) => !clientNameFilter || matchesSearch(clientNameFilter, clientById(item.clientId)?.name))
     .filter((item) => !statusFilter || item.status === statusFilter)
     .filter((item) => matchesSearch(
       search,
@@ -693,6 +724,46 @@ function updateSuggestedPrice() {
   hint.textContent = `${client.priceGroup}: ${money.format(suggested)}. Você pode editar este valor sem alterar a tabela.`;
 }
 
+function renderReferenceList() {
+  document.getElementById("referenceList").innerHTML = serviceReferenceValues.map((reference, index) => `
+    <span class="reference-chip">
+      ${escapeHtml(reference)}
+      <button type="button" data-remove-reference="${index}" aria-label="Remover ${escapeHtml(reference)}">×</button>
+    </span>`).join("");
+}
+
+function addCurrentReference() {
+  const input = document.querySelector('#serviceForm input[name="reference"]');
+  const reference = input.value.trim().toUpperCase();
+  if (!reference) return false;
+  if (!serviceReferenceValues.includes(reference)) serviceReferenceValues.push(reference);
+  input.value = "";
+  renderReferenceList();
+  input.focus();
+  return true;
+}
+
+function syncServiceClientSelection() {
+  const form = document.getElementById("serviceForm");
+  const client = itemByExactLabel(state.clients, form.elements.clientSearch.value, clientOptionLabel);
+  form.elements.clientId.value = client?.id || "";
+  updateSuggestedPrice();
+}
+
+function syncServiceCatalogSelection() {
+  const form = document.getElementById("serviceForm");
+  const catalogItem = itemByExactLabel(state.catalog, form.elements.catalogSearch.value, catalogOptionLabel);
+  form.elements.catalogId.value = catalogItem?.id || "";
+  updateSuggestedPrice();
+}
+
+function syncServiceClientFilter() {
+  const searchInput = document.getElementById("serviceClientNameFilter");
+  const client = uniqueClientMatch(searchInput.value);
+  document.getElementById("serviceClientFilter").value = client?.id || "";
+  renderServices();
+}
+
 function renderCatalogPriceFields(item = null) {
   document.getElementById("catalogPriceFields").innerHTML = state.priceTables.map((name) => `
     <label>${escapeHtml(name)}
@@ -715,19 +786,25 @@ function openCatalogForm(item = null) {
   const form = document.getElementById("catalogForm");
   form.reset();
   form.elements.catalogId.value = item?.id || "";
+  form.elements.code.value = item?.code || "";
   form.elements.name.value = item?.name || "";
   renderCatalogPriceFields(item);
   document.getElementById("catalogDialogTitle").textContent = item ? "Editar serviço" : "Novo serviço";
   document.getElementById("catalogDialog").showModal();
 }
 
-function openEntryForm(item = null) {
+function openEntryForm(item = null, preferredClientId = "") {
   const form = document.getElementById("serviceForm");
   form.reset();
+  serviceReferenceValues = [];
   form.elements.entryId.value = item?.id || "";
-  form.elements.clientId.value = item?.clientId || "";
+  form.elements.clientId.value = item?.clientId || preferredClientId || "";
+  form.elements.clientSearch.value = clientOptionLabel(clientById(form.elements.clientId.value));
   form.elements.date.value = item?.date || new Date().toISOString().slice(0, 10);
   form.elements.catalogId.value = item?.catalogId || "";
+  form.elements.catalogSearch.value = catalogOptionLabel(
+    state.catalog.find((catalogItem) => catalogItem.id === form.elements.catalogId.value)
+  );
   form.elements.reference.value = item?.reference || "";
   form.elements.amount.value = item ? Number(item.amount).toFixed(2) : "";
   form.elements.status.value = item?.status || "A fazer";
@@ -735,7 +812,9 @@ function openEntryForm(item = null) {
   document.getElementById("suggestedPrice").textContent = item
     ? "O valor pode ser alterado somente neste lançamento."
     : "Selecione o cliente e o serviço para preencher o valor.";
+  renderReferenceList();
   document.getElementById("serviceDialog").showModal();
+  setTimeout(() => form.elements.clientSearch.focus(), 0);
 }
 
 function openPaymentForm(item = null, billing = null, mode = "partial") {
@@ -1270,7 +1349,10 @@ document.addEventListener("click", async (event) => {
   if (dialogButton) {
     if (dialogButton.dataset.dialog === "clientDialog") openClientForm();
     else if (dialogButton.dataset.dialog === "catalogDialog") openCatalogForm();
-    else if (dialogButton.dataset.dialog === "serviceDialog") openEntryForm();
+    else if (dialogButton.dataset.dialog === "serviceDialog") {
+      const preferredClient = uniqueClientMatch(document.getElementById("serviceClientNameFilter").value);
+      openEntryForm(null, preferredClient?.id || "");
+    }
     else if (dialogButton.dataset.dialog === "paymentDialog") openPaymentForm();
     else if (dialogButton.dataset.dialog === "paymentMethodDialog") openPaymentMethodForm();
     else if (dialogButton.dataset.dialog === "priceTableDialog") {
@@ -1287,6 +1369,18 @@ document.addEventListener("click", async (event) => {
   }
   const closeDialogButton = event.target.closest("[data-close-dialog]");
   if (closeDialogButton) closeDialogButton.closest("dialog")?.close();
+  const removeReferenceButton = event.target.closest("[data-remove-reference]");
+  if (removeReferenceButton) {
+    serviceReferenceValues.splice(Number(removeReferenceButton.dataset.removeReference), 1);
+    renderReferenceList();
+  }
+  const continuationButton = event.target.closest("[data-entry-next]");
+  if (continuationButton && entryContinuationResolver) {
+    const resolve = entryContinuationResolver;
+    entryContinuationResolver = null;
+    document.getElementById("continueEntryDialog").close();
+    resolve(continuationButton.dataset.entryNext);
+  }
 
   const editClient = event.target.closest("[data-edit-client]");
   if (editClient) openClientForm(clientById(editClient.dataset.editClient));
@@ -1538,8 +1632,15 @@ document.getElementById("catalogForm").addEventListener("submit", (event) => {
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
   const data = new FormData(event.currentTarget);
+  const code = String(data.get("code") || "").trim();
+  if (code && state.catalog.some((catalogItem) =>
+    catalogItem.code === code && catalogItem.id !== data.get("catalogId"))) {
+    alert("Este código já está sendo usado por outro serviço.");
+    return;
+  }
   const item = {
     id: data.get("catalogId") || crypto.randomUUID(),
+    code,
     name: data.get("name"),
     prices: Object.fromEntries([...event.currentTarget.querySelectorAll("[data-price-table]")]
       .map((input) => [input.dataset.priceTable, Number(input.value)]))
@@ -1552,39 +1653,74 @@ document.getElementById("catalogForm").addEventListener("submit", (event) => {
   saveState();
 });
 
-document.getElementById("serviceForm").addEventListener("submit", (event) => {
+function askEntryContinuation() {
+  document.getElementById("continueEntryDialog").showModal();
+  return new Promise((resolve) => {
+    entryContinuationResolver = resolve;
+  });
+}
+
+document.getElementById("serviceForm").addEventListener("submit", async (event) => {
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
-  const data = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  syncServiceClientSelection();
+  syncServiceCatalogSelection();
+  if (!form.elements.clientId.value) {
+    alert("Selecione um cliente válido da lista.");
+    form.elements.clientSearch.focus();
+    return;
+  }
+  if (!form.elements.catalogId.value) {
+    alert("Selecione um serviço válido pelo código ou nome.");
+    form.elements.catalogSearch.focus();
+    return;
+  }
+  const data = new FormData(form);
   const catalogItem = state.catalog.find((item) => item.id === data.get("catalogId"));
   const existingEntry = state.services.find((item) => item.id === data.get("entryId"));
   const now = new Date().toISOString();
-  const entry = {
-    id: data.get("entryId") || crypto.randomUUID(),
-    clientId: data.get("clientId"),
-    catalogId: data.get("catalogId"),
-    date: data.get("date"),
-    description: catalogItem.name,
-    reference: data.get("reference"),
-    amount: Number(data.get("amount")),
-    status: data.get("status"),
-    deliveryCode: existingEntry?.deliveryCode || randomDeliveryCode(),
-    confirmationRequestedAt: existingEntry?.confirmationRequestedAt || null,
-    deliveredAt: data.get("status") === "Entregue"
-      ? existingEntry?.deliveredAt || now
-      : null,
-    deliverySource: data.get("status") === "Entregue"
-      ? existingEntry?.deliverySource || "Administrador"
-      : "",
-    createdAt: existingEntry?.createdAt || now,
-    updatedAt: now
-  };
-  const index = state.services.findIndex((item) => item.id === entry.id);
-  if (index >= 0) state.services[index] = entry;
-  else state.services.push(entry);
-  event.currentTarget.reset();
-  event.currentTarget.closest("dialog").close();
+  const typedReference = String(data.get("reference") || "").trim().toUpperCase();
+  const references = existingEntry
+    ? [typedReference]
+    : [...serviceReferenceValues, ...(typedReference && !serviceReferenceValues.includes(typedReference)
+      ? [typedReference]
+      : [])];
+  const entryReferences = references.length ? references : [""];
+  entryReferences.forEach((reference, referenceIndex) => {
+    const entry = {
+      id: existingEntry && referenceIndex === 0 ? existingEntry.id : crypto.randomUUID(),
+      clientId: data.get("clientId"),
+      catalogId: data.get("catalogId"),
+      date: data.get("date"),
+      description: catalogItem.name,
+      reference,
+      amount: Number(data.get("amount")),
+      status: data.get("status"),
+      deliveryCode: existingEntry?.deliveryCode || randomDeliveryCode(),
+      confirmationRequestedAt: existingEntry?.confirmationRequestedAt || null,
+      deliveredAt: data.get("status") === "Entregue"
+        ? existingEntry?.deliveredAt || now
+        : null,
+      deliverySource: data.get("status") === "Entregue"
+        ? existingEntry?.deliverySource || "Administrador"
+        : "",
+      createdAt: existingEntry?.createdAt || now,
+      updatedAt: now
+    };
+    const index = state.services.findIndex((item) => item.id === entry.id);
+    if (index >= 0) state.services[index] = entry;
+    else state.services.push(entry);
+  });
+  const savedClientId = data.get("clientId");
+  form.reset();
+  form.closest("dialog").close();
   saveState();
+  if (existingEntry) return;
+
+  const next = await askEntryContinuation();
+  if (next === "same") openEntryForm(null, savedClientId);
+  if (next === "other") openEntryForm();
 });
 
 document.getElementById("paymentForm").addEventListener("submit", (event) => {
@@ -1791,7 +1927,7 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["clientSearch", "input", renderClients],
   ["priceTableSearch", "input", renderPriceTables],
   ["catalogSearch", "input", renderCatalog],
-  ["serviceClientFilter", "change", renderServices],
+  ["serviceClientNameFilter", "input", syncServiceClientFilter],
   ["serviceStatusFilter", "change", renderServices],
   ["serviceSearch", "input", renderServices],
   ["paymentClientFilter", "change", renderPayments],
@@ -1806,8 +1942,41 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
 ].forEach(([id, eventName, handler]) => {
   document.getElementById(id).addEventListener(eventName, handler);
 });
-document.querySelector('#serviceForm select[name="clientId"]').addEventListener("change", updateSuggestedPrice);
-document.querySelector('#serviceForm select[name="catalogId"]').addEventListener("change", updateSuggestedPrice);
+document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("input", syncServiceClientSelection);
+document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("change", syncServiceClientSelection);
+document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("input", syncServiceCatalogSelection);
+document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("change", syncServiceCatalogSelection);
+document.getElementById("addReferenceButton").addEventListener("click", addCurrentReference);
+document.getElementById("continueEntryDialog").addEventListener("cancel", (event) => {
+  event.preventDefault();
+  if (!entryContinuationResolver) return;
+  const resolve = entryContinuationResolver;
+  entryContinuationResolver = null;
+  event.currentTarget.close();
+  resolve("close");
+});
+
+document.getElementById("serviceForm").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (event.target.name === "clientSearch") syncServiceClientSelection();
+  if (event.target.name === "catalogSearch") syncServiceCatalogSelection();
+  const fields = [
+    form.elements.clientSearch,
+    form.elements.date,
+    form.elements.catalogSearch,
+    form.elements.reference,
+    form.elements.amount,
+    form.elements.status
+  ];
+  const index = fields.indexOf(event.target);
+  if (index >= 0 && index < fields.length - 1) {
+    fields[index + 1].focus();
+    return;
+  }
+  if (index === fields.length - 1) form.requestSubmit(form.querySelector('button[value="default"]'));
+});
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();

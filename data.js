@@ -59,6 +59,7 @@
       })),
       catalog: catalogResult.data.map((service) => ({
         id: service.id,
+        code: service.code || "",
         name: service.name,
         prices: pricesByService[service.id] || {}
       })),
@@ -142,6 +143,7 @@
       const catalogResult = await client.from("service_catalog").upsert(
         state.catalog.map((service) => ({
           id: service.id,
+          code: service.code || null,
           name: service.name,
           active: true
         }))
