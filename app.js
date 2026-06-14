@@ -1572,6 +1572,7 @@ function openBillingReport(billingId) {
       <button class="primary" data-print-report>Imprimir / Salvar PDF</button>
       <button class="secondary whatsapp-action" data-share-whatsapp="${billing.id}">WhatsApp</button>
       <button class="secondary" data-share-report="${billing.id}">Compartilhar relatório</button>
+      <button class="secondary" data-close-report>Cancelar</button>
       <button class="icon-button" data-close-report>×</button>
     </div>
     <header class="report-header">
@@ -2724,7 +2725,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=21").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=22").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);

@@ -140,9 +140,15 @@
         <time>${formatDate(item.date)}</time>
         <div><span class="eyebrow">${escapeHtml(supplierById(item.supplierId)?.name || "")}</span><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(item.reference || "Sem referência")}${item.clientId ? ` · ${escapeHtml(clientName(item.clientId))}` : ""} · ${item.source}</p>${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Custo anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}</div>
         <div><span class="status status-${normalized(item.status).replace(/\s/g, "-")}">${item.status}</span><strong>${money.format(item.amount)}</strong></div>
-        <div class="row-actions">
-          ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Editar</button><button class="table-action danger" data-cancel-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Cancelar</button>` : ""}
-          <button class="table-action danger" data-delete-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Excluir</button>
+        <div class="service-actions">
+          ${item.status !== "Cancelado" ? `<div class="status-actions">
+            ${item.status === "A fazer" ? `<button class="table-action success" data-supplier-entry-status="Feito" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Marcar feito</button>` : ""}
+            ${item.status === "Feito" ? `<button class="table-action" data-supplier-entry-status="A fazer" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Voltar para A fazer</button>` : ""}
+          </div>` : ""}
+          <div class="row-actions">
+            ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Editar</button><button class="table-action danger" data-cancel-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Cancelar</button>` : ""}
+            <button class="table-action danger" data-delete-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Excluir</button>
+          </div>
         </div>
       </article>`).join("") : empty();
   }
@@ -499,6 +505,16 @@
     const editSupplier = event.target.closest("[data-edit-supplier]"); if (editSupplier) openSupplier(supplierById(editSupplier.dataset.editSupplier));
     const editService = event.target.closest("[data-edit-supplier-service]"); if (editService) openSupplierService(supplierServiceById(editService.dataset.editSupplierService));
     const editEntry = event.target.closest("[data-edit-supplier-entry]"); if (editEntry) openSupplierEntry(state.supplierEntries.find((item) => item.id === editEntry.dataset.editSupplierEntry));
+    const entryStatus = event.target.closest("[data-supplier-entry-status]");
+    if (entryStatus) {
+      const entry = state.supplierEntries.find((item) => item.id === entryStatus.dataset.entryId);
+      if (entry?.payableId) alert("Este serviço já está em uma conta a pagar e não pode ter o status alterado.");
+      else if (entry && entry.status !== "Cancelado") {
+        entry.status = entryStatus.dataset.supplierEntryStatus;
+        entry.updatedAt = new Date().toISOString();
+        saveState();
+      }
+    }
     const cancelEntry = event.target.closest("[data-cancel-supplier-entry]");
     if (cancelEntry) {
       const entry = state.supplierEntries.find((item) => item.id === cancelEntry.dataset.cancelSupplierEntry);

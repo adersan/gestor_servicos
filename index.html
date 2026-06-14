@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=21">
+  <link rel="stylesheet" href="styles.css?v=22">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -442,7 +442,10 @@
       <label>Nome<input name="name" required></label>
       <label>WhatsApp<input name="phone" required placeholder="(00) 00000-0000"></label>
       <label>Tabela de preços<select name="priceGroup" required></select></label>
-      <button class="primary full" value="default">Salvar cliente</button>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Cancelar</button>
+        <button class="primary" value="default">Salvar cliente</button>
+      </div>
     </form>
   </dialog>
 
@@ -451,7 +454,10 @@
       <div class="dialog-heading"><h2 id="priceTableDialogTitle">Nova tabela</h2><button class="icon-button" value="cancel">×</button></div>
       <input name="originalName" type="hidden">
       <label>Nome da tabela<input name="name" required placeholder="Ex.: Tabela 04"></label>
-      <button class="primary full" value="default">Salvar tabela</button>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Cancelar</button>
+        <button class="primary" value="default">Salvar tabela</button>
+      </div>
     </form>
   </dialog>
 
@@ -540,7 +546,7 @@
       </label>
       <p class="hint">O registro permanecerá no histórico com valor zero e o motivo informado.</p>
       <div class="dialog-actions">
-        <button class="secondary" type="button" data-close-dialog>Voltar</button>
+        <button class="secondary" type="button" data-close-dialog>Cancelar</button>
         <button class="primary" value="default">Confirmar cancelamento</button>
       </div>
     </form>
@@ -578,7 +584,10 @@
       <label>Código numérico<input name="code" inputmode="numeric" pattern="[0-9]*" placeholder="Ex.: 10"></label>
       <label>Nome do serviço<input name="name" required placeholder="Ex.: Vistoria"></label>
       <div id="catalogPriceFields" class="price-fields"></div>
-      <button class="primary full" value="default">Salvar serviço</button>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Cancelar</button>
+        <button class="primary" value="default">Salvar serviço</button>
+      </div>
     </form>
   </dialog>
 
@@ -588,7 +597,7 @@
       <p>Deseja fazer outro lançamento?</p>
       <div class="continue-entry-actions">
         <button class="primary" type="button" data-entry-next="same">Sim, mesmo cliente</button>
-        <button class="secondary" type="button" data-entry-next="close">Não, fechar</button>
+        <button class="secondary" type="button" data-entry-next="close">Cancelar</button>
         <button class="secondary" type="button" data-entry-next="other">Outro cliente</button>
       </div>
     </div>
@@ -627,7 +636,10 @@
         Permitir que o cliente consulte cobranças anteriores
       </label>
       <p class="hint">Será criada uma cobrança com identificador e senha novos. O acesso anterior será invalidado.</p>
-      <button class="primary full" value="default">Fechar período</button>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Cancelar</button>
+        <button class="primary" value="default">Fechar período</button>
+      </div>
     </form>
   </dialog>
 
@@ -647,7 +659,10 @@
       <label>Chave ou instruções<textarea name="details" rows="3" placeholder="CPF, telefone, e-mail, chave aleatória ou instruções"></textarea></label>
       <label>Link de pagamento<input name="link" type="url" placeholder="Futuro link do Nubank"></label>
       <label class="checkbox-label"><input name="active" type="checkbox" checked> Disponível nas cobranças</label>
-      <button class="primary full" value="default">Salvar forma de pagamento</button>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Cancelar</button>
+        <button class="primary" value="default">Salvar forma de pagamento</button>
+      </div>
     </form>
   </dialog>
 
@@ -699,7 +714,7 @@
       <p id="supplierCancelDescription" class="meta"></p>
       <label>Motivo do cancelamento<textarea name="reason" rows="4" required></textarea></label>
       <p class="hint">O lançamento continuará visível, mas seu custo será zerado.</p>
-      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Voltar</button><button class="primary" value="default">Confirmar</button></div>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Confirmar</button></div>
     </form>
   </dialog>
   <dialog id="supplierPayableDialog">
@@ -741,6 +756,7 @@
       </div>
       <div id="notificationDailySummary" class="notification-daily-summary"></div>
       <div id="notificationList" class="notification-list"></div>
+      <button class="secondary full" type="button" data-close-dialog>Cancelar</button>
     </div>
   </dialog>
 
@@ -758,7 +774,10 @@
         <input name="forceClearCache" type="checkbox">
         Limpar sessão anterior antes de conectar
       </label>
-      <button class="primary full" type="submit">Iniciar sessão</button>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Cancelar</button>
+        <button class="primary" type="submit">Iniciar sessão</button>
+      </div>
       <div id="whatsappConnectionResult" class="whatsapp-connection-result hidden" aria-live="polite">
         <img id="whatsappQrCode" class="hidden" alt="QR Code para conectar o WhatsApp">
         <strong id="whatsappConnectionStatus"></strong>
@@ -772,10 +791,10 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=21"></script>
-  <script src="auth.js?v=21"></script>
-  <script src="data.js?v=21"></script>
-  <script src="app.js?v=21"></script>
-  <script src="supplier.js?v=21"></script>
+  <script src="config.js?v=22"></script>
+  <script src="auth.js?v=22"></script>
+  <script src="data.js?v=22"></script>
+  <script src="app.js?v=22"></script>
+  <script src="supplier.js?v=22"></script>
 </body>
 </html>
