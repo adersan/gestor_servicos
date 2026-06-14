@@ -653,6 +653,7 @@ function renderBillings() {
         : "Acesso do cliente ainda não gerado."}</div>
       <div class="card-actions">
         <button class="table-action" data-view-report="${item.id}">Ver relatório</button>
+        <button class="table-action whatsapp-action" data-share-whatsapp="${item.id}">WhatsApp</button>
         <button class="table-action" data-share-report="${item.id}">Compartilhar relatório</button>
         <button class="table-action" data-renew-access="${item.id}">Gerar novo acesso</button>
         ${item.identifier && accessBillingByClient.get(item.clientId) === item.id
@@ -1211,6 +1212,40 @@ async function shareBillingReport(billing) {
   return "PDF salvo";
 }
 
+function whatsappBillingMessage(billing) {
+  const client = clientById(billing.clientId);
+  const selectedMethodIds = billing.paymentMethodIds || [];
+  const billingMethods = billing.paymentMethods?.length
+    ? billing.paymentMethods
+    : state.paymentMethods.filter((method) =>
+      selectedMethodIds.length ? selectedMethodIds.includes(method.id) : method.active);
+  const methods = billingMethods.length
+    ? billingMethods
+      .map((method) => `${method.name}: ${method.details || method.link || "Consulte as instruções no relatório"}`)
+      .join("\n")
+    : "Consulte as formas de pagamento no relatório.";
+  const portalUrl = `${location.origin}/cliente.html`;
+  const access = billing.identifier
+    ? `\n\nAcesso ao portal:\n${portalUrl}\nIdentificador: ${billing.identifier}\nSenha: ${billing.password || "solicite um novo acesso"}`
+    : "";
+  return `Olá, ${client?.name || ""}!\n\nSua cobrança de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)} foi gerada.\n\nTotal em aberto: ${money.format(billingOpenAmount(billing))}\n\nFormas de pagamento:\n${methods}${access}`;
+}
+
+function shareBillingByWhatsApp(billing) {
+  const client = clientById(billing.clientId);
+  const phone = whatsappPhone(client);
+  const text = whatsappBillingMessage(billing);
+  const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
+  const link = document.createElement("a");
+  link.href = `https://api.whatsapp.com/send?${query}`;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  return "WhatsApp";
+}
+
 function openBillingReport(billingId) {
   const billing = state.billings.find((item) => item.id === billingId);
   const client = clientById(billing.clientId);
@@ -1248,6 +1283,7 @@ function openBillingReport(billingId) {
   document.getElementById("reportContent").innerHTML = `<section class="report">
     <div class="report-actions">
       <button class="primary" data-print-report>Imprimir / Salvar PDF</button>
+      <button class="secondary whatsapp-action" data-share-whatsapp="${billing.id}">WhatsApp</button>
       <button class="secondary" data-share-report="${billing.id}">Compartilhar relatório</button>
       <button class="icon-button" data-close-report>×</button>
     </div>
@@ -1668,6 +1704,21 @@ document.addEventListener("click", async (event) => {
   }
   if (event.target.closest("[data-close-report]")) document.getElementById("reportDialog").close();
   if (event.target.closest("[data-print-report]")) window.print();
+  const whatsappButton = event.target.closest("[data-share-whatsapp]");
+  if (whatsappButton) {
+    const billing = state.billings.find((item) => item.id === whatsappButton.dataset.shareWhatsapp);
+    if (billing) {
+      try {
+        const mode = shareBillingByWhatsApp(billing);
+        billing.sendHistory ||= [];
+        billing.sendHistory.push({ sentAt: new Date().toISOString(), channel: "WhatsApp", mode });
+        saveState();
+      } catch (error) {
+        console.error(error);
+        alert("Não foi possível abrir o WhatsApp.");
+      }
+    }
+  }
   const shareReportButton = event.target.closest("[data-share-report]");
   if (shareReportButton) {
     const billing = state.billings.find((item) => item.id === shareReportButton.dataset.shareReport);
