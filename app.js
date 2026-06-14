@@ -1141,6 +1141,7 @@ function openEntryForm(item = null, preferredClientId = "") {
   form.elements.hasAdditionalServices.checked = false;
   form.elements.hasAdditionalServices.disabled = Boolean(item);
   document.getElementById("additionalServicesSection").classList.add("hidden");
+  window.supplierModule?.resetClientEntryOptions(Boolean(item));
   document.getElementById("serviceDialogTitle").textContent = item ? "Editar lançamento" : "Novo lançamento";
   document.getElementById("suggestedPrice").textContent = item
     ? "O valor pode ser alterado somente neste lançamento."
@@ -2126,6 +2127,12 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     ? [typedReferences.join(" ")]
     : [...new Set([...serviceReferenceValues, ...typedReferences])];
   const entryReferences = references.length ? references : [""];
+  const supplierSelection = window.supplierModule?.clientEntrySelection();
+  if (supplierSelection?.error) {
+    alert(supplierSelection.error);
+    supplierSelection.field?.focus();
+    return;
+  }
   if (form.elements.hasAdditionalServices.checked && !additionalServiceValues.length) {
     alert("Adicione pelo menos um serviço complementar ou desmarque a opção.");
     form.elements.additionalCatalogSearch.focus();
@@ -2217,7 +2224,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   saveState();
   if (existingEntry) return;
 
-  await window.supplierModule?.offerForClientEntries(createdEntries);
+  window.supplierModule?.createForClientEntries(createdEntries, supplierSelection);
   const next = await askEntryContinuation();
   if (next === "same") openEntryForm(null, savedClientId);
   if (next === "other") openEntryForm();
@@ -2526,6 +2533,8 @@ document.querySelector("[data-cancel-service-entry]").addEventListener("click", 
   serviceReferenceValues = [];
   additionalServiceValues = [];
   document.getElementById("serviceForm").reset();
+  document.getElementById("additionalServicesSection").classList.add("hidden");
+  window.supplierModule?.resetClientEntryOptions();
   document.getElementById("serviceDialog").close();
 });
 document.getElementById("continueEntryDialog").addEventListener("cancel", (event) => {
@@ -2539,7 +2548,7 @@ document.getElementById("continueEntryDialog").addEventListener("cancel", (event
 
 document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
-  if (event.target.name === "hasAdditionalServices") {
+  if (event.target.name === "hasAdditionalServices" || event.target.name === "hasSupplierService") {
     event.preventDefault();
     return;
   }
@@ -2594,7 +2603,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=15").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=16").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);

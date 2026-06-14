@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -387,6 +387,22 @@
         </label>
         <div id="additionalServiceList" class="additional-service-list"></div>
       </section>
+      <label class="checkbox-label supplier-service-toggle">
+        <input name="hasSupplierService" type="checkbox">
+        Este lançamento utiliza serviço de fornecedor
+      </label>
+      <section id="clientSupplierServiceSection" class="supplier-service-section hidden">
+        <label>Fornecedor
+          <select name="supplierId"></select>
+        </label>
+        <label>Serviço do fornecedor
+          <select name="supplierServiceId"></select>
+        </label>
+        <label>Custo por serviço/referência
+          <input name="supplierAmount" type="number" min="0" step="0.01">
+          <span id="clientSupplierServiceHint" class="field-hint">O custo será lançado separadamente para cada serviço criado.</span>
+        </label>
+      </section>
       <label>Situação
         <select name="status"><option value="A fazer">A fazer</option><option value="Pronto">Feito</option><option value="Entregue">Entregue</option><option value="Cancelado">Cancelado</option></select>
       </label>
@@ -543,16 +559,6 @@
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Salvar</button></div>
     </form>
   </dialog>
-  <dialog id="supplierOfferDialog">
-    <form id="supplierOfferForm" method="dialog">
-      <div class="dialog-heading"><h2>Gerar serviço do fornecedor?</h2><button class="icon-button" value="cancel">×</button></div>
-      <p id="supplierOfferHint" class="meta"></p>
-      <label>Fornecedor<select name="supplierId" required></select></label>
-      <label>Serviço do fornecedor<select name="supplierServiceId" required></select></label>
-      <label>Valor por referência<input name="amount" type="number" min="0" step="0.01" required></label>
-      <div class="dialog-actions"><button class="secondary" type="button" data-supplier-offer="no">Não gerar</button><button class="primary" value="default">Gerar despesa</button></div>
-    </form>
-  </dialog>
   <dialog id="supplierPayableDialog">
     <form id="supplierPayableForm" method="dialog">
       <div class="dialog-heading"><h2>Gerar conta a pagar</h2><button class="icon-button" value="cancel">×</button></div>
@@ -623,10 +629,10 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=15"></script>
-  <script src="auth.js?v=15"></script>
-  <script src="data.js?v=15"></script>
-  <script src="app.js?v=15"></script>
-  <script src="supplier.js?v=15"></script>
+  <script src="config.js?v=16"></script>
+  <script src="auth.js?v=16"></script>
+  <script src="data.js?v=16"></script>
+  <script src="app.js?v=16"></script>
+  <script src="supplier.js?v=16"></script>
 </body>
 </html>

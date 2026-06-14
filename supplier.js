@@ -1,7 +1,5 @@
 (function () {
   let activeTab = "dashboard";
-  let offeredEntries = [];
-  let offerResolver = null;
 
   const byId = (id) => document.getElementById(id);
   const today = () => new Date().toISOString().slice(0, 10);
@@ -59,7 +57,7 @@
       field.value = selected;
     });
     document.querySelectorAll(
-      "#supplierServiceForm select[name=supplierId], #supplierEntryForm select[name=supplierId], #supplierOfferForm select[name=supplierId], #supplierPayableForm select[name=supplierId], #supplierAccessForm select[name=supplierId]"
+      "#supplierServiceForm select[name=supplierId], #supplierEntryForm select[name=supplierId], #supplierPayableForm select[name=supplierId], #supplierAccessForm select[name=supplierId]"
     ).forEach((field) => {
       const selected = field.value;
       field.innerHTML = supplierOptions(selected);
@@ -225,6 +223,72 @@
     form.elements.supplierServiceId.innerHTML = serviceOptions(form.elements.supplierId.value, selected);
   }
 
+  function syncClientEntryServices(selected = "") {
+    const form = byId("serviceForm");
+    const supplierId = form.elements.supplierId.value;
+    form.elements.supplierServiceId.innerHTML = serviceOptions(supplierId, selected);
+    const service = supplierServiceById(form.elements.supplierServiceId.value);
+    form.elements.supplierAmount.value = service ? Number(service.cost).toFixed(2) : "";
+  }
+
+  function resetClientEntryOptions(disabled = false) {
+    const form = byId("serviceForm");
+    const checkbox = form.elements.hasSupplierService;
+    checkbox.checked = false;
+    checkbox.disabled = disabled || !state.suppliers.length || !state.supplierServices.length;
+    byId("clientSupplierServiceSection").classList.add("hidden");
+    form.elements.supplierId.innerHTML = supplierOptions();
+    form.elements.supplierId.value = defaultSupplier()?.id || "";
+    syncClientEntryServices();
+    byId("clientSupplierServiceHint").textContent = checkbox.disabled && !disabled
+      ? "Cadastre um fornecedor e pelo menos um serviço para ativar esta opção."
+      : "O custo será lançado separadamente para cada serviço criado.";
+  }
+
+  function clientEntrySelection() {
+    const form = byId("serviceForm");
+    if (!form.elements.hasSupplierService.checked) return null;
+    if (!form.elements.supplierId.value) {
+      return { error: "Selecione o fornecedor.", field: form.elements.supplierId };
+    }
+    if (!form.elements.supplierServiceId.value) {
+      return { error: "Selecione o serviço do fornecedor.", field: form.elements.supplierServiceId };
+    }
+    const amount = Number(form.elements.supplierAmount.value);
+    if (!Number.isFinite(amount) || amount < 0) {
+      return { error: "Informe um custo válido para o fornecedor.", field: form.elements.supplierAmount };
+    }
+    return {
+      supplierId: form.elements.supplierId.value,
+      supplierServiceId: form.elements.supplierServiceId.value,
+      amount
+    };
+  }
+
+  function createForClientEntries(entries, selection) {
+    if (!selection || !entries?.length) return;
+    const service = supplierServiceById(selection.supplierServiceId);
+    const now = new Date().toISOString();
+    entries.forEach((entry) => state.supplierEntries.push({
+      id: crypto.randomUUID(),
+      supplierId: selection.supplierId,
+      supplierServiceId: selection.supplierServiceId,
+      clientId: entry.clientId,
+      clientServiceEntryId: entry.id,
+      payableId: null,
+      date: entry.date,
+      description: service.name,
+      reference: entry.reference,
+      amount: selection.amount,
+      status: "A fazer",
+      source: "Cliente",
+      notes: `Vinculado a ${entry.description}`,
+      createdAt: now,
+      updatedAt: now
+    }));
+    saveState();
+  }
+
   function openSupplierEntry(item) {
     const form = byId("supplierEntryForm");
     form.reset();
@@ -311,19 +375,6 @@
     alert("O PDF foi salvo. Anexe o arquivo na conversa do fornecedor.");
   }
 
-  async function offerForClientEntries(entries) {
-    if (!entries?.length || !state.suppliers.length || !state.supplierServices.length) return;
-    offeredEntries = entries;
-    const form = byId("supplierOfferForm");
-    form.reset();
-    fillSelects();
-    form.elements.supplierId.value = defaultSupplier()?.id || "";
-    form.elements.supplierServiceId.innerHTML = serviceOptions(form.elements.supplierId.value);
-    byId("supplierOfferHint").textContent = `${entries.length} serviço(s) de cliente foram salvos. Ao confirmar, será criada uma despesa para cada serviço/referência.`;
-    byId("supplierOfferDialog").showModal();
-    return new Promise((resolve) => { offerResolver = resolve; });
-  }
-
   byId("supplierForm").addEventListener("submit", (event) => {
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
@@ -356,30 +407,6 @@
     const index = state.supplierEntries.findIndex((entry) => entry.id === item.id);
     if (index >= 0) state.supplierEntries[index] = item; else state.supplierEntries.push(item);
     event.currentTarget.closest("dialog").close(); saveState();
-  });
-
-  byId("supplierOfferForm").addEventListener("submit", (event) => {
-    if (event.submitter?.value === "cancel") return;
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const service = supplierServiceById(data.get("supplierServiceId"));
-    const now = new Date().toISOString();
-    offeredEntries.forEach((entry) => state.supplierEntries.push({
-      id: crypto.randomUUID(), supplierId: data.get("supplierId"), supplierServiceId: service.id,
-      clientId: entry.clientId, clientServiceEntryId: entry.id, payableId: null, date: entry.date,
-      description: service.name, reference: entry.reference, amount: Number(data.get("amount")),
-      status: "A fazer", source: "Cliente", notes: `Vinculado a ${entry.description}`,
-      createdAt: now, updatedAt: now
-    }));
-    byId("supplierOfferDialog").close(); offeredEntries = []; saveState();
-    const resolve = offerResolver; offerResolver = null; resolve?.();
-  });
-  byId("supplierOfferDialog").addEventListener("close", () => {
-    if (!offerResolver) return;
-    offeredEntries = [];
-    const resolve = offerResolver;
-    offerResolver = null;
-    resolve();
   });
 
   byId("supplierPayableForm").addEventListener("submit", (event) => {
@@ -427,11 +454,19 @@
 
   document.addEventListener("change", (event) => {
     if (event.target.matches("#supplierEntryForm select[name=supplierId]")) syncEntryServices(event.target.form);
-    if (event.target.matches("#supplierOfferForm select[name=supplierId]")) {
-      event.target.form.elements.supplierServiceId.innerHTML = serviceOptions(event.target.value);
-      event.target.form.elements.amount.value = "";
+    if (event.target.matches("#serviceForm input[name=hasSupplierService]")) {
+      byId("clientSupplierServiceSection").classList.toggle("hidden", !event.target.checked);
+      if (event.target.checked) {
+        event.target.form.elements.supplierId.value ||= defaultSupplier()?.id || "";
+        syncClientEntryServices();
+      }
     }
-    if (event.target.matches("#supplierEntryForm select[name=supplierServiceId], #supplierOfferForm select[name=supplierServiceId]")) {
+    if (event.target.matches("#serviceForm select[name=supplierId]")) syncClientEntryServices();
+    if (event.target.matches("#serviceForm select[name=supplierServiceId]")) {
+      const service = supplierServiceById(event.target.value);
+      event.target.form.elements.supplierAmount.value = service ? Number(service.cost).toFixed(2) : "";
+    }
+    if (event.target.matches("#supplierEntryForm select[name=supplierServiceId]")) {
       const service = supplierServiceById(event.target.value);
       if (service) event.target.form.elements.amount.value = Number(service.cost).toFixed(2);
     }
@@ -442,8 +477,6 @@
     const action = event.target.closest("[data-supplier-action]");
     if (action) ({ supplier: () => openSupplier(), service: () => openSupplierService(), entry: () => openSupplierEntry(), payable: openPayable, access: openAccess }[action.dataset.supplierAction])?.();
     const close = event.target.closest("[data-close-supplier-dialog]"); if (close) close.closest("dialog")?.close();
-    const noOffer = event.target.closest("[data-supplier-offer=no]");
-    if (noOffer) { byId("supplierOfferDialog").close(); offeredEntries = []; const resolve = offerResolver; offerResolver = null; resolve?.(); }
     const editSupplier = event.target.closest("[data-edit-supplier]"); if (editSupplier) openSupplier(supplierById(editSupplier.dataset.editSupplier));
     const editService = event.target.closest("[data-edit-supplier-service]"); if (editService) openSupplierService(supplierServiceById(editService.dataset.editSupplierService));
     const editEntry = event.target.closest("[data-edit-supplier-entry]"); if (editEntry) openSupplierEntry(state.supplierEntries.find((item) => item.id === editEntry.dataset.editSupplierEntry));
@@ -485,6 +518,12 @@
   const week = currentOperationalWeek();
   byId("supplierDashboardStart").value = week.startDate;
   byId("supplierDashboardEnd").value = week.endDate;
-  window.supplierModule = { render, offerForClientEntries };
+  window.supplierModule = {
+    render,
+    resetClientEntryOptions,
+    clientEntrySelection,
+    createForClientEntries
+  };
+  resetClientEntryOptions();
   render();
 })();
