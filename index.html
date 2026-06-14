@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=18">
+  <link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -45,6 +45,7 @@
     <button class="tab" data-view="paymentMethods">Formas de pagamento</button>
     <button class="tab" data-view="billing">Cobranças</button>
     <button class="tab" data-view="suppliers">Fornecedores</button>
+    <button class="tab" data-view="help">Ajuda</button>
   </nav>
 
   <main>
@@ -322,6 +323,114 @@
           <p class="meta">Gere um link somente leitura ou autorize o fornecedor a lançar e alterar os próprios serviços no período.</p>
           <button class="primary" type="button" data-supplier-action="access">Gerar link</button>
         </section>
+      </div>
+    </section>
+
+    <section id="help" class="view">
+      <div class="section-heading help-heading">
+        <div>
+          <span class="eyebrow">Manual do sistema</span>
+          <h2>Ajuda e comandos</h2>
+          <p class="meta">Consulte o fluxo diário, os atalhos e os cuidados para trabalhar com segurança.</p>
+        </div>
+        <button class="primary" type="button" data-open-view="services">Fazer lançamento</button>
+      </div>
+
+      <section class="help-start">
+        <div><span class="eyebrow">Comece por aqui</span><h3>Configuração inicial</h3></div>
+        <ol>
+          <li>Cadastre as tabelas de preços e os serviços.</li>
+          <li>Cadastre os clientes e escolha a tabela de cada um.</li>
+          <li>Cadastre suas formas de pagamento, principalmente o PIX.</li>
+          <li>Se utilizar terceiros, cadastre o fornecedor e seus custos.</li>
+          <li>Faça um lançamento de teste antes de iniciar a operação diária.</li>
+        </ol>
+      </section>
+
+      <div class="help-grid">
+        <details open>
+          <summary>Rotina diária de serviços</summary>
+          <div class="help-content">
+            <p>Abra <strong>Lançamentos</strong>, escolha cliente, data, serviço, referência e valor.</p>
+            <p>Para várias placas, cole uma por linha. Cada placa será gravada como um serviço separado.</p>
+            <p>Use <strong>A fazer</strong>, <strong>Feito</strong> e <strong>Entregue</strong> para acompanhar o trabalho.</p>
+            <button class="table-action" type="button" data-open-view="services">Abrir lançamentos</button>
+          </div>
+        </details>
+        <details>
+          <summary>Serviços complementares</summary>
+          <div class="help-content">
+            <p>Marque “Adicionar serviços complementares” quando a mesma referência tiver mais de um serviço.</p>
+            <p>Escolha o complementar, confirme o valor e clique em <strong>+</strong>. Os registros ficam separados.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Fornecedor e custos</summary>
+          <div class="help-content">
+            <p>Marque “Este lançamento utiliza serviço de fornecedor”, escolha fornecedor, serviço e custo.</p>
+            <p>O custo é criado uma vez para cada placa ou referência, mesmo com serviços complementares.</p>
+            <p>Em Fornecedores, gere a conta a pagar e registre baixas parciais ou totais.</p>
+            <button class="table-action" type="button" data-open-view="suppliers">Abrir fornecedores</button>
+          </div>
+        </details>
+        <details>
+          <summary>Fechamento e cobrança</summary>
+          <div class="help-content">
+            <p>Confira os serviços e abra <strong>Cobranças</strong>. Selecione cliente e período.</p>
+            <p>O fechamento semanal normal vai de domingo até sexta-feira.</p>
+            <p>Envie o acesso pelo WhatsApp ou compartilhe somente o relatório em PDF.</p>
+            <button class="table-action" type="button" data-open-view="billing">Abrir cobranças</button>
+          </div>
+        </details>
+        <details>
+          <summary>Pagamentos e baixas</summary>
+          <div class="help-content">
+            <p>Consulte contas abertas, atrasadas, parciais e quitadas no menu Pagamentos.</p>
+            <p>A baixa pode ser parcial ou total. Informe data, valor e forma de pagamento.</p>
+            <button class="table-action" type="button" data-open-view="payments">Abrir pagamentos</button>
+          </div>
+        </details>
+        <details>
+          <summary>Links para clientes</summary>
+          <div class="help-content">
+            <p>O link da cobrança abre o portal sem exigir que o cliente digite credenciais.</p>
+            <p>O acompanhamento mostra serviços e status apenas no período escolhido e não permite alterações.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Comandos do teclado</summary>
+          <div class="help-content shortcut-list">
+            <div><kbd>Enter</kbd><span>Avança para o próximo campo.</span></div>
+            <div><kbd>Espaço</kbd><span>Marca ou desmarca o check selecionado.</span></div>
+            <div><kbd>Enter</kbd><span>Na referência preenchida, adiciona a placa e mantém o foco.</span></div>
+            <div><kbd>Enter</kbd><span>Na referência vazia, avança para o valor.</span></div>
+            <div><kbd>Shift</kbd> + <kbd>Enter</kbd><span>Insere uma nova linha quando permitido.</span></div>
+            <div><kbd>Ctrl</kbd> + <kbd>F5</kbd><span>Atualiza completamente após uma publicação.</span></div>
+          </div>
+        </details>
+        <details>
+          <summary>Sincronização e segurança</summary>
+          <div class="help-content">
+            <p>Aguarde alguns segundos depois de salvar antes de fechar a página.</p>
+            <p>Se aparecer erro de sincronização, anote o texto depois de <strong>Detalhe</strong>.</p>
+            <p>Nunca compartilhe chaves do Supabase, tokens de API ou sua senha administrativa.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Instalar no computador ou celular</summary>
+          <div class="help-content">
+            <p>No computador, use <strong>Instalar aplicativo</strong> quando o botão aparecer.</p>
+            <p>No iPhone: Safari → Compartilhar → <strong>Adicionar à Tela de Início</strong>.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Endereço e domínio profissional</summary>
+          <div class="help-content">
+            <p>O endereço atual continuará funcionando depois de adicionar um domínio próprio.</p>
+            <p>Exemplos: <strong>gestordeadersan.com.br</strong> ou <strong>gestor.suaempresa.com.br</strong>.</p>
+            <p>No Netlify: <strong>Domain management → Add a domain</strong>, depois siga a configuração de DNS.</p>
+          </div>
+        </details>
       </div>
     </section>
   </main>
@@ -629,10 +738,10 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=18"></script>
-  <script src="auth.js?v=18"></script>
-  <script src="data.js?v=18"></script>
-  <script src="app.js?v=18"></script>
-  <script src="supplier.js?v=18"></script>
+  <script src="config.js?v=19"></script>
+  <script src="auth.js?v=19"></script>
+  <script src="data.js?v=19"></script>
+  <script src="app.js?v=19"></script>
+  <script src="supplier.js?v=19"></script>
 </body>
 </html>

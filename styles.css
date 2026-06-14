@@ -302,6 +302,22 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .supplier-payable-actions { justify-content: flex-end; margin-bottom: 14px; }
 .supplier-payable-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .supplier-payable-buttons button { width: 100%; }
+.help-heading { align-items: flex-start; }
+.help-heading .meta { margin-top: 7px; }
+.help-start { display: grid; grid-template-columns: minmax(200px, .55fr) 1.45fr; gap: 24px; margin-bottom: 18px; padding: 24px; border-radius: 18px; background: var(--brand); color: white; }
+.help-start h3 { margin: 0; font-family: Georgia, serif; font-size: 24px; }
+.help-start ol { display: grid; gap: 8px; margin: 0; padding-left: 22px; color: rgba(255,255,255,.88); }
+.help-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.help-grid details { overflow: hidden; border: 1px solid var(--line); border-radius: 15px; background: white; }
+.help-grid summary { padding: 17px 19px; color: var(--brand); font-weight: 800; cursor: pointer; }
+.help-grid details[open] summary { border-bottom: 1px solid var(--line); background: #f4f8f6; }
+.help-content { display: grid; gap: 11px; padding: 18px 19px; }
+.help-content p { color: var(--muted); line-height: 1.5; }
+.help-content .table-action { justify-self: start; }
+.shortcut-list { display: grid; gap: 10px; }
+.shortcut-list div { display: grid; grid-template-columns: minmax(92px, auto) 1fr; gap: 12px; align-items: center; }
+.shortcut-list span { color: var(--muted); font-size: 13px; }
+kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px solid #cdd5d1; border-bottom-width: 3px; border-radius: 7px; background: #f7f9f8; color: var(--ink); font-family: ui-monospace, monospace; font-size: 11px; font-weight: 800; text-align: center; }
 @media (max-width: 700px) {
   .topbar { align-items: flex-start; }
   .topbar-actions { align-items: stretch; flex-direction: column; }
@@ -358,6 +374,8 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
   .supplier-tabs { margin-right: -14px; margin-left: -14px; border-radius: 0; }
   .supplier-section-title { align-items: stretch; flex-direction: column; }
   .supplier-status-grid { grid-template-columns: 1fr 1fr; }
+  .help-heading { align-items: stretch; flex-direction: column; }
+  .help-start, .help-grid { grid-template-columns: 1fr; }
   .report-header { flex-direction: column; }
   .chart-row { grid-template-columns: 90px 1fr; }
   .chart-row strong { grid-column: 2; }
