@@ -26,6 +26,7 @@
       <h1>Gestor de Serviços</h1>
     </div>
     <div class="topbar-actions">
+      <button class="secondary" data-dialog="whatsappDialog">Conectar WhatsApp</button>
       <button id="notificationButton" class="notification-button" aria-label="Abrir notificações">
         Alertas <span id="notificationCount">0</span>
       </button>
@@ -336,6 +337,29 @@
       <div id="notificationDailySummary" class="notification-daily-summary"></div>
       <div id="notificationList" class="notification-list"></div>
     </div>
+  </dialog>
+
+  <dialog id="whatsappDialog">
+    <form id="whatsappForm">
+      <div class="dialog-heading">
+        <div><span class="eyebrow">APIBrasil</span><h2>Conectar WhatsApp</h2></div>
+        <button class="icon-button" type="button" data-close-dialog>×</button>
+      </div>
+      <p class="meta">Inicie a sessão e, se necessário, leia o QR Code com o WhatsApp do celular.</p>
+      <label>Número com DDI e DDD (opcional)
+        <input name="number" inputmode="numeric" placeholder="5511999999999">
+      </label>
+      <label class="checkbox-label">
+        <input name="forceClearCache" type="checkbox">
+        Limpar sessão anterior antes de conectar
+      </label>
+      <button class="primary full" type="submit">Iniciar sessão</button>
+      <div id="whatsappConnectionResult" class="whatsapp-connection-result hidden" aria-live="polite">
+        <img id="whatsappQrCode" class="hidden" alt="QR Code para conectar o WhatsApp">
+        <strong id="whatsappConnectionStatus"></strong>
+        <p id="whatsappConnectionMessage" class="meta"></p>
+      </div>
+    </form>
   </dialog>
 
   <template id="emptyTemplate">

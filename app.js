@@ -922,6 +922,39 @@ async function cancelClientAccess(billing) {
   return result;
 }
 
+function apiBrasilQrCode(result) {
+  const candidate = result?.qrcode
+    || result?.qrCode
+    || result?.data?.qrcode
+    || result?.data?.qrCode
+    || "";
+  if (typeof candidate !== "string" || !candidate.trim()) return "";
+  if (/^data:image\//i.test(candidate) || /^https?:\/\//i.test(candidate)) return candidate;
+  return `data:image/png;base64,${candidate.replace(/\s/g, "")}`;
+}
+
+async function startApiBrasilWhatsApp({ number, forceClearCache }) {
+  const { data } = await window.supabaseClient.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+
+  const response = await fetch("/.netlify/functions/apibrasil-whatsapp-start", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      qrcode: true,
+      number: number || undefined,
+      forceClearCache
+    })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Não foi possível iniciar o WhatsApp.");
+  return result;
+}
+
 document.addEventListener("click", async (event) => {
   const tab = event.target.closest("[data-view]");
   const opener = event.target.closest("[data-open-view]");
@@ -1420,6 +1453,46 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   } finally {
     submitButton.disabled = false;
     submitButton.textContent = "Fechar período";
+  }
+});
+
+document.getElementById("whatsappForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = event.submitter;
+  const data = new FormData(form);
+  const resultBox = document.getElementById("whatsappConnectionResult");
+  const status = document.getElementById("whatsappConnectionStatus");
+  const message = document.getElementById("whatsappConnectionMessage");
+  const qrCode = document.getElementById("whatsappQrCode");
+
+  button.disabled = true;
+  button.textContent = "Conectando...";
+  resultBox.classList.remove("hidden");
+  status.textContent = "Iniciando sessão";
+  message.textContent = "Aguarde a resposta da APIBrasil.";
+  qrCode.classList.add("hidden");
+  qrCode.removeAttribute("src");
+
+  try {
+    const result = await startApiBrasilWhatsApp({
+      number: String(data.get("number") || "").replace(/\D/g, ""),
+      forceClearCache: data.get("forceClearCache") === "on"
+    });
+    const qrCodeSource = apiBrasilQrCode(result);
+    status.textContent = result.status || (qrCodeSource ? "Leia o QR Code" : "Sessão iniciada");
+    message.textContent = result.message || "A APIBrasil aceitou a solicitação.";
+    if (qrCodeSource) {
+      qrCode.src = qrCodeSource;
+      qrCode.classList.remove("hidden");
+    }
+  } catch (error) {
+    console.error(error);
+    status.textContent = "Falha ao conectar";
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Iniciar sessão";
   }
 });
 

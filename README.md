@@ -48,6 +48,10 @@ somente nas variáveis protegidas das funções do Netlify.
 - `SUPABASE_URL`: URL do projeto Supabase.
 - `SUPABASE_SECRET_KEY`: chave secreta do Supabase. Nunca coloque esta chave em `config.js`.
 - `CLIENT_PORTAL_SECRET`: texto aleatório longo usado para assinar a sessão do cliente.
+- `APIBRASIL_DEVICE_TOKEN`: DeviceToken renovado da APIBrasil.
+- `APIBRASIL_BEARER_TOKEN`: Bearer token renovado da APIBrasil.
+- `APIBRASIL_WHATSAPP_SESSION`: nome estável da sessão, por exemplo `gestor_servicos`.
+- `APIBRASIL_BASE_URL`: opcional; padrão `https://gateway.apibrasil.io/api/v2`.
 
 Portal do cliente:
 
@@ -69,14 +73,40 @@ Quando a API do WhatsApp for conectada, configure no Netlify:
 
 - `WHATSAPP_WEBHOOK_SECRET`: senha longa e exclusiva usada para autenticar o webhook.
 
-A API deve enviar uma requisição `POST` com o cabeçalho:
+A integração genérica aceita uma requisição `POST` com o cabeçalho:
 
 ```text
 Authorization: Bearer SUA_SENHA_DO_WEBHOOK
 ```
 
+Ao iniciar a sessão pela função da APIBrasil, a mesma senha é incluída
+automaticamente na URL de callback porque a configuração apresentada pela
+APIBrasil não oferece um campo para cabeçalhos personalizados.
+
 O texto recebido deve conter `RECEBIDO` e o código de seis caracteres gerado
 para o serviço, por exemplo: `RECEBIDO ABC123`.
+
+### Iniciar a sessão da APIBrasil
+
+A função administrativa `/.netlify/functions/apibrasil-whatsapp-start` usa as
+credenciais protegidas do Netlify e registra automaticamente os callbacks da
+APIBrasil. Exemplo de uso pelo navegador administrativo:
+
+```js
+const { data } = await window.supabaseClient.auth.getSession();
+const response = await fetch("/.netlify/functions/apibrasil-whatsapp-start", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${data.session.access_token}`
+  },
+  body: JSON.stringify({ qrcode: true })
+});
+const session = await response.json();
+```
+
+Nunca grave `DeviceToken` ou Bearer token no JavaScript do navegador, no
+repositório ou em `config.js`.
 
 Antes de publicar essa funcionalidade, execute novamente
 `supabase/schema.sql` no SQL Editor do Supabase para criar os campos de
