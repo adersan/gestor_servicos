@@ -899,16 +899,23 @@ function createBillingReportPdf(billing) {
     text("Nenhum servico neste fechamento.", margin);
     y -= 22;
   } else {
-    details.services.forEach((item) => {
-      ensureSpace(34);
-      text(item.date.split("-").reverse().join("/"), margin, 9, colors.gray);
-      text(item.description, 112, 9, colors.dark, true);
-      text(item.reference || "-", 315, 9, colors.gray);
-      text(money.format(Number(item.amount)), 462, 9, colors.blue, true);
-      y -= 17;
-      line();
-      y -= 8;
-    });
+    const columnWidth = 245;
+    const columnGap = 20;
+    for (let index = 0; index < details.services.length; index += 2) {
+      ensureSpace(48);
+      const rowY = y;
+      details.services.slice(index, index + 2).forEach((item, columnIndex) => {
+        const x = margin + columnIndex * (columnWidth + columnGap);
+        const description = String(item.description || "").slice(0, 30);
+        const reference = String(item.reference || "-").slice(0, 24);
+        commands.push(`0.96 0.97 0.96 rg ${x} ${rowY - 33} ${columnWidth} 43 re f`);
+        commands.push(`${colors.gray} rg BT /F1 8 Tf ${x + 9} ${rowY - 2} Td (${pdfSafeText(item.date.split("-").reverse().join("/"))}) Tj ET`);
+        commands.push(`${colors.dark} rg BT /F2 9 Tf ${x + 68} ${rowY - 2} Td (${pdfSafeText(description)}) Tj ET`);
+        commands.push(`${colors.gray} rg BT /F1 8 Tf ${x + 9} ${rowY - 20} Td (${pdfSafeText(reference)}) Tj ET`);
+        commands.push(`${colors.blue} rg BT /F2 9 Tf ${x + 170} ${rowY - 20} Td (${pdfSafeText(money.format(Number(item.amount)))}) Tj ET`);
+      });
+      y -= 51;
+    }
   }
 
   heading("Pagamentos");
@@ -1024,8 +1031,11 @@ function openBillingReport(billingId) {
       selectedMethodIds.length ? selectedMethodIds.includes(method.id) : method.active);
   const laterPayments = state.payments.filter((payment) => paymentWasAfterBilling(payment, billing));
   const serviceRows = details.services.length ? details.services.map((item) => `
-    <tr><td>${item.date.split("-").reverse().join("/")}</td><td>${escapeHtml(item.description)}</td><td>${escapeHtml(item.reference || "-")}</td><td>${money.format(item.amount)}</td></tr>
-  `).join("") : `<tr><td colspan="4">Nenhum serviço neste período.</td></tr>`;
+    <article class="report-service-item">
+      <div><time>${item.date.split("-").reverse().join("/")}</time><strong>${escapeHtml(item.description)}</strong></div>
+      <div><span>${escapeHtml(item.reference || "Sem referência")}</span><b>${money.format(item.amount)}</b></div>
+    </article>
+  `).join("") : `<p class="meta">Nenhum serviço neste período.</p>`;
   const methodRows = methods.length ? methods.map((method) => `
     <div class="payment-option">
       <strong>${escapeHtml(method.name)} (${escapeHtml(method.type)})</strong>
@@ -1056,7 +1066,7 @@ function openBillingReport(billingId) {
       <div class="chart-row"><span>Pagamentos</span><div class="chart-track"><div class="chart-bar credit" style="width:${details.paymentTotal / maxValue * 100}%"></div></div><strong>${money.format(details.paymentTotal)}</strong></div>
     </div>
     <h3>Serviços do período</h3>
-    <table class="report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Valor</th></tr></thead><tbody>${serviceRows}</tbody></table>
+    <div class="report-service-grid">${serviceRows}</div>
     <h3>Formas de pagamento</h3>
     <div class="payment-options">${methodRows}</div>
   </section>`;
