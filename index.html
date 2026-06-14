@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -51,63 +51,97 @@
       <div class="dashboard-heading">
         <div>
           <span class="eyebrow">Visão geral</span>
-          <h2>Resumo financeiro</h2>
-          <p class="meta">Acompanhe rapidamente o movimento atual.</p>
+          <h2>Resumo do negócio</h2>
+          <p class="meta">Acompanhe serviços e financeiro por semana, mês ou período personalizado.</p>
         </div>
         <button class="primary" data-open-view="services">Novo lançamento</button>
       </div>
-      <div class="dashboard-grid">
-        <article class="metric-card metric-main">
-          <span>Saldo em aberto</span>
-          <strong id="totalOpen">R$ 0,00</strong>
-          <small>Serviços menos pagamentos</small>
-        </article>
-        <article class="metric-card">
-          <span>Clientes</span>
-          <strong id="clientCount">0</strong>
-          <small>Cadastros ativos</small>
-        </article>
-        <article class="metric-card">
-          <span>Serviços lançados</span>
-          <strong id="serviceTotal">R$ 0,00</strong>
-          <small>Movimento acumulado</small>
-        </article>
-        <article class="metric-card">
-          <span>Pagamentos</span>
-          <strong id="paymentTotal">R$ 0,00</strong>
-          <small>Valores recebidos</small>
-        </article>
+      <div class="dashboard-inner-tabs" role="tablist">
+        <button class="active" type="button" data-dashboard-tab="services">Serviços</button>
+        <button type="button" data-dashboard-tab="finance">Financeiro</button>
       </div>
+      <div class="dashboard-period-controls">
+        <div class="period-shortcuts">
+          <button type="button" data-dashboard-period="week">Semana atual</button>
+          <button class="active" type="button" data-dashboard-period="month">Mês atual</button>
+          <button type="button" data-dashboard-month="-1" aria-label="Mês anterior">‹</button>
+          <button type="button" data-dashboard-month="1" aria-label="Próximo mês">›</button>
+        </div>
+        <div class="period-dates">
+          <label>De<input id="dashboardStartDate" type="date"></label>
+          <label>Até<input id="dashboardEndDate" type="date"></label>
+        </div>
+      </div>
+
+      <section id="dashboardServicesTab" class="dashboard-tab-panel">
+        <div class="period-heading">
+          <div><span class="eyebrow">Semana operacional</span><h3 id="serviceWeekLabel"></h3></div>
+        </div>
+        <div id="serviceWeekCards" class="dashboard-grid dashboard-status-cards"></div>
+        <div class="period-heading">
+          <div><span class="eyebrow">Período selecionado</span><h3 id="servicePeriodLabel"></h3></div>
+        </div>
+        <div id="servicePeriodCards" class="dashboard-grid dashboard-status-cards"></div>
+        <section class="dashboard-charts">
+          <article class="panel chart-panel">
+            <div class="panel-title"><div><span class="eyebrow">Distribuição</span><h2>Status dos serviços</h2></div></div>
+            <div id="serviceStatusDashboardChart" class="status-chart"></div>
+          </article>
+          <article class="panel chart-panel">
+            <div class="panel-title"><div><span class="eyebrow">Volume diário</span><h2>Serviços no período</h2></div></div>
+            <div id="serviceVolumeChart" class="compact-bar-chart"></div>
+          </article>
+        </section>
+        <section class="panel">
+          <div class="panel-title">
+            <div><span class="eyebrow">Maior volume primeiro</span><h2>Serviços por cliente</h2></div>
+            <button class="table-action" data-open-view="clients">Ver clientes</button>
+          </div>
+          <div id="serviceClientRanking" class="client-ranking"></div>
+        </section>
+        <section id="serviceAlertPanel" class="panel alert-panel"></section>
+      </section>
+
+      <section id="dashboardFinanceTab" class="dashboard-tab-panel hidden">
+        <div class="period-heading">
+          <div><span class="eyebrow">Semana operacional</span><h3 id="financeWeekLabel"></h3></div>
+        </div>
+        <div id="financeWeekCards" class="dashboard-grid"></div>
+        <div class="period-heading">
+          <div><span class="eyebrow">Período selecionado</span><h3 id="financePeriodLabel"></h3></div>
+        </div>
+        <div id="financePeriodCards" class="dashboard-grid"></div>
+        <section class="dashboard-charts">
+          <article class="panel chart-panel">
+            <div class="panel-title">
+              <div><span class="eyebrow">Recebimentos</span><h2>Pagamentos no período</h2></div>
+              <strong id="recentPaymentTotal" class="chart-total">R$ 0,00</strong>
+            </div>
+            <div id="paymentChart" class="bar-chart"></div>
+          </article>
+          <article class="panel chart-panel">
+          <div class="panel-title">
+              <div><span class="eyebrow">Cobranças do período</span><h2>Situação financeira</h2></div>
+            </div>
+            <div id="billingStatusChart" class="status-chart"></div>
+          </article>
+        </section>
+        <section id="billingAlertPanel" class="panel alert-panel"></section>
+        <section class="panel">
+          <div class="panel-title">
+            <div><span class="eyebrow">Saldos no período</span><h2>Contas por cliente</h2></div>
+            <button class="table-action" data-open-view="payments">Ver pagamentos</button>
+          </div>
+          <div id="accountList" class="account-list"></div>
+        </section>
+      </section>
+
       <div class="quick-actions">
         <button data-dialog="clientDialog"><strong>+ Cliente</strong><span>Novo cadastro</span></button>
         <button data-dialog="serviceDialog"><strong>+ Serviço</strong><span>Novo lançamento</span></button>
         <button data-dialog="paymentDialog"><strong>+ Pagamento</strong><span>Registrar baixa</span></button>
         <button data-dialog="billingDialog"><strong>+ Cobrança</strong><span>Fechar período</span></button>
       </div>
-      <section id="serviceAlertPanel" class="panel alert-panel"></section>
-      <section id="billingAlertPanel" class="panel alert-panel"></section>
-      <section class="dashboard-charts">
-        <article class="panel chart-panel">
-          <div class="panel-title">
-            <div><span class="eyebrow">Últimos 7 dias</span><h2>Pagamentos recebidos</h2></div>
-            <strong id="recentPaymentTotal" class="chart-total">R$ 0,00</strong>
-          </div>
-          <div id="paymentChart" class="bar-chart"></div>
-        </article>
-        <article class="panel chart-panel">
-          <div class="panel-title">
-            <div><span class="eyebrow">Cobranças atuais</span><h2>Situação financeira</h2></div>
-          </div>
-          <div id="billingStatusChart" class="status-chart"></div>
-        </article>
-      </section>
-      <section class="panel">
-        <div class="panel-title">
-          <div><span class="eyebrow">Clientes</span><h2>Contas em andamento</h2></div>
-          <button class="table-action" data-open-view="clients">Ver clientes</button>
-        </div>
-        <div id="accountList" class="account-list"></div>
-      </section>
     </section>
 
     <section id="clients" class="view">
@@ -442,9 +476,9 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=12"></script>
-  <script src="auth.js?v=12"></script>
-  <script src="data.js?v=12"></script>
-  <script src="app.js?v=12"></script>
+  <script src="config.js?v=13"></script>
+  <script src="auth.js?v=13"></script>
+  <script src="data.js?v=13"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

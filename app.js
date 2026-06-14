@@ -31,6 +31,8 @@ let remoteReady = false;
 let serviceReferenceValues = [];
 let additionalServiceValues = [];
 let entryContinuationResolver = null;
+let activeDashboardTab = "services";
+let dashboardPeriod = null;
 
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -158,6 +160,47 @@ function recentDateKeys(days) {
     date.setDate(date.getDate() - (days - index - 1));
     return date.toISOString().slice(0, 10);
   });
+}
+
+function localDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function currentOperationalWeek(reference = new Date()) {
+  const start = new Date(reference);
+  start.setHours(12, 0, 0, 0);
+  start.setDate(start.getDate() - start.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 5);
+  return { startDate: localDateKey(start), endDate: localDateKey(end) };
+}
+
+function monthPeriod(reference = new Date()) {
+  const start = new Date(reference.getFullYear(), reference.getMonth(), 1, 12);
+  const end = new Date(reference.getFullYear(), reference.getMonth() + 1, 0, 12);
+  return { startDate: localDateKey(start), endDate: localDateKey(end) };
+}
+
+function dateKeysBetween(startDate, endDate, maximum = 31) {
+  const result = [];
+  const date = new Date(`${startDate}T12:00:00`);
+  const end = new Date(`${endDate}T12:00:00`);
+  while (date <= end && result.length < maximum) {
+    result.push(localDateKey(date));
+    date.setDate(date.getDate() + 1);
+  }
+  return result;
+}
+
+function inPeriod(date, period) {
+  return date >= period.startDate && date <= period.endDate;
+}
+
+function periodLabel(period) {
+  return `${formatDate(period.startDate)} a ${formatDate(period.endDate)}`;
 }
 
 function updateBillingStatuses() {
@@ -413,6 +456,170 @@ function renderDashboard() {
       <strong class="amount ${balance < 0 ? "negative" : ""}">${money.format(balance)}</strong>
     </div>`;
   }).join("") : emptyMarkup();
+}
+
+function renderDashboardV2() {
+  dashboardPeriod ||= monthPeriod();
+  const week = currentOperationalWeek();
+  const period = dashboardPeriod;
+  document.getElementById("dashboardStartDate").value = period.startDate;
+  document.getElementById("dashboardEndDate").value = period.endDate;
+  document.getElementById("dashboardServicesTab").classList.toggle("hidden", activeDashboardTab !== "services");
+  document.getElementById("dashboardFinanceTab").classList.toggle("hidden", activeDashboardTab !== "finance");
+  document.querySelectorAll("[data-dashboard-tab]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.dashboardTab === activeDashboardTab);
+  });
+
+  const servicesFor = (range) => state.services.filter((item) =>
+    item.status !== "Cancelado" && inPeriod(item.date, range));
+  const paymentsFor = (range) => state.payments.filter((item) => inPeriod(item.date, range));
+  const billingsFor = (range) => state.billings.filter((item) =>
+    item.status !== "Cancelada" && inPeriod(item.endDate, range));
+  const serviceMetrics = (range) => {
+    const services = servicesFor(range);
+    return {
+      services,
+      pending: services.filter((item) => item.status === "A fazer"),
+      done: services.filter((item) => item.status === "Pronto"),
+      delivered: services.filter((item) => item.status === "Entregue"),
+      total: services.reduce((sum, item) => sum + Number(item.amount), 0)
+    };
+  };
+  const serviceCards = (metrics) => {
+    const card = (label, items, className) => `
+      <article class="metric-card dashboard-status-card ${className}">
+        <span>${label}</span><strong>${items.length}</strong>
+        <small>${money.format(items.reduce((sum, item) => sum + Number(item.amount), 0))}</small>
+      </article>`;
+    return `${card("A fazer", metrics.pending, "metric-pending")}
+      ${card("Feitos", metrics.done, "metric-done")}
+      ${card("Entregues", metrics.delivered, "metric-delivered")}
+      <article class="metric-card metric-main"><span>Total de serviços</span><strong>${metrics.services.length}</strong><small>${money.format(metrics.total)}</small></article>`;
+  };
+
+  const weekServices = serviceMetrics(week);
+  const periodServices = serviceMetrics(period);
+  document.getElementById("serviceWeekLabel").textContent = periodLabel(week);
+  document.getElementById("servicePeriodLabel").textContent = periodLabel(period);
+  document.getElementById("serviceWeekCards").innerHTML = serviceCards(weekServices);
+  document.getElementById("servicePeriodCards").innerHTML = serviceCards(periodServices);
+
+  const statusTotal = periodServices.services.length || 1;
+  const pendingDegrees = periodServices.pending.length / statusTotal * 360;
+  const doneDegrees = periodServices.done.length / statusTotal * 360;
+  document.getElementById("serviceStatusDashboardChart").innerHTML = `
+    <div class="donut-chart service-donut" style="--pending:${pendingDegrees}deg;--done:${pendingDegrees + doneDegrees}deg">
+      <div><strong>${periodServices.services.length}</strong><span>serviços</span></div>
+    </div>
+    <div class="chart-legend">
+      <button><i class="legend-service-pending"></i><span>A fazer</span><strong>${periodServices.pending.length}</strong></button>
+      <button><i class="legend-service-done"></i><span>Feitos</span><strong>${periodServices.done.length}</strong></button>
+      <button><i class="legend-service-delivered"></i><span>Entregues</span><strong>${periodServices.delivered.length}</strong></button>
+    </div>`;
+
+  const volumeDates = dateKeysBetween(period.startDate, period.endDate, 31);
+  const dailyVolumes = volumeDates.map((date) => ({
+    date,
+    count: periodServices.services.filter((item) => item.date === date).length
+  }));
+  const volumeMaximum = Math.max(...dailyVolumes.map((item) => item.count), 1);
+  document.getElementById("serviceVolumeChart").innerHTML = dailyVolumes.map((item) => `
+    <div class="horizontal-bar" title="${formatDate(item.date)}: ${item.count} serviço(s)">
+      <span>${item.date.slice(8, 10)}</span>
+      <div><i style="width:${item.count ? Math.max(5, item.count / volumeMaximum * 100) : 1}%"></i></div>
+      <strong>${item.count}</strong>
+    </div>`).join("") || `<p class="meta">Nenhum serviço no período.</p>`;
+
+  const clientVolumes = state.clients.map((client) => {
+    const services = periodServices.services.filter((item) => item.clientId === client.id);
+    return {
+      client,
+      count: services.length,
+      amount: services.reduce((sum, item) => sum + Number(item.amount), 0)
+    };
+  }).filter((item) => item.count).sort((a, b) => b.count - a.count || b.amount - a.amount);
+  const maximumClientVolume = Math.max(...clientVolumes.map((item) => item.count), 1);
+  document.getElementById("serviceClientRanking").innerHTML = clientVolumes.length
+    ? clientVolumes.map((item, index) => `
+      <article class="ranking-row">
+        <span class="ranking-position">${index + 1}</span>
+        <div><strong>${escapeHtml(item.client.name)}</strong><div class="ranking-track"><i style="width:${item.count / maximumClientVolume * 100}%"></i></div></div>
+        <span>${item.count} serviço(s)</span><strong>${money.format(item.amount)}</strong>
+      </article>`).join("")
+    : `<p class="meta">Nenhum serviço no período selecionado.</p>`;
+
+  const pending = state.services.filter((item) => item.status === "A fazer");
+  const overdue = pending.filter(isOverdueService);
+  const serviceAlertPanel = document.getElementById("serviceAlertPanel");
+  serviceAlertPanel.classList.toggle("has-alerts", overdue.length > 0);
+  serviceAlertPanel.innerHTML = `
+    <div class="panel-title"><div><span class="eyebrow">Alertas operacionais</span><h2>Serviços pendentes</h2></div><button class="table-action" data-open-view="services">Ver lançamentos</button></div>
+    <div class="alert-summary"><article><span>A fazer</span><strong>${pending.length}</strong></article><article class="${overdue.length ? "alert-danger" : ""}"><span>Acima de 24h</span><strong>${overdue.length}</strong></article></div>
+    ${overdue.length ? `<div class="alert-list">${overdue.slice(0, 5).map((item) => `<div><strong>${escapeHtml(clientById(item.clientId)?.name || "")}: ${escapeHtml(item.description)}</strong><span>${escapeHtml(item.reference || "Sem referência")} · ${formatServiceAge(item)}</span></div>`).join("")}</div>` : `<p class="meta">Nenhum serviço ultrapassou 24 horas.</p>`}`;
+
+  const financeMetrics = (range) => {
+    const servicesTotal = servicesFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
+    const paymentTotal = paymentsFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
+    return { servicesTotal, paymentTotal, balance: servicesTotal - paymentTotal, billings: billingsFor(range) };
+  };
+  const financeCards = (metrics) => `
+    <article class="metric-card metric-main"><span>Saldo do período</span><strong>${money.format(metrics.balance)}</strong><small>Serviços menos pagamentos</small></article>
+    <article class="metric-card"><span>Serviços lançados</span><strong>${money.format(metrics.servicesTotal)}</strong><small>Produção no período</small></article>
+    <article class="metric-card"><span>Pagamentos</span><strong>${money.format(metrics.paymentTotal)}</strong><small>Recebimentos no período</small></article>
+    <article class="metric-card"><span>Cobranças geradas</span><strong>${metrics.billings.length}</strong><small>Fechamentos no período</small></article>`;
+  document.getElementById("financeWeekLabel").textContent = periodLabel(week);
+  document.getElementById("financePeriodLabel").textContent = periodLabel(period);
+  document.getElementById("financeWeekCards").innerHTML = financeCards(financeMetrics(week));
+  document.getElementById("financePeriodCards").innerHTML = financeCards(financeMetrics(period));
+
+  const paymentDates = dateKeysBetween(period.startDate, period.endDate, 31);
+  const dailyPayments = paymentDates.map((date) => ({
+    date,
+    amount: paymentsFor(period).filter((payment) => payment.date === date)
+      .reduce((sum, payment) => sum + Number(payment.amount), 0)
+  }));
+  const recentTotal = dailyPayments.reduce((sum, item) => sum + item.amount, 0);
+  const paymentMaximum = Math.max(...dailyPayments.map((item) => item.amount), 1);
+  document.getElementById("recentPaymentTotal").textContent = money.format(recentTotal);
+  document.getElementById("paymentChart").style.setProperty("--bar-count", String(Math.max(dailyPayments.length, 1)));
+  document.getElementById("paymentChart").innerHTML = dailyPayments.map((item) => {
+    const height = item.amount ? Math.max(8, item.amount / paymentMaximum * 100) : 2;
+    return `<div class="bar-column" title="${formatDate(item.date)}: ${money.format(item.amount)}"><span>${item.amount ? money.format(item.amount) : "—"}</span><div class="bar-track"><i style="height:${height}%"></i></div><strong>${item.date.slice(8, 10)}</strong></div>`;
+  }).join("");
+
+  const periodBillings = billingsFor(period).map((billing) => ({
+    ...billing,
+    currentStatus: billingCurrentStatus(billing),
+    openAmount: billingOpenAmount(billing)
+  }));
+  const paidCount = periodBillings.filter((item) => item.currentStatus === "Paga").length;
+  const partialCount = periodBillings.filter((item) => item.currentStatus === "Parcial").length;
+  const openCount = periodBillings.filter((item) => item.currentStatus === "Aberta").length;
+  const billingCount = paidCount + partialCount + openCount || 1;
+  const paidDegrees = paidCount / billingCount * 360;
+  const partialDegrees = partialCount / billingCount * 360;
+  document.getElementById("billingStatusChart").innerHTML = `
+    <div class="donut-chart" style="--paid:${paidDegrees}deg;--partial:${paidDegrees + partialDegrees}deg"><div><strong>${periodBillings.length}</strong><span>cobranças</span></div></div>
+    <div class="chart-legend"><button data-payment-dashboard-filter="paid"><i class="legend-paid"></i><span>Pagas</span><strong>${paidCount}</strong></button><button data-payment-dashboard-filter="open"><i class="legend-partial"></i><span>Parciais</span><strong>${partialCount}</strong></button><button data-payment-dashboard-filter="open"><i class="legend-open"></i><span>Em aberto</span><strong>${openCount}</strong></button></div>`;
+
+  const openBillings = currentBillings().map((billing) => ({ ...billing, openAmount: billingOpenAmount(billing), ageDays: billingAgeDays(billing) }))
+    .filter((billing) => billing.openAmount > 0);
+  const overdueBillings = openBillings.filter((billing) => billing.ageDays >= 7);
+  const billingAlertPanel = document.getElementById("billingAlertPanel");
+  billingAlertPanel.classList.toggle("has-alerts", overdueBillings.length > 0);
+  billingAlertPanel.innerHTML = `
+    <div class="panel-title"><div><span class="eyebrow">Alertas financeiros</span><h2>Cobranças em aberto</h2></div><button class="table-action" data-payment-dashboard-filter="open">Ver pagamentos</button></div>
+    <div class="alert-summary finance-alert-summary"><article><span>Em aberto</span><strong>${money.format(openBillings.reduce((sum, item) => sum + item.openAmount, 0))}</strong><small>${openBillings.length} cobrança(s)</small></article><article class="${overdueBillings.length ? "alert-danger" : ""}"><span>Há 7 dias ou mais</span><strong>${money.format(overdueBillings.reduce((sum, item) => sum + item.openAmount, 0))}</strong><small>${overdueBillings.length} cobrança(s)</small></article></div>`;
+
+  const periodAccounts = state.clients.map((client) => {
+    const serviceAmount = periodServices.services.filter((item) => item.clientId === client.id)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+    const paymentAmount = paymentsFor(period).filter((item) => item.clientId === client.id)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+    return { client, serviceAmount, paymentAmount, balance: serviceAmount - paymentAmount };
+  }).filter((item) => item.serviceAmount || item.paymentAmount).sort((a, b) => b.balance - a.balance);
+  document.getElementById("accountList").innerHTML = periodAccounts.length ? periodAccounts.map((item) => `
+    <div class="account-row"><div><strong>${escapeHtml(item.client.name)}</strong><span class="meta">${escapeHtml(item.client.priceGroup)}</span></div><span class="meta">${money.format(item.serviceAmount)} / recebido ${money.format(item.paymentAmount)}</span><strong class="amount ${item.balance < 0 ? "negative" : ""}">${money.format(item.balance)}</strong></div>`).join("") : emptyMarkup();
 }
 
 function renderNotifications() {
@@ -683,7 +890,7 @@ async function copyText(value, label) {
 
 function render() {
   renderSelects();
-  renderDashboard();
+  renderDashboardV2();
   renderNotifications();
   renderClients();
   renderPriceTables();
@@ -1491,6 +1698,32 @@ document.addEventListener("click", async (event) => {
   const tab = event.target.closest("[data-view]");
   const opener = event.target.closest("[data-open-view]");
   const dialogButton = event.target.closest("[data-dialog]");
+  const dashboardTab = event.target.closest("[data-dashboard-tab]");
+  const dashboardPeriodButton = event.target.closest("[data-dashboard-period]");
+  const dashboardMonthButton = event.target.closest("[data-dashboard-month]");
+  if (dashboardTab) {
+    activeDashboardTab = dashboardTab.dataset.dashboardTab;
+    renderDashboardV2();
+  }
+  if (dashboardPeriodButton) {
+    dashboardPeriod = dashboardPeriodButton.dataset.dashboardPeriod === "week"
+      ? currentOperationalWeek()
+      : monthPeriod();
+    document.querySelectorAll("[data-dashboard-period]").forEach((button) => {
+      button.classList.toggle("active", button === dashboardPeriodButton);
+    });
+    renderDashboardV2();
+  }
+  if (dashboardMonthButton) {
+    const reference = new Date(`${dashboardPeriod?.startDate || localDateKey(new Date())}T12:00:00`);
+    reference.setDate(1);
+    reference.setMonth(reference.getMonth() + Number(dashboardMonthButton.dataset.dashboardMonth));
+    dashboardPeriod = monthPeriod(reference);
+    document.querySelectorAll("[data-dashboard-period]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.dashboardPeriod === "month");
+    });
+    renderDashboardV2();
+  }
   if (tab) showView(tab.dataset.view);
   if (opener) showView(opener.dataset.openView);
   const paymentDashboardFilter = event.target.closest("[data-payment-dashboard-filter]");
@@ -2265,6 +2498,16 @@ document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListe
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("change", syncServiceCatalogSelection);
 document.querySelector('#trackingForm input[name="clientSearch"]').addEventListener("input", syncTrackingClientSelection);
 document.querySelector('#trackingForm input[name="clientSearch"]').addEventListener("change", syncTrackingClientSelection);
+["dashboardStartDate", "dashboardEndDate"].forEach((id) => {
+  document.getElementById(id).addEventListener("change", () => {
+    const startDate = document.getElementById("dashboardStartDate").value;
+    const endDate = document.getElementById("dashboardEndDate").value;
+    if (!startDate || !endDate || endDate < startDate) return;
+    dashboardPeriod = { startDate, endDate };
+    document.querySelectorAll("[data-dashboard-period]").forEach((button) => button.classList.remove("active"));
+    renderDashboardV2();
+  });
+});
 document.getElementById("addReferenceButton").addEventListener("click", addCurrentReference);
 document.querySelector('#serviceForm input[name="hasAdditionalServices"]').addEventListener("change", toggleAdditionalServices);
 document.querySelector('#serviceForm input[name="additionalCatalogSearch"]').addEventListener("input", syncAdditionalCatalogSelection);
@@ -2342,7 +2585,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=12").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=13").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
