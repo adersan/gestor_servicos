@@ -166,6 +166,77 @@
   border-top: 4px solid #18864b;
 }
 
+.section-chart {
+  border-top: 4px solid #164f43;
+}
+
+.client-chart {
+  display: grid;
+  gap: 12px;
+}
+
+.client-chart-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 110px;
+  gap: 12px;
+  align-items: center;
+}
+
+.client-chart-row > div {
+  height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7ece9;
+}
+
+.client-chart-row i {
+  display: block;
+  min-width: 3px;
+  height: 100%;
+  border-radius: inherit;
+  background: #164f43;
+}
+
+.client-chart-row i.payment {
+  background: #18864b;
+}
+
+.client-report-service-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(390px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.client-report-service-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.client-report-service-table th,
+.client-report-service-table td {
+  padding: 8px 6px;
+  overflow: hidden;
+  border-bottom: 1px solid #deddd5;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-report-service-table th {
+  color: #164f43;
+  background: #eef4f1;
+}
+
+.client-report-service-table th:nth-child(1),
+.client-report-service-table td:nth-child(1) { width: 70px; }
+.client-report-service-table th:nth-child(3),
+.client-report-service-table td:nth-child(3) { width: 72px; }
+.client-report-service-table th:nth-child(4),
+.client-report-service-table td:nth-child(4) { width: 82px; text-align: right; }
+
 .section-services .report-table thead {
   background: #eef6ff;
 }
@@ -290,6 +361,14 @@
   .client-filters input,
   .client-filters select {
     width: 100%;
+  }
+
+  .client-chart-row {
+    grid-template-columns: 90px 1fr;
+  }
+
+  .client-chart-row strong {
+    grid-column: 2;
   }
 }
 

@@ -1,15 +1,15 @@
-const CACHE = "gestor-servicos-v13";
+const CACHE = "gestor-servicos-v14";
 const ASSETS = [
   "./",
   "index.html",
   "cliente.html",
-  "styles.css?v=13",
-  "cliente.css?v=13",
-  "config.js?v=13",
-  "auth.js?v=13",
-  "data.js?v=13",
-  "app.js?v=13",
-  "cliente.js?v=13",
+  "styles.css?v=14",
+  "cliente.css?v=14",
+  "config.js?v=14",
+  "auth.js?v=14",
+  "data.js?v=14",
+  "app.js?v=14",
+  "cliente.js?v=14",
   "acompanhamento.html",
   "acompanhamento.css?v=12",
   "acompanhamento.js?v=12",

@@ -102,21 +102,43 @@ function createPdf(data) {
     text("Nenhum servico neste fechamento.", margin);
     y -= 22;
   } else {
-    data.services.forEach((item) => {
-      ensureSpace(34);
-      text(formatDate(item.service_date), margin, 9, color.gray);
-      text(item.service_name, 112, 9, color.dark, true);
-      text(item.reference || "-", 315, 9, color.gray);
-      text(money.format(Number(item.amount)), 462, 9, color.blue, true);
-      y -= 17;
-      line();
-      y -= 8;
+    const columnWidth = 245;
+    const columnGap = 20;
+    ensureSpace(28);
+    [0, 1].forEach((columnIndex) => {
+      const x = margin + columnIndex * (columnWidth + columnGap);
+      commands.push(`0.91 0.94 0.93 rg ${x} ${y - 15} ${columnWidth} 22 re f`);
+      commands.push(`${color.dark} rg BT /F2 7 Tf ${x + 6} ${y - 2} Td (Data) Tj ET`);
+      commands.push(`${color.dark} rg BT /F2 7 Tf ${x + 48} ${y - 2} Td (Servico) Tj ET`);
+      commands.push(`${color.dark} rg BT /F2 7 Tf ${x + 145} ${y - 2} Td (Ref) Tj ET`);
+      commands.push(`${color.dark} rg BT /F2 7 Tf ${x + 202} ${y - 2} Td (Valor) Tj ET`);
     });
+    y -= 27;
+    const splitAt = Math.ceil(data.services.length / 2);
+    const columns = [data.services.slice(0, splitAt), data.services.slice(splitAt)];
+    const rowCount = Math.max(columns[0].length, columns[1].length);
+    for (let index = 0; index < rowCount; index += 1) {
+      ensureSpace(27);
+      const rowY = y;
+      columns.forEach((items, columnIndex) => {
+        const item = items[index];
+        if (!item) return;
+        const x = margin + columnIndex * (columnWidth + columnGap);
+        const description = String(item.service_name || "").slice(0, 19);
+        const reference = String(item.reference || "-").slice(0, 10);
+        commands.push(`0.97 0.98 0.97 rg ${x} ${rowY - 16} ${columnWidth} 23 re f`);
+        commands.push(`${color.gray} rg BT /F1 6.5 Tf ${x + 5} ${rowY - 3} Td (${pdfText(formatDate(item.service_date))}) Tj ET`);
+        commands.push(`${color.dark} rg BT /F1 7 Tf ${x + 48} ${rowY - 3} Td (${pdfText(description)}) Tj ET`);
+        commands.push(`${color.gray} rg BT /F1 6.5 Tf ${x + 145} ${rowY - 3} Td (${pdfText(reference)}) Tj ET`);
+        commands.push(`${color.blue} rg BT /F2 7 Tf ${x + 194} ${rowY - 3} Td (${pdfText(money.format(Number(item.amount)))}) Tj ET`);
+      });
+      y -= 27;
+    }
   }
 
-  heading("Pagamentos considerados");
+  heading("Pagamentos");
   if (!data.payments.length) {
-    text("Nenhum pagamento neste fechamento.", margin);
+    text("Nenhum pagamento registrado.", margin);
     y -= 22;
   } else {
     data.payments.forEach((item) => {
@@ -212,14 +234,22 @@ function renderStatement(data) {
   document.getElementById("billingPeriod").textContent =
     `${formatDate(billing.period_start)} a ${formatDate(billing.period_end)}`;
 
+  function serviceTable(items) {
+    const rows = items.map((item) => `<tr class="${item.is_secondary ? "client-secondary-service" : ""}">
+      <td>${formatDate(item.service_date)}</td>
+      <td title="${escapeHtml(item.service_name)}">${escapeHtml(item.service_name)}${item.is_secondary ? `<span class="client-secondary-label">Complementar</span>` : ""}</td>
+      <td title="${escapeHtml(item.reference || "-")}">${escapeHtml(item.reference || "-")}</td>
+      <td class="amount-service">${money.format(Number(item.amount))}</td>
+    </tr>`).join("");
+    return `<table class="client-report-service-table">
+      <thead><tr><th>Data</th><th>Serviço</th><th>Ref</th><th>Valor</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="4">-</td></tr>`}</tbody>
+    </table>`;
+  }
+  const splitAt = Math.ceil(services.length / 2);
   const serviceRows = services.length
-    ? services.map((item) => `<tr class="${item.is_secondary ? "client-secondary-service" : ""}">
-        <td>${formatDate(item.service_date)}</td>
-        <td>${escapeHtml(item.service_name)}${item.is_secondary ? `<span class="client-secondary-label">Complementar</span>` : ""}</td>
-        <td>${escapeHtml(item.reference || "-")}</td>
-        <td class="amount-service">${money.format(Number(item.amount))}</td>
-      </tr>`).join("")
-    : `<tr><td colspan="4">Nenhum serviço neste fechamento.</td></tr>`;
+    ? `${serviceTable(services.slice(0, splitAt))}${serviceTable(services.slice(splitAt))}`
+    : `<p class="meta">Nenhum serviço neste fechamento.</p>`;
   const paymentRows = payments.length
     ? payments.map((item) => `<tr>
         <td>${formatDate(item.payment_date)}</td>
@@ -234,6 +264,12 @@ function renderStatement(data) {
         ${method.payment_link ? `<a href="${escapeHtml(method.payment_link)}" target="_blank" rel="noopener">Abrir link de pagamento</a>` : ""}
       </article>`).join("")
     : `<p class="meta">Consulte as formas de pagamento com o responsável.</p>`;
+  const maxValue = Math.max(
+    Number(billing.services_total),
+    Number(billing.payments_total),
+    Math.abs(Number(billing.previous_balance)),
+    1
+  );
 
   document.getElementById("statementContent").innerHTML = `
     <div class="client-summary">
@@ -242,12 +278,20 @@ function renderStatement(data) {
       <article class="summary-card summary-payments"><span class="summary-dot"></span><span class="meta">Pagamentos</span><strong>${money.format(Number(billing.payments_total))}</strong></article>
       <article class="summary-card summary-total"><span class="summary-dot"></span><span class="meta">Total em aberto</span><strong>${money.format(Number(billing.open_amount ?? billing.total_due))}</strong></article>
     </div>
+    <section class="client-section section-chart">
+      <h3>Resumo gráfico</h3>
+      <div class="client-chart">
+        <div class="client-chart-row"><span>Saldo anterior</span><div><i style="width:${Math.abs(Number(billing.previous_balance)) / maxValue * 100}%"></i></div><strong>${money.format(Number(billing.previous_balance))}</strong></div>
+        <div class="client-chart-row"><span>Serviços</span><div><i style="width:${Number(billing.services_total) / maxValue * 100}%"></i></div><strong>${money.format(Number(billing.services_total))}</strong></div>
+        <div class="client-chart-row"><span>Pagamentos</span><div><i class="payment" style="width:${Number(billing.payments_total) / maxValue * 100}%"></i></div><strong>${money.format(Number(billing.payments_total))}</strong></div>
+      </div>
+    </section>
     <section class="client-section section-services">
       <h3>Serviços do período</h3>
-      <table class="report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Valor</th></tr></thead><tbody>${serviceRows}</tbody></table>
+      <div class="client-report-service-grid">${serviceRows}</div>
     </section>
     <section class="client-section section-payments">
-      <h3>Pagamentos considerados</h3>
+      <h3>Pagamentos</h3>
       <table class="report-table"><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>${paymentRows}</tbody></table>
     </section>
     <section class="client-section">
