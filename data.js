@@ -16,7 +16,12 @@
       entriesResult,
       paymentsResult,
       methodsResult,
-      billingsResult
+      billingsResult,
+      suppliersResult,
+      supplierServicesResult,
+      supplierEntriesResult,
+      supplierPayablesResult,
+      supplierPaymentsResult
     ] = await Promise.all([
       client.from("price_tables").select("*").eq("active", true).order("name"),
       client.from("clients").select("*").eq("active", true).order("name"),
@@ -25,7 +30,12 @@
       client.from("service_entries").select("*").order("service_date", { ascending: false }),
       client.from("payments").select("*").order("payment_date", { ascending: false }),
       client.from("payment_methods").select("*").order("created_at"),
-      client.from("billings").select("*").order("created_at", { ascending: false })
+      client.from("billings").select("*").order("created_at", { ascending: false }),
+      client.from("suppliers").select("*").eq("active", true).order("name"),
+      client.from("supplier_services").select("*").eq("active", true).order("name"),
+      client.from("supplier_entries").select("*").order("service_date", { ascending: false }),
+      client.from("supplier_payables").select("*").order("created_at", { ascending: false }),
+      client.from("supplier_payments").select("*").order("payment_date", { ascending: false })
     ]);
 
     const results = [
@@ -36,7 +46,12 @@
       entriesResult,
       paymentsResult,
       methodsResult,
-      billingsResult
+      billingsResult,
+      suppliersResult,
+      supplierServicesResult,
+      supplierEntriesResult,
+      supplierPayablesResult,
+      supplierPaymentsResult
     ];
     const failed = results.find((result) => result.error);
     if (failed) throw failed.error;
@@ -122,6 +137,31 @@
         status: billing.status,
         active: billing.status !== "Cancelada",
         createdAt: billing.created_at
+      })),
+      suppliers: suppliersResult.data.map((item) => ({
+        id: item.id, name: item.name, phone: item.phone || "", document: item.document || "",
+        notes: item.notes || "", isDefault: item.is_default, active: item.active
+      })),
+      supplierServices: supplierServicesResult.data.map((item) => ({
+        id: item.id, supplierId: item.supplier_id, code: item.code || "",
+        name: item.name, cost: Number(item.default_cost), active: item.active
+      })),
+      supplierEntries: supplierEntriesResult.data.map((item) => ({
+        id: item.id, supplierId: item.supplier_id, supplierServiceId: item.supplier_service_id,
+        clientId: item.client_id, clientServiceEntryId: item.client_service_entry_id,
+        payableId: item.payable_id, date: item.service_date, description: item.service_name,
+        reference: item.reference || "", amount: Number(item.amount), status: item.status,
+        source: item.source, notes: item.notes || "", createdAt: item.created_at, updatedAt: item.updated_at
+      })),
+      supplierPayables: supplierPayablesResult.data.map((item) => ({
+        id: item.id, supplierId: item.supplier_id, startDate: item.period_start,
+        endDate: item.period_end, amount: Number(item.total_due), status: item.status,
+        snapshot: item.snapshot || {}, createdAt: item.created_at
+      })),
+      supplierPayments: supplierPaymentsResult.data.map((item) => ({
+        id: item.id, supplierId: item.supplier_id, payableId: item.payable_id,
+        date: item.payment_date, amount: Number(item.amount), method: item.method || "",
+        note: item.notes || "", createdAt: item.created_at
       }))
     };
   }
@@ -281,6 +321,47 @@
       if (billingsResult.error) throw billingsResult.error;
     }
 
+    if (state.suppliers?.length) {
+      const result = await client.from("suppliers").upsert(state.suppliers.map((item) => ({
+        id: item.id, name: item.name, phone: item.phone || null, document: item.document || null,
+        notes: item.notes || null, is_default: Boolean(item.isDefault), active: item.active !== false
+      })));
+      if (result.error) throw result.error;
+    }
+    if (state.supplierServices?.length) {
+      const result = await client.from("supplier_services").upsert(state.supplierServices.map((item) => ({
+        id: item.id, supplier_id: item.supplierId, code: item.code || null,
+        name: item.name, default_cost: Number(item.cost), active: item.active !== false
+      })));
+      if (result.error) throw result.error;
+    }
+    if (state.supplierPayables?.length) {
+      const result = await client.from("supplier_payables").upsert(state.supplierPayables.map((item) => ({
+        id: item.id, supplier_id: item.supplierId, period_start: item.startDate,
+        period_end: item.endDate, total_due: Number(item.amount), status: item.status,
+        snapshot: item.snapshot || {}, created_at: item.createdAt
+      })));
+      if (result.error) throw result.error;
+    }
+    if (state.supplierEntries?.length) {
+      const result = await client.from("supplier_entries").upsert(state.supplierEntries.map((item) => ({
+        id: item.id, supplier_id: item.supplierId, supplier_service_id: item.supplierServiceId || null,
+        client_id: item.clientId || null, client_service_entry_id: item.clientServiceEntryId || null,
+        payable_id: item.payableId || null, service_date: item.date, service_name: item.description,
+        reference: item.reference || null, amount: Number(item.amount), status: item.status,
+        source: item.source || "Direto", notes: item.notes || null, created_at: item.createdAt
+      })));
+      if (result.error) throw result.error;
+    }
+    if (state.supplierPayments?.length) {
+      const result = await client.from("supplier_payments").upsert(state.supplierPayments.map((item) => ({
+        id: item.id, supplier_id: item.supplierId, payable_id: item.payableId || null,
+        payment_date: item.date, amount: Number(item.amount), method: item.method || null,
+        notes: item.note || null, created_at: item.createdAt
+      })));
+      if (result.error) throw result.error;
+    }
+
     async function deleteMissing(table, localIds) {
       const existing = await client.from(table).select("id");
       if (existing.error) throw existing.error;
@@ -297,6 +378,11 @@
     await deleteMissing("service_entries", state.services.map((item) => item.id));
     await deleteMissing("billings", state.billings.map((item) => item.id));
     await deleteMissing("payment_methods", state.paymentMethods.map((item) => item.id));
+    await deleteMissing("supplier_payments", (state.supplierPayments || []).map((item) => item.id));
+    await deleteMissing("supplier_entries", (state.supplierEntries || []).map((item) => item.id));
+    await deleteMissing("supplier_payables", (state.supplierPayables || []).map((item) => item.id));
+    await deleteMissing("supplier_services", (state.supplierServices || []).map((item) => item.id));
+    await deleteMissing("suppliers", (state.suppliers || []).map((item) => item.id));
     await deleteMissing("clients", state.clients.map((item) => item.id));
     await deleteMissing("service_catalog", state.catalog.map((item) => item.id));
 

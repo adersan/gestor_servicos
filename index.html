@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=14">
+  <link rel="stylesheet" href="styles.css?v=15">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -44,6 +44,7 @@
     <button class="tab" data-view="payments">Pagamentos</button>
     <button class="tab" data-view="paymentMethods">Formas de pagamento</button>
     <button class="tab" data-view="billing">Cobranças</button>
+    <button class="tab" data-view="suppliers">Fornecedores</button>
   </nav>
 
   <main>
@@ -255,6 +256,74 @@
       </div>
       <div id="billingList" class="card-grid"></div>
     </section>
+
+    <section id="suppliers" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Contas a pagar</span><h2>Fornecedores</h2></div>
+        <button class="primary" type="button" data-supplier-action="entry">Lançamento direto</button>
+      </div>
+      <div class="supplier-tabs" role="tablist">
+        <button class="active" type="button" data-supplier-tab="dashboard">Painel</button>
+        <button type="button" data-supplier-tab="records">Cadastros</button>
+        <button type="button" data-supplier-tab="entries">Lançamentos</button>
+        <button type="button" data-supplier-tab="payables">Contas a pagar</button>
+        <button type="button" data-supplier-tab="access">Acessos</button>
+      </div>
+      <div id="supplierDashboardPanel" class="supplier-panel">
+        <div class="filters">
+          <select id="supplierDashboardFilter"><option value="">Todos os fornecedores</option></select>
+          <input id="supplierDashboardStart" type="date" aria-label="Data inicial">
+          <input id="supplierDashboardEnd" type="date" aria-label="Data final">
+        </div>
+        <div id="supplierDashboardCards" class="dashboard-grid"></div>
+        <section class="dashboard-charts">
+          <article class="panel"><div class="panel-title"><div><span class="eyebrow">Consumo</span><h2>Por fornecedor</h2></div></div><div id="supplierRanking"></div></article>
+          <article class="panel"><div class="panel-title"><div><span class="eyebrow">Situação</span><h2>Serviços do período</h2></div></div><div id="supplierStatusSummary"></div></article>
+        </section>
+      </div>
+      <div id="supplierRecordsPanel" class="supplier-panel hidden">
+        <div class="supplier-split">
+          <section>
+            <div class="subsection-heading supplier-section-title"><div><span class="eyebrow">Cadastro</span><h3>Fornecedores</h3></div><button class="primary" type="button" data-supplier-action="supplier">Adicionar</button></div>
+            <input id="supplierSearch" class="supplier-search" type="search" placeholder="Buscar fornecedor">
+            <div id="supplierList" class="card-grid"></div>
+          </section>
+          <section>
+            <div class="subsection-heading supplier-section-title"><div><span class="eyebrow">Custos</span><h3>Serviços do fornecedor</h3></div><button class="primary" type="button" data-supplier-action="service">Adicionar</button></div>
+            <input id="supplierServiceSearch" class="supplier-search" type="search" placeholder="Buscar serviço ou código">
+            <div id="supplierServiceList"></div>
+          </section>
+        </div>
+      </div>
+      <div id="supplierEntriesPanel" class="supplier-panel hidden">
+        <div class="filters">
+          <select id="supplierEntrySupplierFilter"><option value="">Todos os fornecedores</option></select>
+          <select id="supplierEntryStatusFilter"><option value="">Todos os status</option><option>A fazer</option><option>Feito</option><option>Cancelado</option></select>
+          <input id="supplierEntryStart" type="date" aria-label="Data inicial">
+          <input id="supplierEntryEnd" type="date" aria-label="Data final">
+          <input id="supplierEntrySearch" type="search" placeholder="Buscar serviço, cliente ou referência">
+        </div>
+        <div id="supplierEntryList" class="timeline"></div>
+      </div>
+      <div id="supplierPayablesPanel" class="supplier-panel hidden">
+        <div class="heading-actions supplier-payable-actions"><button class="primary" type="button" data-supplier-action="payable">Gerar pagamento</button></div>
+        <div id="supplierPayableSummary" class="dashboard-grid payment-summary"></div>
+        <div class="filters">
+          <select id="supplierPayableSupplierFilter"><option value="">Todos os fornecedores</option></select>
+          <select id="supplierPayableStatusFilter"><option value="">Todos</option><option value="open">Em aberto</option><option value="paid">Pagos</option></select>
+        </div>
+        <div id="supplierPayableList" class="receivable-grid"></div>
+        <div class="subsection-heading"><div><span class="eyebrow">Histórico</span><h3>Baixas realizadas</h3></div></div>
+        <div id="supplierPaymentList" class="timeline"></div>
+      </div>
+      <div id="supplierAccessPanel" class="supplier-panel hidden">
+        <section class="panel">
+          <div class="panel-title"><div><span class="eyebrow">Portal seguro</span><h2>Acompanhamento do fornecedor</h2></div></div>
+          <p class="meta">Gere um link somente leitura ou autorize o fornecedor a lançar e alterar os próprios serviços no período.</p>
+          <button class="primary" type="button" data-supplier-action="access">Gerar link</button>
+        </section>
+      </div>
+    </section>
   </main>
 
   <dialog id="clientDialog">
@@ -437,6 +506,84 @@
     <div id="reportContent"></div>
   </dialog>
 
+  <dialog id="supplierDialog">
+    <form id="supplierForm" method="dialog">
+      <div class="dialog-heading"><h2 id="supplierDialogTitle">Novo fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="id" type="hidden">
+      <label>Nome<input name="name" required></label>
+      <label>WhatsApp<input name="phone"></label>
+      <label>CPF ou CNPJ<input name="document"></label>
+      <label>Observações<textarea name="notes" rows="3"></textarea></label>
+      <label class="checkbox-label"><input name="isDefault" type="checkbox"> Fornecedor padrão dos novos lançamentos</label>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Salvar</button></div>
+    </form>
+  </dialog>
+  <dialog id="supplierServiceDialog">
+    <form id="supplierServiceForm" method="dialog">
+      <div class="dialog-heading"><h2 id="supplierServiceDialogTitle">Serviço do fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="id" type="hidden">
+      <label>Fornecedor<select name="supplierId" required></select></label>
+      <label>Código<input name="code" inputmode="numeric"></label>
+      <label>Nome do serviço<input name="name" required></label>
+      <label>Valor cobrado pelo fornecedor<input name="cost" type="number" min="0" step="0.01" required></label>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Salvar</button></div>
+    </form>
+  </dialog>
+  <dialog id="supplierEntryDialog">
+    <form id="supplierEntryForm" method="dialog">
+      <div class="dialog-heading"><h2 id="supplierEntryDialogTitle">Lançamento do fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="id" type="hidden"><input name="clientServiceEntryId" type="hidden"><input name="clientId" type="hidden">
+      <label>Fornecedor<select name="supplierId" required></select></label>
+      <label>Serviço<select name="supplierServiceId" required></select></label>
+      <label>Data<input name="date" type="date" required></label>
+      <label>Referência<input name="reference"></label>
+      <label>Valor do fornecedor<input name="amount" type="number" min="0" step="0.01" required></label>
+      <label>Status<select name="status"><option>A fazer</option><option>Feito</option><option>Cancelado</option></select></label>
+      <label>Observações<textarea name="notes" rows="2"></textarea></label>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Salvar</button></div>
+    </form>
+  </dialog>
+  <dialog id="supplierOfferDialog">
+    <form id="supplierOfferForm" method="dialog">
+      <div class="dialog-heading"><h2>Gerar serviço do fornecedor?</h2><button class="icon-button" value="cancel">×</button></div>
+      <p id="supplierOfferHint" class="meta"></p>
+      <label>Fornecedor<select name="supplierId" required></select></label>
+      <label>Serviço do fornecedor<select name="supplierServiceId" required></select></label>
+      <label>Valor por referência<input name="amount" type="number" min="0" step="0.01" required></label>
+      <div class="dialog-actions"><button class="secondary" type="button" data-supplier-offer="no">Não gerar</button><button class="primary" value="default">Gerar despesa</button></div>
+    </form>
+  </dialog>
+  <dialog id="supplierPayableDialog">
+    <form id="supplierPayableForm" method="dialog">
+      <div class="dialog-heading"><h2>Gerar conta a pagar</h2><button class="icon-button" value="cancel">×</button></div>
+      <label>Fornecedor<select name="supplierId" required></select></label>
+      <div class="date-pair"><label>De<input name="startDate" type="date" required></label><label>Até<input name="endDate" type="date" required></label></div>
+      <p class="hint">Serão incluídos somente lançamentos ainda não fechados.</p>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Gerar pagamento</button></div>
+    </form>
+  </dialog>
+  <dialog id="supplierPaymentDialog">
+    <form id="supplierPaymentForm" method="dialog">
+      <div class="dialog-heading"><h2>Dar baixa no fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="payableId" type="hidden"><input name="supplierId" type="hidden">
+      <label>Data<input name="date" type="date" required></label>
+      <label>Valor pago<input name="amount" type="number" min="0.01" step="0.01" required></label>
+      <label>Forma<select name="method"><option>PIX</option><option>Dinheiro</option><option>Cartão</option><option>Outro</option></select></label>
+      <label>Observação<input name="note"></label>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Confirmar baixa</button></div>
+    </form>
+  </dialog>
+  <dialog id="supplierAccessDialog">
+    <form id="supplierAccessForm" method="dialog">
+      <div class="dialog-heading"><h2>Link do fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
+      <label>Fornecedor<select name="supplierId" required></select></label>
+      <div class="date-pair"><label>De<input name="startDate" type="date" required></label><label>Até<input name="endDate" type="date" required></label></div>
+      <label>Validade<select name="validDays"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select></label>
+      <label class="checkbox-label"><input name="canEdit" type="checkbox"> Permitir lançar e alterar serviços neste período</label>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Gerar e compartilhar</button></div>
+    </form>
+  </dialog>
+
   <dialog id="notificationDialog" class="notification-dialog">
     <div class="notification-content">
       <div class="dialog-heading">
@@ -476,9 +623,10 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=14"></script>
-  <script src="auth.js?v=14"></script>
-  <script src="data.js?v=14"></script>
-  <script src="app.js?v=14"></script>
+  <script src="config.js?v=15"></script>
+  <script src="auth.js?v=15"></script>
+  <script src="data.js?v=15"></script>
+  <script src="app.js?v=15"></script>
+  <script src="supplier.js?v=15"></script>
 </body>
 </html>

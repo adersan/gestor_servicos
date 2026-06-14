@@ -22,7 +22,12 @@ const initialState = {
     { id: crypto.randomUUID(), type: "Dinheiro", name: "Pagamento em dinheiro", details: "Combine a entrega diretamente", link: "", active: true },
     { id: crypto.randomUUID(), type: "Cartão de crédito", name: "Cartão de crédito", details: "Link de pagamento será disponibilizado futuramente", link: "", active: false }
   ],
-  billings: []
+  billings: [],
+  suppliers: [],
+  supplierServices: [],
+  supplierEntries: [],
+  supplierPayables: [],
+  supplierPayments: []
 };
 
 let state = loadState();
@@ -899,6 +904,7 @@ function render() {
   renderPayments();
   renderPaymentMethods();
   renderBillings();
+  window.supplierModule?.render();
 }
 
 function escapeHtml(value) {
@@ -2164,6 +2170,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     );
     if (!shouldContinue) return;
   }
+  const createdEntries = [];
   entryReferences.forEach((reference, referenceIndex) => {
     const serviceGroupId = existingEntry?.serviceGroupId || crypto.randomUUID();
     const primaryEntryId = existingEntry && referenceIndex === 0
@@ -2201,6 +2208,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
       const index = state.services.findIndex((item) => item.id === entry.id);
       if (index >= 0) state.services[index] = entry;
       else state.services.push(entry);
+      createdEntries.push(entry);
     });
   });
   const savedClientId = data.get("clientId");
@@ -2209,6 +2217,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   saveState();
   if (existingEntry) return;
 
+  await window.supplierModule?.offerForClientEntries(createdEntries);
   const next = await askEntryContinuation();
   if (next === "same") openEntryForm(null, savedClientId);
   if (next === "other") openEntryForm();
@@ -2585,7 +2594,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=14").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=15").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);

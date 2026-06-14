@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#164f43">
+  <title>Portal do fornecedor</title>
+  <link rel="stylesheet" href="fornecedor.css?v=15">
+</head>
+<body>
+  <header><span>Gestor de Serviços</span><h1>Portal do fornecedor</h1><p id="period"></p></header>
+  <main>
+    <div id="message" class="message">Carregando informações...</div>
+    <section id="content" class="hidden">
+      <div id="summary" class="summary"></div>
+      <section id="editor" class="panel hidden">
+        <h2>Lançar serviço</h2>
+        <form id="entryForm">
+          <input name="entryId" type="hidden">
+          <label>Serviço<select name="serviceId" required></select></label>
+          <label>Data<input name="date" type="date" required></label>
+          <label>Referência<input name="reference"></label>
+          <label>Valor<input name="amount" type="number" min="0" step="0.01" required></label>
+          <label>Status<select name="status"><option>A fazer</option><option>Feito</option></select></label>
+          <label>Observações<input name="notes"></label>
+          <div class="actions"><button type="button" id="cancelEdit">Cancelar</button><button class="primary">Salvar</button></div>
+        </form>
+      </section>
+      <section class="panel"><h2>Serviços do período</h2><div id="entries"></div></section>
+      <section class="panel"><h2>Pagamentos e fechamentos</h2><div id="payables"></div></section>
+    </section>
+  </main>
+  <script src="fornecedor.js?v=15"></script>
+</body>
+</html>

@@ -280,6 +280,23 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .payment-options { display: grid; gap: 10px; }
 .payment-option { padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
 .payment-option strong { display: block; margin-bottom: 5px; }
+.supplier-tabs { display: flex; gap: 8px; margin: 0 0 20px; padding: 6px; overflow-x: auto; border-radius: 14px; background: #e9efec; }
+.supplier-tabs button { padding: 10px 14px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font-weight: 800; white-space: nowrap; }
+.supplier-tabs button.active { color: white; background: var(--brand); }
+.supplier-panel { min-height: 260px; }
+.supplier-split { display: grid; grid-template-columns: minmax(280px, .85fr) minmax(440px, 1.15fr); gap: 24px; }
+.supplier-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 0; }
+.supplier-search { width: 100%; margin-bottom: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 11px; }
+.supplier-status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.supplier-status-grid article { padding: 22px; border-radius: 14px; background: #f2f6f4; }
+.supplier-status-grid span, .supplier-status-grid strong { display: block; }
+.supplier-status-grid span { color: var(--muted); font-size: 12px; }
+.supplier-status-grid strong { margin-top: 8px; font-size: 32px; }
+.supplier-entry-closed { background: #f7f8f6; }
+.supplier-entry-closed::before { content: "Fechado"; align-self: center; padding: 4px 7px; border-radius: 999px; background: #e7ece9; color: var(--muted); font-size: 10px; font-weight: 800; }
+.supplier-payable-actions { justify-content: flex-end; margin-bottom: 14px; }
+.supplier-payable-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.supplier-payable-buttons button { width: 100%; }
 @media (max-width: 700px) {
   .topbar { align-items: flex-start; }
   .topbar-actions { align-items: stretch; flex-direction: column; }
@@ -332,6 +349,10 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
   .notification-daily-summary { grid-template-columns: 1fr; }
   .price-fields { grid-template-columns: 1fr; }
   .report { padding: 18px; }
+  .supplier-split { grid-template-columns: 1fr; }
+  .supplier-tabs { margin-right: -14px; margin-left: -14px; border-radius: 0; }
+  .supplier-section-title { align-items: stretch; flex-direction: column; }
+  .supplier-status-grid { grid-template-columns: 1fr 1fr; }
   .report-header { flex-direction: column; }
   .chart-row { grid-template-columns: 90px 1fr; }
   .chart-row strong { grid-column: 2; }
