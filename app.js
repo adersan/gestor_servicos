@@ -858,6 +858,28 @@ function syncServiceClientFilter() {
   renderServices();
 }
 
+function syncTrackingClientSelection() {
+  const form = document.getElementById("trackingForm");
+  const client = itemByExactLabel(state.clients, form.elements.clientSearch.value, clientOptionLabel)
+    || uniqueClientMatch(form.elements.clientSearch.value);
+  form.elements.clientId.value = client?.id || "";
+}
+
+function openTrackingForm() {
+  const form = document.getElementById("trackingForm");
+  form.reset();
+  const preferredClient = uniqueClientMatch(document.getElementById("serviceClientNameFilter").value);
+  form.elements.clientId.value = preferredClient?.id || "";
+  form.elements.clientSearch.value = clientOptionLabel(preferredClient);
+  const today = new Date().toISOString().slice(0, 10);
+  const sevenDaysAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  form.elements.startDate.value = sevenDaysAgo;
+  form.elements.endDate.value = today;
+  form.elements.validDays.value = "30";
+  document.getElementById("trackingDialog").showModal();
+  setTimeout(() => (preferredClient ? form.elements.startDate : form.elements.clientSearch).focus(), 0);
+}
+
 function renderCatalogPriceFields(item = null) {
   document.getElementById("catalogPriceFields").innerHTML = state.priceTables.map((name) => `
     <label>${escapeHtml(name)}
@@ -1495,6 +1517,10 @@ document.addEventListener("click", async (event) => {
     }
   }
   if (dialogButton) {
+    if (dialogButton.dataset.dialog === "trackingDialog") {
+      openTrackingForm();
+      return;
+    }
     if (dialogButton.dataset.dialog === "clientDialog") openClientForm();
     else if (dialogButton.dataset.dialog === "catalogDialog") openCatalogForm();
     else if (dialogButton.dataset.dialog === "serviceDialog") {
@@ -2017,6 +2043,65 @@ document.getElementById("paymentMethodForm").addEventListener("submit", (event) 
   saveState();
 });
 
+document.getElementById("trackingForm").addEventListener("submit", async (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  const form = event.currentTarget;
+  syncTrackingClientSelection();
+  if (!form.elements.clientId.value) {
+    alert("Selecione um cliente válido da lista.");
+    form.elements.clientSearch.focus();
+    return;
+  }
+  if (form.elements.endDate.value < form.elements.startDate.value) {
+    alert("A data final deve ser igual ou posterior à data inicial.");
+    return;
+  }
+
+  const button = event.submitter;
+  button.disabled = true;
+  button.textContent = "Gerando link...";
+  try {
+    const { data } = await window.supabaseClient.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+    const response = await fetch("/.netlify/functions/issue-service-tracking-link", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        clientId: form.elements.clientId.value,
+        startDate: form.elements.startDate.value,
+        endDate: form.elements.endDate.value,
+        validDays: Number(form.elements.validDays.value)
+      })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Não foi possível gerar o link.");
+    const client = clientById(form.elements.clientId.value);
+    const url = `${location.origin}/acompanhamento.html?access=${encodeURIComponent(result.accessCode)}`;
+    const text = `Olá, ${client?.name || ""}!\n\nAcompanhe seus serviços de ${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)} pelo link abaixo:\n\n${url}\n\nEste acesso é somente para consulta.`;
+    const phone = whatsappPhone(client);
+    const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
+    const link = document.createElement("a");
+    link.href = `https://api.whatsapp.com/send?${query}`;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    form.closest("dialog").close();
+  } catch (error) {
+    console.error(error);
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Gerar e compartilhar";
+  }
+});
+
 document.getElementById("billingForm").addEventListener("submit", async (event) => {
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
@@ -2178,6 +2263,8 @@ document.querySelector('#serviceForm input[name="clientSearch"]').addEventListen
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("change", syncServiceClientSelection);
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("input", syncServiceCatalogSelection);
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("change", syncServiceCatalogSelection);
+document.querySelector('#trackingForm input[name="clientSearch"]').addEventListener("input", syncTrackingClientSelection);
+document.querySelector('#trackingForm input[name="clientSearch"]').addEventListener("change", syncTrackingClientSelection);
 document.getElementById("addReferenceButton").addEventListener("click", addCurrentReference);
 document.querySelector('#serviceForm input[name="hasAdditionalServices"]').addEventListener("change", toggleAdditionalServices);
 document.querySelector('#serviceForm input[name="additionalCatalogSearch"]').addEventListener("input", syncAdditionalCatalogSelection);
@@ -2255,7 +2342,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=11").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=12").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
