@@ -322,11 +322,24 @@
     }
 
     if (state.suppliers?.length) {
+      const defaultSupplier = state.suppliers.find((item) => item.isDefault);
+      if (defaultSupplier) {
+        const clearDefault = await client.from("suppliers")
+          .update({ is_default: false })
+          .eq("is_default", true);
+        if (clearDefault.error) throw clearDefault.error;
+      }
       const result = await client.from("suppliers").upsert(state.suppliers.map((item) => ({
         id: item.id, name: item.name, phone: item.phone || null, document: item.document || null,
-        notes: item.notes || null, is_default: Boolean(item.isDefault), active: item.active !== false
+        notes: item.notes || null, is_default: false, active: item.active !== false
       })));
       if (result.error) throw result.error;
+      if (defaultSupplier) {
+        const setDefault = await client.from("suppliers")
+          .update({ is_default: true })
+          .eq("id", defaultSupplier.id);
+        if (setDefault.error) throw setDefault.error;
+      }
     }
     if (state.supplierServices?.length) {
       const result = await client.from("supplier_services").upsert(state.supplierServices.map((item) => ({

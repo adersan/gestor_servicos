@@ -58,7 +58,8 @@ function saveState() {
   if (remoteReady && window.dataStore) {
     window.dataStore.scheduleSave(state, (error) => {
       console.error("Falha ao salvar no Supabase:", error.code, error.message);
-      alert("Não foi possível sincronizar os dados com o banco.");
+      const detail = error?.message ? `\n\nDetalhe: ${error.message}` : "";
+      alert(`Não foi possível sincronizar os dados com o banco.${detail}\n\nOs dados continuam salvos neste aparelho e o sistema tentará novamente na próxima alteração.`);
     });
   }
 }
@@ -2642,7 +2643,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=17").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=18").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
