@@ -167,6 +167,8 @@ create table if not exists public.client_access_credentials (
 
 alter table public.client_access_credentials
   add column if not exists history_enabled boolean not null default false;
+alter table public.client_access_credentials
+  add column if not exists magic_link_hash text;
 
 create table if not exists public.whatsapp_sessions (
   session text primary key,
@@ -191,6 +193,9 @@ create index if not exists billings_client_period_idx
 create unique index if not exists one_active_client_credential_idx
   on public.client_access_credentials(client_id)
   where active;
+create unique index if not exists client_credentials_magic_link_idx
+  on public.client_access_credentials(magic_link_hash)
+  where magic_link_hash is not null;
 
 create or replace function public.set_updated_at()
 returns trigger

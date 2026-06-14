@@ -84,6 +84,14 @@ export function randomPassword() {
   return Array.from(randomBytes(10), (byte) => alphabet[byte % alphabet.length]).join("");
 }
 
+export function randomAccessCode() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function accessCodeHash(code) {
+  return createHash("sha256").update(String(code || "")).digest("hex");
+}
+
 function encode(value) {
   return Buffer.from(value).toString("base64url");
 }

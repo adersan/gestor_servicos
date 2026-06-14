@@ -1212,7 +1212,7 @@ async function shareBillingReport(billing) {
   return "PDF salvo";
 }
 
-function whatsappBillingMessage(billing) {
+function whatsappBillingMessage(billing, automaticAccessUrl) {
   const client = clientById(billing.clientId);
   const selectedMethodIds = billing.paymentMethodIds || [];
   const billingMethods = billing.paymentMethods?.length
@@ -1224,17 +1224,31 @@ function whatsappBillingMessage(billing) {
       .map((method) => `${method.name}: ${method.details || method.link || "Consulte as instruções no relatório"}`)
       .join("\n")
     : "Consulte as formas de pagamento no relatório.";
-  const portalUrl = `${location.origin}/cliente.html`;
-  const access = billing.identifier
-    ? `\n\nAcesso ao portal:\n${portalUrl}\nIdentificador: ${billing.identifier}\nSenha: ${billing.password || "solicite um novo acesso"}`
-    : "";
-  return `Olá, ${client?.name || ""}!\n\nSua cobrança de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)} foi gerada.\n\nTotal em aberto: ${money.format(billingOpenAmount(billing))}\n\nFormas de pagamento:\n${methods}${access}`;
+  return `Olá, ${client?.name || ""}!\n\nSua cobrança de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)} foi gerada.\n\nTotal em aberto: ${money.format(billingOpenAmount(billing))}\n\nFormas de pagamento:\n${methods}\n\nAcesse sua cobrança sem precisar digitar senha:\n${automaticAccessUrl}`;
 }
 
-function shareBillingByWhatsApp(billing) {
+async function issueClientMagicLink(billing) {
+  const { data } = await window.supabaseClient.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+  const response = await fetch("/.netlify/functions/issue-client-magic-link", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({ clientId: billing.clientId, billingId: billing.id })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Não foi possível gerar o link automático.");
+  return `${location.origin}/cliente.html?access=${encodeURIComponent(result.accessCode)}`;
+}
+
+async function shareBillingByWhatsApp(billing) {
   const client = clientById(billing.clientId);
   const phone = whatsappPhone(client);
-  const text = whatsappBillingMessage(billing);
+  const automaticAccessUrl = await issueClientMagicLink(billing);
+  const text = whatsappBillingMessage(billing, automaticAccessUrl);
   const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
   const link = document.createElement("a");
   link.href = `https://api.whatsapp.com/send?${query}`;
@@ -1709,13 +1723,18 @@ document.addEventListener("click", async (event) => {
     const billing = state.billings.find((item) => item.id === whatsappButton.dataset.shareWhatsapp);
     if (billing) {
       try {
-        const mode = shareBillingByWhatsApp(billing);
+        whatsappButton.disabled = true;
+        whatsappButton.textContent = "Gerando link...";
+        const mode = await shareBillingByWhatsApp(billing);
         billing.sendHistory ||= [];
         billing.sendHistory.push({ sentAt: new Date().toISOString(), channel: "WhatsApp", mode });
         saveState();
       } catch (error) {
         console.error(error);
-        alert("Não foi possível abrir o WhatsApp.");
+        alert(error.message || "Não foi possível abrir o WhatsApp.");
+      } finally {
+        whatsappButton.disabled = false;
+        whatsappButton.textContent = "WhatsApp";
       }
     }
   }

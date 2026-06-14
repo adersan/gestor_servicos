@@ -1,7 +1,9 @@
 import {
+  accessCodeHash,
   identifierHash,
   json,
   passwordHash,
+  randomAccessCode,
   randomIdentifier,
   randomPassword,
   requireAdmin,
@@ -23,6 +25,7 @@ export default async (request) => {
 
     const identifier = randomIdentifier();
     const password = randomPassword();
+    const accessCode = randomAccessCode();
     await supabase(`/rest/v1/client_access_credentials?client_id=eq.${encodeURIComponent(clientId)}&active=eq.true`, {
       method: "PATCH",
       body: JSON.stringify({ active: false })
@@ -35,13 +38,14 @@ export default async (request) => {
         billing_id: billingId,
         identifier_hash: identifierHash(identifier),
         password_hash: passwordHash(password),
+        magic_link_hash: accessCodeHash(accessCode),
         history_enabled: Boolean(historyEnabled),
         active: true,
         expires_at: null
       })
     });
 
-    return json(200, { identifier, password });
+    return json(200, { identifier, password, accessCode });
   } catch (error) {
     console.error(error);
     return json(401, { error: error.message });

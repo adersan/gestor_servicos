@@ -389,6 +389,28 @@ async function loadStatement(billingId = "") {
   }
 }
 
+async function loginFromAutomaticLink() {
+  const accessCode = new URLSearchParams(location.search).get("access");
+  if (!accessCode) return false;
+  const error = document.getElementById("loginError");
+  error.textContent = "Abrindo sua cobrança...";
+  try {
+    const result = await request("client-magic-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessCode })
+    });
+    sessionStorage.setItem(tokenKey, result.token);
+    history.replaceState({}, "", `${location.pathname}${location.hash}`);
+    await loadStatement();
+    return true;
+  } catch (requestError) {
+    history.replaceState({}, "", `${location.pathname}${location.hash}`);
+    error.textContent = requestError.message;
+    return false;
+  }
+}
+
 document.getElementById("clientLoginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = event.submitter;
@@ -440,4 +462,6 @@ document.getElementById("statementContent").addEventListener("change", () => {
   if (activeView === "history") renderHistory(portalData);
 });
 
-loadStatement();
+loginFromAutomaticLink().then((loggedIn) => {
+  if (!loggedIn) loadStatement();
+});
