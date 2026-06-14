@@ -158,6 +158,14 @@ create table if not exists public.client_access_credentials (
 alter table public.client_access_credentials
   add column if not exists history_enabled boolean not null default false;
 
+create table if not exists public.whatsapp_sessions (
+  session text primary key,
+  status text not null default 'starting',
+  message text,
+  qr_code text,
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists service_entries_client_date_idx
   on public.service_entries(client_id, service_date);
 create unique index if not exists service_entries_delivery_code_idx
@@ -223,6 +231,7 @@ alter table public.payments enable row level security;
 alter table public.payment_methods enable row level security;
 alter table public.billings enable row level security;
 alter table public.client_access_credentials enable row level security;
+alter table public.whatsapp_sessions enable row level security;
 
 grant usage on schema public to authenticated;
 grant usage on schema public to service_role;
@@ -240,6 +249,7 @@ grant select, insert, update, delete on table public.payments to authenticated;
 grant select, insert, update, delete on table public.payment_methods to authenticated;
 grant select, insert, update, delete on table public.billings to authenticated;
 grant select, insert, update, delete on table public.client_access_credentials to authenticated;
+grant select, insert, update, delete on table public.whatsapp_sessions to authenticated;
 
 drop policy if exists "admin_users_admin_all" on public.admin_users;
 drop policy if exists "price_tables_admin_all" on public.price_tables;
@@ -251,6 +261,7 @@ drop policy if exists "payments_admin_all" on public.payments;
 drop policy if exists "payment_methods_admin_all" on public.payment_methods;
 drop policy if exists "billings_admin_all" on public.billings;
 drop policy if exists "client_credentials_admin_all" on public.client_access_credentials;
+drop policy if exists "whatsapp_sessions_admin_all" on public.whatsapp_sessions;
 
 create policy "admin_users_admin_all" on public.admin_users
 for all to authenticated using (public.is_admin()) with check (public.is_admin());
@@ -271,4 +282,6 @@ for all to authenticated using (public.is_admin()) with check (public.is_admin()
 create policy "billings_admin_all" on public.billings
 for all to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy "client_credentials_admin_all" on public.client_access_credentials
+for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "whatsapp_sessions_admin_all" on public.whatsapp_sessions
 for all to authenticated using (public.is_admin()) with check (public.is_admin());

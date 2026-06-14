@@ -938,7 +938,7 @@ async function startApiBrasilWhatsApp({ number, forceClearCache }) {
   const accessToken = data.session?.access_token;
   if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
 
-  const response = await fetch("/.netlify/functions/apibrasil-whatsapp-start", {
+  const response = await fetch("/.netlify/functions/apibrasil-whatsapp-start-background", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -950,9 +950,40 @@ async function startApiBrasilWhatsApp({ number, forceClearCache }) {
       forceClearCache
     })
   });
-  const result = await response.json().catch(() => ({}));
+  const result = await response.json().catch(() => ({ accepted: response.ok }));
   if (!response.ok) throw new Error(result.error || "Não foi possível iniciar o WhatsApp.");
   return result;
+}
+
+async function apiBrasilWhatsAppStatus() {
+  const { data } = await window.supabaseClient.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+  const response = await fetch("/.netlify/functions/apibrasil-whatsapp-status", {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Não foi possível consultar o WhatsApp.");
+  return result;
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function pollApiBrasilWhatsApp(onUpdate) {
+  const terminalStatuses = new Set([
+    "inChat", "isLogged", "qrReadSuccess", "autocloseCalled", "browserClose",
+    "desconnectedMobile", "phoneNotConnected", "qrReadError", "qrReadFail",
+    "serverClose", "APIBRASIL_TIMEOUT", "APIBRASIL_NETWORK_ERROR", "error"
+  ]);
+  for (let attempt = 0; attempt < 45; attempt += 1) {
+    await wait(3000);
+    const result = await apiBrasilWhatsAppStatus();
+    onUpdate(result);
+    if (result.qr_code || terminalStatuses.has(result.status)) return result;
+  }
+  throw new Error("A APIBrasil ainda está processando. Aguarde um pouco e tente consultar novamente.");
 }
 
 document.addEventListener("click", async (event) => {
@@ -1475,17 +1506,21 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   qrCode.removeAttribute("src");
 
   try {
-    const result = await startApiBrasilWhatsApp({
+    await startApiBrasilWhatsApp({
       number: String(data.get("number") || "").replace(/\D/g, ""),
       forceClearCache: data.get("forceClearCache") === "on"
     });
-    const qrCodeSource = apiBrasilQrCode(result);
-    status.textContent = result.status || (qrCodeSource ? "Leia o QR Code" : "Sessão iniciada");
-    message.textContent = result.message || "A APIBrasil aceitou a solicitação.";
-    if (qrCodeSource) {
-      qrCode.src = qrCodeSource;
-      qrCode.classList.remove("hidden");
-    }
+    await pollApiBrasilWhatsApp((result) => {
+      const qrCodeSource = apiBrasilQrCode({
+        qrcode: result.qr_code
+      });
+      status.textContent = result.status || "Processando";
+      message.textContent = result.message || "Aguardando atualização da APIBrasil.";
+      if (qrCodeSource) {
+        qrCode.src = qrCodeSource;
+        qrCode.classList.remove("hidden");
+      }
+    });
   } catch (error) {
     console.error(error);
     status.textContent = "Falha ao conectar";

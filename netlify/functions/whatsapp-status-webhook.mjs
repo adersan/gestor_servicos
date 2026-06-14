@@ -36,6 +36,54 @@ function isOutgoingMessage(body) {
   ].some((value) => value === true);
 }
 
+function sessionUpdate(body) {
+  const session = [
+    body?.session,
+    body?.data?.session,
+    body?.instance,
+    body?.data?.instance
+  ].find((value) => typeof value === "string" && value.trim());
+  const status = [
+    body?.status,
+    body?.event,
+    body?.type,
+    body?.data?.status,
+    body?.data?.event,
+    body?.data?.type
+  ].find((value) => typeof value === "string" && value.trim());
+  const qrCode = [
+    body?.qrcode,
+    body?.qrCode,
+    body?.data?.qrcode,
+    body?.data?.qrCode,
+    body?.data?.base64
+  ].find((value) => typeof value === "string" && value.trim());
+  const message = [
+    body?.message,
+    body?.data?.message,
+    body?.description,
+    body?.data?.description
+  ].find((value) => typeof value === "string" && value.trim());
+  return { session, status, qrCode, message };
+}
+
+async function saveSessionUpdate(body) {
+  const update = sessionUpdate(body);
+  if (!update.session || (!update.status && !update.qrCode)) return false;
+  await supabase("/rest/v1/whatsapp_sessions?on_conflict=session", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates,return=minimal",
+    body: JSON.stringify({
+      session: update.session,
+      status: update.status || "notLogged",
+      message: update.message || (update.qrCode ? "QR Code disponível." : "Status atualizado."),
+      qr_code: update.qrCode || null,
+      updated_at: new Date().toISOString()
+    })
+  });
+  return true;
+}
+
 export default async (request) => {
   if (request.method !== "POST") return json(405, { error: "Método não permitido." });
 
@@ -45,14 +93,17 @@ export default async (request) => {
     }
 
     const body = await request.json();
+    const sessionUpdated = await saveSessionUpdate(body);
     if (isOutgoingMessage(body)) {
       return json(202, { processed: false, reason: "Mensagem de saída ignorada." });
     }
     const match = messageText(body).trim().toUpperCase().match(/\bRECEBIDO\s+([A-Z0-9]{6})\b/);
     if (!match) {
       return json(202, {
-        processed: false,
-        reason: "Evento recebido sem confirmação de entrega."
+        processed: sessionUpdated,
+        reason: sessionUpdated
+          ? "Status da sessão atualizado."
+          : "Evento recebido sem confirmação de entrega."
       });
     }
 
