@@ -992,7 +992,10 @@ async function shareBillingReport(billing) {
     files: [file]
   };
 
-  if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+  const supportsFileShare = typeof navigator.share === "function"
+    && typeof navigator.canShare === "function"
+    && navigator.canShare({ files: [file] });
+  if (supportsFileShare) {
     try {
       await navigator.share(shareData);
       return "PDF compartilhado";
@@ -1002,14 +1005,10 @@ async function shareBillingReport(billing) {
   }
 
   downloadBillingReport(billing, blob);
-  const phone = whatsappPhone(client);
-  const message = "Segue o relatorio de cobranca em PDF. O arquivo foi salvo para ser anexado nesta conversa.";
-  const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(message)}`;
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  window.open(
-    isMobile ? `https://api.whatsapp.com/send?${query}` : `https://web.whatsapp.com/send?${query}`,
-    "gestor_servicos_whatsapp"
-  )?.focus();
+  alert(
+    "Este navegador não permite anexar o PDF automaticamente.\n\n"
+    + "O relatório foi baixado. Abra o WhatsApp e anexe o arquivo PDF salvo."
+  );
   return "PDF salvo";
 }
 
