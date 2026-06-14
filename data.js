@@ -370,9 +370,13 @@
       if (result.error) throw result.error;
     }
     if (state.supplierEntries?.length) {
+      const validClientServiceIds = new Set(state.services.map((item) => item.id));
       const result = await client.from("supplier_entries").upsert(state.supplierEntries.map((item) => ({
         id: item.id, supplier_id: item.supplierId, supplier_service_id: item.supplierServiceId || null,
-        client_id: item.clientId || null, client_service_entry_id: item.clientServiceEntryId || null,
+        client_id: item.clientId || null,
+        client_service_entry_id: item.clientServiceEntryId && validClientServiceIds.has(item.clientServiceEntryId)
+          ? item.clientServiceEntryId
+          : null,
         payable_id: item.payableId || null, service_date: item.date, service_name: item.description,
         reference: item.reference || null, amount: Number(item.amount), status: item.status,
         source: item.source || "Direto", notes: item.notes || null,

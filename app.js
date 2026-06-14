@@ -1923,7 +1923,11 @@ document.addEventListener("click", async (event) => {
   }
   const deleteEntry = event.target.closest("[data-delete-entry]");
   if (deleteEntry && confirm("Excluir este lançamento?")) {
-    state.services = state.services.filter((item) => item.id !== deleteEntry.dataset.deleteEntry);
+    const entryId = deleteEntry.dataset.deleteEntry;
+    state.supplierEntries.forEach((item) => {
+      if (item.clientServiceEntryId === entryId) item.clientServiceEntryId = null;
+    });
+    state.services = state.services.filter((item) => item.id !== entryId);
     saveState();
   }
 
@@ -2720,7 +2724,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=20").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=21").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
