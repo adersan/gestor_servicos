@@ -253,9 +253,10 @@
       <datalist id="serviceCatalogOptions"></datalist>
       <label>Placa ou referência
         <span class="reference-entry-row">
-          <input name="reference" placeholder="Ex.: ABC1D23">
+          <textarea name="reference" rows="4" placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea>
           <button id="addReferenceButton" class="secondary" type="button" aria-label="Adicionar referência">+</button>
         </span>
+        <span class="field-hint">Ao clicar em +, cada linha vira um serviço. Textos na mesma linha permanecem juntos.</span>
       </label>
       <div id="referenceList" class="reference-list"></div>
       <label>Valor
@@ -265,7 +266,10 @@
       <label>Situação
         <select name="status"><option value="A fazer">A fazer</option><option value="Pronto">Feito</option><option value="Entregue">Entregue</option><option value="Cancelado">Cancelado</option></select>
       </label>
-      <button class="primary full" value="default">Salvar lançamento</button>
+      <div class="dialog-form-actions">
+        <button class="secondary" type="button" data-cancel-service-entry>Cancelar</button>
+        <button class="primary" value="default">Salvar lançamento</button>
+      </div>
     </form>
   </dialog>
 

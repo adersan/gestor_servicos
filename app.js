@@ -489,7 +489,12 @@ function renderServices() {
       clientById(item.clientId)?.name,
       serviceStatusLabel(item.status)
     ))
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => {
+      const statusOrder = { "A fazer": 0, Pronto: 1, Entregue: 2, Cancelado: 3 };
+      const statusDifference = (statusOrder[a.status] ?? 4) - (statusOrder[b.status] ?? 4);
+      return statusDifference || b.date.localeCompare(a.date)
+        || String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+    });
   document.getElementById("serviceList").innerHTML = items.length ? items.map((item) => `
     <article class="timeline-item ${isOverdueService(item) ? "service-overdue" : ""}">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
@@ -733,14 +738,33 @@ function renderReferenceList() {
 }
 
 function addCurrentReference() {
-  const input = document.querySelector('#serviceForm input[name="reference"]');
-  const reference = input.value.trim().toUpperCase();
-  if (!reference) return false;
-  if (!serviceReferenceValues.includes(reference)) serviceReferenceValues.push(reference);
+  const input = document.querySelector('#serviceForm textarea[name="reference"]');
+  const references = input.value
+    .split(/\r?\n/)
+    .map((reference) => reference.trim().toUpperCase())
+    .filter(Boolean);
+  if (!references.length) return false;
+  references.forEach((reference) => {
+    if (!serviceReferenceValues.includes(reference)) serviceReferenceValues.push(reference);
+  });
   input.value = "";
   renderReferenceList();
   input.focus();
   return true;
+}
+
+function duplicateOpenReferences({ entryId, clientId, catalogId, amount, references }) {
+  const referenceSet = new Set(references.filter(Boolean));
+  if (!referenceSet.size) return [];
+  return state.services.filter((item) =>
+    item.id !== entryId
+    && !item.billingId
+    && item.status !== "Cancelado"
+    && item.clientId === clientId
+    && item.catalogId === catalogId
+    && Number(item.amount) === Number(amount)
+    && referenceSet.has(String(item.reference || "").trim().toUpperCase())
+  );
 }
 
 function syncServiceClientSelection() {
@@ -1680,13 +1704,28 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   const catalogItem = state.catalog.find((item) => item.id === data.get("catalogId"));
   const existingEntry = state.services.find((item) => item.id === data.get("entryId"));
   const now = new Date().toISOString();
-  const typedReference = String(data.get("reference") || "").trim().toUpperCase();
+  const typedReferences = String(data.get("reference") || "")
+    .split(/\r?\n/)
+    .map((reference) => reference.trim().toUpperCase())
+    .filter(Boolean);
   const references = existingEntry
-    ? [typedReference]
-    : [...serviceReferenceValues, ...(typedReference && !serviceReferenceValues.includes(typedReference)
-      ? [typedReference]
-      : [])];
+    ? [typedReferences.join(" ")]
+    : [...new Set([...serviceReferenceValues, ...typedReferences])];
   const entryReferences = references.length ? references : [""];
+  const duplicates = duplicateOpenReferences({
+    entryId: existingEntry?.id || "",
+    clientId: data.get("clientId"),
+    catalogId: data.get("catalogId"),
+    amount: data.get("amount"),
+    references: entryReferences
+  });
+  if (duplicates.length) {
+    const duplicateNames = [...new Set(duplicates.map((item) => item.reference))].join("\n");
+    const shouldContinue = confirm(
+      `Atenção: estas referências já possuem o mesmo serviço e valor antes da cobrança:\n\n${duplicateNames}\n\nDeseja lançar novamente?`
+    );
+    if (!shouldContinue) return;
+  }
   entryReferences.forEach((reference, referenceIndex) => {
     const entry = {
       id: existingEntry && referenceIndex === 0 ? existingEntry.id : crypto.randomUUID(),
@@ -1947,6 +1986,11 @@ document.querySelector('#serviceForm input[name="clientSearch"]').addEventListen
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("input", syncServiceCatalogSelection);
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("change", syncServiceCatalogSelection);
 document.getElementById("addReferenceButton").addEventListener("click", addCurrentReference);
+document.querySelector("[data-cancel-service-entry]").addEventListener("click", () => {
+  serviceReferenceValues = [];
+  document.getElementById("serviceForm").reset();
+  document.getElementById("serviceDialog").close();
+});
 document.getElementById("continueEntryDialog").addEventListener("cancel", (event) => {
   event.preventDefault();
   if (!entryContinuationResolver) return;
@@ -1958,6 +2002,12 @@ document.getElementById("continueEntryDialog").addEventListener("cancel", (event
 
 document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+  if (event.target.name === "reference") {
+    event.preventDefault();
+    if (event.target.value.includes("\n")) addCurrentReference();
+    event.currentTarget.elements.amount.focus();
+    return;
+  }
   event.preventDefault();
   const form = event.currentTarget;
   if (event.target.name === "clientSearch") syncServiceClientSelection();
