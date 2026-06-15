@@ -479,7 +479,7 @@
     event.currentTarget.closest("dialog").close(); saveState();
   });
 
-  byId("supplierEntryForm").addEventListener("submit", (event) => {
+  byId("supplierEntryForm").addEventListener("submit", async (event) => {
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -489,7 +489,35 @@
     const item = { id: data.get("id") || crypto.randomUUID(), supplierId: data.get("supplierId"), supplierServiceId: data.get("supplierServiceId"), clientId: data.get("clientId") || null, clientServiceEntryId: data.get("clientServiceEntryId") || null, payableId: existing?.payableId || null, date: data.get("date"), description: service?.name || "", reference: data.get("reference").trim(), amount: Number(data.get("amount")), status: data.get("status"), source: existing?.source || (data.get("clientId") ? "Cliente" : "Direto"), notes: data.get("notes").trim(), lastChangedBy: "Administrador", createdAt: existing?.createdAt || now, updatedAt: now };
     const index = state.supplierEntries.findIndex((entry) => entry.id === item.id);
     if (index >= 0) state.supplierEntries[index] = item; else state.supplierEntries.push(item);
-    event.currentTarget.closest("dialog").close(); saveState();
+    event.currentTarget.closest("dialog").close();
+    try {
+      await window.persistStateNow();
+    } catch (error) {
+      console.error("Falha ao sincronizar o lançamento do fornecedor:", error);
+      alert("O lançamento ficou salvo neste aparelho, mas a sincronização online falhou. O sistema tentará novamente.");
+      saveState();
+    }
+  });
+
+  byId("supplierEntryForm").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+    event.preventDefault();
+    const form = event.currentTarget;
+    const fields = [
+      form.elements.supplierId,
+      form.elements.supplierServiceId,
+      form.elements.date,
+      form.elements.reference,
+      form.elements.amount,
+      form.elements.status,
+      form.elements.notes
+    ].filter((field) => field && !field.disabled);
+    const index = fields.indexOf(event.target);
+    if (index >= 0 && index < fields.length - 1) {
+      fields[index + 1].focus();
+    } else if (index === fields.length - 1) {
+      form.requestSubmit(form.querySelector('button[value="default"]'));
+    }
   });
 
   byId("supplierCancelForm").addEventListener("submit", (event) => {

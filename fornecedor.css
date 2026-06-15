@@ -18,6 +18,8 @@ body { margin: 0; }
 .portal-header span, .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .portal-header h1 { margin: 8px 0; font-family: Georgia, serif; font-size: 32px; }
 .portal-header p { margin: 0; color: #d7e5df; }
+.portal-header-actions { display: grid; justify-items: end; align-content: center; gap: 10px; }
+.refresh-button { color: white; border-color: rgba(255,255,255,.45); background: rgba(255,255,255,.14); }
 .permission-summary { display: flex; flex-wrap: wrap; justify-content: flex-end; align-content: center; gap: 7px; max-width: 430px; }
 .permission-pill { padding: 7px 9px; border: 1px solid rgba(255,255,255,.3); border-radius: 999px; background: rgba(255,255,255,.12); font-size: 11px; font-weight: 800; }
 main { max-width: 1120px; margin: auto; padding: 24px 18px 60px; }
@@ -90,6 +92,8 @@ dialog form { display: grid; grid-template-columns: 1fr; padding: 22px; }
 .empty { padding: 18px; border-radius: 12px; color: var(--muted); background: #f7f9f8; text-align: center; }
 @media (max-width: 760px) {
   .portal-header { align-items: stretch; flex-direction: column; }
+  .portal-header-actions { justify-items: stretch; }
+  .refresh-button { width: 100%; }
   .permission-summary { justify-content: flex-start; }
   .summary { grid-template-columns: 1fr 1fr; }
   .summary article:last-child { grid-column: 1 / -1; }

@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Portal do fornecedor</title>
-  <link rel="stylesheet" href="fornecedor.css?v=18">
+  <link rel="stylesheet" href="fornecedor.css?v=19">
 </head>
 <body>
   <header class="portal-header">
     <div><span>Gestor de Serviços</span><h1>Portal do fornecedor</h1><p id="period"></p></div>
-    <div id="permissionSummary" class="permission-summary"></div>
+    <div class="portal-header-actions">
+      <button id="refreshData" class="refresh-button" type="button">Atualizar</button>
+      <div id="permissionSummary" class="permission-summary"></div>
+    </div>
   </header>
   <main>
     <div id="message" class="message">Carregando informações...</div>
@@ -77,6 +80,6 @@
       <div class="dialog-actions"><button type="button" data-close-cancel>Cancelar</button><button class="danger-button" value="default">Confirmar cancelamento</button></div>
     </form>
   </dialog>
-  <script src="fornecedor.js?v=18"></script>
+  <script src="fornecedor.js?v=19"></script>
 </body>
 </html>

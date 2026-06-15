@@ -12,6 +12,7 @@
   }
   let data;
   let search = "";
+  let refreshInProgress = false;
 
   function todayForPeriod() {
     const today = new Date().toISOString().slice(0, 10);
@@ -41,6 +42,23 @@
     if (!response.ok) throw new Error(result.error);
     data = result;
     render();
+  }
+
+  async function refresh() {
+    if (refreshInProgress) return;
+    refreshInProgress = true;
+    const button = document.getElementById("refreshData");
+    button.disabled = true;
+    button.textContent = "Atualizando...";
+    try {
+      await load();
+    } catch (error) {
+      alert(error.message || "Não foi possível atualizar os dados.");
+    } finally {
+      refreshInProgress = false;
+      button.disabled = false;
+      button.textContent = "Atualizar";
+    }
   }
 
   function entryMarkup(item) {
@@ -173,6 +191,10 @@
   document.getElementById("entrySearch").addEventListener("input", (event) => {
     search = event.target.value;
     render();
+  });
+  document.getElementById("refreshData").addEventListener("click", refresh);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && !document.querySelector("dialog[open]")) refresh();
   });
   document.getElementById("entryForm").addEventListener("change", (event) => {
     if (event.target.name === "serviceId") {

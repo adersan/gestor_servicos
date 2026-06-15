@@ -38,6 +38,7 @@ let additionalServiceValues = [];
 let entryContinuationResolver = null;
 let activeDashboardTab = "services";
 let dashboardPeriod = null;
+let remoteRefreshInProgress = false;
 
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -64,6 +65,14 @@ function saveState() {
   }
 }
 
+async function persistStateNow() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  render();
+  if (remoteReady && window.dataStore) {
+    await (window.dataStore.saveNow?.(state) || window.dataStore.upsertState(state));
+  }
+}
+
 async function initializeRemoteState() {
   if (!window.dataStore || remoteReady) return;
   try {
@@ -86,6 +95,27 @@ async function initializeRemoteState() {
     alert("O login funcionou, mas os dados online não puderam ser carregados.");
   }
 }
+
+async function refreshRemoteState() {
+  if (remoteRefreshInProgress || !remoteReady || !window.dataStore || document.querySelector("dialog[open]")) return;
+  if (window.dataStore.hasPendingSave?.()) {
+    await window.dataStore.flushSave?.();
+    return;
+  }
+  remoteRefreshInProgress = true;
+  try {
+    const remoteState = await window.dataStore.fetchAll();
+    state = remoteState;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    render();
+  } catch (error) {
+    console.error("Falha ao atualizar dados do Supabase:", error.code, error.message);
+  } finally {
+    remoteRefreshInProgress = false;
+  }
+}
+
+window.persistStateNow = persistStateNow;
 
 function clientById(id) {
   return state.clients.find((client) => client.id === id);
@@ -2317,10 +2347,18 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   const savedClientId = data.get("clientId");
   form.reset();
   form.closest("dialog").close();
-  saveState();
+  if (!existingEntry) {
+    window.supplierModule?.createForClientEntries(createdEntries, supplierSelection);
+  }
+  try {
+    await persistStateNow();
+  } catch (error) {
+    console.error("Falha ao sincronizar o lançamento:", error);
+    alert("O lançamento ficou salvo neste aparelho, mas a sincronização online falhou. O sistema tentará novamente.");
+    saveState();
+  }
   if (existingEntry) return;
 
-  window.supplierModule?.createForClientEntries(createdEntries, supplierSelection);
   const next = await askEntryContinuation();
   if (next === "same") openEntryForm(null, savedClientId);
   if (next === "other") openEntryForm();
@@ -2798,3 +2836,9 @@ if ("serviceWorker" in navigator) {
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
+window.addEventListener("focus", refreshRemoteState);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshRemoteState();
+  else window.dataStore?.flushSave?.();
+});
+setInterval(refreshRemoteState, 20000);

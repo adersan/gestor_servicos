@@ -436,16 +436,46 @@
   }
 
   let saveTimer;
+  let pendingState = null;
+  let pendingOnError = null;
+
+  function flushSave() {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    if (!pendingState) return Promise.resolve();
+    const state = pendingState;
+    const onError = pendingOnError;
+    pendingState = null;
+    pendingOnError = null;
+    return upsertState(state).catch((error) => {
+      onError?.(error);
+      throw error;
+    });
+  }
+
   function scheduleSave(state, onError) {
     clearTimeout(saveTimer);
+    pendingState = state;
+    pendingOnError = onError;
     saveTimer = setTimeout(() => {
-      upsertState(state).catch(onError);
+      flushSave().catch(() => {});
     }, 350);
+  }
+
+  function saveNow(state) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    pendingState = null;
+    pendingOnError = null;
+    return upsertState(state);
   }
 
   window.dataStore = {
     fetchAll,
     upsertState,
-    scheduleSave
+    scheduleSave,
+    flushSave,
+    saveNow,
+    hasPendingSave: () => Boolean(pendingState)
   };
 })();
