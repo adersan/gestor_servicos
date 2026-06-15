@@ -310,6 +310,7 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .supplier-status-grid strong { margin-top: 8px; font-size: 32px; }
 .supplier-entry-closed { background: #f7f8f6; }
 .supplier-entry-closed::before { content: "Fechado"; align-self: center; padding: 4px 7px; border-radius: 999px; background: #e7ece9; color: var(--muted); font-size: 10px; font-weight: 800; }
+.supplier-change-label { display: inline-block; margin: 0 0 8px; padding: 4px 7px; border-radius: 999px; color: #654697; background: #eee8fa; font-size: 10px; font-weight: 800; }
 .supplier-payable-actions { justify-content: flex-end; margin-bottom: 14px; }
 .supplier-payable-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .supplier-payable-buttons button { width: 100%; }

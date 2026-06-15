@@ -146,6 +146,7 @@
           <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
           <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
           <p class="meta service-card-context">${item.clientId ? escapeHtml(clientName(item.clientId)) : "Sem cliente vinculado"} · ${escapeHtml(item.source)}</p>
+          ${item.lastChangedBy === "Fornecedor" ? `<span class="supplier-change-label">Alterado pelo fornecedor</span>` : ""}
           ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Custo anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
         </div>
         <div><span class="status status-${normalized(item.status).replace(/\s/g, "-")}">${item.status}</span><strong>${money.format(item.amount)}</strong></div>
@@ -348,6 +349,7 @@
         status: "A fazer",
         source: "Cliente",
         notes: `Vinculado a ${entry.description}`,
+        lastChangedBy: "Administrador",
         createdAt: now,
         updatedAt: now
       });
@@ -481,7 +483,7 @@
     const existing = state.supplierEntries.find((entry) => entry.id === data.get("id"));
     const service = supplierServiceById(data.get("supplierServiceId"));
     const now = new Date().toISOString();
-    const item = { id: data.get("id") || crypto.randomUUID(), supplierId: data.get("supplierId"), supplierServiceId: data.get("supplierServiceId"), clientId: data.get("clientId") || null, clientServiceEntryId: data.get("clientServiceEntryId") || null, payableId: existing?.payableId || null, date: data.get("date"), description: service?.name || "", reference: data.get("reference").trim(), amount: Number(data.get("amount")), status: data.get("status"), source: existing?.source || (data.get("clientId") ? "Cliente" : "Direto"), notes: data.get("notes").trim(), createdAt: existing?.createdAt || now, updatedAt: now };
+    const item = { id: data.get("id") || crypto.randomUUID(), supplierId: data.get("supplierId"), supplierServiceId: data.get("supplierServiceId"), clientId: data.get("clientId") || null, clientServiceEntryId: data.get("clientServiceEntryId") || null, payableId: existing?.payableId || null, date: data.get("date"), description: service?.name || "", reference: data.get("reference").trim(), amount: Number(data.get("amount")), status: data.get("status"), source: existing?.source || (data.get("clientId") ? "Cliente" : "Direto"), notes: data.get("notes").trim(), lastChangedBy: "Administrador", createdAt: existing?.createdAt || now, updatedAt: now };
     const index = state.supplierEntries.findIndex((entry) => entry.id === item.id);
     if (index >= 0) state.supplierEntries[index] = item; else state.supplierEntries.push(item);
     event.currentTarget.closest("dialog").close(); saveState();
@@ -497,6 +499,7 @@
     entry.cancellationReason = String(data.get("reason") || "").trim();
     entry.amount = 0;
     entry.status = "Cancelado";
+    entry.lastChangedBy = "Administrador";
     entry.updatedAt = new Date().toISOString();
     event.currentTarget.closest("dialog").close();
     saveState();
@@ -552,7 +555,10 @@
           startDate: data.get("startDate"),
           endDate: data.get("endDate"),
           validDays: Number(data.get("validDays")),
-          canEdit: data.get("canEdit") === "on"
+          canEdit: data.get("canEdit") === "on",
+          canMarkDone: data.get("canMarkDone") === "on",
+          canCancel: data.get("canCancel") === "on",
+          showLinkedNotes: data.get("showLinkedNotes") === "on"
         })
       });
       const responseText = await response.text();
@@ -647,6 +653,7 @@
       if (entry?.payableId) alert("Este serviço já está em uma conta a pagar e não pode ter o status alterado.");
       else if (entry && entry.status !== "Cancelado") {
         entry.status = entryStatus.dataset.supplierEntryStatus;
+        entry.lastChangedBy = "Administrador";
         entry.updatedAt = new Date().toISOString();
         saveState();
       }

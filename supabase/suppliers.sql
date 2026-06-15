@@ -59,6 +59,7 @@ create table if not exists public.supplier_entries (
   source text not null default 'Direto'
     check (source in ('Cliente', 'Direto', 'Fornecedor')),
   notes text,
+  last_changed_by text check (last_changed_by is null or last_changed_by in ('Administrador', 'Fornecedor')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -90,6 +91,9 @@ create table if not exists public.supplier_portal_links (
   period_start date not null,
   period_end date not null,
   can_edit boolean not null default false,
+  can_mark_done boolean not null default false,
+  can_cancel boolean not null default false,
+  show_linked_notes boolean not null default false,
   active boolean not null default true,
   expires_at timestamptz not null,
   created_at timestamptz not null default now(),

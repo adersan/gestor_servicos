@@ -156,6 +156,7 @@
         payableId: item.payable_id, date: item.service_date, description: item.service_name,
         reference: item.reference || "", amount: Number(item.amount), status: item.status,
         source: item.source, notes: item.notes || "",
+        lastChangedBy: item.last_changed_by || "",
         cancellationReason: item.cancellation_reason || "",
         cancellationOriginalAmount: item.cancellation_original_amount === null
           ? null
@@ -371,7 +372,7 @@
     }
     if (state.supplierEntries?.length) {
       const validClientServiceIds = new Set(state.services.map((item) => item.id));
-      const result = await client.from("supplier_entries").upsert(state.supplierEntries.map((item) => ({
+      const supplierEntryRows = state.supplierEntries.map((item) => ({
         id: item.id, supplier_id: item.supplierId, supplier_service_id: item.supplierServiceId || null,
         client_id: item.clientId || null,
         client_service_entry_id: item.clientServiceEntryId && validClientServiceIds.has(item.clientServiceEntryId)
@@ -380,10 +381,15 @@
         payable_id: item.payableId || null, service_date: item.date, service_name: item.description,
         reference: item.reference || null, amount: Number(item.amount), status: item.status,
         source: item.source || "Direto", notes: item.notes || null,
+        last_changed_by: item.lastChangedBy || null,
         cancellation_reason: item.cancellationReason || null,
         cancellation_original_amount: item.cancellationOriginalAmount ?? null,
         created_at: item.createdAt
-      })));
+      }));
+      let result = await client.from("supplier_entries").upsert(supplierEntryRows);
+      if (result.error && /last_changed_by/i.test(result.error.message || "")) {
+        result = await client.from("supplier_entries").upsert(supplierEntryRows.map(({ last_changed_by, ...item }) => item));
+      }
       if (result.error) throw result.error;
     }
     if (state.supplierPayments?.length) {

@@ -5,31 +5,77 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Portal do fornecedor</title>
-  <link rel="stylesheet" href="fornecedor.css?v=15">
+  <link rel="stylesheet" href="fornecedor.css?v=16">
 </head>
 <body>
-  <header><span>Gestor de Serviços</span><h1>Portal do fornecedor</h1><p id="period"></p></header>
+  <header class="portal-header">
+    <div><span>Gestor de Serviços</span><h1>Portal do fornecedor</h1><p id="period"></p></div>
+    <div id="permissionSummary" class="permission-summary"></div>
+  </header>
   <main>
     <div id="message" class="message">Carregando informações...</div>
     <section id="content" class="hidden">
       <div id="summary" class="summary"></div>
-      <section id="editor" class="panel hidden">
-        <h2>Lançar serviço</h2>
+
+      <section class="dashboard-grid">
+        <article class="panel chart-panel">
+          <div class="section-heading"><div><span class="eyebrow">Visão geral</span><h2>Status dos serviços</h2></div></div>
+          <div id="statusChart" class="status-chart"></div>
+        </article>
+        <article class="panel chart-panel">
+          <div class="section-heading"><div><span class="eyebrow">Volume</span><h2>Serviços mais realizados</h2></div></div>
+          <div id="serviceChart" class="bar-chart"></div>
+        </article>
+      </section>
+
+      <section id="donePanel" class="panel panel-done">
+        <div class="section-heading"><div><span class="eyebrow">Concluídos</span><h2>Serviços feitos</h2></div><strong id="doneCount"></strong></div>
+        <div id="doneEntries" class="entry-list"></div>
+      </section>
+
+      <section id="editor" class="panel editor-panel hidden">
+        <div class="section-heading"><div><span class="eyebrow">Autorizado pelo administrador</span><h2 id="editorTitle">Lançar serviço</h2></div></div>
         <form id="entryForm">
           <input name="entryId" type="hidden">
           <label>Serviço<select name="serviceId" required></select></label>
           <label>Data<input name="date" type="date" required></label>
-          <label>Referência<input name="reference"></label>
+          <label>Placa ou referência<input name="reference" placeholder="Ex.: ABC1D23"></label>
           <label>Valor<input name="amount" type="number" min="0" step="0.01" required></label>
           <label>Status<select name="status"><option>A fazer</option><option>Feito</option></select></label>
           <label>Observações<input name="notes"></label>
           <div class="actions"><button type="button" id="cancelEdit">Cancelar</button><button class="primary">Salvar</button></div>
         </form>
       </section>
-      <section class="panel"><h2>Serviços do período</h2><div id="entries"></div></section>
-      <section class="panel"><h2>Pagamentos e fechamentos</h2><div id="payables"></div></section>
+
+      <section class="panel">
+        <div class="section-heading services-heading">
+          <div><span class="eyebrow">Período autorizado</span><h2>Todos os serviços</h2></div>
+          <input id="entrySearch" class="search-field" type="search" placeholder="Buscar placa ou serviço">
+        </div>
+        <div id="entries" class="entry-list"></div>
+      </section>
+
+      <section class="panel panel-payables">
+        <div class="section-heading"><div><span class="eyebrow">Financeiro</span><h2>Pagamentos e fechamentos</h2></div></div>
+        <div id="payables"></div>
+      </section>
+
+      <section class="panel supply-summary-panel">
+        <div class="section-heading"><div><span class="eyebrow">Resumo final</span><h2>Resumo dos fornecimentos</h2></div><strong id="supplyGrandTotal"></strong></div>
+        <div id="supplySummary" class="supply-summary"></div>
+      </section>
     </section>
   </main>
-  <script src="fornecedor.js?v=15"></script>
+
+  <dialog id="cancelDialog">
+    <form id="cancelForm" method="dialog">
+      <div class="dialog-heading"><h2>Cancelar serviço</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="entryId" type="hidden">
+      <p id="cancelDescription" class="meta"></p>
+      <label>Motivo do cancelamento<textarea name="reason" rows="4" required placeholder="Explique por que o serviço foi cancelado"></textarea></label>
+      <div class="dialog-actions"><button type="button" data-close-cancel>Cancelar</button><button class="danger-button" value="default">Confirmar cancelamento</button></div>
+    </form>
+  </dialog>
+  <script src="fornecedor.js?v=16"></script>
 </body>
 </html>

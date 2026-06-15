@@ -4,7 +4,16 @@ export default async (request) => {
   if (request.method !== "POST") return json(405, { error: "Método não permitido." });
   try {
     await requireAdmin(request);
-    const { supplierId, startDate, endDate, validDays = 30, canEdit = false } = await request.json();
+    const {
+      supplierId,
+      startDate,
+      endDate,
+      validDays = 30,
+      canEdit = false,
+      canMarkDone = false,
+      canCancel = false,
+      showLinkedNotes = false
+    } = await request.json();
     if (!supplierId || !startDate || !endDate || endDate < startDate) {
       return json(400, { error: "Fornecedor e período válidos são obrigatórios." });
     }
@@ -19,7 +28,11 @@ export default async (request) => {
       method: "POST", prefer: "return=minimal",
       body: JSON.stringify({
         supplier_id: supplierId, token_hash: accessCodeHash(accessCode),
-        period_start: startDate, period_end: endDate, can_edit: Boolean(canEdit),
+        period_start: startDate, period_end: endDate,
+        can_edit: Boolean(canEdit),
+        can_mark_done: Boolean(canMarkDone),
+        can_cancel: Boolean(canCancel),
+        show_linked_notes: Boolean(showLinkedNotes),
         expires_at: new Date(Date.now() + days * 86400000).toISOString(), active: true
       })
     });
