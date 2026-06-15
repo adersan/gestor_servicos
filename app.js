@@ -1071,16 +1071,18 @@ function toggleAdditionalServices() {
 
 function syncServiceClientSelection() {
   const form = document.getElementById("serviceForm");
+  const previousClientId = form.elements.clientId.value;
   const client = itemByExactLabel(state.clients, form.elements.clientSearch.value, clientOptionLabel);
   form.elements.clientId.value = client?.id || "";
-  updateSuggestedPrice();
+  if (form.elements.clientId.value !== previousClientId) updateSuggestedPrice();
 }
 
 function syncServiceCatalogSelection() {
   const form = document.getElementById("serviceForm");
+  const previousCatalogId = form.elements.catalogId.value;
   const catalogItem = itemByExactLabel(state.catalog, form.elements.catalogSearch.value, catalogOptionLabel);
   form.elements.catalogId.value = catalogItem?.id || "";
-  updateSuggestedPrice();
+  if (form.elements.catalogId.value !== previousCatalogId) updateSuggestedPrice();
 }
 
 function syncServiceClientFilter() {
