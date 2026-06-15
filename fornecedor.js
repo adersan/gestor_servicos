@@ -136,11 +136,6 @@
       <article class="summary-paid"><span>Total lançado</span><strong>${money.format(total)}</strong></article>`;
     renderCharts(active, cancelled);
 
-    document.getElementById("doneCount").textContent = `${done.length} concluído(s)`;
-    document.getElementById("doneEntries").innerHTML = done.length
-      ? done.map(entryMarkup).join("")
-      : `<div class="empty">Nenhum serviço marcado como feito.</div>`;
-
     document.getElementById("openEntryEditor").classList.toggle("hidden", !permissions.canEdit);
     const form = document.getElementById("entryForm");
     form.elements.serviceId.innerHTML = `<option value="">Selecione</option>${data.services.map((item) =>

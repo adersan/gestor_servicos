@@ -45,7 +45,6 @@ main { max-width: 1120px; margin: auto; padding: 24px 18px 60px; }
 .bar-row { display: grid; grid-template-columns: minmax(110px, 1fr) 2fr auto; gap: 10px; align-items: center; font-size: 12px; }
 .bar-track { height: 9px; overflow: hidden; border-radius: 99px; background: #edf1ef; }
 .bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), #62a8e7); }
-.panel-done { border-top: 4px solid var(--green); background: #fbfffc; }
 .panel-payables { border-top: 4px solid var(--blue); }
 .supply-summary-panel { border-top: 4px solid var(--orange); }
 .services-heading { align-items: end; }
