@@ -134,13 +134,20 @@
     byId("supplierEntryPeriodLabel").textContent = start && end
       ? `${formatDate(start)} a ${formatDate(end)}`
       : "Todos os períodos";
+    const statusOrder = { "A fazer": 0, "Feito": 1, "Cancelado": 2 };
     const entries = [...state.supplierEntries].filter((item) =>
       (!supplierId || item.supplierId === supplierId)
       && (!status || item.status === status)
       && (!start || item.date >= start)
       && (!end || item.date <= end)
       && normalized([item.description, item.reference, clientName(item.clientId), supplierById(item.supplierId)?.name].join(" ")).includes(search)
-    ).sort((a, b) => b.date.localeCompare(a.date));
+    ).sort((a, b) => {
+      const statusDifference = (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+      if (statusDifference) return statusDifference;
+      const dateDifference = b.date.localeCompare(a.date);
+      if (dateDifference) return dateDifference;
+      return String(b.createdAt || b.updatedAt || "").localeCompare(String(a.createdAt || a.updatedAt || ""));
+    });
     byId("supplierEntryList").innerHTML = entries.length ? entries.map((item) => `
       <article class="timeline-item ${item.payableId ? "supplier-entry-closed" : ""}">
         <time>${formatDate(item.date)}</time>
