@@ -28,16 +28,27 @@ export async function supabase(path, options = {}) {
   const authorization = authorizationToken
     ? { Authorization: `Bearer ${authorizationToken}` }
     : {};
-  const response = await fetch(`${env("SUPABASE_URL")}${path}`, {
-    ...options,
-    headers: {
-      apikey: secret,
-      ...authorization,
-      "Content-Type": "application/json",
-      Prefer: options.prefer || "",
-      ...options.headers
-    }
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch(`${env("SUPABASE_URL")}${path}`, {
+      ...options,
+      signal: options.signal || controller.signal,
+      headers: {
+        apikey: secret,
+        ...authorization,
+        "Content-Type": "application/json",
+        Prefer: options.prefer || "",
+        ...options.headers
+      }
+    });
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("O banco demorou demais para responder.");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
   if (!response.ok) {

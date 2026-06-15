@@ -99,6 +99,15 @@ function balanceFor(clientId, endDate = null) {
   return debits - credits;
 }
 
+function availableAdvancePayments(clientId) {
+  const today = localDateKey(new Date());
+  return state.payments.filter((item) =>
+    !item.billingId
+    && item.clientId === clientId
+    && item.date <= today
+  );
+}
+
 function serviceStatusLabel(status) {
   return status === "Pronto" ? "Feito" : status;
 }
@@ -881,6 +890,7 @@ function renderBillings() {
           ? `<button class="table-action" data-toggle-history="${item.id}">${item.historyEnabled ? "Bloquear histórico" : "Liberar histórico"}</button>`
           : ""}
         ${billingCurrentStatus(item) === "Aberta" ? `<button class="table-action danger" data-cancel-billing="${item.id}">Cancelar</button>` : ""}
+        <button class="table-action danger" data-delete-billing="${item.id}">Excluir</button>
       </div>
     </article>`).join("") : emptyMarkup();
 }
@@ -2031,6 +2041,41 @@ document.addEventListener("click", async (event) => {
       }
     }
   }
+  const deleteBillingButton = event.target.closest("[data-delete-billing]");
+  if (deleteBillingButton) {
+    const billing = state.billings.find((item) => item.id === deleteBillingButton.dataset.deleteBilling);
+    const hasLaterBilling = billing && state.billings.some((item) =>
+      item.clientId === billing.clientId
+      && item.id !== billing.id
+      && item.createdAt > billing.createdAt
+    );
+    if (hasLaterBilling) {
+      alert("Esta cobrança não pode ser excluída porque já existe uma cobrança mais recente para o cliente.");
+    } else if (billing && confirm(
+      "Excluir definitivamente esta cobrança?\n\n"
+      + "Os serviços e pagamentos continuarão registrados e ficarão disponíveis para um novo fechamento."
+    )) {
+      deleteBillingButton.disabled = true;
+      try {
+        await cancelClientAccess(billing);
+        state.services.forEach((item) => {
+          if (item.billingId === billing.id) item.billingId = null;
+        });
+        state.payments.forEach((item) => {
+          if (item.billingId === billing.id) item.billingId = null;
+        });
+        state.billings = state.billings.filter((item) => item.id !== billing.id);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        if (remoteReady && window.dataStore) await window.dataStore.upsertState(state);
+        render();
+        alert("Cobrança excluída. Os lançamentos foram liberados para um novo fechamento.");
+      } catch (error) {
+        console.error(error);
+        alert(error.message || "Não foi possível excluir a cobrança.");
+        deleteBillingButton.disabled = false;
+      }
+    }
+  }
   if (event.target.closest("[data-close-report]")) document.getElementById("reportDialog").close();
   if (event.target.closest("[data-print-report]")) window.print();
   const whatsappButton = event.target.closest("[data-share-whatsapp]");
@@ -2458,11 +2503,13 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   const services = state.services.filter((item) =>
     !item.billingId && item.status !== "Cancelado"
     && item.clientId === clientId && item.date >= startDate && item.date <= endDate);
-  const payments = state.payments.filter((item) =>
-    !item.billingId && item.clientId === clientId && item.date >= startDate && item.date <= endDate);
+  const payments = availableAdvancePayments(clientId);
   const servicesTotal = services.reduce((sum, item) => sum + item.amount, 0);
   const paymentsTotal = payments.reduce((sum, item) => sum + item.amount, 0);
-  const amount = balanceFor(clientId, endDate);
+  const paymentsAfterPeriod = payments
+    .filter((item) => item.date > endDate)
+    .reduce((sum, item) => sum + item.amount, 0);
+  const amount = Math.max(0, balanceFor(clientId, endDate) - paymentsAfterPeriod);
   const pendingServices = services.filter((item) => item.status === "A fazer");
   if (pendingServices.length) {
     const names = pendingServices.slice(0, 5)

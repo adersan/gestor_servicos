@@ -220,8 +220,23 @@ function downloadStatementPdf() {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+async function fetchWithTimeout(url, options, timeoutMs = 20000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("O acesso demorou demais para responder. Tente novamente.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function request(path, options = {}) {
-  const response = await fetch(`/.netlify/functions/${path}`, options);
+  const response = await fetchWithTimeout(`/.netlify/functions/${path}`, options);
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || "Não foi possível concluir a operação.");
   return result;
@@ -418,7 +433,7 @@ function selectView(view) {
 
 async function loadStatement(billingId = "") {
   const token = sessionStorage.getItem(tokenKey);
-  if (!token) return;
+  if (!token) return false;
   try {
     const query = billingId ? `?billingId=${encodeURIComponent(billingId)}` : "";
     const data = await request(`client-statement${query}`, {
@@ -428,8 +443,10 @@ async function loadStatement(billingId = "") {
     document.getElementById("historyTab").classList.toggle("hidden", !data.historyEnabled);
     renderStatement(data);
     selectView("billing");
-  } catch {
+    return true;
+  } catch (error) {
     sessionStorage.removeItem(tokenKey);
+    throw error;
   }
 }
 
@@ -447,6 +464,7 @@ async function loginFromAutomaticLink() {
     sessionStorage.setItem(tokenKey, result.token);
     history.replaceState({}, "", `${location.pathname}${location.hash}`);
     await loadStatement();
+    error.textContent = "";
     return true;
   } catch (requestError) {
     history.replaceState({}, "", `${location.pathname}${location.hash}`);
@@ -474,6 +492,7 @@ document.getElementById("clientLoginForm").addEventListener("submit", async (eve
     });
     sessionStorage.setItem(tokenKey, result.token);
     await loadStatement();
+    error.textContent = "";
   } catch (requestError) {
     error.textContent = requestError.message;
   } finally {
@@ -507,5 +526,9 @@ document.getElementById("statementContent").addEventListener("change", () => {
 });
 
 loginFromAutomaticLink().then((loggedIn) => {
-  if (!loggedIn) loadStatement();
+  if (!loggedIn) {
+    loadStatement().catch((error) => {
+      document.getElementById("loginError").textContent = error.message;
+    });
+  }
 });
