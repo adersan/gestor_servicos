@@ -2686,6 +2686,21 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     else form.elements.status.focus();
     return;
   }
+  if (event.target.name === "supplierServiceId") {
+    event.preventDefault();
+    if (!event.target.value && window.supplierModule?.hasClientSupplierServices()) {
+      form.elements.status.focus();
+      return;
+    }
+    form.elements.supplierAmount.focus();
+    return;
+  }
+  if (event.target.name === "supplierAmount") {
+    event.preventDefault();
+    const added = window.supplierModule?.addClientSupplierService();
+    if (!added) return;
+    return;
+  }
   if (event.target.name === "additionalCatalogSearch") {
     event.preventDefault();
     if (!event.target.value.trim() && additionalServiceValues.length) {
@@ -2730,7 +2745,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=23").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=24").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);

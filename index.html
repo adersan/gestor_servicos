@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=23">
+  <link rel="stylesheet" href="styles.css?v=24">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -514,9 +514,13 @@
           <select name="supplierServiceId"></select>
         </label>
         <label>Custo por serviço/referência
-          <input name="supplierAmount" type="number" min="0" step="0.01">
-          <span id="clientSupplierServiceHint" class="field-hint">O custo será lançado separadamente para cada serviço criado.</span>
+          <span class="supplier-service-entry-row">
+            <input name="supplierAmount" type="number" min="0" step="0.01">
+            <button id="addSupplierServiceButton" class="secondary" type="button" aria-label="Adicionar serviço do fornecedor">+</button>
+          </span>
+          <span id="clientSupplierServiceHint" class="field-hint">Adicione um ou mais serviços. Cada custo será lançado separadamente por placa/referência.</span>
         </label>
+        <div id="clientSupplierServiceList" class="client-supplier-service-list"></div>
       </section>
       <label>Situação
         <select name="status"><option value="A fazer">A fazer</option><option value="Pronto">Feito</option><option value="Entregue">Entregue</option></select>
@@ -791,10 +795,10 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=23"></script>
-  <script src="auth.js?v=23"></script>
-  <script src="data.js?v=23"></script>
-  <script src="app.js?v=23"></script>
-  <script src="supplier.js?v=23"></script>
+  <script src="config.js?v=24"></script>
+  <script src="auth.js?v=24"></script>
+  <script src="data.js?v=24"></script>
+  <script src="app.js?v=24"></script>
+  <script src="supplier.js?v=24"></script>
 </body>
 </html>
