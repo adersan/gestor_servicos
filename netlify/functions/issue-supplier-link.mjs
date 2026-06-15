@@ -26,6 +26,9 @@ export default async (request) => {
     return json(200, { accessCode, supplierName: suppliers[0].name });
   } catch (error) {
     console.error(error);
-    return json(401, { error: error.message });
+    const unauthorized = /administrativo não autorizado/i.test(error.message || "");
+    return json(unauthorized ? 401 : 500, {
+      error: error.message || "Não foi possível gerar o link do fornecedor."
+    });
   }
 };

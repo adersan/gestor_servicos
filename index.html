@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=24">
+  <link rel="stylesheet" href="styles.css?v=25">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -748,7 +748,17 @@
       <div class="date-pair"><label>De<input name="startDate" type="date" required></label><label>Até<input name="endDate" type="date" required></label></div>
       <label>Validade<select name="validDays"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select></label>
       <label class="checkbox-label"><input name="canEdit" type="checkbox"> Permitir lançar e alterar serviços neste período</label>
-      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Gerar e compartilhar</button></div>
+      <div id="supplierAccessResult" class="supplier-access-result hidden" aria-live="polite">
+        <strong id="supplierAccessStatus">Link gerado</strong>
+        <a id="supplierAccessLink" href="#" target="_blank" rel="noopener"></a>
+        <div class="supplier-access-actions">
+          <button class="secondary" type="button" data-copy-supplier-access>Copiar link</button>
+          <button class="secondary whatsapp-action" type="button" data-whatsapp-supplier-access>WhatsApp</button>
+          <button class="primary" type="button" data-share-supplier-access>Compartilhar</button>
+        </div>
+      </div>
+      <p id="supplierAccessError" class="form-error hidden" aria-live="assertive"></p>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Gerar link</button></div>
     </form>
   </dialog>
 
@@ -795,10 +805,10 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=24"></script>
-  <script src="auth.js?v=24"></script>
-  <script src="data.js?v=24"></script>
-  <script src="app.js?v=24"></script>
-  <script src="supplier.js?v=24"></script>
+  <script src="config.js?v=25"></script>
+  <script src="auth.js?v=25"></script>
+  <script src="data.js?v=25"></script>
+  <script src="app.js?v=25"></script>
+  <script src="supplier.js?v=25"></script>
 </body>
 </html>

@@ -1,6 +1,8 @@
 (function () {
   let activeTab = "dashboard";
   let clientSupplierServiceValues = [];
+  let generatedSupplierAccessUrl = "";
+  let generatedSupplierAccessText = "";
 
   const byId = (id) => document.getElementById(id);
   const today = () => new Date().toISOString().slice(0, 10);
@@ -387,6 +389,16 @@
   function openAccess() {
     const form = byId("supplierAccessForm");
     form.reset();
+    generatedSupplierAccessUrl = "";
+    generatedSupplierAccessText = "";
+    byId("supplierAccessResult").classList.add("hidden");
+    byId("supplierAccessError").classList.add("hidden");
+    byId("supplierAccessError").textContent = "";
+    byId("supplierAccessLink").textContent = "";
+    byId("supplierAccessLink").removeAttribute("href");
+    const submitButton = form.querySelector('button[value="default"]');
+    submitButton.disabled = false;
+    submitButton.textContent = "Gerar link";
     fillSelects();
     const week = currentOperationalWeek();
     form.elements.supplierId.value = defaultSupplier()?.id || "";
@@ -518,19 +530,52 @@
   byId("supplierAccessForm").addEventListener("submit", async (event) => {
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const session = await window.supabaseClient.auth.getSession();
-    const response = await fetch("/.netlify/functions/issue-supplier-link", {
-      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.data.session?.access_token || ""}` },
-      body: JSON.stringify({ supplierId: data.get("supplierId"), startDate: data.get("startDate"), endDate: data.get("endDate"), validDays: Number(data.get("validDays")), canEdit: data.get("canEdit") === "on" })
-    });
-    const result = await response.json();
-    if (!response.ok) return alert(result.error || "Não foi possível gerar o link.");
-    const url = `${location.origin}/fornecedor.html?acesso=${encodeURIComponent(result.accessCode)}`;
-    event.currentTarget.closest("dialog").close();
-    const text = `Olá, ${result.supplierName}. Acompanhe os serviços de ${formatDate(data.get("startDate"))} a ${formatDate(data.get("endDate"))}:\n${url}`;
-    if (navigator.share) await navigator.share({ title: "Acompanhamento de serviços", text });
-    else { await copyText(text, "Link do fornecedor"); }
+    const form = event.currentTarget;
+    const submitButton = event.submitter;
+    const data = new FormData(form);
+    const errorBox = byId("supplierAccessError");
+    const resultBox = byId("supplierAccessResult");
+    submitButton.disabled = true;
+    submitButton.textContent = "Gerando...";
+    errorBox.classList.add("hidden");
+    resultBox.classList.add("hidden");
+
+    try {
+      const session = await window.supabaseClient.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      if (!accessToken) throw new Error("Sua sessão administrativa expirou. Entre novamente no sistema.");
+      const response = await fetch("/.netlify/functions/issue-supplier-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          supplierId: data.get("supplierId"),
+          startDate: data.get("startDate"),
+          endDate: data.get("endDate"),
+          validDays: Number(data.get("validDays")),
+          canEdit: data.get("canEdit") === "on"
+        })
+      });
+      const responseText = await response.text();
+      let result = {};
+      try { result = responseText ? JSON.parse(responseText) : {}; } catch {}
+      if (!response.ok) throw new Error(result.error || `Não foi possível gerar o link (HTTP ${response.status}).`);
+      if (!result.accessCode) throw new Error("O servidor não retornou o código de acesso.");
+
+      generatedSupplierAccessUrl = `${location.origin}/fornecedor.html?acesso=${encodeURIComponent(result.accessCode)}`;
+      generatedSupplierAccessText = `Olá, ${result.supplierName}. Acompanhe os serviços de ${formatDate(data.get("startDate"))} a ${formatDate(data.get("endDate"))}:\n${generatedSupplierAccessUrl}`;
+      byId("supplierAccessStatus").textContent = `Link de ${result.supplierName} gerado com sucesso`;
+      byId("supplierAccessLink").href = generatedSupplierAccessUrl;
+      byId("supplierAccessLink").textContent = generatedSupplierAccessUrl;
+      resultBox.classList.remove("hidden");
+      submitButton.textContent = "Gerar novo link";
+    } catch (error) {
+      console.error(error);
+      errorBox.textContent = error.message || "Não foi possível gerar o link do fornecedor.";
+      errorBox.classList.remove("hidden");
+      submitButton.textContent = "Tentar novamente";
+    } finally {
+      submitButton.disabled = false;
+    }
   });
 
   document.addEventListener("change", (event) => {
@@ -561,6 +606,31 @@
     const action = event.target.closest("[data-supplier-action]");
     if (action) ({ supplier: () => openSupplier(), service: () => openSupplierService(), entry: () => openSupplierEntry(), payable: openPayable, access: openAccess }[action.dataset.supplierAction])?.();
     const close = event.target.closest("[data-close-supplier-dialog]"); if (close) close.closest("dialog")?.close();
+    const copySupplierAccess = event.target.closest("[data-copy-supplier-access]");
+    if (copySupplierAccess && generatedSupplierAccessUrl) await copyText(generatedSupplierAccessUrl, "Link do fornecedor");
+    const whatsappSupplierAccess = event.target.closest("[data-whatsapp-supplier-access]");
+    if (whatsappSupplierAccess && generatedSupplierAccessText) {
+      const link = document.createElement("a");
+      link.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(generatedSupplierAccessText)}`;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.click();
+    }
+    const shareSupplierAccess = event.target.closest("[data-share-supplier-access]");
+    if (shareSupplierAccess && generatedSupplierAccessText) {
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: "Acompanhamento de serviços", text: generatedSupplierAccessText });
+        } else {
+          await copyText(generatedSupplierAccessText, "Mensagem do fornecedor");
+        }
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          console.error(error);
+          await copyText(generatedSupplierAccessText, "Mensagem do fornecedor");
+        }
+      }
+    }
     const addClientSupplierServiceButton = event.target.closest("#addSupplierServiceButton");
     if (addClientSupplierServiceButton) addClientSupplierService();
     const removeClientSupplierServiceButton = event.target.closest("[data-remove-client-supplier-service]");
