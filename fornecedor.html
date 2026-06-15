@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Portal do fornecedor</title>
-  <link rel="stylesheet" href="fornecedor.css?v=16">
+  <link rel="stylesheet" href="fornecedor.css?v=17">
 </head>
 <body>
   <header class="portal-header">
@@ -33,24 +33,13 @@
         <div id="doneEntries" class="entry-list"></div>
       </section>
 
-      <section id="editor" class="panel editor-panel hidden">
-        <div class="section-heading"><div><span class="eyebrow">Autorizado pelo administrador</span><h2 id="editorTitle">Lançar serviço</h2></div></div>
-        <form id="entryForm">
-          <input name="entryId" type="hidden">
-          <label>Serviço<select name="serviceId" required></select></label>
-          <label>Data<input name="date" type="date" required></label>
-          <label>Placa ou referência<input name="reference" placeholder="Ex.: ABC1D23"></label>
-          <label>Valor<input name="amount" type="number" min="0" step="0.01" required></label>
-          <label>Status<select name="status"><option>A fazer</option><option>Feito</option></select></label>
-          <label>Observações<input name="notes"></label>
-          <div class="actions"><button type="button" id="cancelEdit">Cancelar</button><button class="primary">Salvar</button></div>
-        </form>
-      </section>
-
       <section class="panel">
         <div class="section-heading services-heading">
           <div><span class="eyebrow">Período autorizado</span><h2>Todos os serviços</h2></div>
-          <input id="entrySearch" class="search-field" type="search" placeholder="Buscar placa ou serviço">
+          <div class="services-tools">
+            <input id="entrySearch" class="search-field" type="search" placeholder="Buscar placa ou serviço">
+            <button id="openEntryEditor" class="primary hidden" type="button">Lançar serviço</button>
+          </div>
         </div>
         <div id="entries" class="entry-list"></div>
       </section>
@@ -67,6 +56,23 @@
     </section>
   </main>
 
+  <dialog id="entryDialog" class="entry-dialog">
+    <form id="entryForm" method="dialog">
+      <div class="dialog-heading">
+        <div><span class="eyebrow">Autorizado pelo administrador</span><h2 id="editorTitle">Lançar serviço</h2></div>
+        <button class="icon-button" value="cancel">×</button>
+      </div>
+      <input name="entryId" type="hidden">
+      <label>Serviço<select name="serviceId" required></select></label>
+      <label>Data<input name="date" type="date" required></label>
+      <label>Placa ou referência<input name="reference" placeholder="Ex.: ABC1D23"></label>
+      <label>Valor<input name="amount" type="number" min="0" step="0.01" required></label>
+      <label>Status<select name="status"><option>A fazer</option><option>Feito</option></select></label>
+      <label>Observações<input name="notes"></label>
+      <div class="dialog-actions"><button type="button" id="cancelEdit">Cancelar</button><button class="primary" value="default">Salvar</button></div>
+    </form>
+  </dialog>
+
   <dialog id="cancelDialog">
     <form id="cancelForm" method="dialog">
       <div class="dialog-heading"><h2>Cancelar serviço</h2><button class="icon-button" value="cancel">×</button></div>
@@ -76,6 +82,6 @@
       <div class="dialog-actions"><button type="button" data-close-cancel>Cancelar</button><button class="danger-button" value="default">Confirmar cancelamento</button></div>
     </form>
   </dialog>
-  <script src="fornecedor.js?v=16"></script>
+  <script src="fornecedor.js?v=17"></script>
 </body>
 </html>

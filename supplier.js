@@ -131,6 +131,9 @@
     const start = byId("supplierEntryStart").value;
     const end = byId("supplierEntryEnd").value;
     const search = normalized(byId("supplierEntrySearch").value);
+    byId("supplierEntryPeriodLabel").textContent = start && end
+      ? `${formatDate(start)} a ${formatDate(end)}`
+      : "Todos os períodos";
     const entries = [...state.supplierEntries].filter((item) =>
       (!supplierId || item.supplierId === supplierId)
       && (!status || item.status === status)
@@ -612,6 +615,13 @@
     const action = event.target.closest("[data-supplier-action]");
     if (action) ({ supplier: () => openSupplier(), service: () => openSupplierService(), entry: () => openSupplierEntry(), payable: openPayable, access: openAccess }[action.dataset.supplierAction])?.();
     const close = event.target.closest("[data-close-supplier-dialog]"); if (close) close.closest("dialog")?.close();
+    const currentWeekButton = event.target.closest("[data-supplier-current-week]");
+    if (currentWeekButton) {
+      const week = currentOperationalWeek();
+      byId("supplierEntryStart").value = week.startDate;
+      byId("supplierEntryEnd").value = week.endDate;
+      render();
+    }
     const copySupplierAccess = event.target.closest("[data-copy-supplier-access]");
     if (copySupplierAccess && generatedSupplierAccessUrl) await copyText(generatedSupplierAccessUrl, "Link do fornecedor");
     const whatsappSupplierAccess = event.target.closest("[data-whatsapp-supplier-access]");
@@ -709,6 +719,8 @@
   const week = currentOperationalWeek();
   byId("supplierDashboardStart").value = week.startDate;
   byId("supplierDashboardEnd").value = week.endDate;
+  byId("supplierEntryStart").value = week.startDate;
+  byId("supplierEntryEnd").value = week.endDate;
   window.supplierModule = {
     render,
     resetClientEntryOptions,

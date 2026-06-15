@@ -2745,7 +2745,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=26").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=27").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);

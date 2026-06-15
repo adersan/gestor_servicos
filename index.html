@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=26">
+  <link rel="stylesheet" href="styles.css?v=27">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -297,6 +297,10 @@
         </div>
       </div>
       <div id="supplierEntriesPanel" class="supplier-panel hidden">
+        <div class="supplier-entry-period">
+          <div><span class="eyebrow">Semana exibida</span><strong id="supplierEntryPeriodLabel"></strong></div>
+          <button class="table-action" type="button" data-supplier-current-week>Voltar para semana atual</button>
+        </div>
         <div class="filters">
           <select id="supplierEntrySupplierFilter"><option value="">Todos os fornecedores</option></select>
           <select id="supplierEntryStatusFilter"><option value="">Todos os status</option><option>A fazer</option><option>Feito</option><option>Cancelado</option></select>
@@ -808,10 +812,10 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=26"></script>
-  <script src="auth.js?v=26"></script>
-  <script src="data.js?v=26"></script>
-  <script src="app.js?v=26"></script>
-  <script src="supplier.js?v=26"></script>
+  <script src="config.js?v=27"></script>
+  <script src="auth.js?v=27"></script>
+  <script src="data.js?v=27"></script>
+  <script src="app.js?v=27"></script>
+  <script src="supplier.js?v=27"></script>
 </body>
 </html>

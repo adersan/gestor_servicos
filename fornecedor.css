@@ -46,10 +46,10 @@ main { max-width: 1120px; margin: auto; padding: 24px 18px 60px; }
 .bar-track { height: 9px; overflow: hidden; border-radius: 99px; background: #edf1ef; }
 .bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), #62a8e7); }
 .panel-done { border-top: 4px solid var(--green); background: #fbfffc; }
-.editor-panel { border-top: 4px solid var(--purple); }
 .panel-payables { border-top: 4px solid var(--blue); }
 .supply-summary-panel { border-top: 4px solid var(--orange); }
 .services-heading { align-items: end; }
+.services-tools { display: flex; align-items: center; gap: 9px; }
 .search-field { width: min(330px, 100%); padding: 11px 13px; border: 1px solid var(--line); border-radius: 11px; }
 .entry-list { display: grid; gap: 10px; }
 .entry { display: grid; grid-template-columns: 90px minmax(0,1fr) auto auto; gap: 14px; align-items: center; padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
@@ -80,6 +80,9 @@ input, select, textarea { width: 100%; padding: 11px; border: 1px solid var(--li
 .supply-row { display: grid; grid-template-columns: minmax(150px,1fr) 90px 130px; gap: 12px; padding: 12px 14px; border-radius: 11px; background: #fff8ed; }
 .supply-row strong:last-child { text-align: right; }
 dialog { width: min(480px, calc(100% - 24px)); padding: 0; border: 0; border-radius: 18px; box-shadow: 0 24px 70px rgba(20,45,38,.28); }
+.entry-dialog { width: min(620px, calc(100% - 24px)); }
+.entry-dialog form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.entry-dialog .dialog-heading, .entry-dialog .dialog-actions { grid-column: 1 / -1; }
 dialog::backdrop { background: rgba(18,41,34,.5); }
 dialog form { display: grid; grid-template-columns: 1fr; padding: 22px; }
 .dialog-heading { display: flex; justify-content: space-between; align-items: center; }
@@ -95,12 +98,15 @@ dialog form { display: grid; grid-template-columns: 1fr; padding: 22px; }
   .status-chart { grid-template-columns: 120px 1fr; }
   .donut { width: 120px; }
   .services-heading { align-items: stretch; flex-direction: column; }
+  .services-tools { align-items: stretch; flex-direction: column; }
   .search-field { width: 100%; }
   .entry { grid-template-columns: 1fr auto; }
   .entry time { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
   .entry-actions { grid-column: 1 / -1; grid-template-columns: repeat(2,minmax(0,1fr)); }
   .entry-actions button { width: 100%; }
   form { grid-template-columns: 1fr; }
+  .entry-dialog form { grid-template-columns: 1fr; }
+  .entry-dialog .dialog-heading, .entry-dialog .dialog-actions { grid-column: auto; }
   .actions { grid-column: auto; }
   .bar-row { grid-template-columns: 100px 1fr auto; }
   .supply-row { grid-template-columns: 1fr auto; }

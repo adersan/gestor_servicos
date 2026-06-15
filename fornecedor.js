@@ -141,8 +141,7 @@
       ? done.map(entryMarkup).join("")
       : `<div class="empty">Nenhum serviço marcado como feito.</div>`;
 
-    const editor = document.getElementById("editor");
-    editor.classList.toggle("hidden", !permissions.canEdit);
+    document.getElementById("openEntryEditor").classList.toggle("hidden", !permissions.canEdit);
     const form = document.getElementById("entryForm");
     form.elements.serviceId.innerHTML = `<option value="">Selecione</option>${data.services.map((item) =>
       `<option value="${item.id}" data-cost="${item.default_cost}">${escape(item.code ? `${item.code} - ${item.name}` : item.name)}</option>`
@@ -171,6 +170,11 @@
     document.getElementById("editorTitle").textContent = "Lançar serviço";
   }
 
+  function closeEntryDialog() {
+    document.getElementById("entryDialog").close();
+    resetForm();
+  }
+
   document.getElementById("entrySearch").addEventListener("input", (event) => {
     search = event.target.value;
     render();
@@ -181,12 +185,14 @@
     }
   });
   document.getElementById("entryForm").addEventListener("submit", async (event) => {
+    if (event.submitter?.value === "cancel") return;
     event.preventDefault();
     const form = event.currentTarget;
     const button = event.submitter;
     button.disabled = true;
     try {
       await request({ action: "save", ...Object.fromEntries(new FormData(form)) });
+      document.getElementById("entryDialog").close();
       resetForm();
       await load();
     } catch (error) {
@@ -195,7 +201,12 @@
       button.disabled = false;
     }
   });
-  document.getElementById("cancelEdit").addEventListener("click", resetForm);
+  document.getElementById("openEntryEditor").addEventListener("click", () => {
+    resetForm();
+    document.getElementById("entryDialog").showModal();
+  });
+  document.getElementById("cancelEdit").addEventListener("click", closeEntryDialog);
+  document.getElementById("entryDialog").addEventListener("close", resetForm);
   document.getElementById("cancelForm").addEventListener("submit", async (event) => {
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
@@ -221,7 +232,7 @@
       form.elements.status.value = item.status;
       form.elements.notes.value = item.notes || "";
       document.getElementById("editorTitle").textContent = "Editar serviço";
-      document.getElementById("editor").scrollIntoView({ behavior: "smooth" });
+      document.getElementById("entryDialog").showModal();
     }
     const doneButton = event.target.closest("[data-mark-done]");
     if (doneButton && confirm("Confirmar que este serviço foi feito?")) {
