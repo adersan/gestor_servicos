@@ -164,8 +164,16 @@
     form.elements.status.closest("label").classList.toggle("hidden", !permissions.canMarkDone);
     if (!form.elements.entryId.value) form.elements.date.value = todayForPeriod();
 
+    const statusOrder = { "A fazer": 0, "Feito": 1, "Cancelado": 2 };
     const filtered = data.entries.filter((item) =>
-      normalized([item.reference, item.service_name].join(" ")).includes(normalized(search)));
+      normalized([item.reference, item.service_name].join(" ")).includes(normalized(search))
+    ).sort((a, b) => {
+      const statusDifference = (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+      if (statusDifference) return statusDifference;
+      const dateDifference = String(b.service_date || "").localeCompare(String(a.service_date || ""));
+      if (dateDifference) return dateDifference;
+      return String(b.updated_at || "").localeCompare(String(a.updated_at || ""));
+    });
     document.getElementById("entries").innerHTML = filtered.length
       ? filtered.map(entryMarkup).join("")
       : `<div class="empty">Nenhum serviço encontrado.</div>`;
