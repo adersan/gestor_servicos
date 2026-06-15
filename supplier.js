@@ -138,7 +138,13 @@
     byId("supplierEntryList").innerHTML = entries.length ? entries.map((item) => `
       <article class="timeline-item ${item.payableId ? "supplier-entry-closed" : ""}">
         <time>${formatDate(item.date)}</time>
-        <div><span class="eyebrow">${escapeHtml(supplierById(item.supplierId)?.name || "")}</span><h3>${escapeHtml(item.description)}</h3><p class="meta">${escapeHtml(item.reference || "Sem referência")}${item.clientId ? ` · ${escapeHtml(clientName(item.clientId))}` : ""} · ${item.source}</p>${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Custo anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}</div>
+        <div>
+          <span class="eyebrow">${escapeHtml(supplierById(item.supplierId)?.name || "")}</span>
+          <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
+          <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
+          <p class="meta service-card-context">${item.clientId ? escapeHtml(clientName(item.clientId)) : "Sem cliente vinculado"} · ${escapeHtml(item.source)}</p>
+          ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Custo anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
+        </div>
         <div><span class="status status-${normalized(item.status).replace(/\s/g, "-")}">${item.status}</span><strong>${money.format(item.amount)}</strong></div>
         <div class="service-actions">
           ${item.status !== "Cancelado" ? `<div class="status-actions">
