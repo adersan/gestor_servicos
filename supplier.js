@@ -79,14 +79,19 @@
       && (!end || item.date <= end)
     );
     const total = entries.reduce((sum, item) => sum + Number(item.amount), 0);
+    const pendingEntries = entries.filter((item) => item.status === "A fazer");
+    const doneEntries = entries.filter((item) => item.status === "Feito");
+    const pendingTotal = pendingEntries.reduce((sum, item) => sum + Number(item.amount), 0);
+    const doneTotal = doneEntries.reduce((sum, item) => sum + Number(item.amount), 0);
     const open = state.supplierPayables
       .filter((item) => item.status !== "Cancelada" && (!supplierId || item.supplierId === supplierId))
       .reduce((sum, item) => sum + payableOpen(item), 0);
     byId("supplierDashboardCards").innerHTML = `
-      <article class="metric-card"><span>Serviços no período</span><strong>${entries.length}</strong><small>Custos registrados</small></article>
-      <article class="metric-card"><span>Custo no período</span><strong>${money.format(total)}</strong><small>Antes das baixas</small></article>
-      <article class="metric-card"><span>A fazer</span><strong>${entries.filter((item) => item.status === "A fazer").length}</strong><small>Aguardando fornecedor</small></article>
-      <article class="metric-card metric-main"><span>Total a pagar</span><strong>${money.format(open)}</strong><small>Contas abertas e parciais</small></article>`;
+      <article class="metric-card supplier-card-total"><span>Serviços no período</span><strong>${entries.length}</strong><small>Custos registrados</small></article>
+      <article class="metric-card supplier-card-cost"><span>Custo no período</span><strong>${money.format(total)}</strong><small>Antes das baixas</small></article>
+      <article class="metric-card supplier-card-pending"><span>A fazer</span><strong>${pendingEntries.length}</strong><small>${money.format(pendingTotal)} em produção</small></article>
+      <article class="metric-card supplier-card-done"><span>Feitos</span><strong>${doneEntries.length}</strong><small>${money.format(doneTotal)} concluídos</small></article>
+      <article class="metric-card metric-main supplier-card-open"><span>Total a pagar</span><strong>${money.format(open)}</strong><small>Contas abertas e parciais</small></article>`;
 
     const ranking = Object.values(entries.reduce((result, item) => {
       result[item.supplierId] ||= { supplierId: item.supplierId, count: 0, total: 0 };
@@ -98,11 +103,12 @@
       <div class="ranking-row"><strong>${index + 1}</strong><span>${escapeHtml(supplierById(item.supplierId)?.name || "")}</span><small>${item.count} serviço(s)</small><strong>${money.format(item.total)}</strong></div>`
     ).join("") : empty();
 
-    const statuses = ["A fazer", "Feito"].map((status) => ({
-      status, count: entries.filter((item) => item.status === status).length
-    }));
+    const statuses = [
+      { status: "A fazer", count: pendingEntries.length, total: pendingTotal, className: "pending" },
+      { status: "Feito", count: doneEntries.length, total: doneTotal, className: "done" }
+    ];
     byId("supplierStatusSummary").innerHTML = `<div class="supplier-status-grid">${statuses.map((item) =>
-      `<article><span>${item.status}</span><strong>${item.count}</strong></article>`).join("")}</div>`;
+      `<article class="supplier-status-${item.className}"><span>${item.status}</span><strong>${item.count}</strong><small>${money.format(item.total)}</small></article>`).join("")}</div>`;
   }
 
   function renderRecords() {

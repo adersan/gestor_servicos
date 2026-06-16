@@ -307,10 +307,18 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .supplier-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 0; }
 .supplier-search { width: 100%; margin-bottom: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 11px; }
 .supplier-status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.supplier-status-grid article { padding: 22px; border-radius: 14px; background: #f2f6f4; }
+.supplier-status-grid article { padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: #f2f6f4; box-shadow: inset 0 4px 0 var(--supplier-status-color, var(--brand)); }
 .supplier-status-grid span, .supplier-status-grid strong { display: block; }
 .supplier-status-grid span { color: var(--muted); font-size: 12px; }
 .supplier-status-grid strong { margin-top: 8px; font-size: 32px; }
+.supplier-status-grid small { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; }
+.supplier-status-pending { --supplier-status-color: #d88922; background: #fff7eb !important; }
+.supplier-status-done { --supplier-status-color: #168151; background: #edf9f2 !important; }
+.supplier-card-total { border-top: 4px solid #164f43; background: #eff7f4; }
+.supplier-card-cost { border-top: 4px solid #2775bd; background: #eef6ff; }
+.supplier-card-pending { border-top: 4px solid #d88922; background: #fff7eb; }
+.supplier-card-done { border-top: 4px solid #168151; background: #edf9f2; }
+.supplier-card-open { border-top: 4px solid #7251a5; }
 .supplier-entry-closed { background: #f7f8f6; }
 .supplier-entry-closed::before { content: "Fechado"; align-self: center; padding: 4px 7px; border-radius: 999px; background: #e7ece9; color: var(--muted); font-size: 10px; font-weight: 800; }
 .supplier-change-label { display: inline-block; margin: 0 0 8px; padding: 4px 7px; border-radius: 999px; color: #654697; background: #eee8fa; font-size: 10px; font-weight: 800; }

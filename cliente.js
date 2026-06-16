@@ -3,6 +3,7 @@ const tokenKey = "gestor_servicos_client_token";
 let currentStatement = null;
 let portalData = null;
 let activeView = "billing";
+let clientRefreshInProgress = false;
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -16,6 +17,22 @@ function escapeHtml(value) {
 
 function formatDate(value) {
   return value ? value.split("-").reverse().join("/") : "-";
+}
+
+function serviceStatusData(status) {
+  if (status === "Pronto" || status === "Feito") return { label: "Feito", className: "done" };
+  if (status === "Entregue") return { label: "Entregue", className: "delivered" };
+  if (status === "Cancelado") return { label: "Cancelado", className: "cancelled" };
+  return { label: "A fazer", className: "pending" };
+}
+
+function serviceStatusChip(status) {
+  const data = serviceStatusData(status);
+  return `<span class="client-status client-status-${data.className}">${escapeHtml(data.label)}</span>`;
+}
+
+function referenceChip(reference) {
+  return `<span class="client-reference-chip">${escapeHtml(reference || "Sem referencia")}</span>`;
 }
 
 function pdfText(value) {
@@ -253,12 +270,13 @@ function renderStatement(data) {
     const rows = items.map((item) => `<tr class="${item.is_secondary ? "client-secondary-service" : ""}">
       <td>${formatDate(item.service_date)}</td>
       <td title="${escapeHtml(item.service_name)}">${escapeHtml(item.service_name)}${item.is_secondary ? `<span class="client-secondary-label">Complementar</span>` : ""}</td>
-      <td title="${escapeHtml(item.reference || "-")}">${escapeHtml(item.reference || "-")}</td>
+      <td title="${escapeHtml(item.reference || "-")}">${referenceChip(item.reference || "-")}</td>
+      <td>${serviceStatusChip(item.status)}</td>
       <td class="amount-service">${money.format(Number(item.amount))}</td>
     </tr>`).join("");
     return `<table class="client-report-service-table">
-      <thead><tr><th>Data</th><th>Serviço</th><th>Ref</th><th>Valor</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="4">-</td></tr>`}</tbody>
+      <thead><tr><th>Data</th><th>Serviço</th><th>Ref</th><th>Status</th><th>Valor</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="5">-</td></tr>`}</tbody>
     </table>`;
   }
   const splitAt = Math.ceil(services.length / 2);
@@ -337,8 +355,8 @@ function renderCurrentServices(data) {
   const rows = items.length ? items.map((item) => `<tr class="${item.is_secondary ? "client-secondary-service" : ""}">
     <td>${formatDate(item.service_date)}</td>
     <td>${escapeHtml(item.service_name)}${item.is_secondary ? `<span class="client-secondary-label">Complementar</span>` : ""}</td>
-    <td>${escapeHtml(item.reference || "-")}</td>
-    <td><span class="client-status">${escapeHtml(item.status)}</span></td>
+    <td>${referenceChip(item.reference || "-")}</td>
+    <td>${serviceStatusChip(item.status)}</td>
     <td class="amount-service">${money.format(Number(item.amount))}</td>
   </tr>`).join("") : `<tr><td colspan="5">Nenhum serviço encontrado.</td></tr>`;
 
@@ -450,6 +468,25 @@ async function loadStatement(billingId = "") {
   }
 }
 
+async function refreshClientPortal() {
+  if (clientRefreshInProgress || !sessionStorage.getItem(tokenKey)) return;
+  clientRefreshInProgress = true;
+  const button = document.getElementById("refreshClientButton");
+  button.disabled = true;
+  button.textContent = "Atualizando...";
+  const viewToRestore = activeView;
+  try {
+    await loadStatement(viewToRestore === "billing" ? portalData?.accessBillingId || "" : "");
+    if (portalData) selectView(viewToRestore);
+  } catch (error) {
+    document.getElementById("loginError").textContent = error.message;
+  } finally {
+    clientRefreshInProgress = false;
+    button.disabled = false;
+    button.textContent = "Atualizar";
+  }
+}
+
 async function loginFromAutomaticLink() {
   const accessCode = new URLSearchParams(location.search).get("access");
   if (!accessCode) return false;
@@ -505,6 +542,7 @@ document.getElementById("logoutButton").addEventListener("click", () => {
   sessionStorage.removeItem(tokenKey);
   location.reload();
 });
+document.getElementById("refreshClientButton").addEventListener("click", refreshClientPortal);
 document.getElementById("printButton").addEventListener("click", downloadStatementPdf);
 document.getElementById("clientPortalNav").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-client-view]");
@@ -532,3 +570,7 @@ loginFromAutomaticLink().then((loggedIn) => {
     });
   }
 });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshClientPortal();
+});
+setInterval(refreshClientPortal, 20000);

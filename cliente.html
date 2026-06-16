@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Área do cliente | Gestor de Serviços</title>
-  <link rel="stylesheet" href="styles.css?v=15">
-  <link rel="stylesheet" href="cliente.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=31">
+  <link rel="stylesheet" href="cliente.css?v=16">
 </head>
 <body class="client-portal">
   <header class="client-header">
@@ -37,7 +37,10 @@
           <h2 id="clientName"></h2>
           <p id="billingPeriod" class="meta"></p>
         </div>
-        <button id="printButton" class="primary" type="button">Abrir PDF</button>
+        <div class="client-toolbar-actions">
+          <button id="refreshClientButton" class="secondary" type="button">Atualizar</button>
+          <button id="printButton" class="primary" type="button">Abrir PDF</button>
+        </div>
       </div>
       <nav id="clientPortalNav" class="client-portal-nav" aria-label="Opções da área do cliente">
         <button class="active" type="button" data-client-view="billing">Cobrança</button>
@@ -48,6 +51,6 @@
     </section>
   </main>
 
-  <script src="cliente.js?v=15"></script>
+  <script src="cliente.js?v=16"></script>
 </body>
 </html>

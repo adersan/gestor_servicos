@@ -1135,10 +1135,9 @@ function openTrackingForm() {
   const preferredClient = uniqueClientMatch(document.getElementById("serviceClientNameFilter").value);
   form.elements.clientId.value = preferredClient?.id || "";
   form.elements.clientSearch.value = clientOptionLabel(preferredClient);
-  const today = new Date().toISOString().slice(0, 10);
-  const sevenDaysAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
-  form.elements.startDate.value = sevenDaysAgo;
-  form.elements.endDate.value = today;
+  const week = currentOperationalWeek();
+  form.elements.startDate.value = week.startDate;
+  form.elements.endDate.value = week.endDate;
   form.elements.validDays.value = "30";
   document.getElementById("trackingDialog").showModal();
   setTimeout(() => (preferredClient ? form.elements.startDate : form.elements.clientSearch).focus(), 0);

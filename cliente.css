@@ -44,6 +44,12 @@
   margin-bottom: 20px;
 }
 
+.client-toolbar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .client-portal-nav {
   display: flex;
   gap: 8px;
@@ -203,7 +209,7 @@
 
 .client-report-service-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(390px, 1fr));
+  grid-template-columns: repeat(2, minmax(460px, 1fr));
   gap: 10px;
   overflow-x: auto;
 }
@@ -233,9 +239,11 @@
 .client-report-service-table th:nth-child(1),
 .client-report-service-table td:nth-child(1) { width: 70px; }
 .client-report-service-table th:nth-child(3),
-.client-report-service-table td:nth-child(3) { width: 72px; }
+.client-report-service-table td:nth-child(3) { width: 100px; }
 .client-report-service-table th:nth-child(4),
-.client-report-service-table td:nth-child(4) { width: 82px; text-align: right; }
+.client-report-service-table td:nth-child(4) { width: 95px; }
+.client-report-service-table th:nth-child(5),
+.client-report-service-table td:nth-child(5) { width: 82px; text-align: right; }
 
 .section-services .report-table thead {
   background: #eef6ff;
@@ -289,12 +297,43 @@
 
 .client-status {
   display: inline-block;
-  padding: 5px 9px;
+  padding: 7px 11px;
   border-radius: 999px;
-  color: #164f43;
-  background: #e9f3ef;
+  color: #8a560c;
+  background: #fff4df;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 850;
+}
+
+.client-status-done {
+  color: #155f9f;
+  background: #eef7ff;
+}
+
+.client-status-delivered {
+  color: #17663d;
+  background: #eaf7ef;
+}
+
+.client-status-cancelled {
+  color: #9c3026;
+  background: #fdecea;
+}
+
+.client-reference-chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 6px 10px;
+  overflow: hidden;
+  border: 1px solid #bdd8ef;
+  border-radius: 10px;
+  color: #155f9f;
+  background: #eef7ff;
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: .035em;
+  text-overflow: ellipsis;
+  vertical-align: middle;
 }
 
 .client-secondary-service {
@@ -345,6 +384,14 @@
 
   .client-toolbar {
     flex-direction: column;
+  }
+
+  .client-toolbar-actions {
+    width: 100%;
+  }
+
+  .client-toolbar-actions button {
+    flex: 1;
   }
 
   .client-section-heading,
