@@ -56,6 +56,15 @@
     const failed = results.find((result) => result.error);
     if (failed) throw failed.error;
 
+    let clientRequestsResult = { data: [] };
+    const requestsResult = await client.from("client_service_requests").select("*").order("created_at", { ascending: false });
+    if (requestsResult.error) {
+      const message = requestsResult.error.message || "";
+      if (!/client_service_requests|schema cache|does not exist|Could not find/i.test(message)) throw requestsResult.error;
+    } else {
+      clientRequestsResult = requestsResult;
+    }
+
     const priceTables = priceTablesResult.data;
     const tableById = Object.fromEntries(priceTables.map((table) => [table.id, table.name]));
     const pricesByService = {};
@@ -88,6 +97,7 @@
         reference: entry.reference || "",
         amount: Number(entry.amount),
         status: entry.status,
+        notes: entry.notes || "",
         deliveryCode: entry.delivery_code || "",
         confirmationRequestedAt: entry.confirmation_requested_at,
         deliveredAt: entry.delivered_at,
@@ -172,6 +182,22 @@
         id: item.id, supplierId: item.supplier_id, payableId: item.payable_id,
         date: item.payment_date, amount: Number(item.amount), method: item.method || "",
         note: item.notes || "", createdAt: item.created_at
+      })),
+      serviceRequests: clientRequestsResult.data.map((item) => ({
+        id: item.id,
+        clientId: item.client_id,
+        catalogId: item.service_id || "",
+        serviceName: item.service_name || "",
+        references: Array.isArray(item.references_list) ? item.references_list : [],
+        requestedDate: item.requested_date,
+        amount: Number(item.amount || 0),
+        requestedBy: item.requested_by || "",
+        notes: item.notes || "",
+        status: item.status || "Novo",
+        importedEntryIds: item.imported_entry_ids || [],
+        importedAt: item.imported_at || null,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at
       }))
     };
   }
@@ -239,6 +265,7 @@
           service_date: item.date,
           amount: Number(item.amount),
           status: item.status,
+          notes: item.notes || null,
           billing_id: item.billingId || null,
           delivery_code: item.deliveryCode || null,
           confirmation_requested_at: item.confirmationRequestedAt || null,
@@ -399,6 +426,27 @@
         notes: item.note || null, created_at: item.createdAt
       })));
       if (result.error) throw result.error;
+    }
+    if (state.serviceRequests?.length) {
+      const rows = state.serviceRequests.map((item) => ({
+        id: item.id,
+        client_id: item.clientId,
+        service_id: item.catalogId || null,
+        service_name: item.serviceName,
+        references_list: item.references || [],
+        requested_date: item.requestedDate,
+        amount: Number(item.amount || 0),
+        requested_by: item.requestedBy || null,
+        notes: item.notes || null,
+        status: item.status || "Novo",
+        imported_entry_ids: item.importedEntryIds || [],
+        imported_at: item.importedAt || null,
+        created_at: item.createdAt
+      }));
+      const result = await client.from("client_service_requests").upsert(rows);
+      if (result.error && !/client_service_requests|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
+        throw result.error;
+      }
     }
 
     async function deleteMissing(table, localIds) {

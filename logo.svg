@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Gestor de Serviços">
+  <rect width="96" height="96" rx="24" fill="#173f35"/>
+  <path d="M24 58c0-15 11-27 27-27 8 0 15 3 20 8l-9 9c-3-3-7-5-12-5-8 0-14 6-14 15s6 15 15 15c6 0 11-3 13-8H49V54h29v5c0 16-11 27-28 27-15 0-26-12-26-28Z" fill="#f5f2ea"/>
+  <path d="M23 20h50v10H23zM22 22l10-10h6L28 30zM63 12h6l10 10-6 8z" fill="#d89b45"/>
+</svg>

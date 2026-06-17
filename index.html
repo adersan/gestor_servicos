@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=31">
+  <link rel="stylesheet" href="styles.css?v=32">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -21,9 +21,12 @@
     </form>
   </section>
   <header class="topbar">
-    <div>
-      <span class="eyebrow">Painel administrativo</span>
-      <h1>Gestor de Serviços</h1>
+    <div class="brand-lockup">
+      <img src="logo.svg" alt="" aria-hidden="true">
+      <div>
+        <span class="eyebrow">Painel administrativo</span>
+        <h1>Gestor de Serviços</h1>
+      </div>
     </div>
     <div class="topbar-actions">
       <button class="secondary" data-dialog="whatsappDialog">Conectar WhatsApp</button>
@@ -41,6 +44,7 @@
     <button class="tab" data-view="tables">Tabelas</button>
     <button class="tab" data-view="catalog">Serviços</button>
     <button class="tab" data-view="services">Lançamentos</button>
+    <button class="tab" data-view="requests">Pedidos</button>
     <button class="tab" data-view="payments">Pagamentos</button>
     <button class="tab" data-view="paymentMethods">Formas de pagamento</button>
     <button class="tab" data-view="billing">Cobranças</button>
@@ -202,6 +206,24 @@
         <input id="serviceSearch" type="search" placeholder="Buscar cliente, placa ou serviço">
       </div>
       <div id="serviceList" class="timeline"></div>
+    </section>
+
+    <section id="requests" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Entrada do cliente</span><h2>Pedidos recebidos</h2></div>
+        <button class="secondary" data-open-view="services">Ir para lançamentos</button>
+      </div>
+      <div id="requestSummary" class="dashboard-grid request-summary"></div>
+      <div class="filters">
+        <input id="requestSearch" type="search" placeholder="Buscar cliente, placa, serviço ou solicitante">
+        <select id="requestStatusFilter">
+          <option value="Novo">Novos</option>
+          <option value="">Todos</option>
+          <option value="Importado">Importados</option>
+          <option value="Cancelado">Cancelados</option>
+        </select>
+      </div>
+      <div id="requestList" class="request-grid"></div>
     </section>
 
     <section id="payments" class="view">
@@ -467,9 +489,11 @@
 
   <dialog id="serviceDialog">
     <form id="serviceForm" method="dialog">
-      <div class="dialog-heading"><h2 id="serviceDialogTitle">Lançar serviço</h2><button class="icon-button" value="cancel">×</button></div>
+      <div class="dialog-heading"><h2 id="serviceDialogTitle">Lançar serviço</h2><div class="dialog-heading-actions"><button class="secondary" type="button" data-import-request-button>Importar pedido</button><button class="icon-button" value="cancel">×</button></div></div>
       <input name="entryId" type="hidden">
+      <input name="sourceRequestId" type="hidden">
       <input name="clientId" type="hidden">
+      <div id="serviceImportHint" class="import-hint hidden"></div>
       <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
       <datalist id="serviceClientOptions"></datalist>
       <label>Data<input name="date" type="date" required></label>
@@ -814,8 +838,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=30"></script>
-  <script src="app.js?v=31"></script>
+  <script src="data.js?v=31"></script>
+  <script src="app.js?v=32"></script>
   <script src="supplier.js?v=32"></script>
 </body>
 </html>

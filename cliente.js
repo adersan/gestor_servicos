@@ -19,6 +19,13 @@ function formatDate(value) {
   return value ? value.split("-").reverse().join("/") : "-";
 }
 
+function searchableText(...values) {
+  return values.join(" ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 function serviceStatusData(status) {
   if (status === "Pronto" || status === "Feito") return { label: "Feito", className: "done" };
   if (status === "Entregue") return { label: "Entregue", className: "delivered" };
@@ -33,6 +40,12 @@ function serviceStatusChip(status) {
 
 function referenceChip(reference) {
   return `<span class="client-reference-chip">${escapeHtml(reference || "Sem referencia")}</span>`;
+}
+
+function complementaryLabel(item) {
+  return item.is_secondary
+    ? `<span class="client-secondary-label">Complementar vinculado ao serviço original</span>`
+    : "";
 }
 
 function pdfText(value) {
@@ -269,7 +282,7 @@ function renderStatement(data) {
   function serviceTable(items) {
     const rows = items.map((item) => `<tr class="${item.is_secondary ? "client-secondary-service" : ""}">
       <td>${formatDate(item.service_date)}</td>
-      <td title="${escapeHtml(item.service_name)}">${escapeHtml(item.service_name)}${item.is_secondary ? `<span class="client-secondary-label">Complementar</span>` : ""}</td>
+      <td title="${escapeHtml(item.service_name)}">${escapeHtml(item.service_name)}${complementaryLabel(item)}</td>
       <td title="${escapeHtml(item.reference || "-")}">${referenceChip(item.reference || "-")}</td>
       <td>${serviceStatusChip(item.status)}</td>
       <td class="amount-service">${money.format(Number(item.amount))}</td>
@@ -341,7 +354,8 @@ function serviceFilters() {
   return {
     start: document.getElementById("currentServiceStart")?.value || "",
     end: document.getElementById("currentServiceEnd")?.value || "",
-    status: document.getElementById("currentServiceStatus")?.value || ""
+    status: document.getElementById("currentServiceStatus")?.value || "",
+    search: document.getElementById("currentServiceSearch")?.value || ""
   };
 }
 
@@ -350,11 +364,12 @@ function renderCurrentServices(data) {
   const items = data.currentServices.filter((item) =>
     (!filters.start || item.service_date >= filters.start)
     && (!filters.end || item.service_date <= filters.end)
-    && (!filters.status || item.status === filters.status));
+    && (!filters.status || item.status === filters.status)
+    && (!filters.search || searchableText(item.service_name, item.reference, item.status).includes(searchableText(filters.search))));
   const total = items.reduce((sum, item) => sum + Number(item.amount), 0);
   const rows = items.length ? items.map((item) => `<tr class="${item.is_secondary ? "client-secondary-service" : ""}">
     <td>${formatDate(item.service_date)}</td>
-    <td>${escapeHtml(item.service_name)}${item.is_secondary ? `<span class="client-secondary-label">Complementar</span>` : ""}</td>
+    <td>${escapeHtml(item.service_name)}${complementaryLabel(item)}</td>
     <td>${referenceChip(item.reference || "-")}</td>
     <td>${serviceStatusChip(item.status)}</td>
     <td class="amount-service">${money.format(Number(item.amount))}</td>
@@ -380,6 +395,7 @@ function renderCurrentServices(data) {
         <div class="client-filters">
           <label>De<input id="currentServiceStart" type="date" value="${filters.start}"></label>
           <label>Até<input id="currentServiceEnd" type="date" value="${filters.end}"></label>
+          <label>Buscar<input id="currentServiceSearch" type="search" value="${escapeHtml(filters.search)}" placeholder="Placa ou serviço"></label>
           <label>Status<select id="currentServiceStatus">
             <option value="">Todos</option>
             ${["A fazer", "Feito", "Entregue"].map((status) =>
@@ -388,6 +404,47 @@ function renderCurrentServices(data) {
         </div>
       </div>
       <table class="report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Status</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>
+    </section>`;
+}
+
+function renderClientRequest(data) {
+  const services = data.requestServices || [];
+  const requests = data.serviceRequests || [];
+  const selectedService = services[0];
+  const options = services.length
+    ? services.map((service) => `<option value="${escapeHtml(service.id)}" data-amount="${Number(service.amount || 0)}">${escapeHtml(service.code ? `${service.code} - ${service.name}` : service.name)}</option>`).join("")
+    : `<option value="">Nenhum serviço disponível</option>`;
+  const history = requests.length ? requests.slice(0, 8).map((item) => `
+    <article class="client-request-history-card">
+      <div><strong>${escapeHtml(item.service_name)}</strong><span>${formatDate(item.requested_date)} · ${escapeHtml(item.status)}</span></div>
+      <p>${(item.references || []).map((reference) => `<span>${escapeHtml(reference)}</span>`).join("")}</p>
+    </article>`).join("") : `<div class="empty-state">Nenhum pedido enviado por este acesso.</div>`;
+
+  document.getElementById("clientName").textContent = data.client.name;
+  document.getElementById("billingPeriod").textContent = "Envie pedidos simples para o administrador";
+  document.getElementById("printButton").classList.add("hidden");
+  document.getElementById("statementContent").innerHTML = `
+    <section class="client-section client-request-section">
+      <div class="client-section-heading">
+        <div><h3>Novo pedido de serviço</h3><p class="meta">A data é registrada automaticamente como hoje.</p></div>
+      </div>
+      <form id="clientRequestForm" class="client-request-form">
+        <label>Data do pedido<input name="requestedDate" type="date" value="${new Date().toISOString().slice(0, 10)}" readonly></label>
+        <label>Serviço<select name="serviceId" required>${options}</select></label>
+        <label>Valor<input name="amount" type="text" value="${money.format(Number(selectedService?.amount || 0))}" readonly></label>
+        <label>Placa/referência<textarea name="references" rows="5" required placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea></label>
+        <label>Quem solicitou<input name="requestedBy" placeholder="Nome do solicitante"></label>
+        <label>Observação<textarea name="notes" rows="3" placeholder="Detalhes importantes do pedido"></textarea></label>
+        <p id="clientRequestMessage" class="form-message" role="status"></p>
+        <div class="client-request-actions">
+          <button class="secondary" type="reset">Cancelar</button>
+          <button class="primary" type="submit" ${services.length ? "" : "disabled"}>Salvar pedido</button>
+        </div>
+      </form>
+    </section>
+    <section class="client-section client-request-history">
+      <h3>Pedidos enviados</h3>
+      <div class="client-request-history-list">${history}</div>
     </section>`;
 }
 
@@ -442,6 +499,7 @@ function selectView(view) {
     button.classList.toggle("active", button.dataset.clientView === view);
   });
   if (view === "current-services") renderCurrentServices(portalData);
+  else if (view === "request") renderClientRequest(portalData);
   else if (view === "history") renderHistory(portalData);
   else {
     document.getElementById("printButton").classList.remove("hidden");
@@ -485,6 +543,54 @@ async function refreshClientPortal() {
     button.disabled = false;
     button.textContent = "Atualizar";
   }
+}
+
+async function submitClientRequest(form) {
+  const message = document.getElementById("clientRequestMessage");
+  const button = form.querySelector('button[type="submit"]');
+  const service = (portalData.requestServices || []).find((item) => item.id === form.elements.serviceId.value);
+  button.disabled = true;
+  message.textContent = "Enviando pedido...";
+  try {
+    await request("client-service-request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${sessionStorage.getItem(tokenKey)}` },
+      body: JSON.stringify({
+        serviceId: form.elements.serviceId.value,
+        references: form.elements.references.value,
+        requestedBy: form.elements.requestedBy.value,
+        notes: form.elements.notes.value
+      })
+    });
+    message.textContent = "Pedido enviado com sucesso.";
+    form.reset();
+    form.elements.requestedDate.value = new Date().toISOString().slice(0, 10);
+    form.elements.amount.value = money.format(Number(service?.amount || 0));
+    await refreshClientPortal();
+    if (portalData) selectView("request");
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function advanceClientRequestField(event) {
+  if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+  const form = event.target.closest("#clientRequestForm");
+  if (!form) return;
+  event.preventDefault();
+  const fields = [
+    form.elements.requestedDate,
+    form.elements.serviceId,
+    form.elements.amount,
+    form.elements.references,
+    form.elements.requestedBy,
+    form.elements.notes
+  ];
+  const index = fields.indexOf(event.target);
+  if (index >= 0 && index < fields.length - 1) fields[index + 1].focus();
+  else form.requestSubmit();
 }
 
 async function loginFromAutomaticLink() {
@@ -561,6 +667,19 @@ document.getElementById("statementContent").addEventListener("click", async (eve
 document.getElementById("statementContent").addEventListener("change", () => {
   if (activeView === "current-services") renderCurrentServices(portalData);
   if (activeView === "history") renderHistory(portalData);
+  if (activeView === "request") {
+    const form = document.getElementById("clientRequestForm");
+    if (form) {
+      const service = (portalData.requestServices || []).find((item) => item.id === form.elements.serviceId.value);
+      form.elements.amount.value = money.format(Number(service?.amount || 0));
+    }
+  }
+});
+document.getElementById("statementContent").addEventListener("keydown", advanceClientRequestField);
+document.getElementById("statementContent").addEventListener("submit", async (event) => {
+  if (event.target.id !== "clientRequestForm") return;
+  event.preventDefault();
+  await submitClientRequest(event.target);
 });
 
 loginFromAutomaticLink().then((loggedIn) => {

@@ -32,11 +32,11 @@ export default async (request) => {
 
     const billingId = encodeURIComponent(requestedBillingId);
     const [clients, billings, services, payments, currentServices, methods, allBillings] = await Promise.all([
-      supabase(`/rest/v1/clients?id=eq.${clientId}&select=id,name`),
+      supabase(`/rest/v1/clients?id=eq.${clientId}&select=id,name,price_table_id`),
       supabase(`/rest/v1/billings?id=eq.${billingId}&client_id=eq.${clientId}&status=neq.Cancelada&select=*`),
-      supabase(`/rest/v1/service_entries?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,service_name,reference,service_date,amount,status,is_secondary&order=service_date.asc`),
+      supabase(`/rest/v1/service_entries?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,service_name,reference,service_date,amount,status,is_secondary,primary_entry_id&order=service_date.asc`),
       supabase(`/rest/v1/payments?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,payment_date,amount,method,notes,created_at&order=payment_date.asc`),
-      supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,reference,service_date,amount,status,is_secondary&order=service_date.desc`),
+      supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,reference,service_date,amount,status,is_secondary,primary_entry_id&order=service_date.desc`),
       supabase("/rest/v1/payment_methods?active=eq.true&select=id,type,name,details,payment_link&order=created_at.asc"),
       historyEnabled
         ? supabase(`/rest/v1/billings?client_id=eq.${clientId}&status=neq.Cancelada&select=id,period_start,period_end,total_due,status,created_at&order=period_end.desc`)
@@ -45,6 +45,17 @@ export default async (request) => {
     if (!clients.length || !billings.length) return json(404, { error: "Cobrança não encontrada." });
 
     const billing = billings[0];
+    const client = clients[0];
+    const [requestCatalog, clientRequests] = await Promise.all([
+      client.price_table_id
+        ? supabase(`/rest/v1/service_prices?price_table_id=eq.${encodeURIComponent(client.price_table_id)}&select=amount,service_catalog(id,name,code)&service_catalog.active=eq.true`)
+        : Promise.resolve([]),
+      supabase(`/rest/v1/client_service_requests?client_id=eq.${clientId}&select=id,service_name,references_list,requested_date,amount,requested_by,notes,status,created_at&order=created_at.desc`)
+        .catch((error) => {
+          if (/client_service_requests|schema cache|does not exist|Could not find/i.test(error.message || "")) return [];
+          throw error;
+        })
+    ]);
     const snapshotMethods = Array.isArray(billing.snapshot?.paymentMethods)
       ? billing.snapshot.paymentMethods.map((method) => ({
         id: method.id,
@@ -62,7 +73,7 @@ export default async (request) => {
         : methods);
 
     return json(200, {
-      client: clients[0],
+      client,
       billing: {
         ...billing,
         open_amount: openAmount(billing, payments)
@@ -71,6 +82,26 @@ export default async (request) => {
       payments,
       paymentMethods: selectedMethods,
       currentServices,
+      requestServices: requestCatalog
+        .filter((item) => item.service_catalog)
+        .map((item) => ({
+          id: item.service_catalog.id,
+          code: item.service_catalog.code || "",
+          name: item.service_catalog.name,
+          amount: Number(item.amount || 0)
+        }))
+        .sort((a, b) => (Number(a.code) || 999999) - (Number(b.code) || 999999) || a.name.localeCompare(b.name, "pt-BR")),
+      serviceRequests: clientRequests.map((item) => ({
+        id: item.id,
+        service_name: item.service_name,
+        references: Array.isArray(item.references_list) ? item.references_list : [],
+        requested_date: item.requested_date,
+        amount: Number(item.amount || 0),
+        requested_by: item.requested_by || "",
+        notes: item.notes || "",
+        status: item.status,
+        created_at: item.created_at
+      })),
       historyEnabled,
       accessBillingId: payload.billingId,
       billingHistory: allBillings.filter((item) => item.id !== payload.billingId)

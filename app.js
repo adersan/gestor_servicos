@@ -27,7 +27,8 @@ const initialState = {
   supplierServices: [],
   supplierEntries: [],
   supplierPayables: [],
-  supplierPayments: []
+  supplierPayments: [],
+  serviceRequests: []
 };
 
 let state = loadState();
@@ -302,6 +303,10 @@ function clientOptionLabel(client) {
 
 function catalogOptionLabel(item) {
   return item?.code ? `${item.code} - ${item.name}` : item?.name || "";
+}
+
+function catalogPriceForClient(catalogItem, client) {
+  return Number(catalogItem?.prices?.[client?.priceGroup] || 0);
 }
 
 function itemByExactLabel(items, value, labelBuilder) {
@@ -669,7 +674,8 @@ function renderDashboardV2() {
 
 function renderNotifications() {
   const { overdueServices, overdueBillings } = dashboardNotifications();
-  const alertCount = overdueServices.length + overdueBillings.length;
+  const pendingRequests = (state.serviceRequests || []).filter((item) => item.status === "Novo");
+  const alertCount = overdueServices.length + overdueBillings.length + pendingRequests.length;
   const today = new Date().toISOString().slice(0, 10);
   const receivedToday = state.payments
     .filter((payment) => payment.date === today)
@@ -694,6 +700,11 @@ function renderNotifications() {
       type: "billing",
       title: `Cobrança de ${clientById(billing.clientId)?.name || "Cliente"}`,
       detail: `${money.format(billingOpenAmount(billing))} · ${billingAgeDays(billing)} dias em aberto`
+    })),
+    ...pendingRequests.slice(0, 10).map((request) => ({
+      type: "request",
+      title: `Pedido de ${clientById(request.clientId)?.name || "Cliente"}`,
+      detail: `${request.references?.length || 0} referência(s) · ${request.serviceName || "Serviço"}`
     }))
   ];
   document.getElementById("notificationList").innerHTML = items.length ? items.map((item) => `
@@ -755,6 +766,7 @@ function renderServices() {
         <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
         <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
         <p class="meta service-card-context">${escapeHtml(clientById(item.clientId)?.name || "")}</p>
+        ${item.isSecondary && item.notes === "Serviço de origem cancelado" ? `<span class="origin-cancelled-label">Serviço de origem cancelado</span>` : ""}
         <span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">Confirmado pelo cliente</span>` : ""}${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
       </div>
       <strong>${money.format(item.amount)}</strong>
@@ -770,6 +782,53 @@ function renderServices() {
         </div>
       </div>
     </article>`).join("") : emptyMarkup();
+}
+
+function renderServiceRequests() {
+  const requests = state.serviceRequests || [];
+  const search = document.getElementById("requestSearch")?.value.trim() || "";
+  const status = document.getElementById("requestStatusFilter")?.value || "Novo";
+  const filtered = requests
+    .filter((item) => !status || item.status === status)
+    .filter((item) => matchesSearch(
+      search,
+      clientById(item.clientId)?.name,
+      item.serviceName,
+      item.requestedBy,
+      item.notes,
+      ...(item.references || [])
+    ))
+    .sort((a, b) => {
+      const statusOrder = { Novo: 0, Importado: 1, Cancelado: 2 };
+      return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9)
+        || String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+    });
+  const pending = requests.filter((item) => item.status === "Novo");
+  const imported = requests.filter((item) => item.status === "Importado");
+  const totalReferences = pending.reduce((sum, item) => sum + (item.references?.length || 0), 0);
+  const pendingAmount = pending.reduce((sum, item) => sum + Number(item.amount || 0) * Math.max(1, item.references?.length || 1), 0);
+  document.getElementById("requestSummary").innerHTML = `
+    <article class="metric-card request-card-new"><span>Pedidos novos</span><strong>${pending.length}</strong><small>${totalReferences} referência(s)</small></article>
+    <article class="metric-card request-card-value"><span>Valor estimado</span><strong>${money.format(pendingAmount)}</strong><small>Pedidos ainda não importados</small></article>
+    <article class="metric-card request-card-imported"><span>Importados</span><strong>${imported.length}</strong><small>Já viraram lançamento</small></article>
+    <article class="metric-card metric-main"><span>Total recebido</span><strong>${requests.length}</strong><small>Histórico de pedidos</small></article>`;
+  document.getElementById("requestList").innerHTML = filtered.length ? filtered.map((request) => {
+    const references = request.references || [];
+    return `<article class="request-card request-${String(request.status || "Novo").toLowerCase()}">
+      <div class="request-card-head">
+        <div><span class="eyebrow">${formatDate(request.requestedDate)}</span><h3>${escapeHtml(clientById(request.clientId)?.name || "Cliente")}</h3></div>
+        <span class="request-status">${escapeHtml(request.status || "Novo")}</span>
+      </div>
+      <strong class="request-service-name">${escapeHtml(request.serviceName || "Serviço")}</strong>
+      <div class="request-reference-list">${references.length ? references.map((reference) => `<span>${escapeHtml(reference)}</span>`).join("") : `<span>Sem referência</span>`}</div>
+      <p class="meta">Solicitante: ${escapeHtml(request.requestedBy || "Não informado")}</p>
+      ${request.notes ? `<p class="request-notes">${escapeHtml(request.notes)}</p>` : ""}
+      <p class="meta">Valor unitário: <strong>${money.format(Number(request.amount || 0))}</strong></p>
+      <div class="card-actions">
+        ${request.status === "Novo" ? `<button class="table-action success" data-import-client-request="${request.id}">Importar para lançamento</button><button class="table-action danger" data-cancel-client-request="${request.id}">Cancelar pedido</button>` : ""}
+      </div>
+    </article>`;
+  }).join("") : emptyMarkup();
 }
 
 function renderPayments() {
@@ -950,6 +1009,7 @@ function render() {
   renderPriceTables();
   renderCatalog();
   renderServices();
+  renderServiceRequests();
   renderPayments();
   renderPaymentMethods();
   renderBillings();
@@ -1180,6 +1240,22 @@ function cancellationGroup(entry) {
   );
 }
 
+function applyServiceStatus(entry, status, changedAt = new Date().toISOString()) {
+  const targets = entry.isSecondary ? [entry] : cancellationGroup(entry).filter((item) => item.status !== "Cancelado");
+  targets.forEach((item) => {
+    item.status = status;
+    if (item.status === "Pronto" && !item.deliveryCode) item.deliveryCode = randomDeliveryCode();
+    if (item.status === "Entregue") {
+      item.deliveredAt = changedAt;
+      item.deliverySource = "Administrador";
+    } else {
+      item.deliveredAt = null;
+      item.deliverySource = "";
+    }
+    item.updatedAt = changedAt;
+  });
+}
+
 function openServiceCancellation(entry) {
   if (!entry) return;
   if (entry.billingId) {
@@ -1205,34 +1281,74 @@ function openServiceCancellation(entry) {
   setTimeout(() => form.elements.reason.focus(), 0);
 }
 
-function openEntryForm(item = null, preferredClientId = "") {
+function openEntryForm(item = null, preferredClientId = "", request = null) {
   const form = document.getElementById("serviceForm");
   form.reset();
   serviceReferenceValues = [];
   additionalServiceValues = [];
   form.elements.entryId.value = item?.id || "";
-  form.elements.clientId.value = item?.clientId || preferredClientId || "";
+  form.elements.sourceRequestId.value = request?.id || "";
+  form.elements.clientId.value = request?.clientId || item?.clientId || preferredClientId || "";
   form.elements.clientSearch.value = clientOptionLabel(clientById(form.elements.clientId.value));
-  form.elements.date.value = item?.date || new Date().toISOString().slice(0, 10);
-  form.elements.catalogId.value = item?.catalogId || "";
+  form.elements.date.value = request?.requestedDate || item?.date || new Date().toISOString().slice(0, 10);
+  form.elements.catalogId.value = request?.catalogId || item?.catalogId || "";
   form.elements.catalogSearch.value = catalogOptionLabel(
     state.catalog.find((catalogItem) => catalogItem.id === form.elements.catalogId.value)
   );
-  form.elements.reference.value = item?.reference || "";
-  form.elements.amount.value = item ? Number(item.amount).toFixed(2) : "";
+  form.elements.reference.value = request?.references?.length ? request.references.join("\n") : item?.reference || "";
+  form.elements.amount.value = request ? Number(request.amount || 0).toFixed(2) : item ? Number(item.amount).toFixed(2) : "";
   form.elements.status.value = item?.status || "A fazer";
   form.elements.hasAdditionalServices.checked = false;
   form.elements.hasAdditionalServices.disabled = Boolean(item);
   document.getElementById("additionalServicesSection").classList.add("hidden");
+  const importHint = document.getElementById("serviceImportHint");
+  importHint.classList.toggle("hidden", !request);
+  importHint.innerHTML = request ? `
+    <strong>Pedido importado do cliente</strong>
+    <span>${escapeHtml(request.references?.length || 0)} referência(s) · Solicitante: ${escapeHtml(request.requestedBy || "Não informado")}</span>
+    ${request.notes ? `<small>${escapeHtml(request.notes)}</small>` : ""}` : "";
   window.supplierModule?.resetClientEntryOptions(Boolean(item));
-  document.getElementById("serviceDialogTitle").textContent = item ? "Editar lançamento" : "Novo lançamento";
+  document.getElementById("serviceDialogTitle").textContent = item ? "Editar lançamento" : request ? "Importar pedido" : "Novo lançamento";
   document.getElementById("suggestedPrice").textContent = item
     ? "O valor pode ser alterado somente neste lançamento."
-    : "Selecione o cliente e o serviço para preencher o valor.";
+    : request ? "Valor sugerido pelo pedido. Você pode ajustar antes de salvar." : "Selecione o cliente e o serviço para preencher o valor.";
   renderReferenceList();
   renderAdditionalServiceList();
   document.getElementById("serviceDialog").showModal();
   setTimeout(() => form.elements.clientSearch.focus(), 0);
+}
+
+function importClientRequest(requestId) {
+  const request = (state.serviceRequests || []).find((item) => item.id === requestId);
+  if (!request || request.status !== "Novo") {
+    alert("Este pedido não está mais disponível para importação.");
+    return;
+  }
+  showView("services");
+  openEntryForm(null, request.clientId, request);
+}
+
+function choosePendingRequestForForm() {
+  const form = document.getElementById("serviceForm");
+  syncServiceClientSelection();
+  const clientId = form.elements.clientId.value;
+  const requests = (state.serviceRequests || []).filter((item) =>
+    item.status === "Novo" && (!clientId || item.clientId === clientId)
+  );
+  if (!requests.length) {
+    alert(clientId ? "Não há pedidos pendentes para este cliente." : "Não há pedidos pendentes.");
+    return;
+  }
+  if (requests.length === 1) {
+    importClientRequest(requests[0].id);
+    return;
+  }
+  const options = requests.slice(0, 9).map((request, index) =>
+    `${index + 1}) ${clientById(request.clientId)?.name || "Cliente"} - ${request.serviceName} - ${(request.references || []).join(", ")}`
+  ).join("\n");
+  const selected = Number(prompt(`Qual pedido deseja importar?\n\n${options}`));
+  if (!selected || !requests[selected - 1]) return;
+  importClientRequest(requests[selected - 1].id);
 }
 
 function openPaymentForm(item = null, billing = null, mode = "partial") {
@@ -1818,6 +1934,26 @@ document.addEventListener("click", async (event) => {
   if (tab) showView(tab.dataset.view);
   if (opener) showView(opener.dataset.openView);
   const paymentDashboardFilter = event.target.closest("[data-payment-dashboard-filter]");
+  const importRequestButton = event.target.closest("[data-import-client-request]");
+  const cancelRequestButton = event.target.closest("[data-cancel-client-request]");
+  const importRequestFromDialog = event.target.closest("[data-import-request-button]");
+  if (importRequestButton) {
+    importClientRequest(importRequestButton.dataset.importClientRequest);
+    return;
+  }
+  if (cancelRequestButton) {
+    const request = (state.serviceRequests || []).find((item) => item.id === cancelRequestButton.dataset.cancelClientRequest);
+    if (request && confirm("Cancelar este pedido recebido do cliente?")) {
+      request.status = "Cancelado";
+      request.updatedAt = new Date().toISOString();
+      saveState();
+    }
+    return;
+  }
+  if (importRequestFromDialog) {
+    choosePendingRequestForForm();
+    return;
+  }
   if (paymentDashboardFilter) {
     document.getElementById("paymentStatusFilter").value = paymentDashboardFilter.dataset.paymentDashboardFilter;
     showView("payments");
@@ -1834,6 +1970,10 @@ document.addEventListener("click", async (event) => {
       document.getElementById("serviceStatusFilter").value = "A fazer";
       showView("services");
       renderServices();
+    } else if (notificationTarget.dataset.notificationTarget === "request") {
+      document.getElementById("requestStatusFilter").value = "Novo";
+      showView("requests");
+      renderServiceRequests();
     } else {
       document.getElementById("paymentStatusFilter").value = "overdue";
       showView("payments");
@@ -1942,13 +2082,7 @@ document.addEventListener("click", async (event) => {
   if (serviceStatusButton) {
     const entry = state.services.find((item) => item.id === serviceStatusButton.dataset.entryId);
     if (entry) {
-      entry.status = serviceStatusButton.dataset.serviceStatus;
-      if (entry.status === "Pronto" && !entry.deliveryCode) entry.deliveryCode = randomDeliveryCode();
-      if (entry.status === "Entregue") {
-        entry.deliveredAt = new Date().toISOString();
-        entry.deliverySource = "Administrador";
-      }
-      entry.updatedAt = new Date().toISOString();
+      applyServiceStatus(entry, serviceStatusButton.dataset.serviceStatus);
       saveState();
     }
   }
@@ -2243,6 +2377,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   const data = new FormData(form);
   const catalogItem = state.catalog.find((item) => item.id === data.get("catalogId"));
   const existingEntry = state.services.find((item) => item.id === data.get("entryId"));
+  const sourceRequest = (state.serviceRequests || []).find((item) => item.id === data.get("sourceRequestId"));
   const now = new Date().toISOString();
   const typedReferences = String(data.get("reference") || "")
     .split(/\r?\n/)
@@ -2344,6 +2479,12 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     });
   });
   const savedClientId = data.get("clientId");
+  if (sourceRequest && !existingEntry) {
+    sourceRequest.status = "Importado";
+    sourceRequest.importedEntryIds = createdEntries.map((entry) => entry.id);
+    sourceRequest.importedAt = now;
+    sourceRequest.updatedAt = now;
+  }
   form.reset();
   form.closest("dialog").close();
   if (!existingEntry) {
@@ -2386,6 +2527,17 @@ document.getElementById("cancelServiceForm").addEventListener("submit", (event) 
     item.status = "Cancelado";
     item.updatedAt = now;
   });
+  if (!entry.isSecondary && data.get("cancelComplementary") !== "on") {
+    group
+      .filter((item) => item.id !== entry.id && item.isSecondary && item.status !== "Cancelado")
+      .forEach((item) => {
+        item.status = "Entregue";
+        item.notes = "Serviço de origem cancelado";
+        item.deliveredAt = item.deliveredAt || now;
+        item.deliverySource = item.deliverySource || "Administrador";
+        item.updatedAt = now;
+      });
+  }
   if (data.get("cancelSupplier") === "on") {
     state.supplierEntries
       .filter((item) => targetIds.has(item.clientServiceEntryId) && !item.payableId)
@@ -2670,6 +2822,8 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["serviceClientNameFilter", "input", syncServiceClientFilter],
   ["serviceStatusFilter", "change", renderServices],
   ["serviceSearch", "input", renderServices],
+  ["requestSearch", "input", renderServiceRequests],
+  ["requestStatusFilter", "change", renderServiceRequests],
   ["paymentClientFilter", "change", renderPayments],
   ["paymentStatusFilter", "change", renderPayments],
   ["paymentStartFilter", "change", renderPayments],
@@ -2817,6 +2971,26 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   focusNextFrom(event.target);
 });
 
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+  const form = event.target.closest("dialog form");
+  if (!form || form.id === "serviceForm" || form.id === "supplierEntryForm") return;
+  if (event.target.tagName === "TEXTAREA") {
+    event.preventDefault();
+  }
+  const fields = Array.from(form.querySelectorAll("input, select, textarea, button"))
+    .filter((field) => !field.disabled && field.type !== "hidden" && field.offsetParent !== null);
+  const index = fields.indexOf(event.target);
+  if (index < 0) return;
+  event.preventDefault();
+  const next = fields.slice(index + 1).find((field) => field.tagName !== "BUTTON" || field.type === "submit" || field.value === "default");
+  if (next && next.tagName !== "BUTTON") next.focus();
+  else {
+    const submitButton = form.querySelector('button[value="default"], button[type="submit"]');
+    if (submitButton) form.requestSubmit(submitButton);
+  }
+});
+
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredInstallPrompt = event;
@@ -2831,7 +3005,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=28").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=35").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);

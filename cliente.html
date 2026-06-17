@@ -5,14 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Área do cliente | Gestor de Serviços</title>
-  <link rel="stylesheet" href="styles.css?v=31">
-  <link rel="stylesheet" href="cliente.css?v=16">
+  <link rel="stylesheet" href="styles.css?v=32">
+  <link rel="stylesheet" href="cliente.css?v=17">
 </head>
 <body class="client-portal">
   <header class="client-header">
-    <div>
-      <span class="eyebrow">Gestor de Serviços</span>
-      <h1>Área do cliente</h1>
+    <div class="client-brand-lockup">
+      <img src="logo.svg" alt="" aria-hidden="true">
+      <div>
+        <span class="eyebrow">Gestor de Serviços</span>
+        <h1>Área do cliente</h1>
+      </div>
     </div>
     <button id="logoutButton" class="secondary hidden" type="button">Sair</button>
   </header>
@@ -45,12 +48,13 @@
       <nav id="clientPortalNav" class="client-portal-nav" aria-label="Opções da área do cliente">
         <button class="active" type="button" data-client-view="billing">Cobrança</button>
         <button type="button" data-client-view="current-services">Consumo atual</button>
+        <button type="button" data-client-view="request">Novo pedido</button>
         <button id="historyTab" class="hidden" type="button" data-client-view="history">Histórico</button>
       </nav>
       <div id="statementContent"></div>
     </section>
   </main>
 
-  <script src="cliente.js?v=16"></script>
+  <script src="cliente.js?v=17"></script>
 </body>
 </html>

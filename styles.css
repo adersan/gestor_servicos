@@ -23,6 +23,8 @@ body { margin: 0; background: var(--paper); color: var(--ink); }
 button, input, select, textarea { font-family: Arial, Helvetica, sans-serif; font-size: inherit; }
 button { cursor: pointer; }
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 24px max(20px, calc((100vw - 1180px) / 2)); background: var(--brand); color: white; }
+.brand-lockup { display: flex; align-items: center; gap: 14px; }
+.brand-lockup img { width: 54px; height: 54px; border-radius: 16px; box-shadow: 0 12px 28px rgba(0,0,0,.2); }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 .notification-button { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid rgba(255,255,255,.26); border-radius: 12px; background: transparent; color: white; font-weight: 750; }
 .notification-button.has-alerts { border-color: #f0b55f; background: rgba(216,155,69,.18); }
@@ -106,6 +108,24 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .filters-compact { grid-template-columns: minmax(240px, 520px); }
 .payment-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
+.request-summary { margin-bottom: 16px; }
+.request-card-new { border-top: 4px solid #d9902f; background: #fff7eb; }
+.request-card-value { border-top: 4px solid #2d72c4; background: #eef6ff; }
+.request-card-imported { border-top: 4px solid #18864b; background: #edf9f2; }
+.request-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.request-card { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: inset 0 4px 0 var(--request-color, #d9902f); }
+.request-importado { --request-color: #18864b; background: #f4fbf7; }
+.request-cancelado { --request-color: var(--danger); background: #fff7f6; opacity: .85; }
+.request-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.request-card-head h3 { margin: 0; }
+.request-status { padding: 6px 9px; border-radius: 999px; color: #8a560c; background: #fff0d8; font-size: 11px; font-weight: 850; }
+.request-service-name { display: block; margin: 14px 0 9px; font-size: 18px; }
+.request-reference-list { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+.request-reference-list span { padding: 6px 10px; border: 1px solid #bdd8ef; border-radius: 10px; color: #155f9f; background: #eef7ff; font-weight: 850; letter-spacing: .035em; }
+.request-notes { margin: 8px 0; color: var(--muted); font-size: 13px; }
+.dialog-heading-actions { display: flex; align-items: center; gap: 8px; }
+.import-hint { display: grid; gap: 3px; margin-bottom: 12px; padding: 12px; border: 1px solid #bdd8ef; border-radius: 12px; color: #155f9f; background: #eef7ff; }
+.import-hint span, .import-hint small { color: #3b617d; }
 .receivable-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; margin-bottom: 28px; }
 .receivable-card { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: white; }
 .receivable-overdue { border-color: #dca59f; box-shadow: inset 4px 0 0 var(--danger); }
@@ -138,6 +158,7 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .status-entregue { color: #117440; }
 .status-cancelado { color: var(--danger); }
 .overdue-label { display: inline-block; margin-left: 8px; padding: 4px 7px; border-radius: 999px; background: #fde8e5; color: var(--danger); font-size: 11px; font-weight: 800; }
+.origin-cancelled-label { display: inline-block; padding: 5px 8px; border-radius: 999px; color: #7d4b05; background: #fff2d7; font-size: 11px; font-weight: 850; }
 .confirmation-label, .delivered-label { display: inline-block; margin: 6px 0 0 8px; padding: 4px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; }
 .confirmation-label { background: #fff5e8; color: #a45b10; }
 .delivered-label { background: #edf9f2; color: #117440; }
