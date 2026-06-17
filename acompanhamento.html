@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=13">
+  <link rel="stylesheet" href="acompanhamento.css?v=14">
 </head>
 <body>
   <header class="tracking-header">
@@ -35,9 +35,27 @@
         <div class="section-title"><h3>Serviços do período</h3><span id="serviceCount"></span></div>
         <div id="serviceList" class="tracking-list"></div>
       </section>
+      <section class="tracking-card tracking-request-card">
+        <div class="section-title"><h3>Novo pedido</h3><span>Envie placas ou referências para o administrador</span></div>
+        <form id="trackingRequestForm" class="tracking-request-form">
+          <label>Data<input name="requestedDate" type="date" readonly></label>
+          <label>Serviço<select name="serviceId" required></select></label>
+          <label>Valor<input name="amount" type="text" readonly></label>
+          <label>Placa/referência<textarea name="references" rows="4" required placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea></label>
+          <label>Quem solicitou<input name="requestedBy" placeholder="Nome do solicitante"></label>
+          <label>Observação<textarea name="notes" rows="3" placeholder="Detalhes importantes"></textarea></label>
+          <p id="trackingRequestMessage" class="tracking-form-message"></p>
+          <div class="tracking-request-actions">
+            <button class="tracking-secondary" type="reset">Cancelar</button>
+            <button class="tracking-primary" type="submit">Salvar pedido</button>
+          </div>
+        </form>
+        <div class="section-title request-history-title"><h3>Pedidos enviados</h3></div>
+        <div id="trackingRequestHistory" class="tracking-request-history"></div>
+      </section>
       <p id="expiryText" class="tracking-expiry"></p>
     </section>
   </main>
-  <script src="acompanhamento.js?v=13"></script>
+  <script src="acompanhamento.js?v=14"></script>
 </body>
 </html>

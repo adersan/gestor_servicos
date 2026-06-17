@@ -19,12 +19,23 @@ export default async (request) => {
 
     const clientId = encodeURIComponent(link.client_id);
     const [clients, services] = await Promise.all([
-      supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,name&limit=1`),
+      supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,name,price_table_id&limit=1`),
       supabase(
-        `/rest/v1/service_entries?client_id=eq.${clientId}&service_date=gte.${link.period_start}&service_date=lte.${link.period_end}&status=neq.Cancelado&select=id,service_name,reference,service_date,amount,status,is_secondary,updated_at&order=service_date.desc`
+        `/rest/v1/service_entries?client_id=eq.${clientId}&service_date=gte.${link.period_start}&service_date=lte.${link.period_end}&status=neq.Cancelado&select=id,service_name,reference,service_date,amount,status,is_secondary,primary_entry_id,updated_at&order=service_date.desc`
       )
     ]);
     if (!clients.length) return json(404, { error: "Cliente não encontrado." });
+    const client = clients[0];
+    const [requestCatalog, clientRequests] = await Promise.all([
+      client.price_table_id
+        ? supabase(`/rest/v1/service_prices?price_table_id=eq.${encodeURIComponent(client.price_table_id)}&select=amount,service_catalog(id,name,code)&service_catalog.active=eq.true`)
+        : Promise.resolve([]),
+      supabase(`/rest/v1/client_service_requests?client_id=eq.${clientId}&select=id,service_name,references_list,requested_date,amount,requested_by,notes,status,created_at&order=created_at.desc`)
+        .catch((error) => {
+          if (/client_service_requests|schema cache|does not exist|Could not find/i.test(error.message || "")) return [];
+          throw error;
+        })
+    ]);
 
     await supabase(`/rest/v1/service_tracking_links?id=eq.${link.id}`, {
       method: "PATCH",
@@ -32,11 +43,31 @@ export default async (request) => {
     });
 
     return json(200, {
-      client: clients[0],
+      client,
       period: { startDate: link.period_start, endDate: link.period_end },
       expiresAt: link.expires_at,
       updatedAt: new Date().toISOString(),
-      services
+      services,
+      requestServices: requestCatalog
+        .filter((item) => item.service_catalog)
+        .map((item) => ({
+          id: item.service_catalog.id,
+          code: item.service_catalog.code || "",
+          name: item.service_catalog.name,
+          amount: Number(item.amount || 0)
+        }))
+        .sort((a, b) => (Number(a.code) || 999999) - (Number(b.code) || 999999) || a.name.localeCompare(b.name, "pt-BR")),
+      serviceRequests: clientRequests.map((item) => ({
+        id: item.id,
+        service_name: item.service_name,
+        references: Array.isArray(item.references_list) ? item.references_list : [],
+        requested_date: item.requested_date,
+        amount: Number(item.amount || 0),
+        requested_by: item.requested_by || "",
+        notes: item.notes || "",
+        status: item.status,
+        created_at: item.created_at
+      }))
     });
   } catch (error) {
     console.error(error);

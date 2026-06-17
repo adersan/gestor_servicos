@@ -1,6 +1,7 @@
 const trackingTokenKey = "gestor_servicos_tracking_code";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 let refreshInProgress = false;
+let trackingData = null;
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -26,6 +27,17 @@ async function requestData(accessCode) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "Nao foi possivel abrir o acompanhamento.");
+  return data;
+}
+
+async function sendTrackingRequest(payload) {
+  const response = await fetch("/.netlify/functions/tracking-service-request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Nao foi possivel enviar o pedido.");
   return data;
 }
 
@@ -59,6 +71,7 @@ function renderCharts(services, counts) {
 }
 
 function render(data) {
+  trackingData = data;
   const statusOrder = { "A fazer": 0, Pronto: 1, Entregue: 2 };
   const services = [...(data.services || [])].sort((a, b) =>
     (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3)
@@ -94,9 +107,31 @@ function render(data) {
       <div class="tracking-amount"><strong>${money.format(Number(item.amount))}</strong><span class="status status-${status.className}">${status.label}</span></div>
     </article>`;
   }).join("") : `<p class="tracking-message">Nenhum servico encontrado neste periodo.</p>`;
+  renderRequestArea(data);
   document.getElementById("loadingPanel").classList.add("hidden");
   document.getElementById("errorPanel").classList.add("hidden");
   document.getElementById("trackingPanel").classList.remove("hidden");
+}
+
+function renderRequestArea(data) {
+  const form = document.getElementById("trackingRequestForm");
+  const services = data.requestServices || [];
+  form.elements.requestedDate.value = new Date().toISOString().slice(0, 10);
+  const currentService = form.elements.serviceId.value;
+  form.elements.serviceId.innerHTML = services.length
+    ? services.map((service) => `<option value="${escapeHtml(service.id)}" data-amount="${Number(service.amount || 0)}">${escapeHtml(service.code ? `${service.code} - ${service.name}` : service.name)}</option>`).join("")
+    : `<option value="">Nenhum serviço disponível</option>`;
+  if (services.some((service) => service.id === currentService)) form.elements.serviceId.value = currentService;
+  const selected = services.find((service) => service.id === form.elements.serviceId.value) || services[0];
+  form.elements.amount.value = money.format(Number(selected?.amount || 0));
+  form.querySelector('button[type="submit"]').disabled = !services.length;
+
+  const requests = data.serviceRequests || [];
+  document.getElementById("trackingRequestHistory").innerHTML = requests.length ? requests.slice(0, 8).map((item) => `
+    <article class="tracking-request-history-card">
+      <div><strong>${escapeHtml(item.service_name)}</strong><span>${formatDate(item.requested_date)} · ${escapeHtml(item.status)}</span></div>
+      <p>${(item.references || []).map((reference) => `<span>${escapeHtml(reference)}</span>`).join("")}</p>
+    </article>`).join("") : `<p class="tracking-message">Nenhum pedido enviado por este link.</p>`;
 }
 
 async function loadTracking() {
@@ -138,6 +173,52 @@ function showError(error) {
 }
 
 document.getElementById("refreshButton").addEventListener("click", refreshTracking);
+document.getElementById("trackingRequestForm").addEventListener("change", (event) => {
+  if (event.target.name !== "serviceId" || !trackingData) return;
+  const service = (trackingData.requestServices || []).find((item) => item.id === event.target.value);
+  event.currentTarget.elements.amount.value = money.format(Number(service?.amount || 0));
+});
+document.getElementById("trackingRequestForm").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+  const form = event.currentTarget;
+  event.preventDefault();
+  const fields = [
+    form.elements.requestedDate,
+    form.elements.serviceId,
+    form.elements.amount,
+    form.elements.references,
+    form.elements.requestedBy,
+    form.elements.notes
+  ];
+  const index = fields.indexOf(event.target);
+  if (index >= 0 && index < fields.length - 1) fields[index + 1].focus();
+  else form.requestSubmit();
+});
+document.getElementById("trackingRequestForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = document.getElementById("trackingRequestMessage");
+  const button = form.querySelector('button[type="submit"]');
+  const accessCode = sessionStorage.getItem(trackingTokenKey);
+  button.disabled = true;
+  message.textContent = "Enviando pedido...";
+  try {
+    await sendTrackingRequest({
+      accessCode,
+      serviceId: form.elements.serviceId.value,
+      references: form.elements.references.value,
+      requestedBy: form.elements.requestedBy.value,
+      notes: form.elements.notes.value
+    });
+    message.textContent = "Pedido enviado com sucesso.";
+    form.reset();
+    await refreshTracking();
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshTracking();
 });
