@@ -52,6 +52,8 @@ label { display:grid; gap:6px; color:var(--muted); font-size:12px; font-weight:7
 .tracking-item h4,.tracking-item p { margin:0; }
 .tracking-item h4 { margin-bottom:7px; font-size:16px; font-weight:850; }
 .tracking-reference { display:inline-block; padding:6px 10px; border:1px solid #bdd8ef; border-radius:10px; color:#155f9f !important; background:#eef7ff; font-size:14px !important; font-weight:850; letter-spacing:.035em; }
+.tracking-complement-list { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
+.tracking-complement-list span { padding:5px 8px; border-radius:999px; color:var(--purple); background:#eee8fa; font-size:11px; font-weight:800; }
 .tracking-pending { --status-color:var(--orange); }
 .tracking-done { --status-color:var(--blue); }
 .tracking-delivered { --status-color:var(--green); }
@@ -64,7 +66,14 @@ label { display:grid; gap:6px; color:var(--muted); font-size:12px; font-weight:7
 .secondary-label { display:inline-block; margin-left:6px; color:var(--purple); font-size:10px; font-weight:800; }
 .tracking-expiry { margin-top:12px; text-align:center; font-size:11px; }
 .tracking-request-card { margin-top:18px; border-top:4px solid var(--orange); }
+dialog { width:min(680px,calc(100% - 28px)); border:0; border-radius:18px; padding:0; box-shadow:0 28px 80px rgba(0,0,0,.28); }
+dialog::backdrop { background:rgba(21,38,34,.42); backdrop-filter:blur(3px); }
+.tracking-dialog-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:18px 18px 0; }
+.tracking-dialog-heading h2 { margin:0; font-family:Georgia,serif; }
+.tracking-dialog-note { margin:4px 18px 0; color:var(--muted); }
+.tracking-close-button { width:38px; height:38px; padding:0; border:0; border-radius:50%; color:var(--brand); background:#eef6f2; font-size:20px; }
 .tracking-request-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.tracking-request-form { padding:18px; }
 .tracking-request-form label:nth-child(4), .tracking-request-form label:nth-child(6), .tracking-form-message, .tracking-request-actions { grid-column:1 / -1; }
 .tracking-form-message { min-height:20px; margin:0; color:var(--brand); font-weight:800; }
 .tracking-request-actions { display:flex; justify-content:flex-end; gap:10px; }

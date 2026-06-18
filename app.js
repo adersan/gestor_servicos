@@ -2648,14 +2648,18 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
         clientId: form.elements.clientId.value,
         startDate: form.elements.startDate.value,
         endDate: form.elements.endDate.value,
-        validDays: Number(form.elements.validDays.value)
+        validDays: Number(form.elements.validDays.value),
+        allowRequests: form.elements.allowRequests.checked
       })
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Não foi possível gerar o link.");
     const client = clientById(form.elements.clientId.value);
     const url = `${location.origin}/acompanhamento.html?access=${encodeURIComponent(result.accessCode)}`;
-    const text = `Olá, ${client?.name || ""}!\n\nAcompanhe seus serviços de ${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)} pelo link abaixo:\n\n${url}\n\nEste acesso é somente para consulta.`;
+    const requestText = form.elements.allowRequests.checked
+      ? "\n\nNeste link voc\u00EA tamb\u00E9m pode enviar novos pedidos."
+      : "";
+    const text = `Ol\u00E1, ${client?.name || ""}!\n\nAcompanhe seus servi\u00E7os de ${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)} pelo link abaixo:\n\n${url}${requestText}\n\nEste acesso \u00E9 somente para consulta dos servi\u00E7os.`;
     const phone = whatsappPhone(client);
     const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
     const link = document.createElement("a");

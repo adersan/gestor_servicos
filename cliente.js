@@ -48,6 +48,24 @@ function complementaryLabel(item) {
     : "";
 }
 
+function groupPortalServices(services) {
+  const byId = new Map(services.map((item) => [item.id, { primary: item, secondaries: [] }]));
+  const groups = [];
+  services.forEach((item) => {
+    if (item.is_secondary && item.primary_entry_id && byId.has(item.primary_entry_id)) {
+      byId.get(item.primary_entry_id).secondaries.push(item);
+      return;
+    }
+    if (!item.is_secondary) groups.push(byId.get(item.id));
+    else groups.push({ primary: item, secondaries: [] });
+  });
+  return groups;
+}
+
+function groupedServiceName(primary, secondaries) {
+  return `${escapeHtml(primary.service_name)}${secondaries.length ? `<div class="client-complement-list">${secondaries.map((item) => `<span>${escapeHtml(item.service_name)} &middot; ${money.format(Number(item.amount))}</span>`).join("")}</div>` : ""}`;
+}
+
 function pdfText(value) {
   return String(value ?? "")
     .normalize("NFD")
@@ -280,21 +298,22 @@ function renderStatement(data) {
     `${formatDate(billing.period_start)} a ${formatDate(billing.period_end)}`;
 
   function serviceTable(items) {
-    const rows = items.map((item) => `<tr class="${item.is_secondary ? "client-secondary-service" : ""}">
+    const rows = items.map(({ primary: item, secondaries }) => `<tr class="${secondaries.length ? "client-secondary-service" : ""}">
       <td>${formatDate(item.service_date)}</td>
-      <td title="${escapeHtml(item.service_name)}">${escapeHtml(item.service_name)}${complementaryLabel(item)}</td>
+      <td title="${escapeHtml(item.service_name)}">${groupedServiceName(item, secondaries)}${secondaries.length ? `<span class="client-secondary-label">Complementar vinculado ao serviÃ§o original</span>` : complementaryLabel(item)}</td>
       <td title="${escapeHtml(item.reference || "-")}">${referenceChip(item.reference || "-")}</td>
       <td>${serviceStatusChip(item.status)}</td>
-      <td class="amount-service">${money.format(Number(item.amount))}</td>
+      <td class="amount-service">${money.format([item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0))}</td>
     </tr>`).join("");
     return `<table class="client-report-service-table">
       <thead><tr><th>Data</th><th>Serviço</th><th>Ref</th><th>Status</th><th>Valor</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="5">-</td></tr>`}</tbody>
     </table>`;
   }
-  const splitAt = Math.ceil(services.length / 2);
-  const serviceRows = services.length
-    ? `${serviceTable(services.slice(0, splitAt))}${serviceTable(services.slice(splitAt))}`
+  const serviceGroups = groupPortalServices(services);
+  const splitAt = Math.ceil(serviceGroups.length / 2);
+  const serviceRows = serviceGroups.length
+    ? `${serviceTable(serviceGroups.slice(0, splitAt))}${serviceTable(serviceGroups.slice(splitAt))}`
     : `<p class="meta">Nenhum serviço neste fechamento.</p>`;
   const paymentRows = payments.length
     ? payments.map((item) => `<tr>
@@ -366,14 +385,15 @@ function renderCurrentServices(data) {
     && (!filters.end || item.service_date <= filters.end)
     && (!filters.status || item.status === filters.status)
     && (!filters.search || searchableText(item.service_name, item.reference, item.status).includes(searchableText(filters.search))));
+  const serviceGroups = groupPortalServices(items);
   const total = items.reduce((sum, item) => sum + Number(item.amount), 0);
-  const rows = items.length ? items.map((item) => `<tr class="${item.is_secondary ? "client-secondary-service" : ""}">
+  const rows = serviceGroups.length ? serviceGroups.map(({ primary: item, secondaries }) => `<tr class="${secondaries.length ? "client-secondary-service" : ""}">
     <td>${formatDate(item.service_date)}</td>
-    <td>${escapeHtml(item.service_name)}${complementaryLabel(item)}</td>
+    <td>${groupedServiceName(item, secondaries)}${secondaries.length ? `<span class="client-secondary-label">Complementar vinculado ao servi\u00E7o original</span>` : complementaryLabel(item)}</td>
     <td>${referenceChip(item.reference || "-")}</td>
     <td>${serviceStatusChip(item.status)}</td>
-    <td class="amount-service">${money.format(Number(item.amount))}</td>
-  </tr>`).join("") : `<tr><td colspan="5">Nenhum serviço encontrado.</td></tr>`;
+    <td class="amount-service">${money.format([item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0))}</td>
+  </tr>`).join("") : `<tr><td colspan="5">Nenhum servi\u00E7o encontrado.</td></tr>`;
 
   document.getElementById("clientName").textContent = data.client.name;
   document.getElementById("billingPeriod").textContent = "Serviços ainda não incluídos em uma cobrança";

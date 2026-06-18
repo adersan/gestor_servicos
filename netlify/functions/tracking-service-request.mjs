@@ -23,12 +23,13 @@ export default async (request) => {
     if (!references.length) return json(400, { error: "Informe pelo menos uma placa ou referencia." });
 
     const links = await supabase(
-      `/rest/v1/service_tracking_links?token_hash=eq.${accessCodeHash(accessCode)}&active=eq.true&select=id,client_id,expires_at&limit=1`
+      `/rest/v1/service_tracking_links?token_hash=eq.${accessCodeHash(accessCode)}&active=eq.true&select=id,client_id,expires_at,allow_requests&limit=1`
     );
     const link = links[0];
     if (!link || new Date(link.expires_at) <= new Date()) {
       return json(401, { error: "Este link expirou ou foi substituido." });
     }
+    if (!link.allow_requests) return json(403, { error: "Este link esta liberado somente para consulta." });
 
     const clientId = encodeURIComponent(link.client_id);
     const clients = await supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,price_table_id&limit=1`);

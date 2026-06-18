@@ -434,6 +434,22 @@
   font-weight: 800;
 }
 
+.client-complement-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.client-complement-list span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #654697;
+  background: #eee8fa;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .history-list {
   display: grid;
   gap: 12px;

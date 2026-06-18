@@ -70,6 +70,20 @@ function renderCharts(services, counts) {
     </div>`).join("") : `<p class="tracking-message">Sem servicos para o grafico.</p>`;
 }
 
+function groupedServices(services) {
+  const byId = new Map(services.map((item) => [item.id, { primary: item, secondaries: [] }]));
+  const groups = [];
+  services.forEach((item) => {
+    if (item.is_secondary && item.primary_entry_id && byId.has(item.primary_entry_id)) {
+      byId.get(item.primary_entry_id).secondaries.push(item);
+      return;
+    }
+    if (!item.is_secondary) groups.push(byId.get(item.id));
+    else groups.push({ primary: item, secondaries: [] });
+  });
+  return groups;
+}
+
 function render(data) {
   trackingData = data;
   const statusOrder = { "A fazer": 0, Pronto: 1, Entregue: 2 };
@@ -99,12 +113,19 @@ function render(data) {
     <article class="summary-item summary-delivered"><span>Entregues</span><strong>${counts.delivered}</strong><small>${money.format(values.delivered)}</small></article>
     <article class="summary-item summary-total"><span>Total do periodo</span><strong>${money.format(total)}</strong><small>${services.length} servico(s)</small></article>`;
   renderCharts(services, counts);
-  document.getElementById("serviceList").innerHTML = services.length ? services.map((item) => {
+  const serviceGroups = groupedServices(services);
+  document.getElementById("serviceList").innerHTML = serviceGroups.length ? serviceGroups.map(({ primary, secondaries }) => {
+    const item = primary;
     const status = statusData(item.status);
+    const total = [item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0);
     return `<article class="tracking-item tracking-${status.className}">
       <time>${formatDate(item.service_date)}</time>
-      <div><h4>${escapeHtml(item.service_name)}${item.is_secondary ? `<span class="secondary-label">Complementar</span>` : ""}</h4><p class="tracking-reference">${escapeHtml(item.reference || "Sem referencia")}</p></div>
-      <div class="tracking-amount"><strong>${money.format(Number(item.amount))}</strong><span class="status status-${status.className}">${status.label}</span></div>
+      <div>
+        <h4>${escapeHtml(item.service_name)}${secondaries.length ? `<span class="secondary-label">+ ${secondaries.length} complementar(es)</span>` : ""}</h4>
+        ${secondaries.length ? `<div class="tracking-complement-list">${secondaries.map((secondary) => `<span>${escapeHtml(secondary.service_name)} · ${money.format(Number(secondary.amount))}</span>`).join("")}</div>` : ""}
+        <p class="tracking-reference">${escapeHtml(item.reference || "Sem referencia")}</p>
+      </div>
+      <div class="tracking-amount"><strong>${money.format(total)}</strong><span class="status status-${status.className}">${status.label}</span></div>
     </article>`;
   }).join("") : `<p class="tracking-message">Nenhum servico encontrado neste periodo.</p>`;
   renderRequestArea(data);
@@ -114,6 +135,9 @@ function render(data) {
 }
 
 function renderRequestArea(data) {
+  const section = document.getElementById("trackingRequestSection");
+  section.classList.toggle("hidden", !data.allowRequests);
+  if (!data.allowRequests) return;
   const form = document.getElementById("trackingRequestForm");
   const services = data.requestServices || [];
   form.elements.requestedDate.value = new Date().toISOString().slice(0, 10);
@@ -124,7 +148,7 @@ function renderRequestArea(data) {
   if (services.some((service) => service.id === currentService)) form.elements.serviceId.value = currentService;
   const selected = services.find((service) => service.id === form.elements.serviceId.value) || services[0];
   form.elements.amount.value = money.format(Number(selected?.amount || 0));
-  form.querySelector('button[type="submit"]').disabled = !services.length;
+  form.querySelector('button[value="default"]').disabled = !services.length;
 
   const requests = data.serviceRequests || [];
   document.getElementById("trackingRequestHistory").innerHTML = requests.length ? requests.slice(0, 8).map((item) => `
@@ -173,6 +197,14 @@ function showError(error) {
 }
 
 document.getElementById("refreshButton").addEventListener("click", refreshTracking);
+document.getElementById("openTrackingRequestDialog").addEventListener("click", () => {
+  renderRequestArea(trackingData || {});
+  document.getElementById("trackingRequestDialog").showModal();
+  setTimeout(() => document.querySelector('#trackingRequestForm select[name="serviceId"]').focus(), 0);
+});
+document.querySelector("[data-close-tracking-request]").addEventListener("click", () => {
+  document.getElementById("trackingRequestDialog").close();
+});
 document.getElementById("trackingRequestForm").addEventListener("change", (event) => {
   if (event.target.name !== "serviceId" || !trackingData) return;
   const service = (trackingData.requestServices || []).find((item) => item.id === event.target.value);
@@ -198,7 +230,7 @@ document.getElementById("trackingRequestForm").addEventListener("submit", async 
   event.preventDefault();
   const form = event.currentTarget;
   const message = document.getElementById("trackingRequestMessage");
-  const button = form.querySelector('button[type="submit"]');
+  const button = form.querySelector('button[value="default"]');
   const accessCode = sessionStorage.getItem(trackingTokenKey);
   button.disabled = true;
   message.textContent = "Enviando pedido...";

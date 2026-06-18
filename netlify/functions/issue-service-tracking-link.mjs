@@ -11,7 +11,7 @@ export default async (request) => {
 
   try {
     await requireAdmin(request);
-    const { clientId, startDate, endDate, validDays = 30 } = await request.json();
+    const { clientId, startDate, endDate, validDays = 30, allowRequests = false } = await request.json();
     const days = Math.min(90, Math.max(1, Number(validDays) || 30));
     if (!clientId || !startDate || !endDate) {
       return json(400, { error: "Cliente e período são obrigatórios." });
@@ -28,22 +28,38 @@ export default async (request) => {
 
     const accessCode = randomAccessCode();
     const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
-    await supabase("/rest/v1/service_tracking_links", {
-      method: "POST",
-      prefer: "return=minimal",
-      body: JSON.stringify({
-        client_id: clientId,
-        token_hash: accessCodeHash(accessCode),
-        period_start: startDate,
-        period_end: endDate,
-        expires_at: expiresAt,
-        active: true
-      })
-    });
+    const payload = {
+      client_id: clientId,
+      token_hash: accessCodeHash(accessCode),
+      period_start: startDate,
+      period_end: endDate,
+      expires_at: expiresAt,
+      allow_requests: Boolean(allowRequests),
+      active: true
+    };
+    try {
+      await supabase("/rest/v1/service_tracking_links", {
+        method: "POST",
+        prefer: "return=minimal",
+        body: JSON.stringify(payload)
+      });
+    } catch (error) {
+      if (!/allow_requests|schema cache|Could not find/i.test(error.message || "")) throw error;
+      if (allowRequests) {
+        throw new Error("Execute o SQL service_tracking_links.sql no Supabase antes de liberar pedidos neste link.");
+      }
+      const { allow_requests, ...compatiblePayload } = payload;
+      await supabase("/rest/v1/service_tracking_links", {
+        method: "POST",
+        prefer: "return=minimal",
+        body: JSON.stringify(compatiblePayload)
+      });
+    }
 
     return json(200, {
       accessCode,
       clientName: clients[0].name,
+      allowRequests: Boolean(allowRequests),
       expiresAt
     });
   } catch (error) {
