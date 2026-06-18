@@ -26,6 +26,8 @@ button { cursor: pointer; }
 .brand-lockup { display: flex; align-items: center; gap: 14px; }
 .brand-lockup img { width: 54px; height: 54px; border-radius: 16px; box-shadow: 0 12px 28px rgba(0,0,0,.2); }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
+.sound-alert-button { padding: 11px 14px; border: 1px solid rgba(255,255,255,.26); border-radius: 12px; background: rgba(255,255,255,.08); color: white; font-weight: 750; }
+.sound-alert-button.active { border-color: #f0b55f; background: var(--accent); color: #241b0d; }
 .notification-button { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid rgba(255,255,255,.26); border-radius: 12px; background: transparent; color: white; font-weight: 750; }
 .notification-button.has-alerts { border-color: #f0b55f; background: rgba(216,155,69,.18); }
 .notification-button span { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #241b0d; font-size: 11px; }

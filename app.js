@@ -1,5 +1,6 @@
 const STORAGE_KEY = "gestor-servicos-v1";
 const ALERT_MESSAGES_KEY = "gestor-servicos-alert-messages-v1";
+const SOUND_ALERTS_KEY = "gestor-servicos-sound-alerts-v1";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 
@@ -43,6 +44,8 @@ let dashboardPeriod = null;
 let remoteRefreshInProgress = false;
 let knownPendingRequestIds = new Set();
 let alertMessages = loadAlertMessages();
+let soundAlertsEnabled = localStorage.getItem(SOUND_ALERTS_KEY) === "true";
+let alertAudioContext = null;
 
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -144,7 +147,45 @@ function notifyNewClientRequests(nextState) {
   knownPendingRequestIds = pendingIds;
   if (newItems.length) {
     showToast(`${newItems.length} novo(s) pedido(s) recebido(s) de cliente.`);
+    notifyAttention();
   }
+}
+
+function updateSoundAlertButton() {
+  const button = document.getElementById("soundAlertButton");
+  if (!button) return;
+  button.textContent = soundAlertsEnabled ? "Alertas sonoros ON" : "Ativar som";
+  button.classList.toggle("active", soundAlertsEnabled);
+  button.setAttribute("aria-pressed", String(soundAlertsEnabled));
+}
+
+async function enableAlertAudio() {
+  alertAudioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+  if (alertAudioContext.state === "suspended") await alertAudioContext.resume();
+}
+
+function playAlertTone() {
+  if (!soundAlertsEnabled || !("AudioContext" in window || "webkitAudioContext" in window)) return;
+  try {
+    enableAlertAudio().then(() => {
+      const oscillator = alertAudioContext.createOscillator();
+      const gain = alertAudioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, alertAudioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.12, alertAudioContext.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, alertAudioContext.currentTime + 0.45);
+      oscillator.connect(gain);
+      gain.connect(alertAudioContext.destination);
+      oscillator.start();
+      oscillator.stop(alertAudioContext.currentTime + 0.5);
+    }).catch(() => {});
+  } catch {}
+}
+
+function notifyAttention() {
+  if (navigator.vibrate) navigator.vibrate([180, 80, 180]);
+  playAlertTone();
 }
 
 function showToast(message) {
@@ -1991,6 +2032,20 @@ document.addEventListener("click", async (event) => {
   const dashboardTab = event.target.closest("[data-dashboard-tab]");
   const dashboardPeriodButton = event.target.closest("[data-dashboard-period]");
   const dashboardMonthButton = event.target.closest("[data-dashboard-month]");
+  const soundAlertButton = event.target.closest("#soundAlertButton");
+  if (soundAlertButton) {
+    soundAlertsEnabled = !soundAlertsEnabled;
+    localStorage.setItem(SOUND_ALERTS_KEY, String(soundAlertsEnabled));
+    if (soundAlertsEnabled) {
+      await enableAlertAudio().catch(() => {});
+      notifyAttention();
+      showToast("Alertas sonoros ativados neste aparelho.");
+    } else {
+      showToast("Alertas sonoros desativados neste aparelho.");
+    }
+    updateSoundAlertButton();
+    return;
+  }
   if (dashboardTab) {
     activeDashboardTab = dashboardTab.dataset.dashboardTab;
     renderDashboardV2();
@@ -3142,8 +3197,9 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=42").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=43").then((registration) => registration.update());
 }
+updateSoundAlertButton();
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
 window.addEventListener("focus", refreshRemoteState);
