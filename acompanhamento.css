@@ -45,6 +45,9 @@ label { display:grid; gap:6px; color:var(--muted); font-size:12px; font-weight:7
 .section-title { display:flex; justify-content:space-between; align-items:center; gap:15px; margin-bottom:10px; }
 .section-title h3 { margin:0; }
 .section-title span { color:var(--muted); font-size:12px; }
+.tracking-search { margin:0 0 12px; }
+.tracking-search input { border-color:#cbd8d3; background:#fbfcfa; font-weight:750; }
+.tracking-search input:focus { outline:2px solid rgba(216,155,69,.25); border-color:#d89b45; }
 .tracking-list { display:grid; gap:8px; }
 .tracking-item { display:grid; grid-template-columns:90px minmax(0,1fr) auto; gap:14px; align-items:center; padding:14px; border:1px solid var(--line); border-left:5px solid var(--status-color); border-radius:14px; background:#fff; }
 .tracking-item:first-child { border-top:0; }

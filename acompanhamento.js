@@ -23,6 +23,13 @@ function amountText(value) {
   return trackingData?.showAmounts === false ? "Valor sob consulta" : money.format(Number(value || 0));
 }
 
+function searchableText(...values) {
+  return values.join(" ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 async function requestData(accessCode) {
   const response = await fetch("/.netlify/functions/service-tracking-data", {
     method: "POST",
@@ -109,7 +116,7 @@ function render(data) {
   document.getElementById("clientName").textContent = data.client.name;
   document.getElementById("periodText").textContent = `${formatDate(data.period.startDate)} a ${formatDate(data.period.endDate)}`;
   document.getElementById("updatedAt").textContent = new Date(data.updatedAt).toLocaleString("pt-BR");
-  document.getElementById("serviceCount").textContent = `${services.length} servico(s)`;
+  const search = searchableText(document.getElementById("trackingServiceSearch")?.value || "");
   document.getElementById("expiryText").textContent = `Link valido ate ${new Date(data.expiresAt).toLocaleString("pt-BR")}.`;
   document.getElementById("trackingSummary").innerHTML = `
     <article class="summary-item summary-pending"><span>A fazer</span><strong>${counts.pending}</strong><small>${amountText(values.pending)}</small></article>
@@ -117,7 +124,20 @@ function render(data) {
     <article class="summary-item summary-delivered"><span>Entregues</span><strong>${counts.delivered}</strong><small>${amountText(values.delivered)}</small></article>
     <article class="summary-item summary-total"><span>Total do periodo</span><strong>${trackingData?.showAmounts === false ? services.length : amountText(total)}</strong><small>${services.length} servico(s)</small></article>`;
   renderCharts(services, counts);
-  const serviceGroups = groupedServices(services);
+  const serviceGroups = groupedServices(services).filter(({ primary, secondaries }) => {
+    if (!search) return true;
+    const status = statusData(primary.status);
+    return searchableText(
+      primary.service_name,
+      primary.reference,
+      primary.status,
+      status.label,
+      ...secondaries.flatMap((item) => [item.service_name, item.reference, item.status])
+    ).includes(search);
+  });
+  document.getElementById("serviceCount").textContent = search
+    ? `${serviceGroups.length} de ${services.length} servico(s)`
+    : `${services.length} servico(s)`;
   document.getElementById("serviceList").innerHTML = serviceGroups.length ? serviceGroups.map(({ primary, secondaries }) => {
     const item = primary;
     const status = statusData(item.status);
@@ -201,6 +221,9 @@ function showError(error) {
 }
 
 document.getElementById("refreshButton").addEventListener("click", refreshTracking);
+document.getElementById("trackingServiceSearch")?.addEventListener("input", () => {
+  if (trackingData) render(trackingData);
+});
 document.getElementById("openTrackingRequestDialog").addEventListener("click", () => {
   renderRequestArea(trackingData || {});
   document.getElementById("trackingRequestDialog").showModal();

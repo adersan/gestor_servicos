@@ -3142,7 +3142,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=41").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=42").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
