@@ -42,7 +42,7 @@ let entryContinuationResolver = null;
 let activeDashboardTab = "services";
 let dashboardPeriod = null;
 let remoteRefreshInProgress = false;
-let knownPendingRequestIds = new Set();
+let knownPendingRequestIds = null;
 let alertMessages = loadAlertMessages();
 let soundAlertsEnabled = localStorage.getItem(SOUND_ALERTS_KEY) === "true";
 let alertAudioContext = null;
@@ -139,7 +139,7 @@ async function refreshRemoteState() {
 function notifyNewClientRequests(nextState) {
   const pending = (nextState.serviceRequests || []).filter((item) => item.status === "Novo");
   const pendingIds = new Set(pending.map((item) => item.id));
-  if (!knownPendingRequestIds.size) {
+  if (!knownPendingRequestIds) {
     knownPendingRequestIds = pendingIds;
     return;
   }
@@ -154,9 +154,10 @@ function notifyNewClientRequests(nextState) {
 function updateSoundAlertButton() {
   const button = document.getElementById("soundAlertButton");
   if (!button) return;
-  button.textContent = soundAlertsEnabled ? "Alertas sonoros ON" : "Ativar som";
+  button.textContent = soundAlertsEnabled ? "Som on" : "Som";
   button.classList.toggle("active", soundAlertsEnabled);
   button.setAttribute("aria-pressed", String(soundAlertsEnabled));
+  button.title = soundAlertsEnabled ? "Alertas sonoros ativos neste aparelho" : "Ativar alerta sonoro neste aparelho";
 }
 
 async function enableAlertAudio() {
@@ -3197,7 +3198,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=43").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=44").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

@@ -1,15 +1,17 @@
-const CACHE = "gestor-servicos-v43";
+const CACHE = "gestor-servicos-v44";
 const ASSETS = [
   "./",
   "index.html",
   "cliente.html",
   "logo.svg",
-  "styles.css?v=36",
+  "icon-192.png",
+  "icon-512.png",
+  "styles.css?v=37",
   "cliente.css?v=18",
   "config.js?v=30",
   "auth.js?v=30",
   "data.js?v=34",
-  "app.js?v=37",
+  "app.js?v=38",
   "supplier.js?v=32",
   "fornecedor.html",
   "fornecedor.css?v=19",
@@ -18,7 +20,7 @@ const ASSETS = [
   "acompanhamento.html",
   "acompanhamento.css?v=18",
   "acompanhamento.js?v=18",
-  "manifest.webmanifest"
+  "manifest.webmanifest?v=2"
 ];
 
 self.addEventListener("install", (event) => {
