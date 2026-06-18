@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=39">
+  <link rel="stylesheet" href="styles.css?v=40">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -39,17 +39,11 @@
     </div>
   </header>
 
-  <nav class="tabs" aria-label="Navegação principal">
+  <nav class="tabs" aria-label="Navegacao principal">
     <button class="tab active" data-view="dashboard">Resumo</button>
     <button class="tab" data-view="clients">Clientes</button>
-    <button class="tab" data-view="tables">Tabelas</button>
-    <button class="tab" data-view="catalog">Serviços</button>
-    <button class="tab" data-view="services">Lançamentos</button>
-    <button class="tab" data-view="requests">Pedidos</button>
-    <button class="tab" data-view="payments">Pagamentos</button>
-    <button class="tab" data-view="paymentMethods">Formas de pagamento</button>
-    <button class="tab" data-view="billing">Cobranças</button>
     <button class="tab" data-view="suppliers">Fornecedores</button>
+    <button class="tab" data-view="settings">Configuracoes</button>
     <button class="tab" data-view="help">Ajuda</button>
   </nav>
 
@@ -143,15 +137,21 @@
         </section>
       </section>
 
-      <div class="quick-actions">
-        <button data-dialog="clientDialog"><strong>+ Cliente</strong><span>Novo cadastro</span></button>
-        <button data-dialog="serviceDialog"><strong>+ Serviço</strong><span>Novo lançamento</span></button>
-        <button data-dialog="paymentDialog"><strong>+ Pagamento</strong><span>Registrar baixa</span></button>
-        <button data-dialog="billingDialog"><strong>+ Cobrança</strong><span>Fechar período</span></button>
+      <div class="quick-actions dashboard-actions">
+        <button data-dialog="serviceDialog"><strong>Novo lancamento</strong><span>Registrar servico do cliente</span></button>
+        <button data-open-view="suppliers"><strong>Fornecedores</strong><span>Custos, servicos e pagamentos</span></button>
+        <button data-dialog="paymentDialog"><strong>Pagamentos</strong><span>Registrar baixa ou parcial</span></button>
       </div>
     </section>
 
     <section id="clients" class="view">
+      <div class="client-area-tabs" role="tablist">
+        <button class="active" type="button" data-client-view="clients">Cadastro</button>
+        <button class="" type="button" data-client-view="catalog">Servicos</button>
+        <button class="" type="button" data-client-view="services">Lancamento</button>
+        <button class="" type="button" data-client-view="requests">Pedido on-line</button>
+        <button class="" type="button" data-client-view="payments">Financeiro</button>
+      </div>
       <div class="section-heading">
         <div><span class="eyebrow">Cadastro</span><h2>Clientes</h2></div>
         <button class="primary" data-dialog="clientDialog">Adicionar cliente</button>
@@ -162,18 +162,26 @@
       <div id="clientList" class="card-grid"></div>
     </section>
 
-    <section id="tables" class="view">
-      <div class="section-heading">
-        <div><span class="eyebrow">Grupos de preço</span><h2>Tabelas</h2></div>
-        <button class="primary" data-dialog="priceTableDialog">Adicionar tabela</button>
-      </div>
-      <div class="filters filters-compact">
-        <input id="priceTableSearch" type="search" placeholder="Buscar tabela de preço">
-      </div>
-      <div id="priceTableList" class="card-grid"></div>
-    </section>
-
     <section id="catalog" class="view">
+      <div class="client-area-tabs" role="tablist">
+        <button type="button" data-client-view="clients">Cadastro</button>
+        <button class="active" type="button" data-client-view="catalog">Servicos</button>
+        <button type="button" data-client-view="services">Lancamento</button>
+        <button type="button" data-client-view="requests">Pedido on-line</button>
+        <button type="button" data-client-view="payments">Financeiro</button>
+      </div>
+      <div class="client-services-layout">
+        <section class="panel client-service-panel">
+          <div class="section-heading compact-heading">
+            <div><span class="eyebrow">Grupos de preco</span><h2>Tabelas</h2></div>
+            <button class="primary" data-dialog="priceTableDialog">Adicionar tabela</button>
+          </div>
+          <div class="filters filters-compact">
+            <input id="priceTableSearch" type="search" placeholder="Buscar tabela de preco">
+          </div>
+          <div id="priceTableList" class="card-grid"></div>
+        </section>
+        <section class="panel client-service-panel">
       <div class="section-heading">
         <div><span class="eyebrow">Catálogo</span><h2>Serviços</h2></div>
         <button class="primary" data-dialog="catalogDialog">Adicionar serviço</button>
@@ -183,9 +191,18 @@
         <input id="catalogSearch" type="search" placeholder="Buscar nome do serviço">
       </div>
       <div id="catalogTable"></div>
+        </section>
+      </div>
     </section>
 
     <section id="services" class="view">
+      <div class="client-area-tabs" role="tablist">
+        <button type="button" data-client-view="clients">Cadastro</button>
+        <button type="button" data-client-view="catalog">Servicos</button>
+        <button class="active" type="button" data-client-view="services">Lancamento</button>
+        <button type="button" data-client-view="requests">Pedido on-line</button>
+        <button type="button" data-client-view="payments">Financeiro</button>
+      </div>
       <div class="section-heading">
         <div><span class="eyebrow">Movimento diário</span><h2>Lançamentos</h2></div>
         <div class="heading-actions">
@@ -210,6 +227,13 @@
     </section>
 
     <section id="requests" class="view">
+      <div class="client-area-tabs" role="tablist">
+        <button type="button" data-client-view="clients">Cadastro</button>
+        <button type="button" data-client-view="catalog">Servicos</button>
+        <button type="button" data-client-view="services">Lancamento</button>
+        <button class="active" type="button" data-client-view="requests">Pedido on-line</button>
+        <button type="button" data-client-view="payments">Financeiro</button>
+      </div>
       <div class="section-heading">
         <div><span class="eyebrow">Entrada do cliente</span><h2>Pedidos recebidos</h2></div>
         <button class="secondary" data-open-view="services">Ir para lançamentos</button>
@@ -228,6 +252,18 @@
     </section>
 
     <section id="payments" class="view">
+      <div class="client-area-tabs" role="tablist">
+        <button type="button" data-client-view="clients">Cadastro</button>
+        <button type="button" data-client-view="catalog">Servicos</button>
+        <button type="button" data-client-view="services">Lancamento</button>
+        <button type="button" data-client-view="requests">Pedido on-line</button>
+        <button class="active" type="button" data-client-view="payments">Financeiro</button>
+      </div>
+      <div class="finance-area-tabs" role="tablist">
+        <button class="active" type="button" data-client-view="payments">Pagamentos</button>
+        <button type="button" data-client-view="paymentMethods">Formas de pagamento</button>
+        <button type="button" data-client-view="billing">Cobrancas</button>
+      </div>
       <div class="section-heading">
         <div><span class="eyebrow">Baixas</span><h2>Pagamentos</h2></div>
         <button class="primary" data-dialog="paymentDialog">Registrar pagamento</button>
@@ -253,6 +289,18 @@
     </section>
 
     <section id="paymentMethods" class="view">
+      <div class="client-area-tabs" role="tablist">
+        <button class="" type="button" data-client-view="clients">Cadastro</button>
+        <button class="" type="button" data-client-view="catalog">Servicos</button>
+        <button class="" type="button" data-client-view="services">Lancamento</button>
+        <button class="" type="button" data-client-view="requests">Pedido on-line</button>
+        <button class="active" type="button" data-client-view="payments">Financeiro</button>
+      </div>
+      <div class="finance-area-tabs" role="tablist">
+        <button class="" type="button" data-client-view="payments">Pagamentos</button>
+        <button class="active" type="button" data-client-view="paymentMethods">Formas de pagamento</button>
+        <button class="" type="button" data-client-view="billing">Cobrancas</button>
+      </div>
       <div class="section-heading">
         <div><span class="eyebrow">Recebimento</span><h2>Formas de pagamento</h2></div>
         <button class="primary" data-dialog="paymentMethodDialog">Adicionar forma</button>
@@ -270,6 +318,18 @@
     </section>
 
     <section id="billing" class="view">
+      <div class="client-area-tabs" role="tablist">
+        <button type="button" data-client-view="clients">Cadastro</button>
+        <button type="button" data-client-view="catalog">Servicos</button>
+        <button type="button" data-client-view="services">Lancamento</button>
+        <button type="button" data-client-view="requests">Pedido on-line</button>
+        <button class="active" type="button" data-client-view="payments">Financeiro</button>
+      </div>
+      <div class="finance-area-tabs" role="tablist">
+        <button type="button" data-client-view="payments">Pagamentos</button>
+        <button type="button" data-client-view="paymentMethods">Formas de pagamento</button>
+        <button class="active" type="button" data-client-view="billing">Cobrancas</button>
+      </div>
       <div class="section-heading">
         <div><span class="eyebrow">Fechamento flexível</span><h2>Cobranças</h2></div>
         <button class="primary" data-dialog="billingDialog">Gerar cobrança</button>
@@ -350,6 +410,34 @@
           <p class="meta">Gere um link somente leitura ou autorize o fornecedor a lançar e alterar os próprios serviços no período.</p>
           <button class="primary" type="button" data-supplier-action="access">Gerar link</button>
         </section>
+      </div>
+    </section>
+
+    <section id="settings" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Preferencias</span><h2>Configuracoes</h2><p class="meta">Central para os padroes gerais do sistema.</p></div>
+      </div>
+      <div class="settings-grid">
+        <article class="panel settings-card">
+          <span class="eyebrow">Semana operacional</span>
+          <h3>Periodo padrao</h3>
+          <p class="meta">Hoje o sistema usa domingo a sexta como padrao. Em breve este ajuste podera controlar os filtros semanais.</p>
+          <div class="date-pair">
+            <label>Comeca em<select disabled><option>Domingo</option></select></label>
+            <label>Termina em<select disabled><option>Sexta-feira</option></select></label>
+          </div>
+        </article>
+        <article class="panel settings-card">
+          <span class="eyebrow">Alertas</span>
+          <h3>Som e notificacoes</h3>
+          <p class="meta">Use o botao Som no topo para ativar alertas neste aparelho. Aqui ficarao os padroes globais.</p>
+          <button class="table-action" type="button" id="settingsSoundShortcut">Usar botao Som do topo</button>
+        </article>
+        <article class="panel settings-card">
+          <span class="eyebrow">Sistema</span>
+          <h3>Outras configuracoes</h3>
+          <p class="meta">Reservado para WhatsApp oficial, mensagens, automacoes e prefer?ncias futuras.</p>
+        </article>
       </div>
     </section>
 
@@ -854,7 +942,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=34"></script>
-  <script src="app.js?v=42"></script>
+  <script src="app.js?v=43"></script>
   <script src="supplier.js?v=33"></script>
 </body>
 </html>

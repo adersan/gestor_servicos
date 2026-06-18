@@ -389,7 +389,14 @@ function dashboardNotifications() {
 function showView(viewId) {
   document.querySelectorAll(".view, .tab").forEach((element) => element.classList.remove("active"));
   document.getElementById(viewId).classList.add("active");
-  document.querySelector(`[data-view="${viewId}"]`).classList.add("active");
+  const clientViews = ["clients", "catalog", "services", "requests", "payments", "paymentMethods", "billing"];
+  const mainView = clientViews.includes(viewId) ? "clients" : viewId;
+  document.querySelector(`[data-view="${mainView}"]`)?.classList.add("active");
+  document.querySelectorAll("[data-client-view]").forEach((button) => {
+    const target = button.dataset.clientView;
+    const active = target === viewId || (target === "payments" && ["payments", "paymentMethods", "billing"].includes(viewId));
+    button.classList.toggle("active", active);
+  });
 }
 
 function emptyMarkup() {
@@ -2056,12 +2063,13 @@ async function pollApiBrasilWhatsApp(onUpdate) {
 
 document.addEventListener("click", async (event) => {
   const tab = event.target.closest("[data-view]");
+  const clientTab = event.target.closest("[data-client-view]");
   const opener = event.target.closest("[data-open-view]");
   const dialogButton = event.target.closest("[data-dialog]");
   const dashboardTab = event.target.closest("[data-dashboard-tab]");
   const dashboardPeriodButton = event.target.closest("[data-dashboard-period]");
   const dashboardMonthButton = event.target.closest("[data-dashboard-month]");
-  const soundAlertButton = event.target.closest("#soundAlertButton");
+  const soundAlertButton = event.target.closest("#soundAlertButton, #settingsSoundShortcut");
   if (soundAlertButton) {
     soundAlertsEnabled = !soundAlertsEnabled;
     localStorage.setItem(SOUND_ALERTS_KEY, String(soundAlertsEnabled));
@@ -2078,6 +2086,10 @@ document.addEventListener("click", async (event) => {
   if (dashboardTab) {
     activeDashboardTab = dashboardTab.dataset.dashboardTab;
     renderDashboardV2();
+  }
+  if (clientTab) {
+    showView(clientTab.dataset.clientView);
+    return;
   }
   if (dashboardPeriodButton) {
     dashboardPeriod = dashboardPeriodButton.dataset.dashboardPeriod === "week"
@@ -3236,7 +3248,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=48").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=49").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
