@@ -12,14 +12,15 @@ export default async (request) => {
     let links;
     try {
       links = await supabase(
-        `/rest/v1/service_tracking_links?token_hash=eq.${accessCodeHash(accessCode)}&active=eq.true&select=id,client_id,period_start,period_end,expires_at,allow_requests&limit=1`
+        `/rest/v1/service_tracking_links?token_hash=eq.${accessCodeHash(accessCode)}&active=eq.true&select=id,client_id,period_start,period_end,expires_at,allow_requests,show_amounts&limit=1`
       );
     } catch (error) {
-      if (!/allow_requests|schema cache|Could not find/i.test(error.message || "")) throw error;
+      if (!/allow_requests|show_amounts|schema cache|Could not find/i.test(error.message || "")) throw error;
       links = await supabase(
         `/rest/v1/service_tracking_links?token_hash=eq.${accessCodeHash(accessCode)}&active=eq.true&select=id,client_id,period_start,period_end,expires_at&limit=1`
       );
       if (links[0]) links[0].allow_requests = false;
+      if (links[0]) links[0].show_amounts = true;
     }
     const link = links[0];
     if (!link || new Date(link.expires_at) <= new Date()) {
@@ -58,6 +59,7 @@ export default async (request) => {
       period: { startDate: link.period_start, endDate: link.period_end },
       expiresAt: link.expires_at,
       allowRequests: Boolean(link.allow_requests),
+      showAmounts: link.show_amounts !== false,
       updatedAt: new Date().toISOString(),
       services,
       requestServices: requestCatalog

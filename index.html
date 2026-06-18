@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=33">
+  <link rel="stylesheet" href="styles.css?v=34">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -605,6 +605,10 @@
         <input name="allowRequests" type="checkbox">
         Permitir que o cliente envie novos pedidos por este link
       </label>
+      <label class="checkbox-label">
+        <input name="showAmounts" type="checkbox" checked>
+        Exibir valores dos servicos neste link
+      </label>
       <p class="hint">Um novo link para o mesmo cliente e período invalidará o anterior.</p>
       <div class="dialog-form-actions">
         <button class="secondary" type="button" data-close-dialog>Cancelar</button>
@@ -808,6 +812,7 @@
       <button class="secondary full" type="button" data-close-dialog>Cancelar</button>
     </div>
   </dialog>
+  <div id="appToast" class="app-toast hidden" aria-live="polite"></div>
 
   <dialog id="whatsappDialog">
     <form id="whatsappForm">
@@ -843,7 +848,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=31"></script>
-  <script src="app.js?v=33"></script>
+  <script src="app.js?v=34"></script>
   <script src="supplier.js?v=32"></script>
 </body>
 </html>

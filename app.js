@@ -40,6 +40,7 @@ let entryContinuationResolver = null;
 let activeDashboardTab = "services";
 let dashboardPeriod = null;
 let remoteRefreshInProgress = false;
+let knownPendingRequestIds = new Set();
 
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -90,6 +91,7 @@ async function initializeRemoteState() {
     }
 
     remoteReady = true;
+    knownPendingRequestIds = new Set((state.serviceRequests || []).filter((item) => item.status === "Novo").map((item) => item.id));
     render();
   } catch (error) {
     console.error("Falha ao carregar dados do Supabase:", error.code, error.message);
@@ -106,6 +108,7 @@ async function refreshRemoteState() {
   remoteRefreshInProgress = true;
   try {
     const remoteState = await window.dataStore.fetchAll();
+    notifyNewClientRequests(remoteState);
     state = remoteState;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     render();
@@ -114,6 +117,29 @@ async function refreshRemoteState() {
   } finally {
     remoteRefreshInProgress = false;
   }
+}
+
+function notifyNewClientRequests(nextState) {
+  const pending = (nextState.serviceRequests || []).filter((item) => item.status === "Novo");
+  const pendingIds = new Set(pending.map((item) => item.id));
+  if (!knownPendingRequestIds.size) {
+    knownPendingRequestIds = pendingIds;
+    return;
+  }
+  const newItems = pending.filter((item) => !knownPendingRequestIds.has(item.id));
+  knownPendingRequestIds = pendingIds;
+  if (newItems.length) {
+    showToast(`${newItems.length} novo(s) pedido(s) recebido(s) de cliente.`);
+  }
+}
+
+function showToast(message) {
+  const toast = document.getElementById("appToast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.remove("hidden");
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.add("hidden"), 6000);
 }
 
 window.persistStateNow = persistStateNow;
@@ -2532,7 +2558,7 @@ document.getElementById("cancelServiceForm").addEventListener("submit", (event) 
       .filter((item) => item.id !== entry.id && item.isSecondary && item.status !== "Cancelado")
       .forEach((item) => {
         item.status = "Entregue";
-        item.notes = "Serviço de origem cancelado";
+        item.notes = `Servi\u00E7o de origem cancelado. Origem cancelada motivo: ${reason}`;
         item.deliveredAt = item.deliveredAt || now;
         item.deliverySource = item.deliverySource || "Administrador";
         item.updatedAt = now;
@@ -2649,7 +2675,8 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
         startDate: form.elements.startDate.value,
         endDate: form.elements.endDate.value,
         validDays: Number(form.elements.validDays.value),
-        allowRequests: form.elements.allowRequests.checked
+        allowRequests: form.elements.allowRequests.checked,
+        showAmounts: form.elements.showAmounts.checked
       })
     });
     const result = await response.json().catch(() => ({}));
@@ -3009,7 +3036,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=35").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=38").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);
@@ -3018,4 +3045,4 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshRemoteState();
   else window.dataStore?.flushSave?.();
 });
-setInterval(refreshRemoteState, 20000);
+setInterval(refreshRemoteState, 8000);

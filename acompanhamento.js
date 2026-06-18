@@ -19,6 +19,10 @@ function statusData(status) {
   return { label: "A fazer", className: "pending" };
 }
 
+function amountText(value) {
+  return trackingData?.showAmounts === false ? "Valor sob consulta" : money.format(Number(value || 0));
+}
+
 async function requestData(accessCode) {
   const response = await fetch("/.netlify/functions/service-tracking-data", {
     method: "POST",
@@ -108,10 +112,10 @@ function render(data) {
   document.getElementById("serviceCount").textContent = `${services.length} servico(s)`;
   document.getElementById("expiryText").textContent = `Link valido ate ${new Date(data.expiresAt).toLocaleString("pt-BR")}.`;
   document.getElementById("trackingSummary").innerHTML = `
-    <article class="summary-item summary-pending"><span>A fazer</span><strong>${counts.pending}</strong><small>${money.format(values.pending)}</small></article>
-    <article class="summary-item summary-done"><span>Feitos</span><strong>${counts.done}</strong><small>${money.format(values.done)}</small></article>
-    <article class="summary-item summary-delivered"><span>Entregues</span><strong>${counts.delivered}</strong><small>${money.format(values.delivered)}</small></article>
-    <article class="summary-item summary-total"><span>Total do periodo</span><strong>${money.format(total)}</strong><small>${services.length} servico(s)</small></article>`;
+    <article class="summary-item summary-pending"><span>A fazer</span><strong>${counts.pending}</strong><small>${amountText(values.pending)}</small></article>
+    <article class="summary-item summary-done"><span>Feitos</span><strong>${counts.done}</strong><small>${amountText(values.done)}</small></article>
+    <article class="summary-item summary-delivered"><span>Entregues</span><strong>${counts.delivered}</strong><small>${amountText(values.delivered)}</small></article>
+    <article class="summary-item summary-total"><span>Total do periodo</span><strong>${trackingData?.showAmounts === false ? services.length : amountText(total)}</strong><small>${services.length} servico(s)</small></article>`;
   renderCharts(services, counts);
   const serviceGroups = groupedServices(services);
   document.getElementById("serviceList").innerHTML = serviceGroups.length ? serviceGroups.map(({ primary, secondaries }) => {
@@ -122,10 +126,10 @@ function render(data) {
       <time>${formatDate(item.service_date)}</time>
       <div>
         <h4>${escapeHtml(item.service_name)}${secondaries.length ? `<span class="secondary-label">+ ${secondaries.length} complementar(es)</span>` : ""}</h4>
-        ${secondaries.length ? `<div class="tracking-complement-list">${secondaries.map((secondary) => `<span>${escapeHtml(secondary.service_name)} · ${money.format(Number(secondary.amount))}</span>`).join("")}</div>` : ""}
+        ${secondaries.length ? `<div class="tracking-complement-list">${secondaries.map((secondary) => `<span>${escapeHtml(secondary.service_name)} · ${amountText(secondary.amount)}</span>`).join("")}</div>` : ""}
         <p class="tracking-reference">${escapeHtml(item.reference || "Sem referencia")}</p>
       </div>
-      <div class="tracking-amount"><strong>${money.format(total)}</strong><span class="status status-${status.className}">${status.label}</span></div>
+      <div class="tracking-amount"><strong>${amountText(total)}</strong><span class="status status-${status.className}">${status.label}</span></div>
     </article>`;
   }).join("") : `<p class="tracking-message">Nenhum servico encontrado neste periodo.</p>`;
   renderRequestArea(data);
@@ -147,7 +151,7 @@ function renderRequestArea(data) {
     : `<option value="">Nenhum serviço disponível</option>`;
   if (services.some((service) => service.id === currentService)) form.elements.serviceId.value = currentService;
   const selected = services.find((service) => service.id === form.elements.serviceId.value) || services[0];
-  form.elements.amount.value = money.format(Number(selected?.amount || 0));
+  form.elements.amount.value = data.showAmounts === false ? "Valor sob consulta" : money.format(Number(selected?.amount || 0));
   form.querySelector('button[value="default"]').disabled = !services.length;
 
   const requests = data.serviceRequests || [];
@@ -202,13 +206,16 @@ document.getElementById("openTrackingRequestDialog").addEventListener("click", (
   document.getElementById("trackingRequestDialog").showModal();
   setTimeout(() => document.querySelector('#trackingRequestForm select[name="serviceId"]').focus(), 0);
 });
-document.querySelector("[data-close-tracking-request]").addEventListener("click", () => {
+document.querySelectorAll("[data-close-tracking-request]").forEach((button) => button.addEventListener("click", () => {
+  const form = document.getElementById("trackingRequestForm");
+  form.reset();
+  document.getElementById("trackingRequestMessage").textContent = "";
   document.getElementById("trackingRequestDialog").close();
-});
+}));
 document.getElementById("trackingRequestForm").addEventListener("change", (event) => {
   if (event.target.name !== "serviceId" || !trackingData) return;
   const service = (trackingData.requestServices || []).find((item) => item.id === event.target.value);
-  event.currentTarget.elements.amount.value = money.format(Number(service?.amount || 0));
+  event.currentTarget.elements.amount.value = trackingData.showAmounts === false ? "Valor sob consulta" : money.format(Number(service?.amount || 0));
 });
 document.getElementById("trackingRequestForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
@@ -244,6 +251,7 @@ document.getElementById("trackingRequestForm").addEventListener("submit", async 
     });
     message.textContent = "Pedido enviado com sucesso.";
     form.reset();
+    document.getElementById("trackingRequestDialog").close();
     await refreshTracking();
   } catch (error) {
     message.textContent = error.message;

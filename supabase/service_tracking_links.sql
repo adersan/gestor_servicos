@@ -9,11 +9,15 @@ create table if not exists public.service_tracking_links (
   created_at timestamptz not null default now(),
   last_access_at timestamptz,
   allow_requests boolean not null default false,
+  show_amounts boolean not null default true,
   check (period_end >= period_start)
 );
 
 alter table public.service_tracking_links
   add column if not exists allow_requests boolean not null default false;
+
+alter table public.service_tracking_links
+  add column if not exists show_amounts boolean not null default true;
 
 create index if not exists service_tracking_links_client_period_idx
   on public.service_tracking_links(client_id, period_start, period_end);

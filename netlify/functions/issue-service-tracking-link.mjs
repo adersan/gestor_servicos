@@ -11,7 +11,7 @@ export default async (request) => {
 
   try {
     await requireAdmin(request);
-    const { clientId, startDate, endDate, validDays = 30, allowRequests = false } = await request.json();
+    const { clientId, startDate, endDate, validDays = 30, allowRequests = false, showAmounts = true } = await request.json();
     const days = Math.min(90, Math.max(1, Number(validDays) || 30));
     if (!clientId || !startDate || !endDate) {
       return json(400, { error: "Cliente e período são obrigatórios." });
@@ -35,6 +35,7 @@ export default async (request) => {
       period_end: endDate,
       expires_at: expiresAt,
       allow_requests: Boolean(allowRequests),
+      show_amounts: Boolean(showAmounts),
       active: true
     };
     try {
@@ -44,11 +45,11 @@ export default async (request) => {
         body: JSON.stringify(payload)
       });
     } catch (error) {
-      if (!/allow_requests|schema cache|Could not find/i.test(error.message || "")) throw error;
-      if (allowRequests) {
+      if (!/allow_requests|show_amounts|schema cache|Could not find/i.test(error.message || "")) throw error;
+      if (allowRequests || !showAmounts) {
         throw new Error("Execute o SQL service_tracking_links.sql no Supabase antes de liberar pedidos neste link.");
       }
-      const { allow_requests, ...compatiblePayload } = payload;
+      const { allow_requests, show_amounts, ...compatiblePayload } = payload;
       await supabase("/rest/v1/service_tracking_links", {
         method: "POST",
         prefer: "return=minimal",
@@ -60,6 +61,7 @@ export default async (request) => {
       accessCode,
       clientName: clients[0].name,
       allowRequests: Boolean(allowRequests),
+      showAmounts: Boolean(showAmounts),
       expiresAt
     });
   } catch (error) {
