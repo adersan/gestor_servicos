@@ -46,6 +46,7 @@ let knownPendingRequestIds = null;
 let alertMessages = loadAlertMessages();
 let soundAlertsEnabled = localStorage.getItem(SOUND_ALERTS_KEY) === "true";
 let alertAudioContext = null;
+let currentAdminName = "Administrador";
 
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -223,6 +224,33 @@ function availableAdvancePayments(clientId) {
 
 function serviceStatusLabel(status) {
   return status === "Pronto" ? "Feito" : status;
+}
+
+function adminDisplayName() {
+  return currentAdminName || "Administrador";
+}
+
+function originCancelledNote(item) {
+  const note = String(item?.notes || "");
+  const primary = item?.isSecondary
+    ? state.services.find((service) => service.id === item.primaryEntryId)
+    : null;
+  const reason = note.match(/cancelad[ao] por:\s*(.+)$/i)?.[1]
+    || note.match(/origem cancelada motivo:\s*(.+)$/i)?.[1]
+    || item?.cancellationReason
+    || primary?.cancellationReason
+    || "";
+  if (!reason) return "";
+  const originName = note.match(/^(.+?) cancelad[ao] por:/i)?.[1]
+    || primary?.description
+    || "Serviço de origem";
+  return `${originName} cancelado por ${reason}`;
+}
+
+function deliveredLabel(item) {
+  if (!item?.deliveredAt) return "";
+  const source = item.deliverySource || "Administrador";
+  return `Confirmado pelo ${source}`;
 }
 
 function randomDeliveryCode() {
@@ -889,8 +917,8 @@ function renderServices() {
         <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
         <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
         <p class="meta service-card-context">${escapeHtml(clientById(item.clientId)?.name || "")}</p>
-        ${item.isSecondary && item.notes === "Serviço de origem cancelado" ? `<span class="origin-cancelled-label">Serviço de origem cancelado</span>` : ""}
-        <span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">Confirmado pelo cliente</span>` : ""}${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
+        ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
+        <span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">${escapeHtml(deliveredLabel(item))}</span>` : ""}${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
       </div>
       <strong>${money.format(item.amount)}</strong>
       <div class="service-actions">
@@ -1372,7 +1400,7 @@ function applyServiceStatus(entry, status, changedAt = new Date().toISOString())
     if (item.status === "Pronto" && !item.deliveryCode) item.deliveryCode = randomDeliveryCode();
     if (item.status === "Entregue") {
       item.deliveredAt = changedAt;
-      item.deliverySource = "Administrador";
+      item.deliverySource = adminDisplayName();
     } else {
       item.deliveredAt = null;
       item.deliverySource = "";
@@ -2646,7 +2674,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
           ? (isPrimary ? existingEntry?.deliveredAt : null) || now
           : null,
         deliverySource: data.get("status") === "Entregue"
-          ? (isPrimary ? existingEntry?.deliverySource : "") || "Administrador"
+          ? (isPrimary ? existingEntry?.deliverySource : "") || adminDisplayName()
           : "",
         createdAt: isPrimary ? existingEntry?.createdAt || now : now,
         updatedAt: now
@@ -2716,13 +2744,23 @@ document.getElementById("cancelServiceForm").addEventListener("submit", (event) 
     item.updatedAt = now;
   });
   if (!entry.isSecondary && data.get("cancelComplementary") !== "on") {
-    group
+    const activeComplementaryIds = new Set(group
       .filter((item) => item.id !== entry.id && item.isSecondary && item.status !== "Cancelado")
+      .map((item) => item.id));
+    group
+      .filter((item) => activeComplementaryIds.has(item.id))
       .forEach((item) => {
         item.status = "Entregue";
         item.notes = `${entry.description || "Servi\u00E7o de origem"} cancelado por: ${reason}`;
         item.deliveredAt = item.deliveredAt || now;
-        item.deliverySource = item.deliverySource || "Administrador";
+        item.deliverySource = item.deliverySource || adminDisplayName();
+        item.updatedAt = now;
+      });
+    state.supplierEntries
+      .filter((item) => activeComplementaryIds.has(item.clientServiceEntryId) && item.status !== "Cancelado")
+      .forEach((item) => {
+        item.notes = `${entry.description || "Servi\u00E7o de origem"} cancelado por: ${reason}`;
+        item.lastChangedBy = adminDisplayName();
         item.updatedAt = now;
       });
   }
@@ -3198,11 +3236,18 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=47").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=48").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
-window.addEventListener("app-authenticated", initializeRemoteState);
+window.addEventListener("app-authenticated", (event) => {
+  const user = event.detail?.user;
+  currentAdminName = user?.user_metadata?.name
+    || user?.user_metadata?.full_name
+    || user?.email?.split("@")[0]
+    || "Administrador";
+  initializeRemoteState();
+});
 window.addEventListener("focus", refreshRemoteState);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshRemoteState();

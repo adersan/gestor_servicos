@@ -12,6 +12,20 @@
   const normalized = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const empty = () => `<div class="empty"><strong>Nenhum registro.</strong><span>Use os botões acima para começar.</span></div>`;
 
+  function originCancelledNote(item) {
+    const linkedService = state.services.find((service) => service.id === item?.clientServiceEntryId);
+    const note = String(item?.notes || linkedService?.notes || "");
+    const reason = note.match(/cancelad[ao] por:\s*(.+)$/i)?.[1]
+      || note.match(/origem cancelada motivo:\s*(.+)$/i)?.[1]
+      || item?.cancellationReason
+      || linkedService?.cancellationReason
+      || "";
+    if (!reason) return "";
+    const primary = linkedService?.isSecondary ? state.services.find((service) => service.id === linkedService.primaryEntryId) : null;
+    const originName = note.match(/^(.+?) cancelad[ao] por:/i)?.[1] || primary?.description || "Servico de origem";
+    return `${originName} cancelado por ${reason}`;
+  }
+
   function defaultSupplier() {
     return state.suppliers.find((item) => item.isDefault) || state.suppliers[0];
   }
@@ -161,6 +175,7 @@
           <span class="eyebrow">${escapeHtml(supplierById(item.supplierId)?.name || "")}</span>
           <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
           <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
+          ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
           <p class="meta service-card-context">${item.clientId ? escapeHtml(clientName(item.clientId)) : "Sem cliente vinculado"} · ${escapeHtml(item.source)}</p>
           ${item.lastChangedBy === "Fornecedor" ? `<span class="supplier-change-label">Alterado pelo fornecedor</span>` : ""}
           ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Custo anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
