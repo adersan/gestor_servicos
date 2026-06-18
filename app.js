@@ -2045,6 +2045,15 @@ document.addEventListener("click", async (event) => {
     if (request && confirm("Cancelar este pedido recebido do cliente?")) {
       request.status = "Cancelado";
       request.updatedAt = new Date().toISOString();
+      try {
+        await window.dataStore?.updateClientServiceRequest?.(request.id, {
+          status: "Cancelado",
+          updated_at: request.updatedAt
+        });
+      } catch (error) {
+        console.error(error);
+        alert("O pedido foi cancelado nesta tela, mas nao foi possivel atualizar no banco agora.");
+      }
       saveState();
     }
     return;
@@ -2605,16 +2614,15 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     window.supplierModule?.createForClientEntries(createdEntries, supplierSelection);
   }
   try {
-    await persistStateNow();
     if (sourceRequest && !existingEntry) {
-      const result = await window.dataStore?.updateClientServiceRequest?.(sourceRequest.id, {
+      await window.dataStore?.updateClientServiceRequest?.(sourceRequest.id, {
         status: "Importado",
         imported_entry_ids: sourceRequest.importedEntryIds,
         imported_at: sourceRequest.importedAt,
         updated_at: sourceRequest.updatedAt
       });
-      if (result?.error) throw result.error;
     }
+    await persistStateNow();
     render();
   } catch (error) {
     console.error("Falha ao sincronizar o lançamento:", error);
@@ -3134,7 +3142,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=40").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=41").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);

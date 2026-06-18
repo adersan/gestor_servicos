@@ -462,7 +462,7 @@
       }));
       const result = await client.from("client_service_requests").upsert(rows, { onConflict: "id" });
       if (result.error && !/client_service_requests|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
-        throw result.error;
+        console.warn("Falha ao sincronizar pedidos recebidos:", result.error.message || result.error);
       }
     }
 
@@ -535,14 +535,30 @@
     return upsertState(state);
   }
 
-  function deleteClientServiceRequest(id) {
+  async function requestAdminClientServiceRequest(method, body) {
     const client = requireClient();
-    return client.from("client_service_requests").delete().eq("id", id);
+    const session = await client.auth.getSession();
+    const accessToken = session.data.session?.access_token;
+    if (!accessToken) throw new Error("Sessao administrativa expirada.");
+    const response = await fetch("/.netlify/functions/admin-client-service-requests", {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(body)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Nao foi possivel atualizar o pedido.");
+    return result;
+  }
+
+  function deleteClientServiceRequest(id) {
+    return requestAdminClientServiceRequest("DELETE", { id });
   }
 
   function updateClientServiceRequest(id, values) {
-    const client = requireClient();
-    return client.from("client_service_requests").update(values).eq("id", id);
+    return requestAdminClientServiceRequest("PATCH", { id, values });
   }
 
   window.dataStore = {
