@@ -48,6 +48,23 @@ function complementaryLabel(item) {
     : "";
 }
 
+function originCancelledNote(item, primary = null) {
+  const note = String(item.notes || "");
+  const reason = note.match(/cancelad[ao] por:\s*(.+)$/i)?.[1]
+    || note.match(/origem cancelada motivo:\s*(.+)$/i)?.[1]
+    || item.cancellation_reason
+    || primary?.cancellation_reason
+    || "";
+  if (!reason) return "";
+  const originName = primary?.status === "Cancelado"
+    ? primary.service_name
+    : note.match(/^(.+?) cancelad[ao] por:/i)?.[1];
+  const message = originName
+    ? `${originName} cancelado por ${reason}`
+    : `Servico de origem cancelado por ${reason}`;
+  return `<em class="client-origin-cancelled-note">${escapeHtml(message)}</em>`;
+}
+
 function groupPortalServices(services) {
   const byId = new Map(services.map((item) => [item.id, { primary: item, secondaries: [] }]));
   const groups = [];
@@ -63,7 +80,7 @@ function groupPortalServices(services) {
 }
 
 function groupedServiceName(primary, secondaries) {
-  return `${escapeHtml(primary.service_name)}${secondaries.length ? `<div class="client-complement-list">${secondaries.map((item) => `<span>${escapeHtml(item.service_name)} &middot; ${money.format(Number(item.amount))}</span>`).join("")}</div>` : ""}`;
+  return `${escapeHtml(primary.service_name)}${secondaries.length ? `<div class="client-complement-list">${secondaries.map((item) => `<span>${escapeHtml(item.service_name)} &middot; ${money.format(Number(item.amount))}${originCancelledNote(item, primary)}</span>`).join("")}</div>` : originCancelledNote(primary)}`;
 }
 
 function pdfText(value) {

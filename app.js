@@ -2720,7 +2720,7 @@ document.getElementById("cancelServiceForm").addEventListener("submit", (event) 
       .filter((item) => item.id !== entry.id && item.isSecondary && item.status !== "Cancelado")
       .forEach((item) => {
         item.status = "Entregue";
-        item.notes = `Servi\u00E7o de origem cancelado. Origem cancelada motivo: ${reason}`;
+        item.notes = `${entry.description || "Servi\u00E7o de origem"} cancelado por: ${reason}`;
         item.deliveredAt = item.deliveredAt || now;
         item.deliverySource = item.deliverySource || "Administrador";
         item.updatedAt = now;
@@ -3198,7 +3198,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=46").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=47").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

@@ -30,6 +30,23 @@ function searchableText(...values) {
     .toLowerCase();
 }
 
+function originCancelledNote(item, primary = null) {
+  const note = String(item.notes || "");
+  const reason = note.match(/cancelad[ao] por:\s*(.+)$/i)?.[1]
+    || note.match(/origem cancelada motivo:\s*(.+)$/i)?.[1]
+    || item.cancellation_reason
+    || primary?.cancellation_reason
+    || "";
+  if (!reason) return "";
+  const originName = primary?.status === "Cancelado"
+    ? primary.service_name
+    : note.match(/^(.+?) cancelad[ao] por:/i)?.[1];
+  const message = originName
+    ? `${originName} cancelado por ${reason}`
+    : `Servico de origem cancelado por ${reason}`;
+  return `<em class="tracking-origin-cancelled-note">${escapeHtml(message)}</em>`;
+}
+
 async function requestData(accessCode) {
   const response = await fetch("/.netlify/functions/service-tracking-data", {
     method: "POST",
@@ -146,7 +163,7 @@ function render(data) {
       <time>${formatDate(item.service_date)}</time>
       <div>
         <h4>${escapeHtml(item.service_name)}${secondaries.length ? `<span class="secondary-label">+ ${secondaries.length} complementar(es)</span>` : ""}</h4>
-        ${secondaries.length ? `<div class="tracking-complement-list">${secondaries.map((secondary) => `<span>${escapeHtml(secondary.service_name)} · ${amountText(secondary.amount)}</span>`).join("")}</div>` : ""}
+        ${secondaries.length ? `<div class="tracking-complement-list">${secondaries.map((secondary) => `<span>${escapeHtml(secondary.service_name)} · ${amountText(secondary.amount)}${originCancelledNote(secondary, item)}</span>`).join("")}</div>` : originCancelledNote(item)}
         <p class="tracking-reference">${escapeHtml(item.reference || "Sem referencia")}</p>
       </div>
       <div class="tracking-amount"><strong>${amountText(total)}</strong><span class="status status-${status.className}">${status.label}</span></div>
