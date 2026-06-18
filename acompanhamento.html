@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=16">
+  <link rel="stylesheet" href="acompanhamento.css?v=17">
 </head>
 <body>
   <header class="tracking-header">
@@ -20,6 +20,11 @@
         <div><span class="eyebrow">Consulta somente leitura</span><h2 id="clientName"></h2><p id="periodText"></p></div>
         <div class="updated-box"><span>Atualizado em</span><strong id="updatedAt"></strong></div>
       </div>
+      <section id="trackingRequestSection" class="tracking-card tracking-request-card hidden">
+        <div class="section-title"><h3>Pedidos</h3><button id="openTrackingRequestDialog" class="tracking-primary" type="button">Novo pedido</button></div>
+        <div class="section-title request-history-title"><h3>Pedidos enviados</h3></div>
+        <div id="trackingRequestHistory" class="tracking-request-history"></div>
+      </section>
       <div id="trackingSummary" class="tracking-summary"></div>
       <section class="tracking-dashboard">
         <article class="tracking-card tracking-chart-card">
@@ -34,11 +39,6 @@
       <section class="tracking-card">
         <div class="section-title"><h3>Serviços do período</h3><span id="serviceCount"></span></div>
         <div id="serviceList" class="tracking-list"></div>
-      </section>
-      <section id="trackingRequestSection" class="tracking-card tracking-request-card hidden">
-        <div class="section-title"><h3>Pedidos</h3><button id="openTrackingRequestDialog" class="tracking-primary" type="button">Novo pedido</button></div>
-        <div class="section-title request-history-title"><h3>Pedidos enviados</h3></div>
-        <div id="trackingRequestHistory" class="tracking-request-history"></div>
       </section>
       <p id="expiryText" class="tracking-expiry"></p>
     </section>
@@ -60,6 +60,6 @@
       </div>
     </form>
   </dialog>
-  <script src="acompanhamento.js?v=16"></script>
+  <script src="acompanhamento.js?v=17"></script>
 </body>
 </html>

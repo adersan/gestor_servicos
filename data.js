@@ -57,7 +57,7 @@
     if (failed) throw failed.error;
 
     let clientRequestsResult = { data: [] };
-    const requestsResult = await client.from("client_service_requests").select("*").order("created_at", { ascending: false });
+    const requestsResult = await fetchClientServiceRequests(client);
     if (requestsResult.error) {
       const message = requestsResult.error.message || "";
       if (!/client_service_requests|schema cache|does not exist|Could not find/i.test(message)) throw requestsResult.error;
@@ -200,6 +200,23 @@
         updatedAt: item.updated_at
       }))
     };
+  }
+
+  async function fetchClientServiceRequests(client) {
+    try {
+      const session = await client.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      if (accessToken) {
+        const response = await fetch("/.netlify/functions/admin-client-service-requests", {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const result = await response.json().catch(() => ({}));
+        if (response.ok) return { data: result.requests || [] };
+      }
+    } catch (error) {
+      console.warn("Falha ao consultar pedidos pela funÃ§Ã£o administrativa:", error);
+    }
+    return client.from("client_service_requests").select("*").order("created_at", { ascending: false });
   }
 
   async function upsertState(state) {
