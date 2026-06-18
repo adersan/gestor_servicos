@@ -2606,6 +2606,15 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   }
   try {
     await persistStateNow();
+    if (sourceRequest && !existingEntry) {
+      const result = await window.dataStore?.updateClientServiceRequest?.(sourceRequest.id, {
+        status: "Importado",
+        imported_entry_ids: sourceRequest.importedEntryIds,
+        imported_at: sourceRequest.importedAt,
+        updated_at: sourceRequest.updatedAt
+      });
+      if (result?.error) throw result.error;
+    }
     render();
   } catch (error) {
     console.error("Falha ao sincronizar o lançamento:", error);

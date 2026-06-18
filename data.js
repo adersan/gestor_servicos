@@ -460,7 +460,7 @@
         imported_at: item.importedAt || null,
         created_at: item.createdAt
       }));
-      const result = await client.from("client_service_requests").upsert(rows);
+      const result = await client.from("client_service_requests").upsert(rows, { onConflict: "id" });
       if (result.error && !/client_service_requests|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
         throw result.error;
       }
@@ -540,6 +540,11 @@
     return client.from("client_service_requests").delete().eq("id", id);
   }
 
+  function updateClientServiceRequest(id, values) {
+    const client = requireClient();
+    return client.from("client_service_requests").update(values).eq("id", id);
+  }
+
   window.dataStore = {
     fetchAll,
     upsertState,
@@ -547,6 +552,7 @@
     flushSave,
     saveNow,
     deleteClientServiceRequest,
+    updateClientServiceRequest,
     hasPendingSave: () => Boolean(pendingState)
   };
 })();
