@@ -41,7 +41,7 @@ export default async (request) => {
         ? supabase(`/rest/v1/service_prices?price_table_id=eq.${encodeURIComponent(client.price_table_id)}&select=amount,service_catalog(id,name,code)&service_catalog.active=eq.true`)
         : Promise.resolve([]),
       link.allow_requests
-        ? supabase(`/rest/v1/client_service_requests?client_id=eq.${clientId}&select=id,service_name,references_list,requested_date,amount,requested_by,notes,status,created_at&order=created_at.desc`)
+        ? supabase(`/rest/v1/client_service_requests?client_id=eq.${clientId}&status=eq.Novo&select=id,service_name,references_list,requested_date,amount,requested_by,notes,status,created_at&order=created_at.desc`)
         .catch((error) => {
           if (/client_service_requests|schema cache|does not exist|Could not find/i.test(error.message || "")) return [];
           throw error;

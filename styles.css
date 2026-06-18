@@ -225,6 +225,13 @@ dialog form { display: grid; gap: 14px; padding: 24px; }
 .notification-item span, .notification-item strong, .notification-item small { display: block; }
 .notification-item small { margin-top: 4px; color: var(--muted); }
 .notification-item b { color: var(--brand); font-size: 12px; }
+.notification-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.notification-archive-heading { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.notification-archive-heading h3 { margin-top: 2px; font-size: 18px; }
+.notification-archive-list { display: grid; gap: 8px; max-height: 190px; overflow-y: auto; }
+.notification-archive-item { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 11px 13px; border: 1px dashed var(--line); border-radius: 12px; background: #fbfbf8; }
+.notification-archive-item span, .notification-archive-item strong, .notification-archive-item small { display: block; }
+.notification-archive-item small { margin-top: 3px; color: var(--muted); }
 .notification-empty { display: grid; gap: 5px; padding: 26px; border-radius: 12px; background: #f2f6f4; text-align: center; }
 .notification-empty span { color: var(--muted); font-size: 13px; }
 .dialog-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }

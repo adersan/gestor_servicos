@@ -1,4 +1,5 @@
 const STORAGE_KEY = "gestor-servicos-v1";
+const ALERT_MESSAGES_KEY = "gestor-servicos-alert-messages-v1";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 
@@ -41,6 +42,7 @@ let activeDashboardTab = "services";
 let dashboardPeriod = null;
 let remoteRefreshInProgress = false;
 let knownPendingRequestIds = new Set();
+let alertMessages = loadAlertMessages();
 
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -53,6 +55,18 @@ function loadState() {
     catalog: parsed.catalog || initialState.catalog,
     paymentMethods: parsed.paymentMethods || initialState.paymentMethods
   };
+}
+
+function loadAlertMessages() {
+  try {
+    return JSON.parse(localStorage.getItem(ALERT_MESSAGES_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveAlertMessages() {
+  localStorage.setItem(ALERT_MESSAGES_KEY, JSON.stringify(alertMessages));
 }
 
 function saveState() {
@@ -698,10 +712,57 @@ function renderDashboardV2() {
     <div class="account-row"><div><strong>${escapeHtml(item.client.name)}</strong><span class="meta">${escapeHtml(item.client.priceGroup)}</span></div><span class="meta">${money.format(item.serviceAmount)} / recebido ${money.format(item.paymentAmount)}</span><strong class="amount ${item.balance < 0 ? "negative" : ""}">${money.format(item.balance)}</strong></div>`).join("") : emptyMarkup();
 }
 
-function renderNotifications() {
+function alertKey(item) {
+  return `${item.type}:${item.id}`;
+}
+
+function activeAlertItems() {
   const { overdueServices, overdueBillings } = dashboardNotifications();
   const pendingRequests = (state.serviceRequests || []).filter((item) => item.status === "Novo");
-  const alertCount = overdueServices.length + overdueBillings.length + pendingRequests.length;
+  return [
+    ...overdueServices.map((service) => ({
+      id: service.id,
+      type: "service",
+      title: `${clientById(service.clientId)?.name || "Cliente"}: ${service.description}`,
+      detail: `${formatServiceAge(service)} - ${service.reference || "Sem referencia"}`
+    })),
+    ...overdueBillings.map((billing) => ({
+      id: billing.id,
+      type: "billing",
+      title: `Cobranca de ${clientById(billing.clientId)?.name || "Cliente"}`,
+      detail: `${money.format(billingOpenAmount(billing))} - ${billingAgeDays(billing)} dias em aberto`
+    })),
+    ...pendingRequests.slice(0, 20).map((request) => ({
+      id: request.id,
+      type: "request",
+      title: `Pedido de ${clientById(request.clientId)?.name || "Cliente"}`,
+      detail: `${request.references?.length || 0} referencia(s) - ${request.serviceName || "Servico"}`
+    }))
+  ];
+}
+
+function archivedAlertByKey(key) {
+  return alertMessages.find((item) => item.key === key);
+}
+
+function archiveAlert(item) {
+  const key = alertKey(item);
+  if (!archivedAlertByKey(key)) {
+    alertMessages.unshift({
+      key,
+      type: item.type,
+      title: item.title,
+      detail: item.detail,
+      archivedAt: new Date().toISOString()
+    });
+    saveAlertMessages();
+  }
+}
+
+function renderNotifications() {
+  const alerts = activeAlertItems();
+  const visibleAlerts = alerts.filter((item) => !archivedAlertByKey(alertKey(item)));
+  const alertCount = visibleAlerts.length;
   const today = new Date().toISOString().slice(0, 10);
   const receivedToday = state.payments
     .filter((payment) => payment.date === today)
@@ -716,33 +777,27 @@ function renderNotifications() {
     <article><span>Recebido hoje</span><strong>${money.format(receivedToday)}</strong></article>
     <article><span>Total em aberto</span><strong>${money.format(openTotal)}</strong></article>`;
 
-  const items = [
-    ...overdueServices.map((service) => ({
-      type: "service",
-      title: `${clientById(service.clientId)?.name || "Cliente"}: ${service.description}`,
-      detail: `${formatServiceAge(service)} · ${service.reference || "Sem referência"}`
-    })),
-    ...overdueBillings.map((billing) => ({
-      type: "billing",
-      title: `Cobrança de ${clientById(billing.clientId)?.name || "Cliente"}`,
-      detail: `${money.format(billingOpenAmount(billing))} · ${billingAgeDays(billing)} dias em aberto`
-    })),
-    ...pendingRequests.slice(0, 10).map((request) => ({
-      type: "request",
-      title: `Pedido de ${clientById(request.clientId)?.name || "Cliente"}`,
-      detail: `${request.references?.length || 0} referência(s) · ${request.serviceName || "Serviço"}`
-    }))
-  ];
-  document.getElementById("notificationList").innerHTML = items.length ? items.map((item) => `
-    <button class="notification-item notification-${item.type}" data-notification-target="${item.type}">
+  document.getElementById("notificationList").innerHTML = visibleAlerts.length ? visibleAlerts.map((item) => `
+    <article class="notification-item notification-${item.type}">
       <i></i>
       <span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail)}</small></span>
-      <b>Ver</b>
-    </button>`).join("") : `
+      <div class="notification-actions">
+        <button class="table-action" data-notification-target="${item.type}">Ver</button>
+        <button class="table-action" data-read-alert="${escapeHtml(alertKey(item))}">Marcar como lida</button>
+      </div>
+    </article>`).join("") : `
     <div class="notification-empty">
       <strong>Tudo em dia.</strong>
-      <span>Não há serviços acima de 24 horas nem cobranças atrasadas.</span>
+      <span>Nao ha alertas pendentes.</span>
     </div>`;
+
+  const archivedMessages = alertMessages.filter((item) => !item.deletedAt);
+  document.getElementById("notificationArchive").innerHTML = archivedMessages.length ? archivedMessages.slice(0, 30).map((item) => `
+    <article class="notification-archive-item">
+      <span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail)} - ${new Date(item.archivedAt).toLocaleString("pt-BR")}</small></span>
+      <button class="table-action danger" data-delete-alert-message="${escapeHtml(item.key)}">Excluir</button>
+    </article>`).join("") : `
+    <div class="notification-empty"><strong>Sem mensagens arquivadas.</strong></div>`;
 }
 
 function renderClients() {
@@ -851,7 +906,9 @@ function renderServiceRequests() {
       ${request.notes ? `<p class="request-notes">${escapeHtml(request.notes)}</p>` : ""}
       <p class="meta">Valor unitário: <strong>${money.format(Number(request.amount || 0))}</strong></p>
       <div class="card-actions">
-        ${request.status === "Novo" ? `<button class="table-action success" data-import-client-request="${request.id}">Importar para lançamento</button><button class="table-action danger" data-cancel-client-request="${request.id}">Cancelar pedido</button>` : ""}
+        ${request.status === "Novo"
+    ? `<button class="table-action success" data-import-client-request="${request.id}">Importar para lan\u00E7amento</button><button class="table-action danger" data-cancel-client-request="${request.id}">Cancelar pedido</button>`
+    : `<button class="table-action danger" data-delete-client-request="${request.id}">Excluir do historico</button>`}
       </div>
     </article>`;
   }).join("") : emptyMarkup();
@@ -1962,9 +2019,25 @@ document.addEventListener("click", async (event) => {
   const paymentDashboardFilter = event.target.closest("[data-payment-dashboard-filter]");
   const importRequestButton = event.target.closest("[data-import-client-request]");
   const cancelRequestButton = event.target.closest("[data-cancel-client-request]");
+  const deleteRequestButton = event.target.closest("[data-delete-client-request]");
   const importRequestFromDialog = event.target.closest("[data-import-request-button]");
   if (importRequestButton) {
     importClientRequest(importRequestButton.dataset.importClientRequest);
+    return;
+  }
+  if (deleteRequestButton) {
+    const requestId = deleteRequestButton.dataset.deleteClientRequest;
+    if (confirm("Excluir este pedido do historico?")) {
+      state.serviceRequests = (state.serviceRequests || []).filter((item) => item.id !== requestId);
+      try {
+        const result = await window.dataStore?.deleteClientServiceRequest?.(requestId);
+        if (result?.error) throw result.error;
+      } catch (error) {
+        console.error(error);
+        alert("O pedido saiu desta tela, mas nao foi possivel excluir no banco agora.");
+      }
+      saveState();
+    }
     return;
   }
   if (cancelRequestButton) {
@@ -1990,6 +2063,21 @@ document.addEventListener("click", async (event) => {
     document.getElementById("notificationDialog").showModal();
   }
   const notificationTarget = event.target.closest("[data-notification-target]");
+  const readAlertButton = event.target.closest("[data-read-alert]");
+  const deleteAlertMessageButton = event.target.closest("[data-delete-alert-message]");
+  if (readAlertButton) {
+    const item = activeAlertItems().find((alert) => alertKey(alert) === readAlertButton.dataset.readAlert);
+    if (item) archiveAlert(item);
+    renderNotifications();
+    return;
+  }
+  if (deleteAlertMessageButton) {
+    const message = alertMessages.find((item) => item.key === deleteAlertMessageButton.dataset.deleteAlertMessage);
+    if (message) message.deletedAt = new Date().toISOString();
+    saveAlertMessages();
+    renderNotifications();
+    return;
+  }
   if (notificationTarget) {
     document.getElementById("notificationDialog").close();
     if (notificationTarget.dataset.notificationTarget === "service") {
@@ -2518,6 +2606,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   }
   try {
     await persistStateNow();
+    render();
   } catch (error) {
     console.error("Falha ao sincronizar o lançamento:", error);
     alert("O lançamento ficou salvo neste aparelho, mas a sincronização online falhou. O sistema tentará novamente.");
@@ -3036,7 +3125,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=39").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=40").then((registration) => registration.update());
 }
 render();
 window.addEventListener("app-authenticated", initializeRemoteState);

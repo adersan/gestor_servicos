@@ -535,12 +535,18 @@
     return upsertState(state);
   }
 
+  function deleteClientServiceRequest(id) {
+    const client = requireClient();
+    return client.from("client_service_requests").delete().eq("id", id);
+  }
+
   window.dataStore = {
     fetchAll,
     upsertState,
     scheduleSave,
     flushSave,
     saveNow,
+    deleteClientServiceRequest,
     hasPendingSave: () => Boolean(pendingState)
   };
 })();

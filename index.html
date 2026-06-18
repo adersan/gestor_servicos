@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=34">
+  <link rel="stylesheet" href="styles.css?v=35">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -809,6 +809,11 @@
       </div>
       <div id="notificationDailySummary" class="notification-daily-summary"></div>
       <div id="notificationList" class="notification-list"></div>
+      <div class="notification-archive-heading">
+        <span class="eyebrow">Mensagens</span>
+        <h3>Arquivadas / lidas</h3>
+      </div>
+      <div id="notificationArchive" class="notification-archive-list"></div>
       <button class="secondary full" type="button" data-close-dialog>Cancelar</button>
     </div>
   </dialog>
@@ -847,8 +852,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=32"></script>
-  <script src="app.js?v=34"></script>
+  <script src="data.js?v=33"></script>
+  <script src="app.js?v=35"></script>
   <script src="supplier.js?v=32"></script>
 </body>
 </html>
