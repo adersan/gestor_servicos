@@ -591,7 +591,7 @@ function renderDashboard() {
 }
 
 function renderDashboardV2() {
-  dashboardPeriod ||= monthPeriod();
+  dashboardPeriod ||= currentOperationalWeek();
   const week = currentOperationalWeek();
   const period = dashboardPeriod;
   document.getElementById("dashboardStartDate").value = period.startDate;
@@ -3198,7 +3198,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=44").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=45").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
