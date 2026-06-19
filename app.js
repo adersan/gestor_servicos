@@ -1846,36 +1846,24 @@ function createBillingReportPdf(billing) {
     text("Nenhum servico neste fechamento.", margin);
     y -= 22;
   } else {
-    const columnWidth = 245;
-    const columnGap = 20;
+    const columnWidth = 510;
     ensureSpace(28);
-    [0, 1].forEach((columnIndex) => {
-      const x = margin + columnIndex * (columnWidth + columnGap);
-      commands.push(`0.91 0.94 0.93 rg ${x} ${y - 15} ${columnWidth} 22 re f`);
-      commands.push(`${colors.dark} rg BT /F2 7 Tf ${x + 6} ${y - 2} Td (Data) Tj ET`);
-      commands.push(`${colors.dark} rg BT /F2 7 Tf ${x + 48} ${y - 2} Td (Servico) Tj ET`);
-      commands.push(`${colors.dark} rg BT /F2 7 Tf ${x + 145} ${y - 2} Td (Ref) Tj ET`);
-      commands.push(`${colors.dark} rg BT /F2 7 Tf ${x + 202} ${y - 2} Td (Valor) Tj ET`);
-    });
+    commands.push(`0.91 0.94 0.93 rg ${margin} ${y - 15} ${columnWidth} 22 re f`);
+    commands.push(`${colors.dark} rg BT /F2 7 Tf ${margin + 6} ${y - 2} Td (Data) Tj ET`);
+    commands.push(`${colors.dark} rg BT /F2 7 Tf ${margin + 70} ${y - 2} Td (Servico) Tj ET`);
+    commands.push(`${colors.dark} rg BT /F2 7 Tf ${margin + 360} ${y - 2} Td (Referencia) Tj ET`);
+    commands.push(`${colors.dark} rg BT /F2 7 Tf ${margin + 455} ${y - 2} Td (Valor) Tj ET`);
     y -= 27;
-    const splitAt = Math.ceil(details.services.length / 2);
-    const leftServices = details.services.slice(0, splitAt);
-    const rightServices = details.services.slice(splitAt);
-    const rowCount = Math.max(leftServices.length, rightServices.length);
-    for (let index = 0; index < rowCount; index += 1) {
+    for (const item of details.services) {
       ensureSpace(27);
       const rowY = y;
-      [leftServices[index], rightServices[index]].forEach((item, columnIndex) => {
-        if (!item) return;
-        const x = margin + columnIndex * (columnWidth + columnGap);
-        const description = String(item.description || "").slice(0, 19);
-        const reference = String(item.reference || "-").slice(0, 10);
-        commands.push(`0.97 0.98 0.97 rg ${x} ${rowY - 16} ${columnWidth} 23 re f`);
-        commands.push(`${colors.gray} rg BT /F1 6.5 Tf ${x + 5} ${rowY - 3} Td (${pdfSafeText(item.date.split("-").reverse().join("/"))}) Tj ET`);
-        commands.push(`${colors.dark} rg BT /F1 7 Tf ${x + 48} ${rowY - 3} Td (${pdfSafeText(description)}) Tj ET`);
-        commands.push(`${colors.gray} rg BT /F1 6.5 Tf ${x + 145} ${rowY - 3} Td (${pdfSafeText(reference)}) Tj ET`);
-        commands.push(`${colors.blue} rg BT /F2 7 Tf ${x + 194} ${rowY - 3} Td (${pdfSafeText(money.format(Number(item.amount)))}) Tj ET`);
-      });
+      const description = String(item.description || "").slice(0, 55);
+      const reference = String(item.reference || "-").slice(0, 18);
+      commands.push(`0.97 0.98 0.97 rg ${margin} ${rowY - 16} ${columnWidth} 23 re f`);
+      commands.push(`${colors.gray} rg BT /F1 6.5 Tf ${margin + 5} ${rowY - 3} Td (${pdfSafeText(item.date.split("-").reverse().join("/"))}) Tj ET`);
+      commands.push(`${colors.dark} rg BT /F1 7 Tf ${margin + 70} ${rowY - 3} Td (${pdfSafeText(description)}) Tj ET`);
+      commands.push(`${colors.gray} rg BT /F1 6.5 Tf ${margin + 360} ${rowY - 3} Td (${pdfSafeText(reference)}) Tj ET`);
+      commands.push(`${colors.blue} rg BT /F2 7 Tf ${margin + 447} ${rowY - 3} Td (${pdfSafeText(money.format(Number(item.amount)))}) Tj ET`);
       y -= 27;
     }
   }
@@ -2052,9 +2040,8 @@ function openBillingReport(billingId) {
       <tbody>${rows || `<tr><td colspan="4">-</td></tr>`}</tbody>
     </table>`;
   }
-  const splitAt = Math.ceil(details.services.length / 2);
   const serviceRows = details.services.length
-    ? `${serviceTable(details.services.slice(0, splitAt))}${serviceTable(details.services.slice(splitAt))}`
+    ? serviceTable(details.services)
     : `<p class="meta">Nenhum serviço neste período.</p>`;
   const methodRows = methods.length ? methods.map((method) => `
     <div class="payment-option">
@@ -3575,7 +3562,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=59").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=60").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

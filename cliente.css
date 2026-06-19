@@ -291,7 +291,7 @@
 
 .client-report-service-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(460px, 1fr));
+  grid-template-columns: minmax(720px, 1fr);
   gap: 10px;
   overflow-x: auto;
 }

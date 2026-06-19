@@ -167,36 +167,24 @@ function createPdf(data) {
     text("Nenhum servico neste fechamento.", margin);
     y -= 22;
   } else {
-    const columnWidth = 245;
-    const columnGap = 20;
+    const columnWidth = 510;
     ensureSpace(28);
-    [0, 1].forEach((columnIndex) => {
-      const x = margin + columnIndex * (columnWidth + columnGap);
-      commands.push(`0.91 0.94 0.93 rg ${x} ${y - 15} ${columnWidth} 22 re f`);
-      commands.push(`${color.dark} rg BT /F2 7 Tf ${x + 6} ${y - 2} Td (Data) Tj ET`);
-      commands.push(`${color.dark} rg BT /F2 7 Tf ${x + 48} ${y - 2} Td (Servico) Tj ET`);
-      commands.push(`${color.dark} rg BT /F2 7 Tf ${x + 145} ${y - 2} Td (Ref) Tj ET`);
-      commands.push(`${color.dark} rg BT /F2 7 Tf ${x + 202} ${y - 2} Td (Valor) Tj ET`);
-    });
+    commands.push(`0.91 0.94 0.93 rg ${margin} ${y - 15} ${columnWidth} 22 re f`);
+    commands.push(`${color.dark} rg BT /F2 7 Tf ${margin + 6} ${y - 2} Td (Data) Tj ET`);
+    commands.push(`${color.dark} rg BT /F2 7 Tf ${margin + 70} ${y - 2} Td (Servico) Tj ET`);
+    commands.push(`${color.dark} rg BT /F2 7 Tf ${margin + 360} ${y - 2} Td (Referencia) Tj ET`);
+    commands.push(`${color.dark} rg BT /F2 7 Tf ${margin + 455} ${y - 2} Td (Valor) Tj ET`);
     y -= 27;
-    const splitAt = Math.ceil(data.services.length / 2);
-    const columns = [data.services.slice(0, splitAt), data.services.slice(splitAt)];
-    const rowCount = Math.max(columns[0].length, columns[1].length);
-    for (let index = 0; index < rowCount; index += 1) {
+    for (const item of data.services) {
       ensureSpace(27);
       const rowY = y;
-      columns.forEach((items, columnIndex) => {
-        const item = items[index];
-        if (!item) return;
-        const x = margin + columnIndex * (columnWidth + columnGap);
-        const description = String(item.service_name || "").slice(0, 19);
-        const reference = String(item.reference || "-").slice(0, 10);
-        commands.push(`0.97 0.98 0.97 rg ${x} ${rowY - 16} ${columnWidth} 23 re f`);
-        commands.push(`${color.gray} rg BT /F1 6.5 Tf ${x + 5} ${rowY - 3} Td (${pdfText(formatDate(item.service_date))}) Tj ET`);
-        commands.push(`${color.dark} rg BT /F1 7 Tf ${x + 48} ${rowY - 3} Td (${pdfText(description)}) Tj ET`);
-        commands.push(`${color.gray} rg BT /F1 6.5 Tf ${x + 145} ${rowY - 3} Td (${pdfText(reference)}) Tj ET`);
-        commands.push(`${color.blue} rg BT /F2 7 Tf ${x + 194} ${rowY - 3} Td (${pdfText(money.format(Number(item.amount)))}) Tj ET`);
-      });
+      const description = String(item.service_name || "").slice(0, 55);
+      const reference = String(item.reference || "-").slice(0, 18);
+      commands.push(`0.97 0.98 0.97 rg ${margin} ${rowY - 16} ${columnWidth} 23 re f`);
+      commands.push(`${color.gray} rg BT /F1 6.5 Tf ${margin + 5} ${rowY - 3} Td (${pdfText(formatDate(item.service_date))}) Tj ET`);
+      commands.push(`${color.dark} rg BT /F1 7 Tf ${margin + 70} ${rowY - 3} Td (${pdfText(description)}) Tj ET`);
+      commands.push(`${color.gray} rg BT /F1 6.5 Tf ${margin + 360} ${rowY - 3} Td (${pdfText(reference)}) Tj ET`);
+      commands.push(`${color.blue} rg BT /F2 7 Tf ${margin + 447} ${rowY - 3} Td (${pdfText(money.format(Number(item.amount)))}) Tj ET`);
       y -= 27;
     }
   }
@@ -328,9 +316,8 @@ function renderStatement(data) {
     </table>`;
   }
   const serviceGroups = groupPortalServices(services);
-  const splitAt = Math.ceil(serviceGroups.length / 2);
   const serviceRows = serviceGroups.length
-    ? `${serviceTable(serviceGroups.slice(0, splitAt))}${serviceTable(serviceGroups.slice(splitAt))}`
+    ? serviceTable(serviceGroups)
     : `<p class="meta">Nenhum serviço neste fechamento.</p>`;
   const paymentRows = payments.length
     ? payments.map((item) => `<tr>

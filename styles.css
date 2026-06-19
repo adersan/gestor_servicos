@@ -343,7 +343,7 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .report-table { width: 100%; border-collapse: collapse; margin: 22px 0; }
 .report-table th, .report-table td { padding: 11px; border-bottom: 1px solid var(--line); text-align: left; }
 .report-table th:last-child, .report-table td:last-child { text-align: right; }
-.report-service-grid { display: grid; grid-template-columns: repeat(2, minmax(420px, 1fr)); gap: 10px; margin: 18px 0 24px; overflow-x: auto; }
+.report-service-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 18px 0 24px; overflow-x: auto; }
 .report-service-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 11px; }
 .report-service-table th, .report-service-table td { padding: 8px 6px; overflow: hidden; border-bottom: 1px solid var(--line); text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .report-service-table th { color: var(--brand); background: #eef4f1; }
