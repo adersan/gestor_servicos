@@ -382,6 +382,11 @@ function billingCurrentStatus(billing) {
   return billingOpenAmount(billing) <= 0 ? "Paga" : "Parcial";
 }
 
+function billingStatusLabel(billing) {
+  const status = billingCurrentStatus(billing);
+  return status === "Paga" ? "Quitada" : status;
+}
+
 function allocateAdvancePayments(billing, availablePayments) {
   let remainingDue = Number(billing.amount || 0);
   const allocatedIds = [];
@@ -1209,11 +1214,11 @@ function renderPayments() {
     .filter((item) => matchesSearch(search, clientById(item.clientId)?.name, item.note))
     .sort((a, b) => b.date.localeCompare(a.date));
   document.getElementById("paymentList").innerHTML = items.length ? items.map((item) => `
-    <article class="timeline-item">
+    <article class="timeline-item ${item.billingId ? "payment-applied" : ""}">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
       <div><h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3><p class="meta">${escapeHtml(item.note || "Pagamento registrado")}</p><span class="payment-origin">${escapeHtml(item.method || "Forma não informada")} · ${escapeHtml(item.paymentSource || "Manual")}</span><p class="payment-allocation ${item.billingId ? "" : "credit"}">${escapeHtml(paymentAllocationLabel(item))}</p></div>
       <strong>${money.format(item.amount)}</strong>
-      <div class="row-actions"><button class="table-action" data-edit-payment="${item.id}">Editar</button><button class="table-action danger" data-delete-payment="${item.id}">Excluir</button></div>
+      <div class="row-actions">${item.billingId ? `<span class="applied-badge">Abatido</span>` : `<button class="table-action" data-edit-payment="${item.id}">Editar</button>`}<button class="table-action danger" data-delete-payment="${item.id}">Excluir</button></div>
     </article>`).join("") : emptyMarkup();
 }
 
@@ -1240,6 +1245,7 @@ function renderPaymentMethods() {
 
 function renderBillings() {
   const clientFilter = document.getElementById("billingClientFilter").value;
+  const statusFilter = document.getElementById("billingStatusFilter").value;
   const search = document.getElementById("billingSearch").value.trim();
   const accessBillingByClient = new Map();
   state.billings
@@ -1248,6 +1254,12 @@ function renderBillings() {
     .forEach((billing) => accessBillingByClient.set(billing.clientId, billing.id));
   const items = state.billings
     .filter((item) => !clientFilter || item.clientId === clientFilter)
+    .filter((item) => {
+      const status = billingCurrentStatus(item);
+      if (statusFilter === "paid") return status === "Paga";
+      if (statusFilter === "open") return status === "Aberta" || status === "Parcial";
+      return true;
+    })
     .filter((item) => matchesSearch(
       search,
       clientById(item.clientId)?.name,
@@ -1258,10 +1270,10 @@ function renderBillings() {
     ))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   document.getElementById("billingList").innerHTML = items.length ? items.map((item) => `
-    <article class="billing-card">
+    <article class="billing-card ${billingCurrentStatus(item) === "Paga" ? "billing-paid" : ""}">
       <span class="eyebrow">${item.startDate.split("-").reverse().join("/")} a ${item.endDate.split("-").reverse().join("/")}</span>
       <h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3>
-      <p class="meta">${billingCurrentStatus(item)} · Saldo em aberto</p>
+      <p class="meta"><span class="billing-status billing-${billingCurrentStatus(item).toLowerCase()}">${billingStatusLabel(item)}</span> · Saldo em aberto</p>
       <strong class="hero-value" style="font-size:30px">${money.format(billingOpenAmount(item))}</strong>
       <p class="meta"><strong>${escapeHtml(item.statusReason || (billingCurrentStatus(item) === "Paga" ? "Quitada pelos pagamentos vinculados" : "Aguardando pagamento"))}</strong></p>
       <p class="meta">Pagamentos: ${escapeHtml(billingPaymentSummary(item))}</p>
@@ -2513,7 +2525,11 @@ document.addEventListener("click", async (event) => {
   }
 
   const editPayment = event.target.closest("[data-edit-payment]");
-  if (editPayment) openPaymentForm(state.payments.find((item) => item.id === editPayment.dataset.editPayment));
+  if (editPayment) {
+    const payment = state.payments.find((item) => item.id === editPayment.dataset.editPayment);
+    if (payment?.billingId) alert("Este pagamento ja foi abatido em uma cobranca e nao pode mais ser editado.");
+    else if (payment) openPaymentForm(payment);
+  }
   const payBillingButton = event.target.closest("[data-pay-billing]");
   if (payBillingButton) {
     const billing = state.billings.find((item) => item.id === payBillingButton.dataset.payBilling);
@@ -3265,6 +3281,7 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["paymentMethodStatusFilter", "change", renderPaymentMethods],
   ["paymentMethodSearch", "input", renderPaymentMethods],
   ["billingClientFilter", "change", renderBillings],
+  ["billingStatusFilter", "change", renderBillings],
   ["billingSearch", "input", renderBillings]
 ].forEach(([id, eventName, handler]) => {
   document.getElementById(id).addEventListener(eventName, handler);
@@ -3453,7 +3470,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=57").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=58").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
