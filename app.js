@@ -3166,8 +3166,6 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     createdAt: new Date().toISOString()
   };
   state.billings.push(billing);
-  allocateAdvancePayments(billing, payments);
-  billing.status = billingCurrentStatus(billing);
 
   submitButton.disabled = true;
   submitButton.textContent = "Gerando acesso...";
@@ -3177,6 +3175,8 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     const credentials = await issueClientAccess(billing);
     billing.identifier = credentials.identifier;
     billing.password = credentials.password;
+    allocateAdvancePayments(billing, payments);
+    billing.status = billingCurrentStatus(billing);
     services.forEach((item) => { item.billingId = billingId; });
     await (window.dataStore.saveNow?.(state) || window.dataStore.upsertState(state));
     persisted = true;
@@ -3453,7 +3453,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=56").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=57").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
