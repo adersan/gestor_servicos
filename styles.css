@@ -27,7 +27,7 @@ button { cursor: pointer; }
 .brand-lockup { display: flex; align-items: center; gap: 14px; }
 .brand-lockup img { width: 54px; height: 54px; border-radius: 16px; box-shadow: 0 12px 28px rgba(0,0,0,.2); }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
-.sound-alert-button { min-width: 48px; padding: 8px 10px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; background: rgba(255,255,255,.06); color: rgba(255,255,255,.84); font-size: 12px; font-weight: 800; }
+.sound-alert-button { display: grid; place-items: center; min-width: 44px; height: 38px; padding: 0 10px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; background: rgba(255,255,255,.06); color: rgba(255,255,255,.84); font-size: 19px; font-weight: 800; line-height: 1; }
 .sound-alert-button.active { border-color: #f0b55f; background: rgba(216,155,69,.24); color: white; }
 .notification-button { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid rgba(255,255,255,.26); border-radius: 12px; background: transparent; color: white; font-weight: 750; }
 .notification-button.has-alerts { border-color: #f0b55f; background: rgba(216,155,69,.18); }
@@ -354,8 +354,13 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .client-area-tabs button, .finance-area-tabs button { padding: 10px 14px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font-weight: 850; white-space: nowrap; }
 .client-area-tabs button:hover, .finance-area-tabs button:hover { background: rgba(255,255,255,.72); color: var(--brand); }
 .client-area-tabs button.active, .finance-area-tabs button.active { color: white; background: var(--brand); box-shadow: 0 8px 20px rgba(23,63,53,.14); }
-.client-services-layout { display: grid; grid-template-columns: minmax(260px, .85fr) minmax(420px, 1.15fr); gap: 18px; align-items: start; }
+.client-services-layout { display: grid; grid-template-columns: minmax(420px, 1.2fr) minmax(260px, .8fr); gap: 18px; align-items: start; }
 .client-service-panel { min-height: 220px; }
+.client-service-switch { display: flex; gap: 8px; margin: 0 0 14px; padding: 6px; overflow-x: auto; border-radius: 14px; background: #edf3ef; scrollbar-width: none; }
+.client-service-switch::-webkit-scrollbar { display: none; }
+.client-service-switch button { flex: 1 0 140px; padding: 10px 13px; border: 0; border-radius: 11px; background: white; color: var(--brand); font-weight: 850; }
+.client-service-switch button.active { background: var(--brand); color: white; }
+.client-service-switch-bottom { margin: 14px 0 0; }
 .compact-heading { margin-bottom: 12px; }
 .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .settings-card { display: grid; gap: 12px; }
@@ -417,7 +422,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .brand-lockup { min-width: 0; }
   .brand-lockup img { width: 46px; height: 46px; border-radius: 13px; }
   .topbar-actions { align-items: stretch; flex-direction: column; gap: 8px; min-width: 132px; }
-  .sound-alert-button { align-self: flex-end; min-width: 42px; padding: 5px 8px; font-size: 10px; }
+  .sound-alert-button { align-self: flex-end; min-width: 38px; height: 32px; padding: 0 8px; font-size: 17px; }
   .notification-button { justify-content: center; }
   .topbar .eyebrow { display: none; }
   h1 { font-size: clamp(22px, 7vw, 30px); line-height: 1.05; }
@@ -476,6 +481,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .supplier-tabs, .client-area-tabs, .finance-area-tabs { width: calc(100% + 28px); max-width: none; margin-right: -14px; margin-left: -14px; padding-right: 14px; padding-left: 14px; border-radius: 0; }
   .supplier-tabs button, .client-area-tabs button, .finance-area-tabs button { flex: 0 0 auto; }
   .client-services-layout { grid-template-columns: 1fr; }
+  .client-service-switch { width: calc(100% + 28px); margin-right: -14px; margin-left: -14px; padding-right: 14px; padding-left: 14px; border-radius: 0; }
   .section-heading { align-items: stretch; flex-direction: column; }
   .section-heading .primary, .section-heading .secondary { align-self: flex-start; }
   .catalog-table-wrap { max-width: 100%; }

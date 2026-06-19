@@ -203,7 +203,8 @@ function notifyNewClientRequests(nextState) {
 function updateSoundAlertButton() {
   const button = document.getElementById("soundAlertButton");
   if (!button) return;
-  button.textContent = soundAlertsEnabled ? "Som on" : "Som";
+  button.textContent = soundAlertsEnabled ? "🔔" : "🔕";
+  button.setAttribute("aria-label", soundAlertsEnabled ? "Desativar som dos alertas" : "Ativar som dos alertas");
   button.classList.toggle("active", soundAlertsEnabled);
   button.setAttribute("aria-pressed", String(soundAlertsEnabled));
   button.title = soundAlertsEnabled ? "Alertas sonoros ativos neste aparelho" : "Ativar alerta sonoro neste aparelho";
@@ -686,10 +687,17 @@ function renderDashboardV2() {
   dashboardPeriod ||= currentOperationalWeek();
   const week = currentOperationalWeek();
   const period = dashboardPeriod;
+  const isOperationalWeek = period.startDate === week.startDate && period.endDate === week.endDate;
   document.getElementById("dashboardStartDate").value = period.startDate;
   document.getElementById("dashboardEndDate").value = period.endDate;
   document.getElementById("dashboardServicesTab").classList.toggle("hidden", activeDashboardTab !== "services");
   document.getElementById("dashboardFinanceTab").classList.toggle("hidden", activeDashboardTab !== "finance");
+  document.querySelectorAll("[data-dashboard-week-block]").forEach((element) => {
+    element.classList.toggle("hidden", !isOperationalWeek);
+  });
+  document.querySelectorAll("[data-dashboard-period-block]").forEach((element) => {
+    element.classList.toggle("hidden", isOperationalWeek);
+  });
   document.querySelectorAll("[data-dashboard-tab]").forEach((button) => {
     button.classList.toggle("active", button.dataset.dashboardTab === activeDashboardTab);
   });
@@ -2136,6 +2144,7 @@ document.addEventListener("click", async (event) => {
   const dashboardPeriodButton = event.target.closest("[data-dashboard-period]");
   const dashboardMonthButton = event.target.closest("[data-dashboard-month]");
   const soundAlertButton = event.target.closest("#soundAlertButton, #settingsSoundShortcut");
+  const clientServiceScrollButton = event.target.closest("[data-scroll-client-services]");
   const retryRemoteLoadButton = event.target.closest("[data-retry-remote-load]");
   const closeRemoteLoadButton = event.target.closest("[data-close-remote-load]");
   if (retryRemoteLoadButton) {
@@ -2157,6 +2166,14 @@ document.addEventListener("click", async (event) => {
       showToast("Alertas sonoros desativados neste aparelho.");
     }
     updateSoundAlertButton();
+    return;
+  }
+  if (clientServiceScrollButton) {
+    const target = document.getElementById(clientServiceScrollButton.dataset.scrollClientServices);
+    document.querySelectorAll("[data-scroll-client-services]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.scrollClientServices === clientServiceScrollButton.dataset.scrollClientServices);
+    });
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
   if (dashboardTab) {
@@ -3339,7 +3356,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=53").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=54").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
