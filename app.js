@@ -43,6 +43,7 @@ let entryContinuationResolver = null;
 let activeDashboardTab = "services";
 let dashboardPeriod = null;
 let remoteRefreshInProgress = false;
+let remoteLoadInProgress = false;
 let knownPendingRequestIds = null;
 let alertMessages = loadAlertMessages();
 let soundAlertsEnabled = localStorage.getItem(SOUND_ALERTS_KEY) === "true";
@@ -111,8 +112,30 @@ async function persistStateNow() {
   }
 }
 
-async function initializeRemoteState() {
-  if (!window.dataStore || remoteReady) return;
+function showRemoteLoadError(error) {
+  const dialog = document.getElementById("remoteLoadDialog");
+  const detail = document.getElementById("remoteLoadDetail");
+  if (detail) {
+    detail.textContent = error?.message
+      ? `Detalhe: ${error.message}`
+      : "Não foi possível comunicar com o banco agora.";
+  }
+  if (dialog && !dialog.open) dialog.showModal();
+}
+
+function closeRemoteLoadError() {
+  const dialog = document.getElementById("remoteLoadDialog");
+  if (dialog?.open) dialog.close();
+}
+
+async function initializeRemoteState(force = false) {
+  if (!window.dataStore || remoteReady || remoteLoadInProgress) return;
+  remoteLoadInProgress = true;
+  const retryButton = document.querySelector("[data-retry-remote-load]");
+  if (retryButton) {
+    retryButton.disabled = true;
+    retryButton.textContent = force ? "Tentando..." : "Tentar novamente";
+  }
   try {
     const remoteState = await window.dataStore.fetchAll();
     const hasRemoteData = remoteState.priceTables.length
@@ -127,11 +150,18 @@ async function initializeRemoteState() {
     }
 
     remoteReady = true;
+    closeRemoteLoadError();
     knownPendingRequestIds = new Set((state.serviceRequests || []).filter((item) => item.status === "Novo").map((item) => item.id));
     render();
   } catch (error) {
     console.error("Falha ao carregar dados do Supabase:", error.code, error.message);
-    alert("O login funcionou, mas os dados online não puderam ser carregados.");
+    showRemoteLoadError(error);
+  } finally {
+    remoteLoadInProgress = false;
+    if (retryButton) {
+      retryButton.disabled = false;
+      retryButton.textContent = "Tentar novamente";
+    }
   }
 }
 
@@ -2106,6 +2136,16 @@ document.addEventListener("click", async (event) => {
   const dashboardPeriodButton = event.target.closest("[data-dashboard-period]");
   const dashboardMonthButton = event.target.closest("[data-dashboard-month]");
   const soundAlertButton = event.target.closest("#soundAlertButton, #settingsSoundShortcut");
+  const retryRemoteLoadButton = event.target.closest("[data-retry-remote-load]");
+  const closeRemoteLoadButton = event.target.closest("[data-close-remote-load]");
+  if (retryRemoteLoadButton) {
+    await initializeRemoteState(true);
+    return;
+  }
+  if (closeRemoteLoadButton) {
+    closeRemoteLoadError();
+    return;
+  }
   if (soundAlertButton) {
     soundAlertsEnabled = !soundAlertsEnabled;
     localStorage.setItem(SOUND_ALERTS_KEY, String(soundAlertsEnabled));
@@ -3299,7 +3339,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=52").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=53").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
