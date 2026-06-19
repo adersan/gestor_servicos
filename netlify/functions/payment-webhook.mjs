@@ -33,13 +33,17 @@ export default async (request) => {
     }
 
     const billings = await supabase(
-      `/rest/v1/billings?id=eq.${encodeURIComponent(payment.billingId)}&select=id,client_id,total_due,status,created_at&limit=1`
+      `/rest/v1/billings?id=eq.${encodeURIComponent(payment.billingId)}&select=id,client_id,total_due,status,created_at,snapshot&limit=1`
     );
     const billing = billings[0];
     if (!billing || billing.status === "Cancelada") return json(404, { error: "Cobrança ativa não encontrada." });
 
+    const calculationVersion = Number(billing.snapshot?.calculationVersion || 1);
+    const createdFilter = calculationVersion >= 2
+      ? ""
+      : `&created_at=gt.${encodeURIComponent(billing.created_at)}`;
     const existingPayments = await supabase(
-      `/rest/v1/payments?billing_id=eq.${encodeURIComponent(billing.id)}&created_at=gt.${encodeURIComponent(billing.created_at)}&select=amount,created_at`
+      `/rest/v1/payments?billing_id=eq.${encodeURIComponent(billing.id)}${createdFilter}&select=amount,created_at`
     );
     const paid = existingPayments.reduce((sum, item) => sum + Number(item.amount), 0);
     const openAmount = Math.max(0, Number(billing.total_due) - paid);

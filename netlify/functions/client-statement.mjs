@@ -1,11 +1,12 @@
 import { json, supabase, verifyPortalToken } from "./_shared/server.mjs";
 
 function openAmount(billing, payments) {
+  const calculationVersion = Number(billing.snapshot?.calculationVersion || 1);
   const createdAt = new Date(billing.created_at).getTime();
-  const laterPayments = payments
-    .filter((payment) => new Date(payment.created_at).getTime() > createdAt)
+  const appliedPayments = payments
+    .filter((payment) => calculationVersion >= 2 || new Date(payment.created_at).getTime() > createdAt)
     .reduce((sum, payment) => sum + Number(payment.amount), 0);
-  return Math.max(0, Number(billing.total_due) - laterPayments);
+  return Math.max(0, Number(billing.total_due) - appliedPayments);
 }
 
 export default async (request) => {
