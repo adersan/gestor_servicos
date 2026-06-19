@@ -294,7 +294,7 @@
 
 .client-report-service-grid {
   display: grid;
-  grid-template-columns: minmax(900px, 1fr);
+  grid-template-columns: minmax(1020px, 1fr);
   gap: 10px;
   overflow-x: auto;
 }
@@ -324,7 +324,7 @@
 .client-report-service-table th:nth-child(1),
 .client-report-service-table td:nth-child(1) { width: 96px; }
 .client-report-service-table th:nth-child(3),
-.client-report-service-table td:nth-child(3) { width: 135px; overflow: visible; text-overflow: clip; }
+.client-report-service-table td:nth-child(3) { width: 205px; overflow: hidden; text-overflow: clip; }
 .client-report-service-table th:nth-child(4),
 .client-report-service-table td:nth-child(4) { width: 120px; }
 .client-report-service-table th:nth-child(5),
@@ -409,7 +409,7 @@
   display: inline-block;
   max-width: 100%;
   padding: 6px 10px;
-  overflow: visible;
+  overflow: hidden;
   border: 1px solid #bdd8ef;
   border-radius: 10px;
   color: #155f9f;
@@ -418,7 +418,10 @@
   font-weight: 850;
   letter-spacing: .035em;
   text-overflow: clip;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
   vertical-align: middle;
 }
 
