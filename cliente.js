@@ -94,6 +94,7 @@ function pdfText(value) {
 }
 
 function createPdf(data) {
+  const paymentTotal = (data.payments || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const pageWidth = 595;
   const pageHeight = 842;
   const margin = 42;
@@ -148,10 +149,24 @@ function createPdf(data) {
   text(`Periodo: ${formatDate(data.billing.period_start)} a ${formatDate(data.billing.period_end)}`, margin, 10, color.gray);
   y -= 34;
 
+  heading("Formas de pagamento");
+  if (!data.paymentMethods.length) {
+    text("Consulte as formas de pagamento com o responsavel.", margin);
+    y -= 24;
+  } else {
+    data.paymentMethods.forEach((method) => {
+      ensureSpace(44);
+      text(`${method.name} (${method.type})`, margin, 10, color.green, true);
+      y -= 15;
+      text(method.details || method.payment_link || "-", margin, 9, color.dark);
+      y -= 24;
+    });
+  }
+
   const cards = [
     ["Saldo anterior", Number(data.billing.previous_balance), color.gray],
     ["Servicos", Number(data.billing.services_total), color.blue],
-    ["Pagamentos", Number(data.billing.payments_total), color.payment],
+    ["Pagamentos", paymentTotal, color.payment],
     ["Total em aberto", Number(data.billing.open_amount ?? data.billing.total_due), color.orange]
   ];
   cards.forEach(([label, amount, selectedColor], index) => {
@@ -202,19 +217,6 @@ function createPdf(data) {
       y -= 17;
       line();
       y -= 8;
-    });
-  }
-
-  heading("Formas de pagamento");
-  if (!data.paymentMethods.length) {
-    text("Consulte as formas de pagamento com o responsavel.", margin);
-  } else {
-    data.paymentMethods.forEach((method) => {
-      ensureSpace(44);
-      text(`${method.name} (${method.type})`, margin, 10, color.green, true);
-      y -= 15;
-      text(method.details || method.payment_link || "-", margin, 9, color.dark);
-      y -= 24;
     });
   }
 
@@ -298,6 +300,7 @@ async function request(path, options = {}) {
 function renderStatement(data) {
   currentStatement = data;
   const { client, billing, services, payments, paymentMethods } = data;
+  const paymentTotal = payments.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   document.getElementById("clientName").textContent = client.name;
   document.getElementById("billingPeriod").textContent =
     `${formatDate(billing.period_start)} a ${formatDate(billing.period_end)}`;
@@ -330,21 +333,26 @@ function renderStatement(data) {
     ? paymentMethods.map((method) => `<article class="payment-option">
         <strong>${escapeHtml(method.name)} (${escapeHtml(method.type)})</strong>
         <span>${escapeHtml(method.details || "")}</span>
+        ${String(method.type || "").toUpperCase().includes("PIX") && method.details ? `<button class="copy-pix-button" type="button" data-copy-pix="${escapeHtml(method.details.includes(":") ? method.details.split(":").pop().trim() : method.details.trim())}">Copiar chave PIX</button>` : ""}
         ${method.payment_link ? `<a href="${escapeHtml(method.payment_link)}" target="_blank" rel="noopener">Abrir link de pagamento</a>` : ""}
       </article>`).join("")
     : `<p class="meta">Consulte as formas de pagamento com o responsável.</p>`;
   const maxValue = Math.max(
     Number(billing.services_total),
-    Number(billing.payments_total),
+    paymentTotal,
     Math.abs(Number(billing.previous_balance)),
     1
   );
 
   document.getElementById("statementContent").innerHTML = `
+    <section class="client-section payment-methods-first">
+      <h3>Formas de pagamento</h3>
+      <div class="payment-options">${methods}</div>
+    </section>
     <div class="client-summary">
       <article class="summary-card summary-previous"><span class="summary-dot"></span><span class="meta">Saldo anterior</span><strong>${money.format(Number(billing.previous_balance))}</strong></article>
       <article class="summary-card summary-services"><span class="summary-dot"></span><span class="meta">Serviços</span><strong>${money.format(Number(billing.services_total))}</strong></article>
-      <article class="summary-card summary-payments"><span class="summary-dot"></span><span class="meta">Pagamentos</span><strong>${money.format(Number(billing.payments_total))}</strong></article>
+      <article class="summary-card summary-payments"><span class="summary-dot"></span><span class="meta">Pagamentos</span><strong>${money.format(paymentTotal)}</strong></article>
       <article class="summary-card summary-total"><span class="summary-dot"></span><span class="meta">Total em aberto</span><strong>${money.format(Number(billing.open_amount ?? billing.total_due))}</strong></article>
     </div>
     <section class="client-section section-chart">
@@ -352,7 +360,7 @@ function renderStatement(data) {
       <div class="client-chart">
         <div class="client-chart-row"><span>Saldo anterior</span><div><i style="width:${Math.abs(Number(billing.previous_balance)) / maxValue * 100}%"></i></div><strong>${money.format(Number(billing.previous_balance))}</strong></div>
         <div class="client-chart-row"><span>Serviços</span><div><i style="width:${Number(billing.services_total) / maxValue * 100}%"></i></div><strong>${money.format(Number(billing.services_total))}</strong></div>
-        <div class="client-chart-row"><span>Pagamentos</span><div><i class="payment" style="width:${Number(billing.payments_total) / maxValue * 100}%"></i></div><strong>${money.format(Number(billing.payments_total))}</strong></div>
+        <div class="client-chart-row"><span>Pagamentos</span><div><i class="payment" style="width:${paymentTotal / maxValue * 100}%"></i></div><strong>${money.format(paymentTotal)}</strong></div>
       </div>
     </section>
     <section class="client-section section-services">
@@ -362,10 +370,6 @@ function renderStatement(data) {
     <section class="client-section section-payments">
       <h3>Pagamentos</h3>
       <table class="report-table"><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>${paymentRows}</tbody></table>
-    </section>
-    <section class="client-section">
-      <h3>Formas de pagamento</h3>
-      <div class="payment-options">${methods}</div>
     </section>`;
 
   document.getElementById("loginPanel").classList.add("hidden");
@@ -685,6 +689,23 @@ document.getElementById("clientPortalNav").addEventListener("click", async (even
   selectView(button.dataset.clientView);
 });
 document.getElementById("statementContent").addEventListener("click", async (event) => {
+  const copyPixButton = event.target.closest("[data-copy-pix]");
+  if (copyPixButton) {
+    const value = copyPixButton.dataset.copyPix;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      const field = document.createElement("textarea");
+      field.value = value;
+      document.body.appendChild(field);
+      field.select();
+      document.execCommand("copy");
+      field.remove();
+    }
+    copyPixButton.textContent = "Chave copiada";
+    setTimeout(() => { copyPixButton.textContent = "Copiar chave PIX"; }, 1800);
+    return;
+  }
   const historyButton = event.target.closest("[data-open-history]");
   if (historyButton) await loadStatement(historyButton.dataset.openHistory);
 });
@@ -717,3 +738,4 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshClientPortal();
 });
 setInterval(refreshClientPortal, 20000);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=61").then((registration) => registration.update());
