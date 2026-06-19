@@ -314,7 +314,10 @@
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Fechamento flexível</span><h2>Cobranças</h2></div>
-        <button class="primary" data-dialog="billingDialog">Gerar cobrança</button>
+        <div class="card-actions">
+          <button class="secondary" data-dialog="billingBatchDialog">Gerar todas</button>
+          <button class="primary" data-dialog="billingDialog">Gerar cobrança</button>
+        </div>
       </div>
       <div class="filters">
         <select id="billingClientFilter"><option value="">Todos os clientes</option></select>
@@ -785,6 +788,27 @@
     </form>
   </dialog>
 
+  <dialog id="billingBatchDialog">
+    <form id="billingBatchForm" method="dialog">
+      <div class="dialog-heading"><h2>Gerar cobranças em lote</h2><button class="icon-button" value="cancel">×</button></div>
+      <p class="hint">Serão incluídos somente clientes com serviços ainda não cobrados no período.</p>
+      <label>Data inicial<input name="startDate" type="date" required></label>
+      <label>Data final<input name="endDate" type="date" required></label>
+      <fieldset class="method-selector">
+        <legend>Formas de pagamento das cobranças</legend>
+        <div id="billingBatchPaymentMethods"></div>
+      </fieldset>
+      <label class="checkbox-label">
+        <input name="historyEnabled" type="checkbox">
+        Permitir consulta de cobranças anteriores
+      </label>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Cancelar</button>
+        <button class="primary" value="default">Gerar para todos</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="paymentMethodDialog">
     <form id="paymentMethodForm" method="dialog">
       <div class="dialog-heading"><h2 id="paymentMethodDialogTitle">Nova forma de pagamento</h2><button class="icon-button" value="cancel">×</button></div>
@@ -970,7 +994,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=36"></script>
-  <script src="app.js?v=50"></script>
+  <script src="app.js?v=51"></script>
   <script src="supplier.js?v=33"></script>
 </body>
 </html>

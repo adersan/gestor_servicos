@@ -1363,8 +1363,8 @@ function setDefaultDates() {
   });
 }
 
-function renderBillingPaymentMethods() {
-  const target = document.getElementById("billingPaymentMethods");
+function renderBillingPaymentMethods(targetId = "billingPaymentMethods") {
+  const target = document.getElementById(targetId);
   const activeMethods = state.paymentMethods.filter((method) => method.active);
   target.innerHTML = activeMethods.length ? activeMethods.map((method) => `
     <label class="checkbox-label">
@@ -2414,6 +2414,13 @@ document.addEventListener("click", async (event) => {
     else {
       setDefaultDates();
       if (dialogButton.dataset.dialog === "billingDialog") renderBillingPaymentMethods();
+      if (dialogButton.dataset.dialog === "billingBatchDialog") {
+        renderBillingPaymentMethods("billingBatchPaymentMethods");
+        const batchForm = document.getElementById("billingBatchForm");
+        const week = currentOperationalWeek();
+        batchForm.elements.startDate.value = week.startDate;
+        batchForm.elements.endDate.value = week.endDate;
+      }
       document.getElementById(dialogButton.dataset.dialog).showModal();
     }
   }
@@ -3220,6 +3227,104 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   }
 });
 
+document.getElementById("billingBatchForm").addEventListener("submit", async (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  const form = event.currentTarget;
+  const dialog = form.closest("dialog");
+  const submitButton = event.submitter;
+  const data = new FormData(form);
+  const startDate = data.get("startDate");
+  const endDate = data.get("endDate");
+  const paymentMethodIds = data.getAll("paymentMethodId");
+  if (!paymentMethodIds.length) {
+    alert("Selecione pelo menos uma forma de pagamento.");
+    return;
+  }
+
+  const eligibleServices = state.services.filter((item) =>
+    !item.billingId && item.status !== "Cancelado"
+    && item.date >= startDate && item.date <= endDate
+  );
+  const clientIds = [...new Set(eligibleServices.map((item) => item.clientId))];
+  if (!clientIds.length) {
+    alert("Nenhum cliente possui servicos pendentes de cobranca neste periodo.");
+    return;
+  }
+  const pendingCount = eligibleServices.filter((item) => item.status === "A fazer").length;
+  const warning = pendingCount ? `\n\nAtencao: ${pendingCount} servico(s) ainda estao marcados como A fazer.` : "";
+  if (!confirm(`Gerar ${clientIds.length} cobranca(s), uma para cada cliente com servicos no periodo?${warning}`)) return;
+
+  const stateBeforeBatch = typeof structuredClone === "function"
+    ? structuredClone(state)
+    : JSON.parse(JSON.stringify(state));
+  const selectedMethods = state.paymentMethods
+    .filter((method) => paymentMethodIds.includes(method.id))
+    .map((method) => ({ ...method }));
+  const drafts = clientIds.map((clientId, index) => {
+    const services = eligibleServices.filter((item) => item.clientId === clientId);
+    const payments = availableAdvancePayments(clientId);
+    const servicesTotal = services.reduce((sum, item) => sum + Number(item.amount), 0);
+    const paymentsTotal = payments.reduce((sum, item) => sum + Number(item.amount), 0);
+    const paymentsAfterPeriod = payments
+      .filter((item) => item.date > endDate)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+    const rawBalance = balanceFor(clientId, endDate) - paymentsAfterPeriod;
+    const amount = Math.max(0, rawBalance + paymentsTotal);
+    const billing = {
+      id: crypto.randomUUID(), clientId, startDate, endDate, amount,
+      previousBalance: amount - servicesTotal, servicesTotal, paymentsTotal: 0,
+      paymentIds: [], creditGenerated: 0, statusReason: "Aguardando pagamento",
+      calculationVersion: 2, identifier: "", password: "", status: "Aberta", active: true,
+      paymentMethodIds, paymentMethods: selectedMethods.map((method) => ({ ...method })),
+      historyEnabled: data.get("historyEnabled") === "on", sendHistory: [],
+      createdAt: new Date(Date.now() + index).toISOString()
+    };
+    return { billing, services, payments };
+  });
+
+  submitButton.disabled = true;
+  submitButton.textContent = "Criando cobrancas...";
+  try {
+    state.billings.push(...drafts.map((draft) => draft.billing));
+    await (window.dataStore.saveNow?.(state) || window.dataStore.upsertState(state));
+
+    const failures = [];
+    for (const draft of drafts) {
+      try {
+        const credentials = await issueClientAccess(draft.billing);
+        draft.billing.identifier = credentials.identifier;
+        draft.billing.password = credentials.password;
+        allocateAdvancePayments(draft.billing, draft.payments);
+        draft.billing.status = billingCurrentStatus(draft.billing);
+        draft.services.forEach((item) => { item.billingId = draft.billing.id; });
+      } catch (error) {
+        failures.push(`${clientById(draft.billing.clientId)?.name || "Cliente"}: ${error.message}`);
+        state.billings = state.billings.filter((item) => item.id !== draft.billing.id);
+      }
+    }
+    await (window.dataStore.saveNow?.(state) || window.dataStore.upsertState(state));
+    form.reset();
+    dialog.close();
+    render();
+    const successCount = drafts.length - failures.length;
+    alert(`${successCount} cobranca(s) gerada(s) com sucesso.${failures.length ? `\n\nFalhas:\n${failures.join("\n")}` : ""}`);
+  } catch (error) {
+    console.error(error);
+    state = stateBeforeBatch;
+    try {
+      await (window.dataStore.saveNow?.(state) || window.dataStore.upsertState(state));
+    } catch (rollbackError) {
+      console.error("Falha ao desfazer o fechamento em lote:", rollbackError);
+    }
+    render();
+    alert(`Nao foi possivel concluir o fechamento em lote. ${error.message}`);
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Gerar para todos";
+  }
+});
+
 document.getElementById("whatsappForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -3470,7 +3575,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=58").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=59").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
