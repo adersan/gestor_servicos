@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=47">
+  <link rel="stylesheet" href="styles.css?v=48">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -903,6 +903,17 @@
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Confirmar baixa</button></div>
     </form>
   </dialog>
+  <dialog id="supplierReportDialog" class="wide-dialog">
+    <div class="supplier-report-dialog">
+      <div class="dialog-heading"><h2>Conta do fornecedor</h2><button class="icon-button" type="button" data-close-supplier-dialog>×</button></div>
+      <div id="supplierReportContent"></div>
+      <div class="dialog-actions supplier-report-actions">
+        <button class="secondary" type="button" data-close-supplier-dialog>Fechar</button>
+        <button class="secondary" type="button" data-download-supplier-report>Salvar PDF</button>
+        <button class="primary" type="button" data-share-open-supplier-report>Compartilhar</button>
+      </div>
+    </div>
+  </dialog>
   <dialog id="supplierAccessDialog">
     <form id="supplierAccessForm" method="dialog">
       <div class="dialog-heading"><h2>Link do fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
@@ -994,7 +1005,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=36"></script>
-  <script src="app.js?v=52"></script>
-  <script src="supplier.js?v=33"></script>
+  <script src="app.js?v=53"></script>
+  <script src="supplier.js?v=34"></script>
 </body>
 </html>

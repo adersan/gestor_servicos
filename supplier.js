@@ -3,6 +3,7 @@
   let clientSupplierServiceValues = [];
   let generatedSupplierAccessUrl = "";
   let generatedSupplierAccessText = "";
+  let activeSupplierReportId = "";
 
   const byId = (id) => document.getElementById(id);
   const today = () => new Date().toISOString().slice(0, 10);
@@ -169,7 +170,7 @@
       return String(b.createdAt || b.updatedAt || "").localeCompare(String(a.createdAt || a.updatedAt || ""));
     });
     byId("supplierEntryList").innerHTML = entries.length ? entries.map((item) => `
-      <article class="timeline-item ${item.payableId ? "supplier-entry-closed" : ""}">
+      <article class="supplier-entry-row ${item.payableId ? "supplier-entry-closed" : ""}">
         <time>${formatDate(item.date)}</time>
         <div>
           <span class="eyebrow">${escapeHtml(supplierById(item.supplierId)?.name || "")}</span>
@@ -215,14 +216,16 @@
         <div class="receivable-heading"><div><span class="eyebrow">${formatDate(item.startDate)} a ${formatDate(item.endDate)}</span><h3>${escapeHtml(supplierById(item.supplierId)?.name || "")}</h3></div><span class="billing-status billing-${payableStatus(item).toLowerCase()}">${payableStatus(item)}</span></div>
         <div class="receivable-values"><span>Valor original<strong>${money.format(item.amount)}</strong></span><span>Pago<strong>${money.format(payablePaid(item))}</strong></span><span>Saldo<strong>${money.format(payableOpen(item))}</strong></span></div>
         <div class="supplier-payable-buttons">
-          <button class="table-action" data-supplier-report="${item.id}">Relatório</button>
+          <button class="table-action" data-supplier-report="${item.id}">Abrir conta</button>
           <button class="table-action whatsapp-action" data-supplier-share="${item.id}">Compartilhar</button>
           ${payableOpen(item) > 0 ? `<button class="table-action" data-pay-supplier="${item.id}" data-mode="partial">Baixa parcial</button><button class="table-action success" data-pay-supplier="${item.id}" data-mode="full">Quitar</button>` : ""}
           ${!payablePaid(item) ? `<button class="table-action danger" data-cancel-supplier-payable="${item.id}">Cancelar conta</button>` : ""}
         </div>
       </article>`).join("") : empty();
-    byId("supplierPaymentList").innerHTML = state.supplierPayments.length ? [...state.supplierPayments].sort((a, b) => b.date.localeCompare(a.date)).map((item) => `
-      <article class="timeline-item"><time>${formatDate(item.date)}</time><div><h3>${escapeHtml(supplierById(item.supplierId)?.name || "")}</h3><p class="meta">${escapeHtml(item.method || "Não informada")} · ${escapeHtml(item.note || "Sem observação")}</p></div><strong>${money.format(item.amount)}</strong><button class="table-action danger" data-delete-supplier-payment="${item.id}">Excluir</button></article>`
+    byId("supplierPaymentList").innerHTML = state.supplierPayments.length ? [...state.supplierPayments].sort((a, b) => b.date.localeCompare(a.date)).map((item) => {
+      const payable = state.supplierPayables.find((entry) => entry.id === item.payableId);
+      return `<article class="timeline-item supplier-payment-history"><time>${formatDate(item.date)}</time><div><h3>${escapeHtml(supplierById(item.supplierId)?.name || "")}</h3><p class="meta">${escapeHtml(item.method || "Não informada")} · ${escapeHtml(item.note || "Sem observação")}</p>${payable ? `<span class="payment-allocation">Conta de ${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}</span>` : ""}</div><strong>${money.format(item.amount)}</strong><div class="row-actions">${payable ? `<button class="table-action" data-supplier-report="${payable.id}">Ver conta</button>` : ""}<button class="table-action danger" data-delete-supplier-payment="${item.id}">Excluir</button></div></article>`;
+    }
     ).join("") : empty();
   }
 
@@ -440,27 +443,137 @@
     byId("supplierAccessDialog").showModal();
   }
 
+  function supplierReportData(payable) {
+    return {
+      supplier: supplierById(payable.supplierId),
+      entries: state.supplierEntries
+        .filter((item) => item.payableId === payable.id)
+        .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt || "").localeCompare(String(b.createdAt || ""))),
+      payments: state.supplierPayments
+        .filter((item) => item.payableId === payable.id)
+        .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+    };
+  }
+
+  function openSupplierReport(payable) {
+    if (!payable) return;
+    activeSupplierReportId = payable.id;
+    const { supplier, entries, payments } = supplierReportData(payable);
+    const entryRows = entries.map((item) => `<tr class="${item.status === "Cancelado" ? "supplier-report-cancelled" : ""}">
+      <td>${formatDate(item.date)}</td><td>${escapeHtml(item.description)}</td><td><strong>${escapeHtml(item.reference || "-")}</strong></td>
+      <td>${escapeHtml(clientName(item.clientId) || "-")}</td><td>${escapeHtml(item.status)}</td><td>${money.format(item.amount)}</td>
+      <td>${escapeHtml(item.status === "Cancelado" ? item.cancellationReason || item.notes || "Cancelado" : item.notes || "-")}</td>
+    </tr>`).join("");
+    const paymentRows = payments.map((item) => `<tr><td>${formatDate(item.date)}</td><td>${escapeHtml(item.method || "Não informada")}</td><td>${escapeHtml(item.note || "-")}</td><td>${money.format(item.amount)}</td></tr>`).join("");
+    byId("supplierReportContent").innerHTML = `
+      <header class="supplier-report-header"><div><span class="eyebrow">Gestor de Serviços</span><h2>Demonstrativo do fornecedor</h2><p>${escapeHtml(supplier?.name || "Fornecedor")}</p></div><div><strong>${payableStatus(payable)}</strong><span>${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}</span></div></header>
+      <section class="supplier-report-identification"><span><small>Fornecedor</small><strong>${escapeHtml(supplier?.name || "-")}</strong></span><span><small>Documento</small><strong>${escapeHtml(supplier?.document || "Não informado")}</strong></span><span><small>Contato</small><strong>${escapeHtml(supplier?.phone || "Não informado")}</strong></span></section>
+      <section class="supplier-report-summary"><article><span>Total da conta</span><strong>${money.format(payable.amount)}</strong></article><article><span>Total pago</span><strong>${money.format(payablePaid(payable))}</strong></article><article><span>Saldo</span><strong>${money.format(payableOpen(payable))}</strong></article><article><span>Lançamentos</span><strong>${entries.length}</strong></article></section>
+      <section class="supplier-report-section"><div class="subsection-heading"><div><span class="eyebrow">Composição</span><h3>Lançamentos incluídos</h3></div></div><div class="catalog-table-wrap"><table class="catalog-table supplier-report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Cliente</th><th>Status</th><th>Valor</th><th>Observação</th></tr></thead><tbody>${entryRows || `<tr><td colspan="7">Nenhum lançamento.</td></tr>`}</tbody></table></div></section>
+      <section class="supplier-report-section"><div class="subsection-heading"><div><span class="eyebrow">Financeiro</span><h3>Pagamentos realizados</h3></div></div><div class="catalog-table-wrap"><table class="catalog-table supplier-report-table"><thead><tr><th>Data</th><th>Forma</th><th>Observação</th><th>Valor pago</th></tr></thead><tbody>${paymentRows || `<tr><td colspan="4">Nenhum pagamento registrado.</td></tr>`}</tbody><tfoot><tr><th colspan="3">Total pago</th><th>${money.format(payablePaid(payable))}</th></tr></tfoot></table></div></section>`;
+    byId("supplierReportDialog").showModal();
+  }
+
   function createSupplierReportPdf(payable) {
-    const entries = state.supplierEntries.filter((item) => item.payableId === payable.id && item.status !== "Cancelado");
-    const supplier = supplierById(payable.supplierId);
+    const { supplier, entries, payments } = supplierReportData(payable);
     const safe = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7E]/g, "").replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-    let y = 790;
-    const commands = ["0.086 0.31 0.263 rg 0 790 595 52 re f", "1 1 1 rg BT /F2 17 Tf 42 812 Td (Gestor de Servicos) Tj ET"];
-    const text = (value, x, size = 10, bold = false) => commands.push(`0.12 0.18 0.16 rg BT /${bold ? "F2" : "F1"} ${size} Tf ${x} ${y} Td (${safe(value)}) Tj ET`);
-    y = 760; text("Relatorio de fornecedor", 42, 10, true); y -= 28; text(supplier?.name || "Fornecedor", 42, 22, true);
-    y -= 20; text(`Periodo: ${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}`, 42);
-    y -= 34; text(`Total: ${money.format(payable.amount)}  |  Pago: ${money.format(payablePaid(payable))}  |  Saldo: ${money.format(payableOpen(payable))}`, 42, 11, true);
-    y -= 34; text("Data", 42, 8, true); text("Servico", 100, 8, true); text("Referencia", 330, 8, true); text("Valor", 475, 8, true); y -= 18;
-    entries.slice(0, 28).forEach((item) => {
-      text(formatDate(item.date), 42, 8); text(String(item.description).slice(0, 34), 100, 8);
-      text(String(item.reference || "-").slice(0, 18), 330, 8); text(money.format(item.amount), 475, 8, true); y -= 20;
+    const pages = [];
+    let commands = [];
+    let y = 0;
+
+    function addPage() {
+      if (commands.length) pages.push(commands.join("\n"));
+      commands = [
+        "0.086 0.31 0.263 rg 0 780 595 62 re f",
+        "1 1 1 rg BT /F2 18 Tf 42 812 Td (Gestor de Servicos) Tj ET",
+        "1 1 1 rg BT /F1 9 Tf 42 796 Td (Demonstrativo completo do fornecedor) Tj ET"
+      ];
+      y = 755;
+      write(supplier?.name || "Fornecedor", 42, 16, true);
+      write(`${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}  |  Status: ${payableStatus(payable)}`, 310, 8);
+      y -= 20;
+      commands.push(`0.78 0.82 0.80 RG 42 ${y} m 553 ${y} l S`);
+      y -= 20;
+    }
+
+    function write(value, x, size = 9, bold = false, color = "0.12 0.18 0.16") {
+      commands.push(`${color} rg BT /${bold ? "F2" : "F1"} ${size} Tf ${x} ${y} Td (${safe(value)}) Tj ET`);
+    }
+
+    function ensureSpace(height = 30) {
+      if (y - height < 48) addPage();
+    }
+
+    function heading(value) {
+      ensureSpace(38);
+      commands.push(`0.92 0.95 0.94 rg 42 ${y - 15} 511 24 re f`);
+      write(value, 50, 10, true);
+      y -= 32;
+    }
+
+    addPage();
+    write(`Documento: ${supplier?.document || "Nao informado"}`, 42, 9);
+    write(`Contato: ${supplier?.phone || "Nao informado"}`, 310, 9);
+    y -= 30;
+    write(`Total da conta: ${money.format(payable.amount)}`, 42, 11, true);
+    write(`Total pago: ${money.format(payablePaid(payable))}`, 220, 11, true, "0.08 0.45 0.27");
+    write(`Saldo: ${money.format(payableOpen(payable))}`, 400, 11, true, "0.75 0.32 0.08");
+    y -= 35;
+
+    heading(`Lancamentos incluidos (${entries.length})`);
+    entries.forEach((item) => {
+      ensureSpace(42);
+      commands.push(`0.97 0.98 0.97 rg 42 ${y - 24} 511 34 re f`);
+      write(formatDate(item.date), 47, 7.5);
+      write(String(item.description || "-").slice(0, 38), 105, 8, true);
+      write(String(item.reference || "-").slice(0, 18), 300, 8, true, "0.12 0.38 0.68");
+      write(item.status, 395, 7.5);
+      write(money.format(item.amount), 475, 8, true);
+      y -= 14;
+      const detail = `Cliente: ${clientName(item.clientId) || "-"} | ${item.status === "Cancelado" ? `Motivo: ${item.cancellationReason || item.notes || "Nao informado"}` : `Obs: ${item.notes || "-"}`}`;
+      write(String(detail).slice(0, 92), 105, 6.8, false, "0.35 0.40 0.38");
+      y -= 26;
     });
-    const content = commands.join("\n");
-    const objects = [null, "<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [5 0 R] /Count 1 >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>", "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>", `<< /Length ${content.length} >>\nstream\n${content}\nendstream`];
-    let pdf = "%PDF-1.4\n"; const offsets = [0];
-    for (let i = 1; i < objects.length; i += 1) { offsets[i] = pdf.length; pdf += `${i} 0 obj\n${objects[i]}\nendobj\n`; }
-    const xref = pdf.length; pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
-    for (let i = 1; i < objects.length; i += 1) pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+
+    heading(`Pagamentos realizados (${payments.length})`);
+    if (!payments.length) {
+      write("Nenhum pagamento registrado.", 42, 9);
+      y -= 24;
+    } else {
+      payments.forEach((payment) => {
+        ensureSpace(32);
+        commands.push(`0.96 0.99 0.97 rg 42 ${y - 17} 511 26 re f`);
+        write(formatDate(payment.date), 47, 8);
+        write(String(payment.method || "Nao informada").slice(0, 22), 125, 8, true);
+        write(String(payment.note || "Sem observacao").slice(0, 42), 260, 7.5);
+        write(money.format(payment.amount), 470, 8, true, "0.08 0.45 0.27");
+        y -= 31;
+      });
+    }
+    ensureSpace(45);
+    y -= 8;
+    write(`TOTAL PAGO: ${money.format(payablePaid(payable))}`, 350, 11, true, "0.08 0.45 0.27");
+    y -= 18;
+    write(`SALDO: ${money.format(payableOpen(payable))}`, 350, 11, true, "0.75 0.32 0.08");
+    pages.push(commands.join("\n"));
+
+    const objects = [];
+    const pageNumbers = pages.map((_, index) => 5 + index * 2);
+    objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+    objects[2] = `<< /Type /Pages /Kids [${pageNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pages.length} >>`;
+    objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+    objects[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
+    pages.forEach((content, index) => {
+      const pageNumber = 5 + index * 2;
+      objects[pageNumber] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${pageNumber + 1} 0 R >>`;
+      objects[pageNumber + 1] = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+    });
+    let pdf = "%PDF-1.4\n";
+    const offsets = [0];
+    for (let index = 1; index < objects.length; index += 1) { offsets[index] = pdf.length; pdf += `${index} 0 obj\n${objects[index]}\nendobj\n`; }
+    const xref = pdf.length;
+    pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
+    for (let index = 1; index < objects.length; index += 1) pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
     pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
     return new Blob([pdf], { type: "application/pdf" });
   }
@@ -574,7 +687,8 @@
     const amount = entries.reduce((sum, item) => sum + Number(item.amount), 0);
     state.supplierPayables.push({ id: payableId, supplierId: data.get("supplierId"), startDate: data.get("startDate"), endDate: data.get("endDate"), amount, status: "Aberta", snapshot: { entryCount: entries.length }, createdAt: new Date().toISOString() });
     entries.forEach((item) => { item.payableId = payableId; });
-    event.currentTarget.closest("dialog").close(); saveState(); showSupplierTab("payables");
+    const payable = state.supplierPayables.find((item) => item.id === payableId);
+    event.currentTarget.closest("dialog").close(); saveState(); showSupplierTab("payables"); openSupplierReport(payable);
   });
 
   byId("supplierPaymentForm").addEventListener("submit", (event) => {
@@ -585,8 +699,8 @@
     const amount = Number(data.get("amount"));
     if (amount > payableOpen(payable) + 0.001) return alert(`O valor máximo é ${money.format(payableOpen(payable))}.`);
     state.supplierPayments.push({ id: crypto.randomUUID(), supplierId: data.get("supplierId"), payableId: payable.id, date: data.get("date"), amount, method: data.get("method"), note: data.get("note").trim(), createdAt: new Date().toISOString() });
-    payable.status = amount >= payableOpen(payable) ? "Paga" : "Parcial";
-    event.currentTarget.closest("dialog").close(); saveState();
+    payable.status = payableOpen(payable) <= 0.001 ? "Paga" : "Parcial";
+    event.currentTarget.closest("dialog").close(); saveState(); openSupplierReport(payable);
   });
 
   byId("supplierAccessForm").addEventListener("submit", async (event) => {
@@ -752,8 +866,12 @@
       if (pay.dataset.mode === "full") form.elements.amount.value = payableOpen(payable).toFixed(2);
       byId("supplierPaymentDialog").showModal();
     }
-    const report = event.target.closest("[data-supplier-report]"); if (report) downloadReport(state.supplierPayables.find((item) => item.id === report.dataset.supplierReport));
+    const report = event.target.closest("[data-supplier-report]"); if (report) openSupplierReport(state.supplierPayables.find((item) => item.id === report.dataset.supplierReport));
     const share = event.target.closest("[data-supplier-share]"); if (share) await shareReport(state.supplierPayables.find((item) => item.id === share.dataset.supplierShare));
+    const downloadOpenReport = event.target.closest("[data-download-supplier-report]");
+    if (downloadOpenReport) downloadReport(state.supplierPayables.find((item) => item.id === activeSupplierReportId));
+    const shareOpenReport = event.target.closest("[data-share-open-supplier-report]");
+    if (shareOpenReport) await shareReport(state.supplierPayables.find((item) => item.id === activeSupplierReportId));
     const cancelPayable = event.target.closest("[data-cancel-supplier-payable]");
     if (cancelPayable && confirm("Cancelar esta conta e liberar os lançamentos para outro fechamento?")) {
       const payable = state.supplierPayables.find((item) => item.id === cancelPayable.dataset.cancelSupplierPayable);
