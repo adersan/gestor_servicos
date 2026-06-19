@@ -43,6 +43,7 @@
     <button class="tab active" data-view="dashboard">Resumo</button>
     <button class="tab" data-view="clients">Clientes</button>
     <button class="tab" data-view="suppliers">Fornecedores</button>
+    <button class="tab" data-view="payments">Financeiro</button>
     <button class="tab" data-view="settings">Configuracoes</button>
     <button class="tab" data-view="help">Ajuda</button>
   </nav>
@@ -55,7 +56,11 @@
           <h2>Resumo do negócio</h2>
           <p class="meta">Acompanhe serviços e financeiro por semana, mês ou período personalizado.</p>
         </div>
-        <button class="primary" data-open-view="services">Novo lançamento</button>
+      </div>
+      <div class="quick-actions dashboard-actions">
+        <button data-dialog="serviceDialog"><strong>Novo lancamento</strong><span>Registrar servico do cliente</span></button>
+        <button data-open-view="suppliers"><strong>Fornecedores</strong><span>Custos, servicos e pagamentos</span></button>
+        <button data-open-view="payments"><strong>Financeiro</strong><span>Pagamentos, formas e cobrancas</span></button>
       </div>
       <div class="dashboard-inner-tabs" role="tablist">
         <button class="active" type="button" data-dashboard-tab="services">Serviços</button>
@@ -137,11 +142,6 @@
         </section>
       </section>
 
-      <div class="quick-actions dashboard-actions">
-        <button data-dialog="serviceDialog"><strong>Novo lancamento</strong><span>Registrar servico do cliente</span></button>
-        <button data-open-view="suppliers"><strong>Fornecedores</strong><span>Custos, servicos e pagamentos</span></button>
-        <button data-dialog="paymentDialog"><strong>Pagamentos</strong><span>Registrar baixa ou parcial</span></button>
-      </div>
     </section>
 
     <section id="clients" class="view">
@@ -150,7 +150,6 @@
         <button class="" type="button" data-client-view="catalog">Servicos</button>
         <button class="" type="button" data-client-view="services">Lancamento</button>
         <button class="" type="button" data-client-view="requests">Pedido on-line</button>
-        <button class="" type="button" data-client-view="payments">Financeiro</button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Cadastro</span><h2>Clientes</h2></div>
@@ -168,7 +167,6 @@
         <button class="active" type="button" data-client-view="catalog">Servicos</button>
         <button type="button" data-client-view="services">Lancamento</button>
         <button type="button" data-client-view="requests">Pedido on-line</button>
-        <button type="button" data-client-view="payments">Financeiro</button>
       </div>
       <div class="client-services-layout">
         <section class="panel client-service-panel">
@@ -201,7 +199,6 @@
         <button type="button" data-client-view="catalog">Servicos</button>
         <button class="active" type="button" data-client-view="services">Lancamento</button>
         <button type="button" data-client-view="requests">Pedido on-line</button>
-        <button type="button" data-client-view="payments">Financeiro</button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Movimento diário</span><h2>Lançamentos</h2></div>
@@ -232,7 +229,6 @@
         <button type="button" data-client-view="catalog">Servicos</button>
         <button type="button" data-client-view="services">Lancamento</button>
         <button class="active" type="button" data-client-view="requests">Pedido on-line</button>
-        <button type="button" data-client-view="payments">Financeiro</button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Entrada do cliente</span><h2>Pedidos recebidos</h2></div>
@@ -252,13 +248,6 @@
     </section>
 
     <section id="payments" class="view">
-      <div class="client-area-tabs" role="tablist">
-        <button type="button" data-client-view="clients">Cadastro</button>
-        <button type="button" data-client-view="catalog">Servicos</button>
-        <button type="button" data-client-view="services">Lancamento</button>
-        <button type="button" data-client-view="requests">Pedido on-line</button>
-        <button class="active" type="button" data-client-view="payments">Financeiro</button>
-      </div>
       <div class="finance-area-tabs" role="tablist">
         <button class="active" type="button" data-client-view="payments">Pagamentos</button>
         <button type="button" data-client-view="paymentMethods">Formas de pagamento</button>
@@ -289,13 +278,6 @@
     </section>
 
     <section id="paymentMethods" class="view">
-      <div class="client-area-tabs" role="tablist">
-        <button class="" type="button" data-client-view="clients">Cadastro</button>
-        <button class="" type="button" data-client-view="catalog">Servicos</button>
-        <button class="" type="button" data-client-view="services">Lancamento</button>
-        <button class="" type="button" data-client-view="requests">Pedido on-line</button>
-        <button class="active" type="button" data-client-view="payments">Financeiro</button>
-      </div>
       <div class="finance-area-tabs" role="tablist">
         <button class="" type="button" data-client-view="payments">Pagamentos</button>
         <button class="active" type="button" data-client-view="paymentMethods">Formas de pagamento</button>
@@ -318,13 +300,6 @@
     </section>
 
     <section id="billing" class="view">
-      <div class="client-area-tabs" role="tablist">
-        <button type="button" data-client-view="clients">Cadastro</button>
-        <button type="button" data-client-view="catalog">Servicos</button>
-        <button type="button" data-client-view="services">Lancamento</button>
-        <button type="button" data-client-view="requests">Pedido on-line</button>
-        <button class="active" type="button" data-client-view="payments">Financeiro</button>
-      </div>
       <div class="finance-area-tabs" role="tablist">
         <button type="button" data-client-view="payments">Pagamentos</button>
         <button type="button" data-client-view="paymentMethods">Formas de pagamento</button>
@@ -421,10 +396,30 @@
         <article class="panel settings-card">
           <span class="eyebrow">Semana operacional</span>
           <h3>Periodo padrao</h3>
-          <p class="meta">Hoje o sistema usa domingo a sexta como padrao. Em breve este ajuste podera controlar os filtros semanais.</p>
+          <p class="meta">Escolha o inicio e o fim da semana usada nos filtros e fechamentos operacionais.</p>
           <div class="date-pair">
-            <label>Comeca em<select disabled><option>Domingo</option></select></label>
-            <label>Termina em<select disabled><option>Sexta-feira</option></select></label>
+            <label>Comeca em
+              <select id="weekStartDay">
+                <option value="0">Domingo</option>
+                <option value="1">Segunda-feira</option>
+                <option value="2">Terca-feira</option>
+                <option value="3">Quarta-feira</option>
+                <option value="4">Quinta-feira</option>
+                <option value="5">Sexta-feira</option>
+                <option value="6">Sabado</option>
+              </select>
+            </label>
+            <label>Termina em
+              <select id="weekEndDay">
+                <option value="0">Domingo</option>
+                <option value="1">Segunda-feira</option>
+                <option value="2">Terca-feira</option>
+                <option value="3">Quarta-feira</option>
+                <option value="4">Quinta-feira</option>
+                <option value="5">Sexta-feira</option>
+                <option value="6">Sabado</option>
+              </select>
+            </label>
           </div>
         </article>
         <article class="panel settings-card">
@@ -942,7 +937,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=34"></script>
-  <script src="app.js?v=43"></script>
+  <script src="app.js?v=44"></script>
   <script src="supplier.js?v=33"></script>
 </body>
 </html>

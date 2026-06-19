@@ -1,6 +1,7 @@
 const STORAGE_KEY = "gestor-servicos-v1";
 const ALERT_MESSAGES_KEY = "gestor-servicos-alert-messages-v1";
 const SOUND_ALERTS_KEY = "gestor-servicos-sound-alerts-v1";
+const SYSTEM_SETTINGS_KEY = "gestor-servicos-system-settings-v1";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 
@@ -47,6 +48,7 @@ let alertMessages = loadAlertMessages();
 let soundAlertsEnabled = localStorage.getItem(SOUND_ALERTS_KEY) === "true";
 let alertAudioContext = null;
 let currentAdminName = "Administrador";
+let systemSettings = loadSystemSettings();
 
 function loadState() {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -71,6 +73,22 @@ function loadAlertMessages() {
 
 function saveAlertMessages() {
   localStorage.setItem(ALERT_MESSAGES_KEY, JSON.stringify(alertMessages));
+}
+
+function loadSystemSettings() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SYSTEM_SETTINGS_KEY)) || {};
+    return {
+      weekStartDay: Number.isInteger(Number(parsed.weekStartDay)) ? Number(parsed.weekStartDay) : 0,
+      weekEndDay: Number.isInteger(Number(parsed.weekEndDay)) ? Number(parsed.weekEndDay) : 5
+    };
+  } catch {
+    return { weekStartDay: 0, weekEndDay: 5 };
+  }
+}
+
+function saveSystemSettings() {
+  localStorage.setItem(SYSTEM_SETTINGS_KEY, JSON.stringify(systemSettings));
 }
 
 function saveState() {
@@ -326,11 +344,15 @@ function localDateKey(date) {
 }
 
 function currentOperationalWeek(reference = new Date()) {
+  const startDay = Number(systemSettings.weekStartDay ?? 0);
+  const endDay = Number(systemSettings.weekEndDay ?? 5);
   const start = new Date(reference);
   start.setHours(12, 0, 0, 0);
-  start.setDate(start.getDate() - start.getDay());
+  const daysFromStart = (start.getDay() - startDay + 7) % 7;
+  start.setDate(start.getDate() - daysFromStart);
   const end = new Date(start);
-  end.setDate(start.getDate() + 5);
+  const weekLength = (endDay - startDay + 7) % 7;
+  end.setDate(start.getDate() + weekLength);
   return { startDate: localDateKey(start), endDate: localDateKey(end) };
 }
 
@@ -389,12 +411,17 @@ function dashboardNotifications() {
 function showView(viewId) {
   document.querySelectorAll(".view, .tab").forEach((element) => element.classList.remove("active"));
   document.getElementById(viewId).classList.add("active");
-  const clientViews = ["clients", "catalog", "services", "requests", "payments", "paymentMethods", "billing"];
-  const mainView = clientViews.includes(viewId) ? "clients" : viewId;
+  const clientViews = ["clients", "catalog", "services", "requests"];
+  const financeViews = ["payments", "paymentMethods", "billing"];
+  const mainView = clientViews.includes(viewId) ? "clients" : financeViews.includes(viewId) ? "payments" : viewId;
   document.querySelector(`[data-view="${mainView}"]`)?.classList.add("active");
   document.querySelectorAll("[data-client-view]").forEach((button) => {
     const target = button.dataset.clientView;
-    const active = target === viewId || (target === "payments" && ["payments", "paymentMethods", "billing"].includes(viewId));
+    button.classList.toggle("active", target === viewId);
+  });
+  document.querySelectorAll(".finance-area-tabs [data-client-view]").forEach((button) => {
+    const target = button.dataset.clientView;
+    const active = target === viewId || (target === "payments" && financeViews.includes(viewId));
     button.classList.toggle("active", active);
   });
 }
@@ -1163,6 +1190,7 @@ async function copyText(value, label) {
 
 function render() {
   renderSelects();
+  renderSystemSettings();
   renderDashboardV2();
   renderNotifications();
   renderClients();
@@ -1174,6 +1202,14 @@ function render() {
   renderPaymentMethods();
   renderBillings();
   window.supplierModule?.render();
+}
+
+function renderSystemSettings() {
+  const startSelect = document.getElementById("weekStartDay");
+  const endSelect = document.getElementById("weekEndDay");
+  if (!startSelect || !endSelect) return;
+  startSelect.value = String(systemSettings.weekStartDay ?? 0);
+  endSelect.value = String(systemSettings.weekEndDay ?? 5);
 }
 
 function escapeHtml(value) {
@@ -3095,6 +3131,21 @@ document.querySelector('#trackingForm input[name="clientSearch"]').addEventListe
     renderDashboardV2();
   });
 });
+["weekStartDay", "weekEndDay"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("change", () => {
+    systemSettings = {
+      weekStartDay: Number(document.getElementById("weekStartDay").value),
+      weekEndDay: Number(document.getElementById("weekEndDay").value)
+    };
+    saveSystemSettings();
+    dashboardPeriod = currentOperationalWeek();
+    document.querySelectorAll("[data-dashboard-period]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.dashboardPeriod === "week");
+    });
+    renderDashboardV2();
+    showToast("Periodo padrao atualizado.");
+  });
+});
 document.getElementById("addReferenceButton").addEventListener("click", addCurrentReference);
 document.querySelector('#serviceForm input[name="hasAdditionalServices"]').addEventListener("change", toggleAdditionalServices);
 document.querySelector('#serviceForm input[name="additionalCatalogSearch"]').addEventListener("input", syncAdditionalCatalogSelection);
@@ -3248,7 +3299,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=49").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=50").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
