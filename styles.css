@@ -88,6 +88,10 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .dashboard-grid .metric-card:nth-child(3) { --card-color:#318b5c; --card-soft:#e9f8ef; }
 .dashboard-grid .metric-card:nth-child(4) { --card-color:#d89b45; --card-soft:#fff3dd; }
 .quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+.dashboard-heading .dashboard-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; min-width: 390px; margin: 0; }
+.dashboard-heading .dashboard-actions button { min-width: 118px; padding: 10px 13px; border: 0; border-radius: 12px; background: var(--accent); color: #241b0d; text-align: left; box-shadow: none; }
+.dashboard-heading .dashboard-actions button:hover { background: #e7aa3f; transform: translateY(-1px); }
+.dashboard-heading .dashboard-actions span { color: rgba(36,27,13,.68); font-size: 11px; }
 .dashboard-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .quick-actions button { display: grid; gap: 3px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.74); color: var(--brand); text-align: left; box-shadow: 0 10px 24px rgba(23,63,53,.05); }
 .quick-actions button:hover { background: white; transform: translateY(-1px); }
@@ -414,6 +418,8 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .tab { min-width: 0; padding: 9px 4px; border-radius: 10px; font-size: 11px; white-space: normal; touch-action: manipulation; }
   .dashboard-heading { align-items: stretch; flex-direction: column; }
   .dashboard-heading .primary { width: 100%; }
+  .dashboard-heading .dashboard-actions { justify-content: stretch; min-width: 0; overflow-x: auto; }
+  .dashboard-heading .dashboard-actions button { min-width: 112px; }
   .dashboard-inner-tabs { grid-template-columns: 1fr 1fr; }
   .dashboard-period-controls { align-items: stretch; flex-direction: column; }
   .period-dates { width: 100%; }
@@ -431,7 +437,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .metric-card strong { font-size: 20px; }
   .metric-card small { display: none; }
   .quick-actions { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .dashboard-actions { grid-template-columns: 1fr; }
+  .quick-actions:not(.dashboard-actions) { grid-template-columns: 1fr; }
   .quick-actions button { padding: 13px; }
   .panel { padding: 16px !important; }
   .panel-title { align-items: flex-start; }
