@@ -12,6 +12,7 @@
   font-family: Arial, Helvetica, sans-serif;
 }
 * { box-sizing: border-box; }
+html, body { max-width: 100%; overflow-x: hidden; }
 body { margin: 0; background: var(--paper); color: var(--ink); }
 .auth-loading > .topbar, .auth-loading > .tabs, .auth-loading > main { visibility: hidden; }
 .auth-screen { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: linear-gradient(145deg, #102e27, #24584a); }
@@ -43,6 +44,7 @@ h2 { font-family: Georgia, serif; font-size: 28px; }
 main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .view { display: none; }
 .view.active { display: block; }
+.view, .panel, .client-card, .billing-card, .payment-method-card { min-width: 0; }
 .hero { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding: 32px; border-radius: 24px; background: linear-gradient(135deg, #173f35, #285f50); color: white; box-shadow: 0 18px 50px rgba(23,63,53,.18); }
 .hero-value { display: block; margin: 8px 0; font-family: Georgia, serif; font-size: clamp(38px, 8vw, 66px); }
 .hero p { opacity: .72; }
@@ -337,10 +339,11 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .payment-options { display: grid; gap: 10px; }
 .payment-option { padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
 .payment-option strong { display: block; margin-bottom: 5px; }
-.supplier-tabs { display: flex; gap: 8px; margin: 0 0 20px; padding: 6px; overflow-x: auto; border-radius: 14px; background: #e9efec; }
+.supplier-tabs { display: flex; gap: 8px; margin: 0 0 20px; padding: 6px; overflow-x: auto; border-radius: 14px; background: #e9efec; scrollbar-width: none; }
+.supplier-tabs::-webkit-scrollbar, .client-area-tabs::-webkit-scrollbar, .finance-area-tabs::-webkit-scrollbar { display: none; }
 .supplier-tabs button { padding: 10px 14px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font-weight: 800; white-space: nowrap; }
 .supplier-tabs button.active { color: white; background: var(--brand); }
-.client-area-tabs, .finance-area-tabs { display: flex; gap: 8px; margin: 0 0 20px; padding: 6px; overflow-x: auto; border-radius: 16px; background: #e9efec; }
+.client-area-tabs, .finance-area-tabs { display: flex; gap: 8px; max-width: 100%; margin: 0 0 20px; padding: 6px; overflow-x: auto; border-radius: 16px; background: #e9efec; scrollbar-width: none; }
 .finance-area-tabs { margin-top: -4px; background: #f2eadb; }
 .client-area-tabs button, .finance-area-tabs button { padding: 10px 14px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font-weight: 850; white-space: nowrap; }
 .client-area-tabs button:hover, .finance-area-tabs button:hover { background: rgba(255,255,255,.72); color: var(--brand); }
@@ -404,24 +407,28 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .shortcut-list span { color: var(--muted); font-size: 13px; }
 kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px solid #cdd5d1; border-bottom-width: 3px; border-radius: 7px; background: #f7f9f8; color: var(--ink); font-family: ui-monospace, monospace; font-size: 11px; font-weight: 800; text-align: center; }
 @media (max-width: 700px) {
-  .topbar { align-items: flex-start; }
-  .topbar-actions { align-items: stretch; flex-direction: column; }
-  .sound-alert-button { align-self: flex-end; min-width: 42px; padding: 6px 8px; font-size: 11px; }
+  .topbar { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 14px; padding: 16px 18px; }
+  .brand-lockup { min-width: 0; }
+  .brand-lockup img { width: 46px; height: 46px; border-radius: 13px; }
+  .topbar-actions { align-items: stretch; flex-direction: column; gap: 8px; min-width: 132px; }
+  .sound-alert-button { align-self: flex-end; min-width: 42px; padding: 5px 8px; font-size: 10px; }
   .notification-button { justify-content: center; }
-  .topbar { padding: 16px 18px; }
   .topbar .eyebrow { display: none; }
-  h1 { font-size: 26px; }
+  h1 { font-size: clamp(22px, 7vw, 30px); line-height: 1.05; }
   main { padding: 20px 14px 88px; }
   .tabs { padding: 9px 14px; scrollbar-width: none; }
   .tabs::-webkit-scrollbar { display: none; }
   .tabs { position: static; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; overflow: visible; }
   .tab { min-width: 0; padding: 9px 4px; border-radius: 10px; font-size: 11px; white-space: normal; touch-action: manipulation; }
-  .dashboard-heading { align-items: stretch; flex-direction: column; }
+  .dashboard-heading { align-items: stretch; flex-direction: column; gap: 16px; }
   .dashboard-heading .primary { width: 100%; }
-  .dashboard-heading .dashboard-actions { justify-content: stretch; min-width: 0; overflow-x: auto; }
-  .dashboard-heading .dashboard-actions button { min-width: 112px; }
+  .dashboard-heading .dashboard-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); justify-content: stretch; min-width: 0; overflow: visible; }
+  .dashboard-heading .dashboard-actions button { min-width: 0; padding: 10px 9px; font-size: 13px; }
+  .dashboard-heading .dashboard-actions span { font-size: 10px; }
   .dashboard-inner-tabs { grid-template-columns: 1fr 1fr; }
   .dashboard-period-controls { align-items: stretch; flex-direction: column; }
+  .period-shortcuts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px 48px; gap: 7px; }
+  .period-shortcuts button { min-width: 0; padding: 10px 8px; }
   .period-dates { width: 100%; }
   .ranking-row { grid-template-columns: 28px 1fr auto; }
   .ranking-row > strong:last-child { grid-column: 2 / -1; }
@@ -460,8 +467,12 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .price-fields { grid-template-columns: 1fr; }
   .report { padding: 18px; }
   .supplier-split { grid-template-columns: 1fr; }
-  .supplier-tabs, .client-area-tabs, .finance-area-tabs { margin-right: -14px; margin-left: -14px; border-radius: 0; }
+  .supplier-tabs, .client-area-tabs, .finance-area-tabs { width: calc(100% + 28px); max-width: none; margin-right: -14px; margin-left: -14px; padding-right: 14px; padding-left: 14px; border-radius: 0; }
+  .supplier-tabs button, .client-area-tabs button, .finance-area-tabs button { flex: 0 0 auto; }
   .client-services-layout { grid-template-columns: 1fr; }
+  .section-heading { align-items: stretch; flex-direction: column; }
+  .section-heading .primary, .section-heading .secondary { align-self: flex-start; }
+  .catalog-table-wrap { max-width: 100%; }
   .supplier-section-title { align-items: stretch; flex-direction: column; }
   .supplier-entry-period { align-items: stretch; flex-direction: column; }
   .supplier-status-grid { grid-template-columns: 1fr 1fr; }

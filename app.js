@@ -3299,7 +3299,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=51").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=52").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
