@@ -503,24 +503,37 @@
   let saveTimer;
   let pendingState = null;
   let pendingOnError = null;
+  let activeSave = null;
+
+  function snapshotState(state) {
+    return typeof structuredClone === "function"
+      ? structuredClone(state)
+      : JSON.parse(JSON.stringify(state));
+  }
 
   function flushSave() {
     clearTimeout(saveTimer);
     saveTimer = null;
+    if (activeSave) return activeSave.then(() => flushSave());
     if (!pendingState) return Promise.resolve();
     const state = pendingState;
     const onError = pendingOnError;
     pendingState = null;
     pendingOnError = null;
-    return upsertState(state).catch((error) => {
-      onError?.(error);
-      throw error;
-    });
+    activeSave = upsertState(state)
+      .catch((error) => {
+        onError?.(error);
+        throw error;
+      })
+      .finally(() => {
+        activeSave = null;
+      });
+    return activeSave;
   }
 
   function scheduleSave(state, onError) {
     clearTimeout(saveTimer);
-    pendingState = state;
+    pendingState = snapshotState(state);
     pendingOnError = onError;
     saveTimer = setTimeout(() => {
       flushSave().catch(() => {});
@@ -532,7 +545,12 @@
     saveTimer = null;
     pendingState = null;
     pendingOnError = null;
-    return upsertState(state);
+    const snapshot = snapshotState(state);
+    if (activeSave) return activeSave.then(() => saveNow(snapshot));
+    activeSave = upsertState(snapshot).finally(() => {
+      activeSave = null;
+    });
+    return activeSave;
   }
 
   async function requestAdminClientServiceRequest(method, body) {
@@ -569,6 +587,7 @@
     saveNow,
     deleteClientServiceRequest,
     updateClientServiceRequest,
-    hasPendingSave: () => Boolean(pendingState)
+    hasPendingSave: () => Boolean(pendingState),
+    hasUnsyncedChanges: () => Boolean(pendingState || activeSave)
   };
 })();

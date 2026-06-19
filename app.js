@@ -44,6 +44,7 @@ let activeDashboardTab = "services";
 let dashboardPeriod = null;
 let remoteRefreshInProgress = false;
 let remoteLoadInProgress = false;
+let localStateRevision = 0;
 let knownPendingRequestIds = null;
 let alertMessages = loadAlertMessages();
 let soundAlertsEnabled = localStorage.getItem(SOUND_ALERTS_KEY) === "true";
@@ -93,6 +94,7 @@ function saveSystemSettings() {
 }
 
 function saveState() {
+  localStateRevision += 1;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   render();
   if (remoteReady && window.dataStore) {
@@ -105,6 +107,7 @@ function saveState() {
 }
 
 async function persistStateNow() {
+  localStateRevision += 1;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   render();
   if (remoteReady && window.dataStore) {
@@ -167,13 +170,19 @@ async function initializeRemoteState(force = false) {
 
 async function refreshRemoteState() {
   if (remoteRefreshInProgress || !remoteReady || !window.dataStore || document.querySelector("dialog[open]")) return;
-  if (window.dataStore.hasPendingSave?.()) {
+  if (window.dataStore.hasUnsyncedChanges?.() || window.dataStore.hasPendingSave?.()) {
     await window.dataStore.flushSave?.();
     return;
   }
   remoteRefreshInProgress = true;
+  const revisionAtStart = localStateRevision;
   try {
     const remoteState = await window.dataStore.fetchAll();
+    if (
+      revisionAtStart !== localStateRevision
+      || window.dataStore.hasUnsyncedChanges?.()
+      || window.dataStore.hasPendingSave?.()
+    ) return;
     notifyNewClientRequests(remoteState);
     state = remoteState;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -3356,7 +3365,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=54").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=55").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
