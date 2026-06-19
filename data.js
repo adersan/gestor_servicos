@@ -147,6 +147,10 @@
         paymentMethods: billing.snapshot?.paymentMethods || [],
         sendHistory: billing.snapshot?.sendHistory || [],
         historyEnabled: Boolean(billing.snapshot?.historyEnabled),
+        paymentIds: billing.snapshot?.paymentIds || [],
+        creditGenerated: Number(billing.snapshot?.creditGenerated || 0),
+        statusReason: billing.snapshot?.statusReason || "",
+        calculationVersion: Number(billing.snapshot?.calculationVersion || 1),
         password: "",
         status: billing.status,
         active: billing.status !== "Cancelada",
@@ -371,7 +375,11 @@
             paymentMethodIds: item.paymentMethodIds || [],
             paymentMethods: item.paymentMethods || [],
             sendHistory: item.sendHistory || [],
-            historyEnabled: Boolean(item.historyEnabled)
+            historyEnabled: Boolean(item.historyEnabled),
+            paymentIds: item.paymentIds || [],
+            creditGenerated: Number(item.creditGenerated || 0),
+            statusReason: item.statusReason || "",
+            calculationVersion: Number(item.calculationVersion || 1)
           },
           created_at: item.createdAt
         }))

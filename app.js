@@ -348,8 +348,27 @@ function paymentWasAfterBilling(payment, billing) {
 
 function billingPaidAmount(billing) {
   return state.payments
-    .filter((payment) => paymentWasAfterBilling(payment, billing))
+    .filter((payment) => billing.calculationVersion >= 2
+      ? payment.billingId === billing.id
+      : paymentWasAfterBilling(payment, billing))
     .reduce((sum, payment) => sum + Number(payment.amount), 0);
+}
+
+function billingPayments(billing) {
+  return state.payments.filter((payment) => payment.billingId === billing.id);
+}
+
+function billingPaymentSummary(billing) {
+  const payments = billingPayments(billing);
+  if (!payments.length) return "Nenhum pagamento vinculado";
+  return payments.map((payment) => `${formatDate(payment.date)} - ${money.format(payment.amount)}`).join("; ");
+}
+
+function paymentAllocationLabel(payment) {
+  const billing = state.billings.find((item) => item.id === payment.billingId);
+  return billing
+    ? `Abateu a cobranca de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}`
+    : "Credito disponivel para o proximo fechamento";
 }
 
 function billingOpenAmount(billing) {
@@ -361,6 +380,53 @@ function billingCurrentStatus(billing) {
   const paid = billingPaidAmount(billing);
   if (paid <= 0) return "Aberta";
   return billingOpenAmount(billing) <= 0 ? "Paga" : "Parcial";
+}
+
+function allocateAdvancePayments(billing, availablePayments) {
+  let remainingDue = Number(billing.amount || 0);
+  const allocatedIds = [];
+  let creditGenerated = 0;
+  const now = new Date().toISOString();
+
+  availablePayments
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))
+    .forEach((payment) => {
+      const originalAmount = Number(payment.amount || 0);
+      const appliedAmount = Math.min(originalAmount, Math.max(0, remainingDue));
+      const creditAmount = originalAmount - appliedAmount;
+      if (appliedAmount > 0) {
+        payment.amount = appliedAmount;
+        payment.billingId = billing.id;
+        payment.note = payment.note || "Pagamento antecipado aplicado ao fechamento";
+        payment.updatedAt = now;
+        allocatedIds.push(payment.id);
+        remainingDue -= appliedAmount;
+      }
+      if (creditAmount > 0) {
+        const credit = appliedAmount > 0 ? {
+          ...payment,
+          id: crypto.randomUUID(),
+          billingId: null,
+          amount: creditAmount,
+          createdAt: now,
+          updatedAt: now
+        } : payment;
+        credit.billingId = null;
+        credit.note = `Credito de ${money.format(creditAmount)} gerado no fechamento de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}${payment.note ? ` - ${payment.note}` : ""}`;
+        credit.paymentSource = "Credito de pagamento";
+        credit.updatedAt = now;
+        if (appliedAmount > 0) state.payments.push(credit);
+        creditGenerated += creditAmount;
+      }
+    });
+
+  billing.paymentIds = allocatedIds;
+  billing.paymentsTotal = Number(billing.amount || 0) - Math.max(0, remainingDue);
+  billing.creditGenerated = creditGenerated;
+  billing.statusReason = remainingDue <= 0
+    ? `Quitada por ${allocatedIds.length} pagamento(s) vinculado(s)`
+    : allocatedIds.length ? "Pagamento parcial vinculado ao periodo" : "Aguardando pagamento";
 }
 
 function billingAgeDays(billing) {
@@ -423,7 +489,14 @@ function periodLabel(period) {
 
 function updateBillingStatuses() {
   state.billings.forEach((billing) => {
-    if (billing.status !== "Cancelada") billing.status = billingCurrentStatus(billing);
+    if (billing.status === "Cancelada") return;
+    billing.status = billingCurrentStatus(billing);
+    if (billing.calculationVersion >= 2) {
+      const paid = billingPaidAmount(billing);
+      billing.statusReason = billing.status === "Paga"
+        ? `Quitada por ${billingPayments(billing).length} pagamento(s) vinculado(s)`
+        : paid > 0 ? "Pagamento parcial vinculado ao periodo" : "Aguardando pagamento";
+    }
   });
 }
 
@@ -1116,9 +1189,11 @@ function renderPayments() {
       </div>
       <div class="receivable-values">
         <span>Valor original<strong>${money.format(billing.amount)}</strong></span>
-        <span>Pago depois da cobrança<strong>${money.format(billing.paidAmount)}</strong></span>
+        <span>Pagamentos vinculados<strong>${money.format(billing.paidAmount)}</strong></span>
         <span>Saldo em aberto<strong>${money.format(billing.openAmount)}</strong></span>
       </div>
+      <p class="meta"><strong>Motivo:</strong> ${escapeHtml(billing.statusReason || (billing.currentStatus === "Paga" ? "Quitada pelos pagamentos vinculados" : "Aguardando pagamento"))}</p>
+      <p class="meta"><strong>Pagamentos:</strong> ${escapeHtml(billingPaymentSummary(billing))}</p>
       ${billing.openAmount > 0 && billing.currentStatus !== "Cancelada" ? `
         <div class="receivable-actions">
           <button class="table-action" data-pay-billing="${billing.id}" data-payment-mode="partial">Baixa parcial</button>
@@ -1136,7 +1211,7 @@ function renderPayments() {
   document.getElementById("paymentList").innerHTML = items.length ? items.map((item) => `
     <article class="timeline-item">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
-      <div><h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3><p class="meta">${escapeHtml(item.note || "Pagamento registrado")}</p><span class="payment-origin">${escapeHtml(item.method || "Forma não informada")} · ${escapeHtml(item.paymentSource || "Manual")}</span></div>
+      <div><h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3><p class="meta">${escapeHtml(item.note || "Pagamento registrado")}</p><span class="payment-origin">${escapeHtml(item.method || "Forma não informada")} · ${escapeHtml(item.paymentSource || "Manual")}</span><p class="payment-allocation ${item.billingId ? "" : "credit"}">${escapeHtml(paymentAllocationLabel(item))}</p></div>
       <strong>${money.format(item.amount)}</strong>
       <div class="row-actions"><button class="table-action" data-edit-payment="${item.id}">Editar</button><button class="table-action danger" data-delete-payment="${item.id}">Excluir</button></div>
     </article>`).join("") : emptyMarkup();
@@ -1188,6 +1263,9 @@ function renderBillings() {
       <h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3>
       <p class="meta">${billingCurrentStatus(item)} · Saldo em aberto</p>
       <strong class="hero-value" style="font-size:30px">${money.format(billingOpenAmount(item))}</strong>
+      <p class="meta"><strong>${escapeHtml(item.statusReason || (billingCurrentStatus(item) === "Paga" ? "Quitada pelos pagamentos vinculados" : "Aguardando pagamento"))}</strong></p>
+      <p class="meta">Pagamentos: ${escapeHtml(billingPaymentSummary(item))}</p>
+      ${Number(item.creditGenerated || 0) > 0 ? `<p class="payment-allocation credit">Credito gerado para a proxima cobranca: <strong>${money.format(item.creditGenerated)}</strong></p>` : ""}
       <p class="billing-history">${item.sendHistory?.length
         ? `Último envio: ${new Date(item.sendHistory[item.sendHistory.length - 1].sentAt).toLocaleString("pt-BR")}`
         : "Ainda não enviada pelo sistema"}</p>
@@ -1208,6 +1286,7 @@ function renderBillings() {
         <button class="table-action" data-view-report="${item.id}">Ver relatório</button>
         <button class="table-action whatsapp-action" data-share-whatsapp="${item.id}">WhatsApp</button>
         <button class="table-action" data-share-report="${item.id}">Compartilhar relatório</button>
+        ${billingOpenAmount(item) > 0 && item.status !== "Cancelada" ? `<button class="table-action" data-pay-billing="${item.id}" data-payment-mode="partial">Pagar parcialmente</button><button class="table-action success" data-pay-billing="${item.id}" data-payment-mode="full">Quitar</button>` : ""}
         <button class="table-action" data-renew-access="${item.id}">Gerar novo acesso</button>
         ${item.identifier && accessBillingByClient.get(item.clientId) === item.id
           ? `<button class="table-action" data-toggle-history="${item.id}">${item.historyEnabled ? "Bloquear histórico" : "Liberar histórico"}</button>`
@@ -3040,12 +3119,16 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     !item.billingId && item.status !== "Cancelado"
     && item.clientId === clientId && item.date >= startDate && item.date <= endDate);
   const payments = availableAdvancePayments(clientId);
+  const paymentsBeforeBilling = typeof structuredClone === "function"
+    ? structuredClone(state.payments)
+    : JSON.parse(JSON.stringify(state.payments));
   const servicesTotal = services.reduce((sum, item) => sum + item.amount, 0);
   const paymentsTotal = payments.reduce((sum, item) => sum + item.amount, 0);
   const paymentsAfterPeriod = payments
     .filter((item) => item.date > endDate)
     .reduce((sum, item) => sum + item.amount, 0);
-  const amount = Math.max(0, balanceFor(clientId, endDate) - paymentsAfterPeriod);
+  const rawBalance = balanceFor(clientId, endDate) - paymentsAfterPeriod;
+  const amount = Math.max(0, rawBalance + paymentsTotal);
   const pendingServices = services.filter((item) => item.status === "A fazer");
   if (pendingServices.length) {
     const names = pendingServices.slice(0, 5)
@@ -3063,9 +3146,13 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     startDate,
     endDate,
     amount,
-    previousBalance: amount - servicesTotal + paymentsTotal,
+    previousBalance: amount - servicesTotal,
     servicesTotal,
-    paymentsTotal,
+    paymentsTotal: 0,
+    paymentIds: [],
+    creditGenerated: 0,
+    statusReason: "Aguardando pagamento",
+    calculationVersion: 2,
     identifier: "",
     password: "",
     status: "Aberta",
@@ -3079,18 +3166,19 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     createdAt: new Date().toISOString()
   };
   state.billings.push(billing);
+  allocateAdvancePayments(billing, payments);
+  billing.status = billingCurrentStatus(billing);
 
   submitButton.disabled = true;
   submitButton.textContent = "Gerando acesso...";
   let persisted = false;
   try {
-    await window.dataStore.upsertState(state);
+    await (window.dataStore.saveNow?.(state) || window.dataStore.upsertState(state));
     const credentials = await issueClientAccess(billing);
     billing.identifier = credentials.identifier;
     billing.password = credentials.password;
     services.forEach((item) => { item.billingId = billingId; });
-    payments.forEach((item) => { item.billingId = billingId; });
-    await window.dataStore.upsertState(state);
+    await (window.dataStore.saveNow?.(state) || window.dataStore.upsertState(state));
     persisted = true;
     form.reset();
     dialog.close();
@@ -3101,9 +3189,9 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     if (!persisted) {
       state.billings = state.billings.filter((item) => item.id !== billingId);
       services.forEach((item) => { item.billingId = null; });
-      payments.forEach((item) => { item.billingId = null; });
+      state.payments = paymentsBeforeBilling;
       try {
-        await window.dataStore.upsertState(state);
+        await (window.dataStore.saveNow?.(state) || window.dataStore.upsertState(state));
       } catch (rollbackError) {
         console.error("Falha ao desfazer a cobrança incompleta:", rollbackError);
       }
@@ -3365,7 +3453,7 @@ document.getElementById("installButton").addEventListener("click", async () => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=55").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=56").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
