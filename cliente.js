@@ -196,10 +196,10 @@ function createPdf(data) {
       const description = String(item.service_name || "").slice(0, 55);
       const reference = String(item.reference || "-").slice(0, 18);
       commands.push(`0.97 0.98 0.97 rg ${margin} ${rowY - 16} ${columnWidth} 23 re f`);
-      commands.push(`${color.gray} rg BT /F1 6.5 Tf ${margin + 5} ${rowY - 3} Td (${pdfText(formatDate(item.service_date))}) Tj ET`);
-      commands.push(`${color.dark} rg BT /F1 7 Tf ${margin + 70} ${rowY - 3} Td (${pdfText(description)}) Tj ET`);
-      commands.push(`${color.gray} rg BT /F1 6.5 Tf ${margin + 360} ${rowY - 3} Td (${pdfText(reference)}) Tj ET`);
-      commands.push(`${color.blue} rg BT /F2 7 Tf ${margin + 447} ${rowY - 3} Td (${pdfText(money.format(Number(item.amount)))}) Tj ET`);
+      commands.push(`${color.gray} rg BT /F1 7.5 Tf ${margin + 5} ${rowY - 3} Td (${pdfText(formatDate(item.service_date))}) Tj ET`);
+      commands.push(`${color.dark} rg BT /F1 8.5 Tf ${margin + 70} ${rowY - 3} Td (${pdfText(description)}) Tj ET`);
+      commands.push(`${color.gray} rg BT /F2 8 Tf ${margin + 360} ${rowY - 3} Td (${pdfText(reference)}) Tj ET`);
+      commands.push(`${color.blue} rg BT /F2 8 Tf ${margin + 447} ${rowY - 3} Td (${pdfText(money.format(Number(item.amount)))}) Tj ET`);
       y -= 27;
     }
   }
@@ -738,4 +738,4 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshClientPortal();
 });
 setInterval(refreshClientPortal, 20000);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=61").then((registration) => registration.update());
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=64").then((registration) => registration.update());

@@ -294,7 +294,7 @@
 
 .client-report-service-grid {
   display: grid;
-  grid-template-columns: minmax(720px, 1fr);
+  grid-template-columns: minmax(900px, 1fr);
   gap: 10px;
   overflow-x: auto;
 }
@@ -303,12 +303,12 @@
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .client-report-service-table th,
 .client-report-service-table td {
-  padding: 8px 6px;
+  padding: 12px 9px;
   overflow: hidden;
   border-bottom: 1px solid #deddd5;
   text-align: left;
@@ -322,13 +322,13 @@
 }
 
 .client-report-service-table th:nth-child(1),
-.client-report-service-table td:nth-child(1) { width: 70px; }
+.client-report-service-table td:nth-child(1) { width: 96px; }
 .client-report-service-table th:nth-child(3),
-.client-report-service-table td:nth-child(3) { width: 100px; }
+.client-report-service-table td:nth-child(3) { width: 135px; overflow: visible; text-overflow: clip; }
 .client-report-service-table th:nth-child(4),
-.client-report-service-table td:nth-child(4) { width: 95px; }
+.client-report-service-table td:nth-child(4) { width: 120px; }
 .client-report-service-table th:nth-child(5),
-.client-report-service-table td:nth-child(5) { width: 82px; text-align: right; }
+.client-report-service-table td:nth-child(5) { width: 105px; text-align: right; }
 
 .section-services .report-table thead {
   background: #eef6ff;
@@ -409,15 +409,16 @@
   display: inline-block;
   max-width: 100%;
   padding: 6px 10px;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid #bdd8ef;
   border-radius: 10px;
   color: #155f9f;
   background: #eef7ff;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 850;
   letter-spacing: .035em;
-  text-overflow: ellipsis;
+  text-overflow: clip;
+  white-space: nowrap;
   vertical-align: middle;
 }
 
