@@ -12,16 +12,20 @@ export default async (request) => {
       canEdit = false,
       canMarkDone = false,
       canCancel = false,
-      showLinkedNotes = false
+      showLinkedNotes = false,
+      showEntries = true,
+      replaceExisting = true
     } = await request.json();
     if (!supplierId || !startDate || !endDate || endDate < startDate) {
       return json(400, { error: "Fornecedor e período válidos são obrigatórios." });
     }
     const suppliers = await supabase(`/rest/v1/suppliers?id=eq.${encodeURIComponent(supplierId)}&active=eq.true&select=id,name&limit=1`);
     if (!suppliers.length) return json(404, { error: "Fornecedor não encontrado." });
-    await supabase(`/rest/v1/supplier_portal_links?supplier_id=eq.${encodeURIComponent(supplierId)}&active=eq.true`, {
-      method: "PATCH", body: JSON.stringify({ active: false })
-    });
+    if (replaceExisting) {
+      await supabase(`/rest/v1/supplier_portal_links?supplier_id=eq.${encodeURIComponent(supplierId)}&active=eq.true`, {
+        method: "PATCH", body: JSON.stringify({ active: false })
+      });
+    }
     const accessCode = randomAccessCode();
     const days = Math.min(90, Math.max(1, Number(validDays) || 30));
     await supabase("/rest/v1/supplier_portal_links", {
@@ -33,6 +37,7 @@ export default async (request) => {
         can_mark_done: Boolean(canMarkDone),
         can_cancel: Boolean(canCancel),
         show_linked_notes: Boolean(showLinkedNotes),
+        show_entries: Boolean(showEntries),
         expires_at: new Date(Date.now() + days * 86400000).toISOString(), active: true
       })
     });

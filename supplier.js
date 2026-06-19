@@ -443,6 +443,26 @@
     byId("supplierAccessDialog").showModal();
   }
 
+  async function issueSupplierPortalLink(payload) {
+    const session = await window.supabaseClient.auth.getSession();
+    const accessToken = session.data.session?.access_token;
+    if (!accessToken) throw new Error("Sua sessão administrativa expirou. Entre novamente no sistema.");
+    const response = await fetch("/.netlify/functions/issue-supplier-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(payload)
+    });
+    const responseText = await response.text();
+    let result = {};
+    try { result = responseText ? JSON.parse(responseText) : {}; } catch {}
+    if (!response.ok) throw new Error(result.error || `Não foi possível gerar o link (HTTP ${response.status}).`);
+    if (!result.accessCode) throw new Error("O servidor não retornou o código de acesso.");
+    return {
+      ...result,
+      url: `${location.origin}/fornecedor.html?acesso=${encodeURIComponent(result.accessCode)}`
+    };
+  }
+
   function supplierReportData(payable) {
     return {
       supplier: supplierById(payable.supplierId),
@@ -461,7 +481,7 @@
     const { supplier, entries, payments } = supplierReportData(payable);
     const entryRows = entries.map((item) => `<tr class="${item.status === "Cancelado" ? "supplier-report-cancelled" : ""}">
       <td>${formatDate(item.date)}</td><td>${escapeHtml(item.description)}</td><td><strong>${escapeHtml(item.reference || "-")}</strong></td>
-      <td>${escapeHtml(clientName(item.clientId) || "-")}</td><td>${escapeHtml(item.status)}</td><td>${money.format(item.amount)}</td>
+      <td>${escapeHtml(item.status)}</td><td>${money.format(item.amount)}</td>
       <td>${escapeHtml(item.status === "Cancelado" ? item.cancellationReason || item.notes || "Cancelado" : item.notes || "-")}</td>
     </tr>`).join("");
     const paymentRows = payments.map((item) => `<tr><td>${formatDate(item.date)}</td><td>${escapeHtml(item.method || "Não informada")}</td><td>${escapeHtml(item.note || "-")}</td><td>${money.format(item.amount)}</td></tr>`).join("");
@@ -469,7 +489,8 @@
       <header class="supplier-report-header"><div><span class="eyebrow">Gestor de Serviços</span><h2>Demonstrativo do fornecedor</h2><p>${escapeHtml(supplier?.name || "Fornecedor")}</p></div><div><strong>${payableStatus(payable)}</strong><span>${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}</span></div></header>
       <section class="supplier-report-identification"><span><small>Fornecedor</small><strong>${escapeHtml(supplier?.name || "-")}</strong></span><span><small>Documento</small><strong>${escapeHtml(supplier?.document || "Não informado")}</strong></span><span><small>Contato</small><strong>${escapeHtml(supplier?.phone || "Não informado")}</strong></span></section>
       <section class="supplier-report-summary"><article><span>Total da conta</span><strong>${money.format(payable.amount)}</strong></article><article><span>Total pago</span><strong>${money.format(payablePaid(payable))}</strong></article><article><span>Saldo</span><strong>${money.format(payableOpen(payable))}</strong></article><article><span>Lançamentos</span><strong>${entries.length}</strong></article></section>
-      <section class="supplier-report-section"><div class="subsection-heading"><div><span class="eyebrow">Composição</span><h3>Lançamentos incluídos</h3></div></div><div class="catalog-table-wrap"><table class="catalog-table supplier-report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Cliente</th><th>Status</th><th>Valor</th><th>Observação</th></tr></thead><tbody>${entryRows || `<tr><td colspan="7">Nenhum lançamento.</td></tr>`}</tbody></table></div></section>
+      <section class="supplier-report-section"><div class="subsection-heading"><div><span class="eyebrow">Composição</span><h3>Lançamentos incluídos</h3></div></div><div class="catalog-table-wrap"><table class="catalog-table supplier-report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Status</th><th>Valor</th><th>Observação</th></tr></thead><tbody>${entryRows || `<tr><td colspan="6">Nenhum lançamento.</td></tr>`}</tbody></table></div></section>
+      ${payable.snapshot?.portalUrl ? `<section class="supplier-report-portal"><div><span class="eyebrow">Acesso semanal</span><h3>Link do fornecedor</h3><p>${payable.snapshot.showEntries === false ? "Somente resumo, cards e gráficos" : "Resumo completo com lista de serviços"}</p></div><a href="${escapeHtml(payable.snapshot.portalUrl)}" target="_blank" rel="noopener">Abrir portal</a><button class="secondary" type="button" data-copy-payable-portal="${escapeHtml(payable.snapshot.portalUrl)}">Copiar link</button></section>` : ""}
       <section class="supplier-report-section"><div class="subsection-heading"><div><span class="eyebrow">Financeiro</span><h3>Pagamentos realizados</h3></div></div><div class="catalog-table-wrap"><table class="catalog-table supplier-report-table"><thead><tr><th>Data</th><th>Forma</th><th>Observação</th><th>Valor pago</th></tr></thead><tbody>${paymentRows || `<tr><td colspan="4">Nenhum pagamento registrado.</td></tr>`}</tbody><tfoot><tr><th colspan="3">Total pago</th><th>${money.format(payablePaid(payable))}</th></tr></tfoot></table></div></section>`;
     byId("supplierReportDialog").showModal();
   }
@@ -530,7 +551,7 @@
       write(item.status, 395, 7.5);
       write(money.format(item.amount), 475, 8, true);
       y -= 14;
-      const detail = `Cliente: ${clientName(item.clientId) || "-"} | ${item.status === "Cancelado" ? `Motivo: ${item.cancellationReason || item.notes || "Nao informado"}` : `Obs: ${item.notes || "-"}`}`;
+      const detail = item.status === "Cancelado" ? `Motivo: ${item.cancellationReason || item.notes || "Nao informado"}` : `Obs: ${item.notes || "-"}`;
       write(String(detail).slice(0, 92), 105, 6.8, false, "0.35 0.40 0.38");
       y -= 26;
     });
@@ -677,7 +698,7 @@
     saveState();
   });
 
-  byId("supplierPayableForm").addEventListener("submit", (event) => {
+  byId("supplierPayableForm").addEventListener("submit", async (event) => {
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -685,10 +706,35 @@
     if (!entries.length) return alert("Não há lançamentos livres neste período.");
     const payableId = crypto.randomUUID();
     const amount = entries.reduce((sum, item) => sum + Number(item.amount), 0);
-    state.supplierPayables.push({ id: payableId, supplierId: data.get("supplierId"), startDate: data.get("startDate"), endDate: data.get("endDate"), amount, status: "Aberta", snapshot: { entryCount: entries.length }, createdAt: new Date().toISOString() });
+    const payable = { id: payableId, supplierId: data.get("supplierId"), startDate: data.get("startDate"), endDate: data.get("endDate"), amount, status: "Aberta", snapshot: { entryCount: entries.length }, createdAt: new Date().toISOString() };
+    state.supplierPayables.push(payable);
     entries.forEach((item) => { item.payableId = payableId; });
-    const payable = state.supplierPayables.find((item) => item.id === payableId);
-    event.currentTarget.closest("dialog").close(); saveState(); showSupplierTab("payables"); openSupplierReport(payable);
+    event.currentTarget.closest("dialog").close();
+    await window.persistStateNow();
+    if (data.get("generatePortalLink") === "on") {
+      try {
+        const issued = await issueSupplierPortalLink({
+          supplierId: payable.supplierId,
+          startDate: payable.startDate,
+          endDate: payable.endDate,
+          validDays: 30,
+          canEdit: false,
+          canMarkDone: false,
+          canCancel: false,
+          showLinkedNotes: false,
+          showEntries: data.get("showEntries") === "on",
+          replaceExisting: false
+        });
+        payable.snapshot = { ...payable.snapshot, portalUrl: issued.url, showEntries: data.get("showEntries") === "on" };
+        generatedSupplierAccessUrl = issued.url;
+        generatedSupplierAccessText = `Olá, ${issued.supplierName}. Consulte o resumo de ${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}:\n${issued.url}`;
+        await window.persistStateNow();
+      } catch (error) {
+        console.error(error);
+        alert(`A conta foi gerada, mas o link do fornecedor não pôde ser criado. ${error.message}`);
+      }
+    }
+    showSupplierTab("payables"); openSupplierReport(payable);
   });
 
   byId("supplierPaymentForm").addEventListener("submit", (event) => {
@@ -731,7 +777,9 @@
           canEdit: data.get("canEdit") === "on",
           canMarkDone: data.get("canMarkDone") === "on",
           canCancel: data.get("canCancel") === "on",
-          showLinkedNotes: data.get("showLinkedNotes") === "on"
+          showLinkedNotes: data.get("showLinkedNotes") === "on",
+          showEntries: data.get("showEntries") === "on",
+          replaceExisting: true
         })
       });
       const responseText = await response.text();
@@ -794,6 +842,8 @@
     }
     const copySupplierAccess = event.target.closest("[data-copy-supplier-access]");
     if (copySupplierAccess && generatedSupplierAccessUrl) await copyText(generatedSupplierAccessUrl, "Link do fornecedor");
+    const copyPayablePortal = event.target.closest("[data-copy-payable-portal]");
+    if (copyPayablePortal) await copyText(copyPayablePortal.dataset.copyPayablePortal, "Link do fornecedor");
     const whatsappSupplierAccess = event.target.closest("[data-whatsapp-supplier-access]");
     if (whatsappSupplierAccess && generatedSupplierAccessText) {
       const link = document.createElement("a");

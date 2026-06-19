@@ -94,6 +94,7 @@ create table if not exists public.supplier_portal_links (
   can_mark_done boolean not null default false,
   can_cancel boolean not null default false,
   show_linked_notes boolean not null default false,
+  show_entries boolean not null default true,
   active boolean not null default true,
   expires_at timestamptz not null,
   created_at timestamptz not null default now(),

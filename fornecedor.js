@@ -135,7 +135,8 @@
       permissions.canEdit && "Lançamentos",
       permissions.canMarkDone && "Marcar feitos",
       permissions.canCancel && "Cancelamentos",
-      permissions.showLinkedNotes && "Vínculos visíveis"
+      permissions.showLinkedNotes && "Vínculos visíveis",
+      permissions.showEntries ? "Lista detalhada" : "Somente resumo"
     ].filter(Boolean);
     document.getElementById("permissionSummary").innerHTML = permissionLabels.length
       ? permissionLabels.map((item) => `<span class="permission-pill">${item}</span>`).join("")
@@ -165,6 +166,7 @@
     if (!form.elements.entryId.value) form.elements.date.value = todayForPeriod();
 
     const statusOrder = { "A fazer": 0, "Feito": 1, "Cancelado": 2 };
+    document.getElementById("supplierEntriesSection").classList.toggle("hidden", !permissions.showEntries);
     const filtered = data.entries.filter((item) =>
       normalized([item.reference, item.service_name].join(" ")).includes(normalized(search))
     ).sort((a, b) => {
@@ -174,9 +176,9 @@
       if (dateDifference) return dateDifference;
       return String(b.updated_at || "").localeCompare(String(a.updated_at || ""));
     });
-    document.getElementById("entries").innerHTML = filtered.length
+    document.getElementById("entries").innerHTML = permissions.showEntries && filtered.length
       ? filtered.map(entryMarkup).join("")
-      : `<div class="empty">Nenhum serviço encontrado.</div>`;
+      : permissions.showEntries ? `<div class="empty">Nenhum serviço encontrado.</div>` : "";
     document.getElementById("payables").innerHTML = data.payables.length ? data.payables.map((item) =>
       `<div class="payable"><span>${date(item.period_start)} a ${date(item.period_end)} · ${escape(item.status)}</span><strong>${money.format(Number(item.total_due))}</strong></div>`
     ).join("") : `<div class="empty">Nenhum fechamento no período.</div>`;

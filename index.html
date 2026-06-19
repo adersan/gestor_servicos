@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=48">
+  <link rel="stylesheet" href="styles.css?v=49">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -889,6 +889,8 @@
       <label>Fornecedor<select name="supplierId" required></select></label>
       <div class="date-pair"><label>De<input name="startDate" type="date" required></label><label>Até<input name="endDate" type="date" required></label></div>
       <p class="hint">Serão incluídos somente lançamentos ainda não fechados.</p>
+      <label class="checkbox-label"><input name="generatePortalLink" type="checkbox" checked> Gerar link semanal para o fornecedor</label>
+      <label class="checkbox-label"><input name="showEntries" type="checkbox" checked> Mostrar a lista detalhada de serviços no link</label>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Gerar pagamento</button></div>
     </form>
   </dialog>
@@ -924,6 +926,7 @@
       <label class="checkbox-label"><input name="canMarkDone" type="checkbox"> Permitir marcar serviços como feitos</label>
       <label class="checkbox-label"><input name="canCancel" type="checkbox"> Permitir cancelar serviços e informar o motivo</label>
       <label class="checkbox-label"><input name="showLinkedNotes" type="checkbox"> Mostrar observações de vínculo, como “Vinculado a CRV cadastrado”</label>
+      <label class="checkbox-label"><input name="showEntries" type="checkbox" checked> Mostrar a lista detalhada de serviços</label>
       <div id="supplierAccessResult" class="supplier-access-result hidden" aria-live="polite">
         <strong id="supplierAccessStatus">Link gerado</strong>
         <a id="supplierAccessLink" href="#" target="_blank" rel="noopener"></a>
@@ -1005,7 +1008,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=36"></script>
-  <script src="app.js?v=53"></script>
-  <script src="supplier.js?v=34"></script>
+  <script src="app.js?v=54"></script>
+  <script src="supplier.js?v=35"></script>
 </body>
 </html>

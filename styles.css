@@ -419,6 +419,9 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .supplier-report-table { min-width: 850px; }
 .supplier-report-table tfoot { background: #edf9f2; }
 .supplier-report-cancelled { color: #9b615c; background: #fff0ee; }
+.supplier-report-portal { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; margin: 18px 0; padding: 16px; border: 1px solid #b9d9ca; border-radius: 14px; background: #f2faf6; }
+.supplier-report-portal h3, .supplier-report-portal p { margin: 3px 0; }
+.supplier-report-portal a { color: var(--brand); font-weight: 800; }
 .supplier-report-actions { position: sticky; bottom: 0; padding: 12px 0 4px; background: var(--surface); }
 .supplier-change-label { display: inline-block; margin: 0 0 8px; padding: 4px 7px; border-radius: 999px; color: #654697; background: #eee8fa; font-size: 10px; font-weight: 800; }
 .supplier-payable-actions { justify-content: flex-end; margin-bottom: 14px; }
@@ -525,6 +528,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .supplier-report-header { flex-direction: column; }
   .supplier-report-header > div:last-child { justify-items: start; }
   .supplier-report-identification, .supplier-report-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .supplier-report-portal { grid-template-columns: 1fr; }
   .supplier-status-grid { grid-template-columns: 1fr 1fr; }
   .supplier-access-actions { grid-template-columns: 1fr; }
   .help-heading { align-items: stretch; flex-direction: column; }

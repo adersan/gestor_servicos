@@ -7,6 +7,9 @@ alter table public.supplier_portal_links
 alter table public.supplier_portal_links
   add column if not exists show_linked_notes boolean not null default false;
 
+alter table public.supplier_portal_links
+  add column if not exists show_entries boolean not null default true;
+
 alter table public.supplier_entries
   add column if not exists last_changed_by text;
 

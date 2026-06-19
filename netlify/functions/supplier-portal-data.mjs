@@ -22,14 +22,19 @@ export default async (request) => {
       supabase(`/rest/v1/supplier_payments?supplier_id=eq.${supplierId}&payment_date=gte.${link.period_start}&payment_date=lte.${link.period_end}&select=id,payable_id,payment_date,amount,method,notes&order=payment_date.desc`)
     ]);
     await supabase(`/rest/v1/supplier_portal_links?id=eq.${link.id}`, { method: "PATCH", body: JSON.stringify({ last_access_at: new Date().toISOString() }) });
+    const showEntries = link.show_entries !== false;
+    const portalEntries = showEntries
+      ? entries
+      : entries.map((item) => ({ service_name: item.service_name, amount: item.amount, status: item.status }));
     return json(200, {
-      supplier: suppliers[0], services, entries, payables, payments,
+      supplier: suppliers[0], services, entries: portalEntries, payables, payments,
       period: { startDate: link.period_start, endDate: link.period_end },
       permissions: {
         canEdit: Boolean(link.can_edit),
         canMarkDone: Boolean(link.can_mark_done),
         canCancel: Boolean(link.can_cancel),
-        showLinkedNotes: Boolean(link.show_linked_notes)
+        showLinkedNotes: Boolean(link.show_linked_notes),
+        showEntries
       },
       expiresAt: link.expires_at
     });
