@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Portal do fornecedor</title>
-  <link rel="stylesheet" href="fornecedor.css?v=19">
+  <link rel="stylesheet" href="fornecedor.css?v=20">
 </head>
 <body>
   <header class="portal-header">
@@ -47,6 +47,21 @@
         <div id="payables"></div>
       </section>
 
+      <section id="paymentPreferencePanel" class="panel payment-preference-panel hidden">
+        <div class="section-heading"><div><span class="eyebrow">Recebimento seguro</span><h2>Como deseja receber?</h2><p class="meta">Informe os dados para o administrador realizar o pagamento. Nenhuma baixa é feita automaticamente.</p></div></div>
+        <form id="paymentPreferenceForm" class="payment-preference-form">
+          <input name="payableId" type="hidden">
+          <label>Forma de recebimento<select name="method" required><option value="PIX">PIX</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option><option value="Outro">Outro</option></select></label>
+          <label data-pix-field>Chave PIX<input name="pixKey" autocomplete="off" placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória"></label>
+          <label>Nome do titular<input name="holder" placeholder="Titular da conta ou chave"></label>
+          <label>Valor solicitado<input name="amount" type="number" min="0.01" step="0.01" required></label>
+          <label class="preference-note">Observação<input name="note" placeholder="Informação adicional para o pagamento"></label>
+          <div class="payment-preference-security">Seus dados serão usados somente para esta solicitação de pagamento.</div>
+          <div class="dialog-actions"><button class="primary" type="submit">Salvar forma de recebimento</button></div>
+          <p id="paymentPreferenceMessage" class="preference-message" aria-live="polite"></p>
+        </form>
+      </section>
+
       <section class="panel supply-summary-panel">
         <div class="section-heading"><div><span class="eyebrow">Resumo final</span><h2>Resumo dos fornecimentos</h2></div><strong id="supplyGrandTotal"></strong></div>
         <div id="supplySummary" class="supply-summary"></div>
@@ -80,6 +95,6 @@
       <div class="dialog-actions"><button type="button" data-close-cancel>Cancelar</button><button class="danger-button" value="default">Confirmar cancelamento</button></div>
     </form>
   </dialog>
-  <script src="fornecedor.js?v=21"></script>
+  <script src="fornecedor.js?v=22"></script>
 </body>
 </html>

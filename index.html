@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=49">
+  <link rel="stylesheet" href="styles.css?v=50">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -900,7 +900,7 @@
       <input name="payableId" type="hidden"><input name="supplierId" type="hidden">
       <label>Data<input name="date" type="date" required></label>
       <label>Valor pago<input name="amount" type="number" min="0.01" step="0.01" required></label>
-      <label>Forma<select name="method"><option>PIX</option><option>Dinheiro</option><option>Cartão</option><option>Outro</option></select></label>
+      <label>Forma<select name="method"><option>PIX</option><option>Transferência</option><option>Dinheiro</option><option>Cartão</option><option>Outro</option></select></label>
       <label>Observação<input name="note"></label>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Confirmar baixa</button></div>
     </form>
@@ -1008,7 +1008,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=36"></script>
-  <script src="app.js?v=57"></script>
-  <script src="supplier.js?v=35"></script>
+  <script src="app.js?v=58"></script>
+  <script src="supplier.js?v=36"></script>
 </body>
 </html>

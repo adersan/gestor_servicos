@@ -125,6 +125,45 @@
     `).join("") : `<div class="empty">Nenhum fornecimento no período.</div>`;
   }
 
+  function paidForPayable(payableId) {
+    return data.payments.filter((item) => item.payable_id === payableId)
+      .reduce((sum, item) => sum + Number(item.amount), 0);
+  }
+
+  function openForPayable(payable) {
+    return Math.max(0, Number(payable.total_due) - paidForPayable(payable.id));
+  }
+
+  function syncPixField() {
+    const form = document.getElementById("paymentPreferenceForm");
+    const pixField = form.querySelector("[data-pix-field]");
+    const isPix = form.elements.method.value === "PIX";
+    pixField.classList.toggle("hidden", !isPix);
+    form.elements.pixKey.required = isPix;
+  }
+
+  function renderPaymentPreference() {
+    const panel = document.getElementById("paymentPreferencePanel");
+    const payable = data.payables.find((item) => openForPayable(item) > 0.001) || data.payables[0];
+    panel.classList.toggle("hidden", !payable);
+    if (!payable) return;
+    const preference = payable.snapshot?.paymentPreference || {};
+    const openAmount = openForPayable(payable);
+    const form = document.getElementById("paymentPreferenceForm");
+    form.elements.payableId.value = payable.id;
+    form.elements.method.value = preference.method || "PIX";
+    form.elements.pixKey.value = preference.pixKey || "";
+    form.elements.holder.value = preference.holder || "";
+    form.elements.amount.value = Number(preference.amount || openAmount).toFixed(2);
+    form.elements.amount.max = openAmount.toFixed(2);
+    form.elements.note.value = preference.note || "";
+    form.querySelector('button[type="submit"]').disabled = openAmount <= 0.001;
+    document.getElementById("paymentPreferenceMessage").textContent = preference.updatedAt
+      ? `Dados atualizados em ${new Date(preference.updatedAt).toLocaleString("pt-BR")}. Valor solicitado: ${money.format(Number(preference.amount || 0))}.`
+      : openAmount > 0.001 ? `Saldo disponível para solicitação: ${money.format(openAmount)}.` : "Esta conta já está quitada.";
+    syncPixField();
+  }
+
   function render() {
     const permissions = data.permissions || {};
     document.getElementById("message").classList.add("hidden");
@@ -180,9 +219,10 @@
       ? filtered.map(entryMarkup).join("")
       : permissions.showEntries ? `<div class="empty">Nenhum serviço encontrado.</div>` : "";
     document.getElementById("payables").innerHTML = data.payables.length ? data.payables.map((item) =>
-      `<div class="payable"><span>${date(item.period_start)} a ${date(item.period_end)} · ${escape(item.status)}</span><strong>${money.format(Number(item.total_due))}</strong></div>`
+      `<div class="payable payable-detail"><div><strong>${date(item.period_start)} a ${date(item.period_end)}</strong><span>${escape(openForPayable(item) <= 0.001 ? "Paga" : paidForPayable(item.id) > 0 ? "Parcial" : item.status)}</span>${item.snapshot?.paymentPreference ? `<small>Forma informada: ${escape(item.snapshot.paymentPreference.method)} · ${money.format(Number(item.snapshot.paymentPreference.amount || 0))}</small>` : ""}</div><span>Total<strong>${money.format(Number(item.total_due))}</strong></span><span>Pago<strong>${money.format(paidForPayable(item.id))}</strong></span><span>Saldo<strong>${money.format(openForPayable(item))}</strong></span></div>`
     ).join("") : `<div class="empty">Nenhum fechamento no período.</div>`;
     renderSupplySummary(data.entries);
+    renderPaymentPreference();
   }
 
   function resetForm() {
@@ -209,6 +249,27 @@
   document.getElementById("entryForm").addEventListener("change", (event) => {
     if (event.target.name === "serviceId") {
       event.currentTarget.elements.amount.value = Number(event.target.selectedOptions[0]?.dataset.cost || 0).toFixed(2);
+    }
+  });
+  document.getElementById("paymentPreferenceForm").addEventListener("change", (event) => {
+    if (event.target.name === "method") syncPixField();
+  });
+  document.getElementById("paymentPreferenceForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = event.submitter;
+    const message = document.getElementById("paymentPreferenceMessage");
+    button.disabled = true;
+    button.textContent = "Salvando...";
+    try {
+      await request({ action: "payment_preference", ...Object.fromEntries(new FormData(form)) });
+      message.textContent = "Forma de recebimento salva com segurança.";
+      await load();
+    } catch (error) {
+      message.textContent = error.message;
+    } finally {
+      button.disabled = false;
+      button.textContent = "Salvar forma de recebimento";
     }
   });
   document.getElementById("entryForm").addEventListener("submit", async (event) => {

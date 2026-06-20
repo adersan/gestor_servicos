@@ -26,6 +26,39 @@ export default async (request) => {
     const link = await validLink(body.accessCode);
     const action = body.action || "save";
 
+    if (action === "payment_preference") {
+      const method = String(body.method || "").trim();
+      const pixKey = String(body.pixKey || "").trim();
+      const holder = String(body.holder || "").trim();
+      const note = String(body.note || "").trim();
+      const requestedAmount = Number(body.amount);
+      if (!['PIX', 'Transferência', 'Dinheiro', 'Outro'].includes(method)) return json(400, { error: "Forma de recebimento inválida." });
+      if (method === "PIX" && !pixKey) return json(400, { error: "Informe a chave PIX." });
+      if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) return json(400, { error: "Informe um valor válido." });
+      const payables = await supabase(
+        `/rest/v1/supplier_payables?id=eq.${encodeURIComponent(body.payableId)}`
+        + `&supplier_id=eq.${encodeURIComponent(link.supplier_id)}`
+        + `&period_end=gte.${link.period_start}&period_start=lte.${link.period_end}`
+        + "&status=neq.Cancelada&select=id,total_due,snapshot&limit=1"
+      );
+      const payable = payables[0];
+      if (!payable) return json(403, { error: "Esta conta não pertence ao período autorizado." });
+      const payments = await supabase(`/rest/v1/supplier_payments?payable_id=eq.${encodeURIComponent(payable.id)}&select=amount`);
+      const paid = payments.reduce((sum, item) => sum + Number(item.amount), 0);
+      const openAmount = Math.max(0, Number(payable.total_due) - paid);
+      if (requestedAmount > openAmount + 0.001) return json(400, { error: `O valor máximo disponível é ${openAmount.toFixed(2)}.` });
+      const paymentPreference = {
+        method, pixKey: method === "PIX" ? pixKey : "", holder,
+        amount: requestedAmount, note,
+        updatedAt: new Date().toISOString(), source: "Fornecedor"
+      };
+      await supabase(`/rest/v1/supplier_payables?id=eq.${encodeURIComponent(payable.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ snapshot: { ...(payable.snapshot || {}), paymentPreference } })
+      });
+      return json(200, { success: true, paymentPreference });
+    }
+
     if (action === "mark_done") {
       if (!link.can_mark_done) return json(403, { error: "Este acesso não permite marcar serviços como feitos." });
       const entry = await editableEntry(link, body.entryId);

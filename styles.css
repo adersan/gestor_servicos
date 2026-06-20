@@ -422,11 +422,18 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .supplier-report-portal { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; margin: 18px 0; padding: 16px; border: 1px solid #b9d9ca; border-radius: 14px; background: #f2faf6; }
 .supplier-report-portal h3, .supplier-report-portal p { margin: 3px 0; }
 .supplier-report-portal a { color: var(--brand); font-weight: 800; }
+.supplier-payment-request { display: grid; grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(130px, auto)); gap: 12px; align-items: center; margin: 18px 0; padding: 16px; border: 1px solid #d8c28e; border-left: 5px solid #d99c39; border-radius: 14px; background: #fffbf2; }
+.supplier-payment-request h3, .supplier-payment-request p { margin: 3px 0; }
+.supplier-payment-request > span { display: grid; gap: 4px; }
+.supplier-payment-request small { color: var(--muted); }
+.supplier-payment-request .supplier-pix-data { grid-column: 2 / -1; grid-template-columns: auto minmax(180px, 1fr) auto; align-items: center; }
+.supplier-payment-request.empty-request { display: block; color: var(--muted); border-color: var(--line); border-left-color: #9aa6a1; background: #f7f8f7; }
 .supplier-report-actions { position: sticky; bottom: 0; padding: 12px 0 4px; background: var(--surface); }
 .supplier-change-label { display: inline-block; margin: 0 0 8px; padding: 4px 7px; border-radius: 999px; color: #654697; background: #eee8fa; font-size: 10px; font-weight: 800; }
 .supplier-payable-actions { justify-content: flex-end; margin-bottom: 14px; }
 .supplier-payable-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .supplier-payable-buttons button { width: 100%; }
+.supplier-preference-badge { margin: 10px 0; padding: 9px 11px; border-radius: 10px; color: #17663d; background: #eaf7ef; font-size: 12px; }
 .supplier-access-result { display: grid; gap: 10px; padding: 14px; border: 1px solid #b9d9ca; border-radius: 12px; background: #f2faf6; }
 .supplier-access-result.hidden { display: none; }
 .supplier-access-result > strong { color: #176647; }
@@ -529,6 +536,9 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .supplier-report-header > div:last-child { justify-items: start; }
   .supplier-report-identification, .supplier-report-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .supplier-report-portal { grid-template-columns: 1fr; }
+  .supplier-payment-request { grid-template-columns: 1fr 1fr; }
+  .supplier-payment-request > div, .supplier-payment-request .supplier-pix-data, .supplier-payment-request > p { grid-column: 1 / -1; }
+  .supplier-payment-request .supplier-pix-data { grid-template-columns: 1fr; }
   .supplier-status-grid { grid-template-columns: 1fr 1fr; }
   .supplier-access-actions { grid-template-columns: 1fr; }
   .help-heading { align-items: stretch; flex-direction: column; }

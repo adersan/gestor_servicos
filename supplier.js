@@ -215,6 +215,7 @@
       <article class="receivable-card">
         <div class="receivable-heading"><div><span class="eyebrow">${formatDate(item.startDate)} a ${formatDate(item.endDate)}</span><h3>${escapeHtml(supplierById(item.supplierId)?.name || "")}</h3></div><span class="billing-status billing-${payableStatus(item).toLowerCase()}">${payableStatus(item)}</span></div>
         <div class="receivable-values"><span>Valor original<strong>${money.format(item.amount)}</strong></span><span>Pago<strong>${money.format(payablePaid(item))}</strong></span><span>Saldo<strong>${money.format(payableOpen(item))}</strong></span></div>
+        ${item.snapshot?.paymentPreference ? `<p class="supplier-preference-badge">Recebimento informado: <strong>${escapeHtml(item.snapshot.paymentPreference.method)}</strong> · ${money.format(Number(item.snapshot.paymentPreference.amount || 0))}</p>` : ""}
         <div class="supplier-payable-buttons">
           <button class="table-action" data-supplier-report="${item.id}">Abrir conta</button>
           <button class="table-action whatsapp-action" data-supplier-share="${item.id}">Compartilhar</button>
@@ -479,6 +480,7 @@
     if (!payable) return;
     activeSupplierReportId = payable.id;
     const { supplier, entries, payments } = supplierReportData(payable);
+    const preference = payable.snapshot?.paymentPreference;
     const entryRows = entries.map((item) => `<tr class="${item.status === "Cancelado" ? "supplier-report-cancelled" : ""}">
       <td>${formatDate(item.date)}</td><td>${escapeHtml(item.description)}</td><td><strong>${escapeHtml(item.reference || "-")}</strong></td>
       <td>${escapeHtml(item.status)}</td><td>${money.format(item.amount)}</td>
@@ -489,6 +491,7 @@
       <header class="supplier-report-header"><div><span class="eyebrow">Gestor de Serviços</span><h2>Demonstrativo do fornecedor</h2><p>${escapeHtml(supplier?.name || "Fornecedor")}</p></div><div><strong>${payableStatus(payable)}</strong><span>${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}</span></div></header>
       <section class="supplier-report-identification"><span><small>Fornecedor</small><strong>${escapeHtml(supplier?.name || "-")}</strong></span><span><small>Documento</small><strong>${escapeHtml(supplier?.document || "Não informado")}</strong></span><span><small>Contato</small><strong>${escapeHtml(supplier?.phone || "Não informado")}</strong></span></section>
       <section class="supplier-report-summary"><article><span>Total da conta</span><strong>${money.format(payable.amount)}</strong></article><article><span>Total pago</span><strong>${money.format(payablePaid(payable))}</strong></article><article><span>Saldo</span><strong>${money.format(payableOpen(payable))}</strong></article><article><span>Lançamentos</span><strong>${entries.length}</strong></article></section>
+      ${preference ? `<section class="supplier-payment-request"><div><span class="eyebrow">Informado pelo fornecedor</span><h3>Solicitação de recebimento</h3><p>Atualizado em ${new Date(preference.updatedAt).toLocaleString("pt-BR")}</p></div><span><small>Forma</small><strong>${escapeHtml(preference.method)}</strong></span><span><small>Titular</small><strong>${escapeHtml(preference.holder || "Não informado")}</strong></span><span><small>Valor solicitado</small><strong>${money.format(Number(preference.amount || 0))}</strong></span>${preference.pixKey ? `<span class="supplier-pix-data"><small>Chave PIX</small><strong>${escapeHtml(preference.pixKey)}</strong><button class="table-action" type="button" data-copy-supplier-pix="${escapeHtml(preference.pixKey)}">Copiar PIX</button></span>` : ""}${preference.note ? `<p>${escapeHtml(preference.note)}</p>` : ""}</section>` : `<section class="supplier-payment-request empty-request"><strong>O fornecedor ainda não informou como deseja receber.</strong></section>`}
       <section class="supplier-report-section"><div class="subsection-heading"><div><span class="eyebrow">Composição</span><h3>Lançamentos incluídos</h3></div></div><div class="catalog-table-wrap"><table class="catalog-table supplier-report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Status</th><th>Valor</th><th>Observação</th></tr></thead><tbody>${entryRows || `<tr><td colspan="6">Nenhum lançamento.</td></tr>`}</tbody></table></div></section>
       ${payable.snapshot?.portalUrl ? `<section class="supplier-report-portal"><div><span class="eyebrow">Acesso semanal</span><h3>Link do fornecedor</h3><p>${payable.snapshot.showEntries === false ? "Somente resumo, cards e gráficos" : "Resumo completo com lista de serviços"}</p></div><a href="${escapeHtml(payable.snapshot.portalUrl)}" target="_blank" rel="noopener">Abrir portal</a><button class="secondary" type="button" data-copy-payable-portal="${escapeHtml(payable.snapshot.portalUrl)}">Copiar link</button></section>` : ""}
       <section class="supplier-report-section"><div class="subsection-heading"><div><span class="eyebrow">Financeiro</span><h3>Pagamentos realizados</h3></div></div><div class="catalog-table-wrap"><table class="catalog-table supplier-report-table"><thead><tr><th>Data</th><th>Forma</th><th>Observação</th><th>Valor pago</th></tr></thead><tbody>${paymentRows || `<tr><td colspan="4">Nenhum pagamento registrado.</td></tr>`}</tbody><tfoot><tr><th colspan="3">Total pago</th><th>${money.format(payablePaid(payable))}</th></tr></tfoot></table></div></section>`;
@@ -540,6 +543,19 @@
     write(`Total pago: ${money.format(payablePaid(payable))}`, 220, 11, true, "0.08 0.45 0.27");
     write(`Saldo: ${money.format(payableOpen(payable))}`, 400, 11, true, "0.75 0.32 0.08");
     y -= 35;
+
+    const preference = payable.snapshot?.paymentPreference;
+    if (preference) {
+      heading("Solicitacao de recebimento do fornecedor");
+      write(`Forma: ${preference.method || "-"}`, 42, 9, true);
+      write(`Valor solicitado: ${money.format(Number(preference.amount || 0))}`, 300, 9, true);
+      y -= 16;
+      write(`Titular: ${preference.holder || "Nao informado"}`, 42, 8);
+      write(`Chave PIX: ${preference.pixKey || "-"}`, 300, 8);
+      y -= 16;
+      write(`Observacao: ${String(preference.note || "-").slice(0, 80)}`, 42, 8);
+      y -= 24;
+    }
 
     heading(`Lancamentos incluidos (${entries.length})`);
     entries.forEach((item) => {
@@ -844,6 +860,8 @@
     if (copySupplierAccess && generatedSupplierAccessUrl) await copyText(generatedSupplierAccessUrl, "Link do fornecedor");
     const copyPayablePortal = event.target.closest("[data-copy-payable-portal]");
     if (copyPayablePortal) await copyText(copyPayablePortal.dataset.copyPayablePortal, "Link do fornecedor");
+    const copySupplierPix = event.target.closest("[data-copy-supplier-pix]");
+    if (copySupplierPix) await copyText(copySupplierPix.dataset.copySupplierPix, "Chave PIX");
     const whatsappSupplierAccess = event.target.closest("[data-whatsapp-supplier-access]");
     if (whatsappSupplierAccess && generatedSupplierAccessText) {
       const link = document.createElement("a");
@@ -913,7 +931,12 @@
     if (pay) {
       const payable = state.supplierPayables.find((item) => item.id === pay.dataset.paySupplier);
       const form = byId("supplierPaymentForm"); form.reset(); form.elements.payableId.value = payable.id; form.elements.supplierId.value = payable.supplierId; form.elements.date.value = today();
-      if (pay.dataset.mode === "full") form.elements.amount.value = payableOpen(payable).toFixed(2);
+      const preference = payable.snapshot?.paymentPreference;
+      form.elements.amount.value = pay.dataset.mode === "full"
+        ? payableOpen(payable).toFixed(2)
+        : preference?.amount ? Math.min(Number(preference.amount), payableOpen(payable)).toFixed(2) : "";
+      if (preference?.method && [...form.elements.method.options].some((option) => option.value === preference.method)) form.elements.method.value = preference.method;
+      if (preference) form.elements.note.value = [`Solicitado pelo fornecedor`, preference.holder && `Titular: ${preference.holder}`, preference.pixKey && `PIX: ${preference.pixKey}`, preference.note].filter(Boolean).join(" | ");
       byId("supplierPaymentDialog").showModal();
     }
     const report = event.target.closest("[data-supplier-report]"); if (report) openSupplierReport(state.supplierPayables.find((item) => item.id === report.dataset.supplierReport));

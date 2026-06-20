@@ -48,6 +48,14 @@ main { max-width: 1120px; margin: auto; padding: 24px 18px 60px; }
 .bar-track { height: 9px; overflow: hidden; border-radius: 99px; background: #edf1ef; }
 .bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), #62a8e7); }
 .panel-payables { border-top: 4px solid var(--blue); }
+.payment-preference-panel { border-top: 4px solid var(--green); background: linear-gradient(180deg, #f7fcf9, #fff); }
+.payment-preference-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.payment-preference-form .preference-note,
+.payment-preference-security,
+.payment-preference-form .dialog-actions,
+.preference-message { grid-column: 1 / -1; }
+.payment-preference-security { padding: 11px 13px; border-radius: 10px; color: #17663d; background: #eaf7ef; font-size: 12px; font-weight: 700; }
+.preference-message { margin: 0; color: var(--muted); font-size: 12px; }
 .supply-summary-panel { border-top: 4px solid var(--orange); }
 .services-heading { align-items: end; }
 .services-tools { display: flex; align-items: center; gap: 9px; }
@@ -77,6 +85,11 @@ label { display: grid; gap: 6px; font-size: 12px; font-weight: 750; }
 input, select, textarea { width: 100%; padding: 11px; border: 1px solid var(--line); border-radius: 10px; font: inherit; }
 .actions, .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; grid-column: 1 / -1; }
 .payable { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.payable-detail { display: grid; grid-template-columns: minmax(190px, 1fr) repeat(3, minmax(100px, auto)); align-items: center; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #f9fbfa; }
+.payable-detail > div { display: grid; gap: 4px; }
+.payable-detail > div span, .payable-detail small { color: var(--muted); }
+.payable-detail > span { display: grid; gap: 4px; color: var(--muted); font-size: 11px; }
+.payable-detail > span strong { color: var(--brand); font-size: 15px; }
 .supply-summary { display: grid; gap: 9px; }
 .supply-row { display: grid; grid-template-columns: minmax(150px,1fr) 90px 130px; gap: 12px; padding: 12px 14px; border-radius: 11px; background: #fff8ed; }
 .supply-row strong:last-child { text-align: right; }
@@ -114,4 +127,11 @@ dialog form { display: grid; grid-template-columns: 1fr; padding: 22px; }
   .bar-row { grid-template-columns: 100px 1fr auto; }
   .supply-row { grid-template-columns: 1fr auto; }
   .supply-row strong:last-child { grid-column: 1 / -1; text-align: left; }
+  .payment-preference-form { grid-template-columns: 1fr; }
+  .payment-preference-form .preference-note,
+  .payment-preference-security,
+  .payment-preference-form .dialog-actions,
+  .preference-message { grid-column: auto; }
+  .payable-detail { grid-template-columns: 1fr 1fr; }
+  .payable-detail > div { grid-column: 1 / -1; }
 }
