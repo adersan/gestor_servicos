@@ -123,7 +123,7 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .client-card h3, .billing-card h3, .price-table-card h3 { margin: 0 0 8px; font-size: 20px; }
 .badge { display: inline-block; margin-top: 14px; padding: 6px 9px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 12px; font-weight: 800; }
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.mobile-filter-toggle, .mobile-service-more { display: none; }
+.mobile-filter-toggle, .mobile-service-more, .mobile-finance-more, .mobile-finance-balance { display: none; }
 .filters-compact { grid-template-columns: minmax(240px, 520px); }
 .payment-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
 .request-summary { margin-bottom: 16px; }
@@ -519,12 +519,32 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .ranking-row { grid-template-columns: 28px 1fr auto; }
   .ranking-row > strong:last-child { grid-column: 2 / -1; }
   .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .payment-summary { grid-template-columns: 1fr; }
+  #payments .payment-summary { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  #payments .payment-summary::-webkit-scrollbar { display: none; }
+  #payments .payment-summary .metric-card { flex: 0 0 min(76vw, 255px); scroll-snap-align: start; }
   .dashboard-charts { grid-template-columns: 1fr; }
   .status-chart { grid-template-columns: 120px 1fr; gap: 14px; }
   .donut-chart { width: 120px; }
   .donut-chart::before { width: 78px; }
-  .payment-filters { grid-template-columns: 1fr; }
+  .finance-filters { grid-template-columns: 1fr; gap: 8px; }
+  #payments .finance-filters #paymentSearch,
+  #billing .finance-filters #billingSearch { order: -1; display: block; }
+  #payments .finance-filters #paymentClientFilter,
+  #payments .finance-filters #paymentStatusFilter,
+  #payments .finance-filters #paymentStartFilter,
+  #payments .finance-filters #paymentEndFilter,
+  #billing .finance-filters #billingClientFilter,
+  #billing .finance-filters #billingStatusFilter,
+  #billing .finance-filters #billingStartFilter,
+  #billing .finance-filters #billingEndFilter { display: none; }
+  #payments.mobile-filters-open .finance-filters #paymentClientFilter,
+  #payments.mobile-filters-open .finance-filters #paymentStatusFilter,
+  #payments.mobile-filters-open .finance-filters #paymentStartFilter,
+  #payments.mobile-filters-open .finance-filters #paymentEndFilter,
+  #billing.mobile-filters-open .finance-filters #billingClientFilter,
+  #billing.mobile-filters-open .finance-filters #billingStatusFilter,
+  #billing.mobile-filters-open .finance-filters #billingStartFilter,
+  #billing.mobile-filters-open .finance-filters #billingEndFilter { display: block; }
   .receivable-values { grid-template-columns: 1fr; }
   .metric-card { padding: 15px; }
   .metric-card strong { font-size: 20px; }
@@ -575,6 +595,18 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   #services .service-actions .row-actions { display: none; }
   #services .timeline-item.mobile-actions-open .service-actions .row-actions { display: grid; }
   .mobile-service-more { display: block; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: #f7f8f6; color: var(--brand); font-size: 11px; font-weight: 800; }
+  #payments .receivable-grid, #billing .card-grid { gap: 8px; }
+  #payments .receivable-card, #billing .billing-card { padding: 14px; border-radius: 14px; }
+  #payments .receivable-heading h3, #billing .billing-card h3 { font-size: 17px; }
+  #billing .billing-card .hero-value { margin: 5px 0 8px; font-size: 25px !important; }
+  .mobile-finance-balance { margin-top: 8px; color: var(--brand); font-size: 19px; }
+  .mobile-finance-more { display: block; width: 100%; margin-top: 10px; padding: 8px 10px; border: 1px solid #c9ddd5; border-radius: 9px; background: #f2f8f5; color: var(--brand); font-size: 11px; font-weight: 800; }
+  #payments .mobile-finance-details, #billing .mobile-finance-details { display: none; }
+  #payments .mobile-finance-expanded .mobile-finance-details,
+  #billing .mobile-finance-expanded .mobile-finance-details { display: block; }
+  #payments .receivable-values { grid-template-columns: 1fr; margin-top: 12px; }
+  #payments .receivable-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  #payments .receivable-actions button { width: 100%; min-width: 0; }
   .alert-summary { grid-template-columns: 1fr 1fr; }
   .alert-list div { align-items: flex-start; flex-direction: column; }
   .alert-list span { text-align: left; }

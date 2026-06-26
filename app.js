@@ -1396,6 +1396,9 @@ function renderPayments() {
         <div><span class="eyebrow">${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</span><h3>${escapeHtml(clientById(billing.clientId)?.name || "")}</h3></div>
         <span class="billing-status billing-${billing.currentStatus.toLowerCase()}">${billing.currentStatus}</span>
       </div>
+      <strong class="mobile-finance-balance">${money.format(billing.openAmount)}</strong>
+      <button class="mobile-finance-more" type="button" data-toggle-finance-card aria-expanded="false">Ver detalhes</button>
+      <div class="mobile-finance-details">
       <div class="receivable-values">
         <span>Valor original<strong>${money.format(billing.amount)}</strong></span>
         <span>Pagamentos vinculados<strong>${money.format(billing.paidAmount)}</strong></span>
@@ -1409,6 +1412,7 @@ function renderPayments() {
           <button class="table-action success" data-pay-billing="${billing.id}" data-payment-mode="full">Quitar ${money.format(billing.openAmount)}</button>
         </div>` : ""}
       ${billing.ageDays >= 7 && billing.openAmount > 0 ? `<p class="overdue-message">Cobrança aberta há ${billing.ageDays} dias.</p>` : ""}
+      </div>
     </article>`).join("") : emptyMarkup();
 
   const items = state.payments
@@ -1484,6 +1488,8 @@ function renderBillings() {
       <h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3>
       <p class="meta"><span class="billing-status billing-${billingCurrentStatus(item).toLowerCase()}">${billingStatusLabel(item)}</span> · Saldo em aberto</p>
       <strong class="hero-value" style="font-size:30px">${money.format(billingOpenAmount(item))}</strong>
+      <button class="mobile-finance-more" type="button" data-toggle-finance-card aria-expanded="false">Ver detalhes</button>
+      <div class="mobile-finance-details">
       <p class="meta"><strong>${escapeHtml(item.statusReason || (billingCurrentStatus(item) === "Paga" ? "Quitada pelos pagamentos vinculados" : "Aguardando pagamento"))}</strong></p>
       <p class="meta">Pagamentos: ${escapeHtml(billingPaymentSummary(item))}</p>
       ${billingRolloverTarget(item) ? `<p class="billing-rollover-note">Saldo incorporado na cobranca de ${formatDate(billingRolloverTarget(item).startDate)} a ${formatDate(billingRolloverTarget(item).endDate)}.</p>` : ""}
@@ -1515,6 +1521,7 @@ function renderBillings() {
           : ""}
         ${billingCurrentStatus(item) === "Aberta" ? `<button class="table-action danger" data-cancel-billing="${item.id}">Cancelar</button>` : ""}
         <button class="table-action danger" data-delete-billing="${item.id}">Excluir</button>
+      </div>
       </div>
     </article>`).join("") : emptyMarkup();
 }
@@ -3641,6 +3648,26 @@ document.addEventListener("click", (event) => {
   }
 });
 document.addEventListener("click", (event) => {
+  const filterButton = event.target.closest("[data-toggle-finance-filters]");
+  const detailButton = event.target.closest("[data-toggle-finance-card]");
+  if (filterButton) {
+    const section = document.getElementById(filterButton.dataset.toggleFinanceFilters);
+    const expanded = !section.classList.contains("mobile-filters-open");
+    section.classList.toggle("mobile-filters-open", expanded);
+    filterButton.setAttribute("aria-expanded", String(expanded));
+    const label = filterButton.querySelector("strong");
+    if (label) label.textContent = expanded ? "Ocultar" : "Mostrar";
+    return;
+  }
+  if (detailButton) {
+    const card = detailButton.closest(".receivable-card, .billing-card");
+    const expanded = !card.classList.contains("mobile-finance-expanded");
+    card.classList.toggle("mobile-finance-expanded", expanded);
+    detailButton.setAttribute("aria-expanded", String(expanded));
+    detailButton.textContent = expanded ? "Ocultar detalhes" : "Ver detalhes";
+  }
+});
+document.addEventListener("click", (event) => {
   const currentWeekButton = event.target.closest("[data-service-current-week]");
   if (!currentWeekButton) return;
   const week = currentOperationalWeek();
@@ -3848,7 +3875,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=69").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=70").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

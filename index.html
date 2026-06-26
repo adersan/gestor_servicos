@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=55">
+  <link rel="stylesheet" href="styles.css?v=56">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -290,7 +290,10 @@
         <div class="finance-period-info"><span>Periodo exibido</span><strong id="paymentPeriodLabel"></strong></div>
       </section>
       <div id="paymentSummary" class="dashboard-grid payment-summary"></div>
-      <div class="filters payment-filters">
+      <button class="mobile-filter-toggle" type="button" data-toggle-finance-filters="payments" aria-expanded="false">
+        <span>Filtros financeiros</span><strong>Mostrar</strong>
+      </button>
+      <div class="filters payment-filters finance-filters">
         <select id="paymentClientFilter"><option value="">Todos os clientes</option></select>
         <select id="paymentStatusFilter">
           <option value="open">Em aberto</option>
@@ -354,7 +357,10 @@
         </div>
         <div class="finance-period-info"><span>Periodo exibido</span><strong id="billingPeriodLabel"></strong></div>
       </section>
-      <div class="filters">
+      <button class="mobile-filter-toggle" type="button" data-toggle-finance-filters="billing" aria-expanded="false">
+        <span>Filtros de cobrancas</span><strong>Mostrar</strong>
+      </button>
+      <div class="filters billing-filters finance-filters">
         <select id="billingClientFilter"><option value="">Todos os clientes</option></select>
         <select id="billingStatusFilter">
           <option value="">Todas as cobrancas</option>
@@ -1045,7 +1051,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=37"></script>
-  <script src="app.js?v=68"></script>
+  <script src="app.js?v=69"></script>
   <script src="supplier.js?v=36"></script>
 </body>
 </html>
