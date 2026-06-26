@@ -151,6 +151,7 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .billing-aberta { color: #a45b10; background: #fff5e8; }
 .billing-parcial { color: #1768ad; background: #eef6ff; }
 .billing-paga { color: #117440; background: #edf9f2; }
+.billing-consolidada { color: #62577a; background: #eeeaf7; }
 .billing-cancelada { color: var(--danger); background: #fde8e5; }
 .receivable-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 18px 0; }
 .receivable-values span { color: var(--muted); font-size: 11px; }
@@ -174,6 +175,15 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .timeline-item.payment-applied .payment-allocation { color: #9b615c; }
 .applied-badge { display: inline-flex; align-items: center; padding: 7px 10px; border-radius: 999px; background: #e5b1ac; color: #6f2923; font-size: 11px; font-weight: 850; text-transform: uppercase; }
 .billing-card.billing-paid { border-color: #9bd0b5; background: #f2fbf6; }
+.billing-card.billing-consolidated { border-color: #c7bedb; background: #f7f5fb; opacity: .9; }
+.billing-rollover-note { margin: 10px 0; padding: 9px 11px; border-radius: 10px; color: #584b73; background: #eeeaf7; font-size: 12px; font-weight: 750; }
+.billing-consolidated [data-share-whatsapp],
+.billing-consolidated [data-share-report],
+.billing-consolidated [data-pay-billing],
+.billing-consolidated [data-renew-access],
+.billing-consolidated [data-toggle-history],
+.billing-consolidated [data-cancel-billing],
+.billing-consolidated [data-delete-billing] { display: none; }
 .billing-paga { background: #dff4e7; color: #176f4b; }
 .status { font-size: 12px; font-weight: 800; color: var(--brand); }
 .status-a-fazer { color: #a45b10; }

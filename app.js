@@ -154,10 +154,20 @@ async function initializeRemoteState(force = false) {
       await window.dataStore.upsertState(state);
     }
 
+    const rolloversMigrated = normalizeBillingRollovers();
+    updateBillingStatuses();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     remoteReady = true;
     closeRemoteLoadError();
     knownPendingRequestIds = new Set((state.serviceRequests || []).filter((item) => item.status === "Novo").map((item) => item.id));
     render();
+    if (rolloversMigrated) {
+      try {
+        await window.dataStore.upsertState(state);
+      } catch (migrationError) {
+        console.error("Falha ao persistir a consolidacao de cobrancas:", migrationError);
+      }
+    }
   } catch (error) {
     console.error("Falha ao carregar dados do Supabase:", error.code, error.message);
     showRemoteLoadError(error);
@@ -373,11 +383,98 @@ function paymentAllocationLabel(payment) {
     : "Credito disponivel para o proximo fechamento";
 }
 
-function billingOpenAmount(billing) {
+function rawBillingOpenAmount(billing) {
   return Math.max(0, Number(billing.amount) - billingPaidAmount(billing));
 }
 
+function billingRolloverTarget(billing) {
+  return billing?.rolledIntoBillingId
+    ? state.billings.find((item) => item.id === billing.rolledIntoBillingId)
+    : null;
+}
+
+function consolidatePreviousBillings(billing) {
+  const targetAmount = Math.max(0, Number(billing.previousBalance || 0));
+  if (targetAmount <= 0.001 || billing.rolledBillingIds?.length) return [];
+
+  let remaining = targetAmount;
+  const selected = state.billings
+    .filter((item) =>
+      item.id !== billing.id
+      && item.clientId === billing.clientId
+      && item.status !== "Cancelada"
+      && !item.rolledIntoBillingId
+      && String(item.createdAt || "") < String(billing.createdAt || "")
+      && rawBillingOpenAmount(item) > 0.001
+    )
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .filter((item) => {
+      const openAmount = rawBillingOpenAmount(item);
+      if (openAmount > remaining + 0.01) return false;
+      remaining -= openAmount;
+      return true;
+    });
+
+  if (!selected.length) return [];
+
+  const rolledAt = billing.createdAt || new Date().toISOString();
+  selected.forEach((item) => {
+    item.rolledIntoBillingId = billing.id;
+    item.rolledAt = rolledAt;
+    item.status = "Consolidada";
+    item.statusReason = `Saldo transferido para a cobranca de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}`;
+  });
+  billing.rolledBillingIds = selected.map((item) => item.id);
+  billing.rolledBalance = selected.reduce((sum, item) => sum + rawBillingOpenAmount(item), 0);
+  return selected;
+}
+
+function releaseRolledBillings(billing) {
+  const rolledIds = new Set(billing?.rolledBillingIds || []);
+  state.billings.forEach((item) => {
+    if (item.rolledIntoBillingId === billing?.id || rolledIds.has(item.id)) {
+      delete item.rolledIntoBillingId;
+      delete item.rolledAt;
+      item.status = billingCurrentStatus(item);
+      const paid = billingPaidAmount(item);
+      item.statusReason = item.status === "Paga"
+        ? `Quitada por ${billingPayments(item).length} pagamento(s) vinculado(s)`
+        : paid > 0 ? "Pagamento parcial vinculado ao periodo" : "Aguardando pagamento";
+    }
+  });
+  if (billing) {
+    billing.rolledBillingIds = [];
+    billing.rolledBalance = 0;
+  }
+}
+
+function normalizeBillingRollovers() {
+  let changed = false;
+  [...state.billings]
+    .filter((billing) => billing.status !== "Cancelada")
+    .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+    .forEach((billing) => {
+      if (billing.rolledBillingIds?.length) {
+        billing.rolledBillingIds.forEach((id) => {
+          const source = state.billings.find((item) => item.id === id);
+          if (source && !source.rolledIntoBillingId) {
+            source.rolledIntoBillingId = billing.id;
+            changed = true;
+          }
+        });
+      } else {
+        if (consolidatePreviousBillings(billing).length) changed = true;
+      }
+    });
+  return changed;
+}
+
+function billingOpenAmount(billing) {
+  return billing?.rolledIntoBillingId ? 0 : rawBillingOpenAmount(billing);
+}
+
 function billingCurrentStatus(billing) {
+  if (billing.rolledIntoBillingId) return "Consolidada";
   if (billing.status === "Cancelada") return "Cancelada";
   const paid = billingPaidAmount(billing);
   if (paid <= 0) return "Aberta";
@@ -554,6 +651,13 @@ function updateBillingStatuses() {
   state.billings.forEach((billing) => {
     if (billing.status === "Cancelada") return;
     billing.status = billingCurrentStatus(billing);
+    if (billing.status === "Consolidada") {
+      const target = billingRolloverTarget(billing);
+      billing.statusReason = target
+        ? `Saldo transferido para a cobranca de ${formatDate(target.startDate)} a ${formatDate(target.endDate)}`
+        : "Saldo transferido para uma cobranca posterior";
+      return;
+    }
     if (billing.calculationVersion >= 2) {
       const paid = billingPaidAmount(billing);
       billing.statusReason = billing.status === "Paga"
@@ -1363,13 +1467,14 @@ function renderBillings() {
     ))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   document.getElementById("billingList").innerHTML = items.length ? items.map((item) => `
-    <article class="billing-card ${billingCurrentStatus(item) === "Paga" ? "billing-paid" : ""}">
+    <article class="billing-card ${billingCurrentStatus(item) === "Paga" ? "billing-paid" : ""} ${billingCurrentStatus(item) === "Consolidada" ? "billing-consolidated" : ""}">
       <span class="eyebrow">${item.startDate.split("-").reverse().join("/")} a ${item.endDate.split("-").reverse().join("/")}</span>
       <h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3>
       <p class="meta"><span class="billing-status billing-${billingCurrentStatus(item).toLowerCase()}">${billingStatusLabel(item)}</span> · Saldo em aberto</p>
       <strong class="hero-value" style="font-size:30px">${money.format(billingOpenAmount(item))}</strong>
       <p class="meta"><strong>${escapeHtml(item.statusReason || (billingCurrentStatus(item) === "Paga" ? "Quitada pelos pagamentos vinculados" : "Aguardando pagamento"))}</strong></p>
       <p class="meta">Pagamentos: ${escapeHtml(billingPaymentSummary(item))}</p>
+      ${billingRolloverTarget(item) ? `<p class="billing-rollover-note">Saldo incorporado na cobranca de ${formatDate(billingRolloverTarget(item).startDate)} a ${formatDate(billingRolloverTarget(item).endDate)}.</p>` : ""}
       ${Number(item.creditGenerated || 0) > 0 ? `<p class="payment-allocation credit">Credito gerado para a proxima cobranca: <strong>${money.format(item.creditGenerated)}</strong></p>` : ""}
       <p class="billing-history">${item.sendHistory?.length
         ? `Último envio: ${new Date(item.sendHistory[item.sendHistory.length - 1].sentAt).toLocaleString("pt-BR")}`
@@ -1420,6 +1525,8 @@ async function copyText(value, label) {
 }
 
 function render() {
+  normalizeBillingRollovers();
+  updateBillingStatuses();
   const serviceStartDate = document.getElementById("serviceStartDate");
   const serviceEndDate = document.getElementById("serviceEndDate");
   if (serviceStartDate && serviceEndDate && !serviceStartDate.value && !serviceEndDate.value) {
@@ -2703,6 +2810,7 @@ document.addEventListener("click", async (event) => {
     } else if (billing && confirm("Cancelar esta cobrança e liberar os lançamentos para um novo fechamento?")) {
       try {
         await cancelClientAccess(billing);
+        releaseRolledBillings(billing);
         billing.status = "Cancelada";
         billing.active = false;
         state.services.forEach((item) => {
@@ -2735,6 +2843,7 @@ document.addEventListener("click", async (event) => {
       deleteBillingButton.disabled = true;
       try {
         await cancelClientAccess(billing);
+        releaseRolledBillings(billing);
         state.services.forEach((item) => {
           if (item.billingId === billing.id) item.billingId = null;
         });
@@ -3288,6 +3397,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     billing.identifier = credentials.identifier;
     billing.password = credentials.password;
     allocateAdvancePayments(billing, payments);
+    consolidatePreviousBillings(billing);
     billing.status = billingCurrentStatus(billing);
     services.forEach((item) => { item.billingId = billingId; });
     await (window.dataStore.saveNow?.(state) || window.dataStore.upsertState(state));
@@ -3299,6 +3409,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   } catch (error) {
     console.error(error);
     if (!persisted) {
+      releaseRolledBillings(billing);
       state.billings = state.billings.filter((item) => item.id !== billingId);
       services.forEach((item) => { item.billingId = null; });
       state.payments = paymentsBeforeBilling;
@@ -3385,6 +3496,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
         draft.billing.identifier = credentials.identifier;
         draft.billing.password = credentials.password;
         allocateAdvancePayments(draft.billing, draft.payments);
+        consolidatePreviousBillings(draft.billing);
         draft.billing.status = billingCurrentStatus(draft.billing);
         draft.services.forEach((item) => { item.billingId = draft.billing.id; });
       } catch (error) {

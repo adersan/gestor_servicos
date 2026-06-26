@@ -151,8 +151,12 @@
         creditGenerated: Number(billing.snapshot?.creditGenerated || 0),
         statusReason: billing.snapshot?.statusReason || "",
         calculationVersion: Number(billing.snapshot?.calculationVersion || 1),
+        rolledIntoBillingId: billing.snapshot?.rolledIntoBillingId || null,
+        rolledAt: billing.snapshot?.rolledAt || null,
+        rolledBillingIds: billing.snapshot?.rolledBillingIds || [],
+        rolledBalance: Number(billing.snapshot?.rolledBalance || 0),
         password: "",
-        status: billing.status,
+        status: billing.snapshot?.rolledIntoBillingId ? "Consolidada" : billing.status,
         active: billing.status !== "Cancelada",
         createdAt: billing.created_at
       })),
@@ -369,7 +373,7 @@
           services_total: Number(item.servicesTotal || 0),
           payments_total: Number(item.paymentsTotal || 0),
           total_due: Number(item.amount),
-          status: item.status || "Aberta",
+          status: item.rolledIntoBillingId ? "Paga" : (item.status || "Aberta"),
           snapshot: {
             identifier: item.identifier,
             paymentMethodIds: item.paymentMethodIds || [],
@@ -379,7 +383,11 @@
             paymentIds: item.paymentIds || [],
             creditGenerated: Number(item.creditGenerated || 0),
             statusReason: item.statusReason || "",
-            calculationVersion: Number(item.calculationVersion || 1)
+            calculationVersion: Number(item.calculationVersion || 1),
+            rolledIntoBillingId: item.rolledIntoBillingId || null,
+            rolledAt: item.rolledAt || null,
+            rolledBillingIds: item.rolledBillingIds || [],
+            rolledBalance: Number(item.rolledBalance || 0)
           },
           created_at: item.createdAt
         }))

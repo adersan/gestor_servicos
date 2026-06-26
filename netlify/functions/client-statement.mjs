@@ -1,6 +1,7 @@
 import { json, supabase, verifyPortalToken } from "./_shared/server.mjs";
 
 function openAmount(billing, payments) {
+  if (billing.snapshot?.rolledIntoBillingId) return 0;
   const calculationVersion = Number(billing.snapshot?.calculationVersion || 1);
   const createdAt = new Date(billing.created_at).getTime();
   const appliedPayments = payments
@@ -40,7 +41,7 @@ export default async (request) => {
       supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason&order=service_date.desc`),
       supabase("/rest/v1/payment_methods?active=eq.true&select=id,type,name,details,payment_link&order=created_at.asc"),
       historyEnabled
-        ? supabase(`/rest/v1/billings?client_id=eq.${clientId}&status=neq.Cancelada&select=id,period_start,period_end,total_due,status,created_at&order=period_end.desc`)
+        ? supabase(`/rest/v1/billings?client_id=eq.${clientId}&status=neq.Cancelada&select=id,period_start,period_end,total_due,status,created_at,snapshot&order=period_end.desc`)
         : Promise.resolve([])
     ]);
     if (!clients.length || !billings.length) return json(404, { error: "Cobrança não encontrada." });
@@ -77,6 +78,7 @@ export default async (request) => {
       client,
       billing: {
         ...billing,
+        status: billing.snapshot?.rolledIntoBillingId ? "Consolidada" : billing.status,
         open_amount: openAmount(billing, payments)
       },
       services,
@@ -105,7 +107,12 @@ export default async (request) => {
       })),
       historyEnabled,
       accessBillingId: payload.billingId,
-      billingHistory: allBillings.filter((item) => item.id !== payload.billingId)
+      billingHistory: allBillings
+        .filter((item) => item.id !== payload.billingId)
+        .map((item) => ({
+          ...item,
+          status: item.snapshot?.rolledIntoBillingId ? "Consolidada" : item.status
+        }))
     });
   } catch (error) {
     console.error(error);

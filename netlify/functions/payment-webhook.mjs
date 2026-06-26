@@ -37,6 +37,9 @@ export default async (request) => {
     );
     const billing = billings[0];
     if (!billing || billing.status === "Cancelada") return json(404, { error: "Cobrança ativa não encontrada." });
+    if (billing.snapshot?.rolledIntoBillingId) {
+      return json(409, { error: "Esta cobrança foi consolidada em uma cobrança posterior." });
+    }
 
     const calculationVersion = Number(billing.snapshot?.calculationVersion || 1);
     const createdFilter = calculationVersion >= 2
