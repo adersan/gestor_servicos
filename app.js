@@ -791,7 +791,14 @@ function renderDashboardV2() {
 
   const servicesFor = (range) => state.services.filter((item) =>
     item.status !== "Cancelado" && inPeriod(item.date, range));
-  const paymentsFor = (range) => state.payments.filter((item) => inPeriod(item.date, range));
+  // A payment linked to a billing belongs to that billing's operational period.
+  // This prevents a late payment from looking like credit in a later week.
+  const paymentsAppliedFor = (range) => state.payments.filter((item) => {
+    if (!item.billingId) return inPeriod(item.date, range);
+    const billing = state.billings.find((entry) => entry.id === item.billingId);
+    return Boolean(billing && billing.status !== "Cancelada" && inPeriod(billing.endDate, range));
+  });
+  const paymentsReceivedFor = (range) => state.payments.filter((item) => inPeriod(item.date, range));
   const billingsFor = (range) => state.billings.filter((item) =>
     item.status !== "Cancelada" && inPeriod(item.endDate, range));
   const serviceMetrics = (range) => {
@@ -878,11 +885,18 @@ function renderDashboardV2() {
 
   const financeMetrics = (range) => {
     const servicesTotal = servicesFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
-    const paymentTotal = paymentsFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
-    return { servicesTotal, paymentTotal, balance: servicesTotal - paymentTotal, billings: billingsFor(range) };
+    const paymentTotal = paymentsReceivedFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
+    const appliedPaymentTotal = paymentsAppliedFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
+    return {
+      servicesTotal,
+      paymentTotal,
+      appliedPaymentTotal,
+      balance: servicesTotal - appliedPaymentTotal,
+      billings: billingsFor(range)
+    };
   };
   const financeCards = (metrics) => `
-    <article class="metric-card metric-main"><span>Saldo do período</span><strong>${money.format(metrics.balance)}</strong><small>Serviços menos pagamentos</small></article>
+    <article class="metric-card metric-main"><span>Saldo do período</span><strong>${money.format(metrics.balance)}</strong><small>Serviços menos baixas deste período</small></article>
     <article class="metric-card"><span>Serviços lançados</span><strong>${money.format(metrics.servicesTotal)}</strong><small>Produção no período</small></article>
     <article class="metric-card"><span>Pagamentos</span><strong>${money.format(metrics.paymentTotal)}</strong><small>Recebimentos no período</small></article>
     <article class="metric-card"><span>Cobranças geradas</span><strong>${metrics.billings.length}</strong><small>Fechamentos no período</small></article>`;
@@ -894,7 +908,7 @@ function renderDashboardV2() {
   const paymentDates = dateKeysBetween(period.startDate, period.endDate, 31);
   const dailyPayments = paymentDates.map((date) => ({
     date,
-    amount: paymentsFor(period).filter((payment) => payment.date === date)
+    amount: paymentsReceivedFor(period).filter((payment) => payment.date === date)
       .reduce((sum, payment) => sum + Number(payment.amount), 0)
   }));
   const recentTotal = dailyPayments.reduce((sum, item) => sum + item.amount, 0);
@@ -933,12 +947,12 @@ function renderDashboardV2() {
   const periodAccounts = state.clients.map((client) => {
     const serviceAmount = periodServices.services.filter((item) => item.clientId === client.id)
       .reduce((sum, item) => sum + Number(item.amount), 0);
-    const paymentAmount = paymentsFor(period).filter((item) => item.clientId === client.id)
+    const paymentAmount = paymentsAppliedFor(period).filter((item) => item.clientId === client.id)
       .reduce((sum, item) => sum + Number(item.amount), 0);
     return { client, serviceAmount, paymentAmount, balance: serviceAmount - paymentAmount };
   }).filter((item) => item.serviceAmount || item.paymentAmount).sort((a, b) => b.balance - a.balance);
   document.getElementById("accountList").innerHTML = periodAccounts.length ? periodAccounts.map((item) => `
-    <div class="account-row"><div><strong>${escapeHtml(item.client.name)}</strong><span class="meta">${escapeHtml(item.client.priceGroup)}</span></div><span class="meta">${money.format(item.serviceAmount)} / recebido ${money.format(item.paymentAmount)}</span><strong class="amount ${item.balance < 0 ? "negative" : ""}">${money.format(item.balance)}</strong></div>`).join("") : emptyMarkup();
+    <div class="account-row"><div><strong>${escapeHtml(item.client.name)}</strong><span class="meta">${escapeHtml(item.client.priceGroup)}</span></div><span class="meta">${money.format(item.serviceAmount)} / abatido ${money.format(item.paymentAmount)}</span><strong class="amount ${item.balance < 0 ? "negative" : ""}">${money.format(item.balance)}</strong></div>`).join("") : emptyMarkup();
 }
 
 function alertKey(item) {
