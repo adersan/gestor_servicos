@@ -688,7 +688,18 @@ function dashboardNotifications() {
   return { overdueServices, overdueBillings };
 }
 
+function setMobileMenuOpen(open) {
+  document.body.classList.toggle("mobile-menu-open", open);
+  const button = document.getElementById("mobileMenuButton");
+  if (!button) return;
+  button.setAttribute("aria-expanded", String(open));
+  button.setAttribute("aria-label", open ? "Fechar menu" : "Abrir menu");
+  const icon = button.querySelector("span");
+  if (icon) icon.textContent = open ? "×" : "☰";
+}
+
 function showView(viewId) {
+  setMobileMenuOpen(false);
   document.querySelectorAll(".view, .tab").forEach((element) => element.classList.remove("active"));
   document.getElementById(viewId).classList.add("active");
   const clientViews = ["clients", "catalog", "services", "requests"];
@@ -3790,6 +3801,7 @@ window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredInstallPrompt = event;
   document.getElementById("installButton").classList.remove("hidden");
+  document.getElementById("mobileInstallButton")?.classList.remove("hidden");
 });
 
 document.getElementById("installButton").addEventListener("click", async () => {
@@ -3797,10 +3809,25 @@ document.getElementById("installButton").addEventListener("click", async () => {
   deferredInstallPrompt.prompt();
   await deferredInstallPrompt.userChoice;
   deferredInstallPrompt = null;
+  document.getElementById("installButton").classList.add("hidden");
+  document.getElementById("mobileInstallButton")?.classList.add("hidden");
+});
+
+document.getElementById("mobileMenuButton")?.addEventListener("click", () => {
+  setMobileMenuOpen(!document.body.classList.contains("mobile-menu-open"));
+});
+document.getElementById("mobileLogoutButton")?.addEventListener("click", () => {
+  document.getElementById("logoutButton")?.click();
+});
+document.getElementById("mobileInstallButton")?.addEventListener("click", () => {
+  document.getElementById("installButton")?.click();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setMobileMenuOpen(false);
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=67").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=68").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

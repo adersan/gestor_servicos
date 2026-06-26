@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=53">
+  <link rel="stylesheet" href="styles.css?v=54">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -33,18 +33,25 @@
       <button id="notificationButton" class="notification-button" aria-label="Abrir notificações">
         Alertas <span id="notificationCount">0</span>
       </button>
+      <button id="mobileMenuButton" class="mobile-menu-button" type="button" aria-controls="mainNavigation" aria-expanded="false" aria-label="Abrir menu">
+        <span aria-hidden="true">☰</span><strong>Menu</strong>
+      </button>
       <button id="installButton" class="secondary hidden">Instalar aplicativo</button>
       <button id="logoutButton" class="secondary hidden">Sair</button>
     </div>
   </header>
 
-  <nav class="tabs" aria-label="Navegacao principal">
+  <nav id="mainNavigation" class="tabs" aria-label="Navegacao principal">
     <button class="tab active" data-view="dashboard">Resumo</button>
     <button class="tab" data-view="services">Clientes</button>
     <button class="tab" data-view="suppliers">Fornecedores</button>
     <button class="tab" data-view="payments">Financeiro</button>
     <button class="tab" data-view="settings">Configuracoes</button>
     <button class="tab" data-view="help">Ajuda</button>
+    <div class="mobile-nav-actions">
+      <button id="mobileInstallButton" class="hidden" type="button">Instalar aplicativo</button>
+      <button id="mobileLogoutButton" type="button">Sair</button>
+    </div>
   </nav>
 
   <main>
@@ -1035,7 +1042,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=37"></script>
-  <script src="app.js?v=66"></script>
+  <script src="app.js?v=67"></script>
   <script src="supplier.js?v=36"></script>
 </body>
 </html>
