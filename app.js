@@ -1051,11 +1051,18 @@ function renderServices() {
   const clientFilter = document.getElementById("serviceClientFilter").value;
   const clientNameFilter = document.getElementById("serviceClientNameFilter").value.trim();
   const statusFilter = document.getElementById("serviceStatusFilter").value;
+  const startDate = document.getElementById("serviceStartDate").value;
+  const endDate = document.getElementById("serviceEndDate").value;
   const search = document.getElementById("serviceSearch").value.trim();
+  document.getElementById("serviceEntryPeriodLabel").textContent = startDate && endDate
+    ? `${formatDate(startDate)} a ${formatDate(endDate)}`
+    : "Todos os períodos";
   const items = state.services
     .filter((item) => !clientFilter || item.clientId === clientFilter)
     .filter((item) => !clientNameFilter || matchesSearch(clientNameFilter, clientById(item.clientId)?.name))
     .filter((item) => !statusFilter || item.status === statusFilter)
+    .filter((item) => !startDate || item.date >= startDate)
+    .filter((item) => !endDate || item.date <= endDate)
     .filter((item) => matchesSearch(
       search,
       item.description,
@@ -1327,6 +1334,13 @@ async function copyText(value, label) {
 }
 
 function render() {
+  const serviceStartDate = document.getElementById("serviceStartDate");
+  const serviceEndDate = document.getElementById("serviceEndDate");
+  if (serviceStartDate && serviceEndDate && !serviceStartDate.value && !serviceEndDate.value) {
+    const week = currentOperationalWeek();
+    serviceStartDate.value = week.startDate;
+    serviceEndDate.value = week.endDate;
+  }
   renderSelects();
   renderSystemSettings();
   renderDashboardV2();
@@ -3362,6 +3376,8 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["catalogSearch", "input", renderCatalog],
   ["serviceClientNameFilter", "input", syncServiceClientFilter],
   ["serviceStatusFilter", "change", renderServices],
+  ["serviceStartDate", "change", renderServices],
+  ["serviceEndDate", "change", renderServices],
   ["serviceSearch", "input", renderServices],
   ["requestSearch", "input", renderServiceRequests],
   ["requestStatusFilter", "change", renderServiceRequests],
@@ -3377,6 +3393,14 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["billingSearch", "input", renderBillings]
 ].forEach(([id, eventName, handler]) => {
   document.getElementById(id).addEventListener(eventName, handler);
+});
+document.addEventListener("click", (event) => {
+  const currentWeekButton = event.target.closest("[data-service-current-week]");
+  if (!currentWeekButton) return;
+  const week = currentOperationalWeek();
+  document.getElementById("serviceStartDate").value = week.startDate;
+  document.getElementById("serviceEndDate").value = week.endDate;
+  renderServices();
 });
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("input", syncServiceClientSelection);
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("change", syncServiceClientSelection);

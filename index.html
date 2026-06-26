@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=50">
+  <link rel="stylesheet" href="styles.css?v=51">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -214,6 +214,10 @@
           <button class="primary" data-dialog="serviceDialog">Lançar serviço</button>
         </div>
       </div>
+      <div class="supplier-entry-period">
+        <div><span class="eyebrow">Período exibido</span><strong id="serviceEntryPeriodLabel"></strong></div>
+        <button class="table-action" type="button" data-service-current-week>Voltar para semana atual</button>
+      </div>
       <div class="filters">
         <input id="serviceClientNameFilter" type="search" list="serviceClientFilterOptions" placeholder="Digite o cliente">
         <input id="serviceClientFilter" type="hidden">
@@ -225,6 +229,8 @@
           <option value="Entregue">Entregue</option>
           <option value="Cancelado">Cancelado</option>
         </select>
+        <input id="serviceStartDate" type="date" aria-label="Data inicial">
+        <input id="serviceEndDate" type="date" aria-label="Data final">
         <input id="serviceSearch" type="search" placeholder="Buscar cliente, placa ou serviço">
       </div>
       <div id="serviceList" class="timeline"></div>
@@ -1008,7 +1014,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=36"></script>
-  <script src="app.js?v=58"></script>
+  <script src="app.js?v=59"></script>
   <script src="supplier.js?v=36"></script>
 </body>
 </html>
