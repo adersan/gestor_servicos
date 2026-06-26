@@ -1,4 +1,4 @@
-const CACHE = "gestor-servicos-v79";
+const CACHE = "gestor-servicos-v80";
 const ASSETS = [
   "./",
   "index.html",
