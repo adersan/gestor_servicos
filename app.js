@@ -42,6 +42,8 @@ let additionalServiceValues = [];
 let entryContinuationResolver = null;
 let activeDashboardTab = "services";
 let dashboardPeriod = null;
+let financePeriod = null;
+let financePeriodMode = "week";
 let remoteRefreshInProgress = false;
 let remoteLoadInProgress = false;
 let localStateRevision = 0;
@@ -471,6 +473,62 @@ function monthPeriod(reference = new Date()) {
   const start = new Date(reference.getFullYear(), reference.getMonth(), 1, 12);
   const end = new Date(reference.getFullYear(), reference.getMonth() + 1, 0, 12);
   return { startDate: localDateKey(start), endDate: localDateKey(end) };
+}
+
+function previousOperationalWeek(period) {
+  const reference = new Date(`${period.startDate}T12:00:00`);
+  reference.setDate(reference.getDate() - 1);
+  return currentOperationalWeek(reference);
+}
+
+function ensureFinancePeriod() {
+  financePeriod ||= currentOperationalWeek();
+  return financePeriod;
+}
+
+function syncFinancePeriodControls() {
+  const period = ensureFinancePeriod();
+  ["payment", "billing"].forEach((prefix) => {
+    const start = document.getElementById(`${prefix}StartFilter`);
+    const end = document.getElementById(`${prefix}EndFilter`);
+    const label = document.getElementById(`${prefix}PeriodLabel`);
+    if (start) start.value = period.startDate;
+    if (end) end.value = period.endDate;
+    if (label) label.textContent = periodLabel(period);
+  });
+  document.querySelectorAll("[data-finance-period]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.financePeriod === financePeriodMode);
+  });
+}
+
+function setFinancePeriod(period, mode = "custom") {
+  financePeriod = period;
+  financePeriodMode = mode;
+  syncFinancePeriodControls();
+}
+
+function shiftFinancePeriod(direction) {
+  const current = ensureFinancePeriod();
+  const reference = new Date(`${current.startDate}T12:00:00`);
+  if (financePeriodMode === "month") {
+    reference.setMonth(reference.getMonth() + direction);
+    setFinancePeriod(monthPeriod(reference), "month");
+  } else {
+    reference.setDate(reference.getDate() + direction * 7);
+    setFinancePeriod(currentOperationalWeek(reference), "week");
+  }
+}
+
+function setFinancePeriodFromInputs(prefix) {
+  const start = document.getElementById(`${prefix}StartFilter`).value;
+  const end = document.getElementById(`${prefix}EndFilter`).value;
+  if (!start || !end || start > end) return;
+  setFinancePeriod({ startDate: start, endDate: end }, "custom");
+}
+
+function refreshFinanceViews() {
+  renderPayments();
+  renderBillings();
 }
 
 function dateKeysBetween(startDate, endDate, maximum = 31) {
@@ -1164,12 +1222,14 @@ function renderServiceRequests() {
 }
 
 function renderPayments() {
+  const period = ensureFinancePeriod();
   const clientFilter = document.getElementById("paymentClientFilter").value;
   const statusFilter = document.getElementById("paymentStatusFilter").value;
   const startFilter = document.getElementById("paymentStartFilter").value;
   const endFilter = document.getElementById("paymentEndFilter").value;
   const search = document.getElementById("paymentSearch").value.trim();
-  const billings = currentBillings()
+  const billings = state.billings
+    .filter((billing) => billing.status !== "Cancelada")
     .map((billing) => ({
       ...billing,
       currentStatus: billingCurrentStatus(billing),
@@ -1195,16 +1255,20 @@ function renderPayments() {
     ))
     .sort((a, b) => b.endDate.localeCompare(a.endDate));
 
-  const allActiveBillings = currentBillings();
+  const allActiveBillings = state.billings.filter((billing) => billing.status !== "Cancelada");
   const totalOpen = allActiveBillings.reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
-  const overdueTotal = allActiveBillings
-    .filter((billing) => billingOpenAmount(billing) > 0 && billingAgeDays(billing) >= 7)
+  const receivedTotal = state.payments
+    .filter((payment) => inPeriod(payment.date, period))
+    .reduce((sum, payment) => sum + Number(payment.amount), 0);
+
+  const previousWeek = previousOperationalWeek(period);
+  const previousWeekOpen = allActiveBillings
+    .filter((billing) => inPeriod(billing.endDate, previousWeek))
     .reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
-  const receivedTotal = state.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
   document.getElementById("paymentSummary").innerHTML = `
-    <article class="metric-card metric-main"><span>Total em aberto</span><strong>${money.format(totalOpen)}</strong><small>${allActiveBillings.filter((billing) => billingOpenAmount(billing) > 0).length} cobrança(s)</small></article>
-    <article class="metric-card"><span>Atrasado há 7 dias</span><strong>${money.format(overdueTotal)}</strong><small>Requer atenção</small></article>
-    <article class="metric-card"><span>Total recebido</span><strong>${money.format(receivedTotal)}</strong><small>Histórico acumulado</small></article>`;
+    <article class="metric-card finance-open-card ${previousWeekOpen > 0 ? "has-open" : ""}"><span>Em aberto da semana anterior</span><strong>${money.format(previousWeekOpen)}</strong><small>${periodLabel(previousWeek)}</small></article>
+    <article class="metric-card finance-open-card ${totalOpen > 0 ? "has-open" : ""}"><span>Debito total em aberto</span><strong>${money.format(totalOpen)}</strong><small>${allActiveBillings.filter((billing) => billingOpenAmount(billing) > 0).length} cobranca(s)</small></article>
+    <article class="metric-card finance-received-card"><span>Recebido no periodo</span><strong>${money.format(receivedTotal)}</strong><small>${periodLabel(period)}</small></article>`;
 
   document.getElementById("openBillingList").innerHTML = billings.length ? billings.map((billing) => `
     <article class="receivable-card ${billing.ageDays >= 7 && billing.openAmount > 0 ? "receivable-overdue" : ""}">
@@ -1264,8 +1328,11 @@ function renderPaymentMethods() {
 }
 
 function renderBillings() {
+  ensureFinancePeriod();
   const clientFilter = document.getElementById("billingClientFilter").value;
   const statusFilter = document.getElementById("billingStatusFilter").value;
+  const startFilter = document.getElementById("billingStartFilter").value;
+  const endFilter = document.getElementById("billingEndFilter").value;
   const search = document.getElementById("billingSearch").value.trim();
   const accessBillingByClient = new Map();
   state.billings
@@ -1274,6 +1341,8 @@ function renderBillings() {
     .forEach((billing) => accessBillingByClient.set(billing.clientId, billing.id));
   const items = state.billings
     .filter((item) => !clientFilter || item.clientId === clientFilter)
+    .filter((item) => !startFilter || item.endDate >= startFilter)
+    .filter((item) => !endFilter || item.endDate <= endFilter)
     .filter((item) => {
       const status = billingCurrentStatus(item);
       if (statusFilter === "paid") return status === "Paga";
@@ -1354,6 +1423,8 @@ function render() {
     serviceStartDate.value = week.startDate;
     serviceEndDate.value = week.endDate;
   }
+  ensureFinancePeriod();
+  syncFinancePeriodControls();
   renderSelects();
   renderSystemSettings();
   renderDashboardV2();
@@ -3396,16 +3467,30 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["requestStatusFilter", "change", renderServiceRequests],
   ["paymentClientFilter", "change", renderPayments],
   ["paymentStatusFilter", "change", renderPayments],
-  ["paymentStartFilter", "change", renderPayments],
-  ["paymentEndFilter", "change", renderPayments],
+  ["paymentStartFilter", "change", () => { setFinancePeriodFromInputs("payment"); refreshFinanceViews(); }],
+  ["paymentEndFilter", "change", () => { setFinancePeriodFromInputs("payment"); refreshFinanceViews(); }],
   ["paymentSearch", "input", renderPayments],
   ["paymentMethodStatusFilter", "change", renderPaymentMethods],
   ["paymentMethodSearch", "input", renderPaymentMethods],
   ["billingClientFilter", "change", renderBillings],
   ["billingStatusFilter", "change", renderBillings],
+  ["billingStartFilter", "change", () => { setFinancePeriodFromInputs("billing"); refreshFinanceViews(); }],
+  ["billingEndFilter", "change", () => { setFinancePeriodFromInputs("billing"); refreshFinanceViews(); }],
   ["billingSearch", "input", renderBillings]
 ].forEach(([id, eventName, handler]) => {
   document.getElementById(id).addEventListener(eventName, handler);
+});
+document.addEventListener("click", (event) => {
+  const periodButton = event.target.closest("[data-finance-period]");
+  const shiftButton = event.target.closest("[data-finance-shift]");
+  if (!periodButton && !shiftButton) return;
+  if (periodButton) {
+    const mode = periodButton.dataset.financePeriod;
+    setFinancePeriod(mode === "month" ? monthPeriod() : currentOperationalWeek(), mode);
+  } else {
+    shiftFinancePeriod(Number(shiftButton.dataset.financeShift));
+  }
+  refreshFinanceViews();
 });
 document.addEventListener("click", (event) => {
   const currentWeekButton = event.target.closest("[data-service-current-week]");

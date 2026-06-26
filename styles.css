@@ -362,6 +362,15 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .client-area-tabs button, .finance-area-tabs button { padding: 10px 14px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font-weight: 850; white-space: nowrap; }
 .client-area-tabs button:hover, .finance-area-tabs button:hover { background: rgba(255,255,255,.72); color: var(--brand); }
 .client-area-tabs button.active, .finance-area-tabs button.active { color: white; background: var(--brand); box-shadow: 0 8px 20px rgba(23,63,53,.14); }
+.finance-period-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 0 16px; padding: 12px 14px; border: 1px solid #d9e1dc; border-radius: 15px; background: #f7faf8; }
+.finance-period-info { display: grid; gap: 3px; text-align: right; }
+.finance-period-info span { color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
+.finance-period-info strong { color: var(--brand); font-size: 14px; }
+.finance-open-card.has-open { border-color: #edb9b4; background: #fff0ef; box-shadow: inset 5px 0 0 #c63b34; }
+.finance-open-card.has-open span, .finance-open-card.has-open small, .finance-open-card.has-open strong { color: #a82f29; }
+.finance-received-card { border-color: #b8dfc8; background: #eefaf2; box-shadow: inset 5px 0 0 #278856; }
+.finance-received-card strong { color: #176c43; }
+.finance-list-heading { margin-top: 20px; }
 .client-services-layout { display: grid; grid-template-columns: minmax(420px, 1.2fr) minmax(260px, .8fr); gap: 18px; align-items: start; }
 .client-service-panel { min-height: 220px; }
 .client-service-switch { display: flex; gap: 8px; margin: 0 0 14px; padding: 6px; overflow-x: auto; border-radius: 14px; background: #edf3ef; scrollbar-width: none; }
@@ -479,6 +488,8 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .dashboard-heading .dashboard-actions span { font-size: 10px; }
   .dashboard-inner-tabs { grid-template-columns: 1fr 1fr; }
   .dashboard-period-controls { align-items: stretch; flex-direction: column; }
+  .finance-period-bar { align-items: stretch; flex-direction: column; }
+  .finance-period-info { text-align: left; }
   .period-shortcuts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px 48px; gap: 7px; }
   .period-shortcuts button { min-width: 0; padding: 10px 8px; }
   .period-dates { width: 100%; }
