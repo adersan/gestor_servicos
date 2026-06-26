@@ -539,8 +539,7 @@ function showView(viewId) {
   });
   document.querySelectorAll(".finance-area-tabs [data-client-view]").forEach((button) => {
     const target = button.dataset.clientView;
-    const active = target === viewId || (target === "payments" && financeViews.includes(viewId));
-    button.classList.toggle("active", active);
+    button.classList.toggle("active", target === viewId);
   });
 }
 
