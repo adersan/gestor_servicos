@@ -531,7 +531,7 @@ function showView(viewId) {
   document.getElementById(viewId).classList.add("active");
   const clientViews = ["clients", "catalog", "services", "requests"];
   const financeViews = ["payments", "paymentMethods", "billing"];
-  const mainView = clientViews.includes(viewId) ? "clients" : financeViews.includes(viewId) ? "payments" : viewId;
+  const mainView = clientViews.includes(viewId) ? "services" : financeViews.includes(viewId) ? "payments" : viewId;
   document.querySelector(`[data-view="${mainView}"]`)?.classList.add("active");
   document.querySelectorAll("[data-client-view]").forEach((button) => {
     const target = button.dataset.clientView;
