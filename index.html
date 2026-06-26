@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=54">
+  <link rel="stylesheet" href="styles.css?v=55">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -225,7 +225,10 @@
         <div><span class="eyebrow">Período exibido</span><strong id="serviceEntryPeriodLabel"></strong></div>
         <button class="table-action" type="button" data-service-current-week>Voltar para semana atual</button>
       </div>
-      <div class="filters">
+      <button class="mobile-filter-toggle" type="button" data-toggle-service-filters aria-expanded="false">
+        <span>Filtros</span><strong>Mostrar</strong>
+      </button>
+      <div class="filters service-filters">
         <input id="serviceClientNameFilter" type="search" list="serviceClientFilterOptions" placeholder="Digite o cliente">
         <input id="serviceClientFilter" type="hidden">
         <datalist id="serviceClientFilterOptions"></datalist>
@@ -1042,7 +1045,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=37"></script>
-  <script src="app.js?v=67"></script>
+  <script src="app.js?v=68"></script>
   <script src="supplier.js?v=36"></script>
 </body>
 </html>

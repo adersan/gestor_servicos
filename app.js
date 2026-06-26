@@ -1283,6 +1283,7 @@ function renderServices() {
           ${item.status === "Pronto" ? `<button class="table-action" data-request-delivery="${item.id}">Solicitar confirmação</button>` : ""}
           ${item.status === "Pronto" ? `<button class="table-action success" data-service-status="Entregue" data-entry-id="${item.id}">Marcar entregue</button>` : ""}
         </div>
+        <button class="mobile-service-more" type="button" data-toggle-service-actions="${item.id}" aria-expanded="false">Mais opcoes</button>
         <div class="row-actions">
           ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-entry="${item.id}">Editar</button><button class="table-action danger" data-cancel-entry="${item.id}">Cancelar</button>` : ""}
           <button class="table-action danger" data-delete-entry="${item.id}">Excluir</button>
@@ -3620,6 +3621,26 @@ document.addEventListener("click", (event) => {
   refreshFinanceViews();
 });
 document.addEventListener("click", (event) => {
+  const filterButton = event.target.closest("[data-toggle-service-filters]");
+  const actionButton = event.target.closest("[data-toggle-service-actions]");
+  if (filterButton) {
+    const section = document.getElementById("services");
+    const expanded = !section.classList.contains("mobile-filters-open");
+    section.classList.toggle("mobile-filters-open", expanded);
+    filterButton.setAttribute("aria-expanded", String(expanded));
+    const label = filterButton.querySelector("strong");
+    if (label) label.textContent = expanded ? "Ocultar" : "Mostrar";
+    return;
+  }
+  if (actionButton) {
+    const card = actionButton.closest(".timeline-item");
+    const expanded = !card.classList.contains("mobile-actions-open");
+    card.classList.toggle("mobile-actions-open", expanded);
+    actionButton.setAttribute("aria-expanded", String(expanded));
+    actionButton.textContent = expanded ? "Ocultar opcoes" : "Mais opcoes";
+  }
+});
+document.addEventListener("click", (event) => {
   const currentWeekButton = event.target.closest("[data-service-current-week]");
   if (!currentWeekButton) return;
   const week = currentOperationalWeek();
@@ -3827,7 +3848,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=68").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=69").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
