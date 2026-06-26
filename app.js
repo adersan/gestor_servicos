@@ -224,7 +224,7 @@ function notifyNewClientRequests(nextState) {
 function updateSoundAlertButton() {
   const button = document.getElementById("soundAlertButton");
   if (!button) return;
-  button.textContent = soundAlertsEnabled ? "🔔" : "🔕";
+  button.textContent = "";
   button.setAttribute("aria-label", soundAlertsEnabled ? "Desativar som dos alertas" : "Ativar som dos alertas");
   button.classList.toggle("active", soundAlertsEnabled);
   button.setAttribute("aria-pressed", String(soundAlertsEnabled));
@@ -3875,7 +3875,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=70").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=71").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
