@@ -1125,15 +1125,19 @@ function renderServices() {
   const startDate = document.getElementById("serviceStartDate").value;
   const endDate = document.getElementById("serviceEndDate").value;
   const search = document.getElementById("serviceSearch").value.trim();
-  document.getElementById("serviceEntryPeriodLabel").textContent = startDate && endDate
+  const searchAcrossHistory = Boolean(search) && state.services.some((item) =>
+    matchesSearch(search, item.reference));
+  document.getElementById("serviceEntryPeriodLabel").textContent = searchAcrossHistory
+    ? "Busca por referencia em todo o historico"
+    : startDate && endDate
     ? `${formatDate(startDate)} a ${formatDate(endDate)}`
     : "Todos os períodos";
   const items = state.services
     .filter((item) => !clientFilter || item.clientId === clientFilter)
     .filter((item) => !clientNameFilter || matchesSearch(clientNameFilter, clientById(item.clientId)?.name))
     .filter((item) => !statusFilter || item.status === statusFilter)
-    .filter((item) => !startDate || item.date >= startDate)
-    .filter((item) => !endDate || item.date <= endDate)
+    .filter((item) => searchAcrossHistory || !startDate || item.date >= startDate)
+    .filter((item) => searchAcrossHistory || !endDate || item.date <= endDate)
     .filter((item) => matchesSearch(
       search,
       item.description,
