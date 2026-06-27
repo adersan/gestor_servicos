@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=57">
+  <link rel="stylesheet" href="styles.css?v=58">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -708,6 +708,23 @@
     </form>
   </dialog>
 
+  <dialog id="referenceHistoryDialog" class="reference-history-dialog">
+    <form method="dialog">
+      <div class="dialog-heading">
+        <div><span class="eyebrow">Referência já utilizada</span><h2>Confira antes de continuar</h2></div>
+        <button class="icon-button" id="referenceHistoryClose" type="button" aria-label="Voltar e conferir">×</button>
+      </div>
+      <p class="reference-history-intro">Encontramos lançamentos anteriores para uma ou mais referências informadas.</p>
+      <div id="referenceHistorySummary" class="reference-history-summary"></div>
+      <div id="referenceHistoryList" class="reference-history-list"></div>
+      <p class="reference-history-note">Revise os dados. Continue somente se este for realmente um novo serviço.</p>
+      <div class="dialog-actions">
+        <button class="secondary" id="referenceHistoryCancel" type="button">Voltar e conferir</button>
+        <button class="primary" id="referenceHistoryConfirm" type="button">Lançar mesmo assim</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="cancelServiceDialog">
     <form id="cancelServiceForm" method="dialog">
       <div class="dialog-heading"><h2>Cancelar serviço</h2><button class="icon-button" value="cancel">×</button></div>
@@ -1051,7 +1068,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=37"></script>
-  <script src="app.js?v=71"></script>
+  <script src="app.js?v=72"></script>
   <script src="supplier.js?v=36"></script>
 </body>
 </html>

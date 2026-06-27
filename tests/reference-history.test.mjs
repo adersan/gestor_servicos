@@ -52,6 +52,7 @@ const context = {
     ]
   },
   clientById: (id) => ({ name: id === "client-a" ? "Cliente A" : "Cliente B" }),
+  escapeHtml: (value) => String(value),
   formatDate: (date) => date.split("-").reverse().join("/"),
   serviceStatusLabel: (status) => status
 };
@@ -75,10 +76,10 @@ const editingMatches = context.historicalReferenceMatches({
 });
 assert.equal(editingMatches.length, 0, "must ignore the complete group being edited");
 
-const warning = context.historicalReferenceWarning(historical);
-assert.match(warning, /Digitacao CRV/);
-assert.match(warning, /18\/06\/2026/);
-assert.match(warning, /Cliente A/);
-assert.match(warning, /Entregue/);
+const markup = context.historicalReferenceDialogMarkup(historical);
+assert.match(markup, /Digitacao CRV/);
+assert.match(markup, /18\/06\/2026/);
+assert.match(markup, /Cliente A/);
+assert.match(markup, /Entregue/);
 
 console.log("reference history test passed");

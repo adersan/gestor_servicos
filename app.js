@@ -40,6 +40,7 @@ let remoteReady = false;
 let serviceReferenceValues = [];
 let additionalServiceValues = [];
 let entryContinuationResolver = null;
+let referenceHistoryResolver = null;
 let activeDashboardTab = "services";
 let dashboardPeriod = null;
 let financePeriod = null;
@@ -1659,14 +1660,43 @@ function historicalReferenceMatches({ entryId, references }) {
     );
 }
 
-function historicalReferenceWarning(matches) {
+function historicalReferenceDialogMarkup(matches) {
   return matches.map((item) => {
     const client = clientById(item.clientId);
-    return `${item.reference || "Sem referência"} — Serviço: ${item.description || "Não informado"}`
-      + ` | Data: ${formatDate(item.date)}`
-      + ` | Cliente: ${client?.name || "Não informado"}`
-      + ` | Status: ${serviceStatusLabel(item.status)}`;
+    return `<article class="reference-history-item">
+      <div class="reference-history-item-heading">
+        <strong>${escapeHtml(item.reference || "Sem referência")}</strong>
+        <span>${escapeHtml(serviceStatusLabel(item.status))}</span>
+      </div>
+      <h3>${escapeHtml(item.description || "Serviço não informado")}</h3>
+      <dl>
+        <div><dt>Data</dt><dd>${escapeHtml(formatDate(item.date))}</dd></div>
+        <div><dt>Cliente</dt><dd>${escapeHtml(client?.name || "Não informado")}</dd></div>
+      </dl>
+    </article>`;
   }).join("\n");
+}
+
+function settleReferenceHistoryDialog(confirmed) {
+  const resolver = referenceHistoryResolver;
+  referenceHistoryResolver = null;
+  const dialog = document.getElementById("referenceHistoryDialog");
+  if (dialog.open) dialog.close();
+  if (resolver) resolver(confirmed);
+}
+
+function confirmHistoricalReferenceReuse(matches) {
+  const references = new Set(matches.map((item) => normalizeServiceReference(item.reference)));
+  document.getElementById("referenceHistorySummary").innerHTML = `
+    <strong>${references.size} referência(s) encontrada(s)</strong>
+    <span>${matches.length} lançamento(s) no histórico</span>`;
+  document.getElementById("referenceHistoryList").innerHTML = historicalReferenceDialogMarkup(matches);
+  const dialog = document.getElementById("referenceHistoryDialog");
+  return new Promise((resolve) => {
+    referenceHistoryResolver = resolve;
+    dialog.showModal();
+    setTimeout(() => document.getElementById("referenceHistoryCancel").focus(), 0);
+  });
 }
 
 function renderAdditionalServiceList() {
@@ -3080,11 +3110,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     references: entryReferences
   });
   if (duplicates.length) {
-    const shouldContinue = confirm(
-      `Atenção: uma ou mais referências já foram registradas anteriormente:\n\n`
-      + `${historicalReferenceWarning(duplicates)}`
-      + `\n\nDeseja lançar novamente mesmo assim?`
-    );
+    const shouldContinue = await confirmHistoricalReferenceReuse(duplicates);
     if (!shouldContinue) return;
   }
   const createdEntries = [];
@@ -3729,6 +3755,19 @@ document.querySelector("[data-cancel-service-entry]").addEventListener("click", 
   window.supplierModule?.resetClientEntryOptions();
   document.getElementById("serviceDialog").close();
 });
+document.getElementById("referenceHistoryCancel").addEventListener("click", () => settleReferenceHistoryDialog(false));
+document.getElementById("referenceHistoryClose").addEventListener("click", () => settleReferenceHistoryDialog(false));
+document.getElementById("referenceHistoryConfirm").addEventListener("click", () => settleReferenceHistoryDialog(true));
+document.getElementById("referenceHistoryDialog").addEventListener("cancel", (event) => {
+  event.preventDefault();
+  settleReferenceHistoryDialog(false);
+});
+document.getElementById("referenceHistoryDialog").addEventListener("close", () => {
+  if (!referenceHistoryResolver) return;
+  const resolver = referenceHistoryResolver;
+  referenceHistoryResolver = null;
+  resolver(false);
+});
 document.getElementById("continueEntryDialog").addEventListener("cancel", (event) => {
   event.preventDefault();
   if (!entryContinuationResolver) return;
@@ -3885,7 +3924,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=72").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=73").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

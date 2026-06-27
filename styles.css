@@ -286,6 +286,23 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .method-selector legend { padding: 0 6px; color: var(--muted); font-size: 12px; font-weight: 750; }
 .method-selector > div { display: grid; gap: 9px; }
 .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.reference-history-dialog { width: min(94vw, 680px); }
+.reference-history-dialog form { gap: 12px; }
+.reference-history-intro { color: var(--muted); line-height: 1.45; }
+.reference-history-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 12px 14px; border: 1px solid #efca91; border-radius: 12px; background: #fff7e9; color: #75420d; }
+.reference-history-summary strong, .reference-history-summary span { display: block; }
+.reference-history-summary span { font-size: 12px; }
+.reference-history-list { display: grid; gap: 9px; max-height: min(48vh, 390px); overflow-y: auto; padding-right: 3px; }
+.reference-history-item { padding: 13px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 12px; background: #fff; }
+.reference-history-item-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.reference-history-item-heading > strong { padding: 6px 9px; border: 1px solid #b8d8f5; border-radius: 8px; background: #eef7ff; color: #1768ad; font-family: ui-monospace, monospace; font-size: 14px; letter-spacing: .06em; }
+.reference-history-item-heading > span { padding: 5px 8px; border-radius: 999px; background: #edf4f0; color: var(--brand); font-size: 10px; font-weight: 850; }
+.reference-history-item h3 { margin: 10px 0 8px; font-size: 16px; }
+.reference-history-item dl { display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin: 0; }
+.reference-history-item dl div { min-width: 0; }
+.reference-history-item dt { color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.reference-history-item dd { margin: 2px 0 0; overflow-wrap: anywhere; font-size: 13px; font-weight: 700; }
+.reference-history-note { padding: 10px 12px; border-radius: 10px; background: #f2f6f4; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .access-box { display: grid; gap: 8px; margin-top: 16px; padding: 12px; border-radius: 12px; background: #f2f6f4; font-family: ui-monospace, monospace; font-size: 13px; }
 .access-data { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 .access-data span { min-width: 0; }
