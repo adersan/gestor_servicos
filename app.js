@@ -1639,18 +1639,34 @@ function addCurrentReference() {
   return true;
 }
 
-function duplicateOpenReferences({ entryId, clientId, catalogId, amount, references }) {
-  const referenceSet = new Set(references.filter(Boolean));
+function normalizeServiceReference(reference) {
+  return String(reference || "").trim().replace(/\s+/g, " ").toUpperCase();
+}
+
+function historicalReferenceMatches({ entryId, references }) {
+  const referenceSet = new Set(references.map(normalizeServiceReference).filter(Boolean));
   if (!referenceSet.size) return [];
-  return state.services.filter((item) =>
-    item.id !== entryId
-    && !item.billingId
-    && item.status !== "Cancelado"
-    && item.clientId === clientId
-    && item.catalogId === catalogId
-    && Number(item.amount) === Number(amount)
-    && referenceSet.has(String(item.reference || "").trim().toUpperCase())
-  );
+  const currentEntry = state.services.find((item) => item.id === entryId);
+  return state.services
+    .filter((item) =>
+      item.id !== entryId
+      && (!currentEntry?.serviceGroupId || item.serviceGroupId !== currentEntry.serviceGroupId)
+      && referenceSet.has(normalizeServiceReference(item.reference))
+    )
+    .sort((a, b) =>
+      String(b.date || "").localeCompare(String(a.date || ""))
+      || String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+    );
+}
+
+function historicalReferenceWarning(matches) {
+  return matches.map((item) => {
+    const client = clientById(item.clientId);
+    return `${item.reference || "Sem referência"} — Serviço: ${item.description || "Não informado"}`
+      + ` | Data: ${formatDate(item.date)}`
+      + ` | Cliente: ${client?.name || "Não informado"}`
+      + ` | Status: ${serviceStatusLabel(item.status)}`;
+  }).join("\n");
 }
 
 function renderAdditionalServiceList() {
@@ -3059,21 +3075,15 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
       };
     })
   ];
-  const duplicates = serviceDefinitions.flatMap((service) =>
-    duplicateOpenReferences({
-      entryId: existingEntry?.id || "",
-      clientId: data.get("clientId"),
-      catalogId: service.catalogId,
-      amount: service.amount,
-      references: entryReferences
-    }).map((item) => ({ ...item, duplicateDescription: service.description }))
-  );
+  const duplicates = historicalReferenceMatches({
+    entryId: existingEntry?.id || "",
+    references: entryReferences
+  });
   if (duplicates.length) {
-    const duplicateNames = [...new Set(duplicates.map((item) =>
-      `${item.reference || "Sem referência"} — ${item.duplicateDescription}`
-    ))].join("\n");
     const shouldContinue = confirm(
-      `Atenção: estas referências já possuem o mesmo serviço e valor antes da cobrança:\n\n${duplicateNames}\n\nDeseja lançar novamente?`
+      `Atenção: uma ou mais referências já foram registradas anteriormente:\n\n`
+      + `${historicalReferenceWarning(duplicates)}`
+      + `\n\nDeseja lançar novamente mesmo assim?`
     );
     if (!shouldContinue) return;
   }
@@ -3875,7 +3885,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=71").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=72").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
