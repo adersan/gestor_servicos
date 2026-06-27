@@ -1775,11 +1775,24 @@ function syncServiceClientSelection() {
   if (form.elements.clientId.value !== previousClientId) updateSuggestedPrice();
 }
 
+function setServiceCatalogError(message = "") {
+  const form = document.getElementById("serviceForm");
+  const field = form.elements.catalogSearch;
+  const error = document.getElementById("serviceCatalogError");
+  const invalid = Boolean(message);
+  field.setCustomValidity(message);
+  field.setAttribute("aria-invalid", String(invalid));
+  document.getElementById("serviceCatalogField").classList.toggle("field-invalid", invalid);
+  error.textContent = message;
+  error.classList.toggle("hidden", !invalid);
+}
+
 function syncServiceCatalogSelection() {
   const form = document.getElementById("serviceForm");
   const previousCatalogId = form.elements.catalogId.value;
   const catalogItem = itemByExactLabel(state.catalog, form.elements.catalogSearch.value, catalogOptionLabel);
   form.elements.catalogId.value = catalogItem?.id || "";
+  if (catalogItem) setServiceCatalogError();
   if (form.elements.catalogId.value !== previousCatalogId) updateSuggestedPrice();
 }
 
@@ -1892,6 +1905,7 @@ function openServiceCancellation(entry) {
 function openEntryForm(item = null, preferredClientId = "", request = null) {
   const form = document.getElementById("serviceForm");
   form.reset();
+  setServiceCatalogError();
   serviceReferenceValues = [];
   additionalServiceValues = [];
   form.elements.entryId.value = item?.id || "";
@@ -3056,10 +3070,11 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     return;
   }
   if (!form.elements.catalogId.value) {
-    alert("Selecione um serviço válido pelo código ou nome.");
+    setServiceCatalogError("O serviço é obrigatório. Escolha uma opção válida pelo código ou nome.");
     form.elements.catalogSearch.focus();
     return;
   }
+  setServiceCatalogError();
   const data = new FormData(form);
   const catalogItem = state.catalog.find((item) => item.id === data.get("catalogId"));
   const existingEntry = state.services.find((item) => item.id === data.get("entryId"));
@@ -3713,8 +3728,20 @@ document.addEventListener("click", (event) => {
 });
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("input", syncServiceClientSelection);
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("change", syncServiceClientSelection);
+document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("input", () => setServiceCatalogError());
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("input", syncServiceCatalogSelection);
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("change", syncServiceCatalogSelection);
+document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("blur", (event) => {
+  syncServiceCatalogSelection();
+  if (!event.target.closest("form").elements.catalogId.value) {
+    setServiceCatalogError("O serviço é obrigatório. Escolha uma opção válida da lista.");
+  }
+});
+document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("invalid", (event) => {
+  event.preventDefault();
+  setServiceCatalogError("O serviço é obrigatório. Digite o código ou nome e escolha uma opção da lista.");
+  event.target.focus();
+});
 document.querySelector('#trackingForm input[name="clientSearch"]').addEventListener("input", syncTrackingClientSelection);
 document.querySelector('#trackingForm input[name="clientSearch"]').addEventListener("change", syncTrackingClientSelection);
 ["dashboardStartDate", "dashboardEndDate"].forEach((id) => {
@@ -3924,7 +3951,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=73").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=74").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

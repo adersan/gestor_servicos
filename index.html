@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=58">
+  <link rel="stylesheet" href="styles.css?v=59">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -646,7 +646,11 @@
       <datalist id="serviceClientOptions"></datalist>
       <label>Data<input name="date" type="date" required></label>
       <input name="catalogId" type="hidden">
-      <label>Serviço<input name="catalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
+      <label id="serviceCatalogField">
+        <span class="field-label-row"><span>Serviço</span><strong>Obrigatório</strong></span>
+        <input name="catalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" required aria-describedby="serviceCatalogError" placeholder="Digite o código ou nome">
+        <span id="serviceCatalogError" class="field-error hidden" role="alert">Selecione um serviço válido da lista.</span>
+      </label>
       <datalist id="serviceCatalogOptions"></datalist>
       <label>Placa ou referência
         <span class="reference-entry-row">
@@ -1068,7 +1072,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=37"></script>
-  <script src="app.js?v=72"></script>
+  <script src="app.js?v=73"></script>
   <script src="supplier.js?v=36"></script>
 </body>
 </html>
