@@ -507,14 +507,14 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px solid #cdd5d1; border-bottom-width: 3px; border-radius: 7px; background: #f7f9f8; color: var(--ink); font-family: ui-monospace, monospace; font-size: 11px; font-weight: 800; text-align: center; }
 @media (max-width: 700px) {
   input, select, textarea { font-size: 16px !important; }
-  #serviceDialog[open] { width: 100vw; max-width: none; height: min(94dvh, calc(var(--mobile-viewport-height, 100dvh) - 6px)); max-height: min(94dvh, calc(var(--mobile-viewport-height, 100dvh) - 6px)); margin: auto 0 0; border-radius: 18px 18px 0 0; }
-  #serviceDialog form { height: 100%; max-height: 100%; gap: 11px; overflow-y: auto; overscroll-behavior: contain; padding: 0 14px calc(92px + env(safe-area-inset-bottom)); }
+  #serviceDialog[open] { width: 100vw; max-width: none; height: 94vh; height: 94lvh; max-height: 94vh; max-height: 94lvh; margin: auto 0 0; border-radius: 18px 18px 0 0; }
+  #serviceDialog form { height: 100%; max-height: 100%; gap: 11px; overflow-y: auto; overscroll-behavior: contain; scroll-padding: 82px 0; padding: 0 14px calc(14px + env(safe-area-inset-bottom)); }
   #serviceDialog .dialog-heading { position: sticky; top: 0; z-index: 4; margin: 0 -14px 2px; padding: 14px; border-bottom: 1px solid var(--line); background: #fff; }
   #serviceDialog .dialog-heading h2 { font-size: 23px; }
   #serviceDialog .dialog-heading-actions { gap: 6px; }
   #serviceDialog .dialog-heading-actions .secondary { padding: 9px 10px; font-size: 11px; }
   #serviceDialog label { gap: 5px; }
-  #serviceDialog .dialog-form-actions { position: fixed; right: 0; bottom: 0; left: 0; z-index: 5; margin: 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(255,255,255,.98); box-shadow: 0 -10px 24px rgba(23,63,53,.12); }
+  #serviceDialog .dialog-form-actions { position: sticky; bottom: 0; z-index: 5; margin: 4px -14px calc(-14px - env(safe-area-inset-bottom)); padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(255,255,255,.98); box-shadow: 0 -8px 20px rgba(23,63,53,.1); }
   .topbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px; padding: 10px 12px; box-shadow: 0 6px 22px rgba(23,63,53,.16); }
   .brand-lockup { flex: 1; min-width: 0; gap: 9px; }
   .brand-lockup img { width: 38px; height: 38px; border-radius: 11px; box-shadow: none; }

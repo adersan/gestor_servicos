@@ -5,15 +5,6 @@ const SYSTEM_SETTINGS_KEY = "gestor-servicos-system-settings-v1";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 
-function updateMobileViewportHeight() {
-  const height = window.visualViewport?.height || window.innerHeight;
-  document.documentElement.style.setProperty("--mobile-viewport-height", `${Math.round(height)}px`);
-}
-
-updateMobileViewportHeight();
-window.visualViewport?.addEventListener("resize", updateMobileViewportHeight);
-window.addEventListener("orientationchange", updateMobileViewportHeight);
-
 const initialState = {
   priceTables: ["Tabela 01", "Tabela 02", "Tabela 03"],
   clients: [
@@ -3813,6 +3804,26 @@ document.getElementById("continueEntryDialog").addEventListener("cancel", (event
   resolve("close");
 });
 
+function keepServiceFieldVisible(field) {
+  const form = document.getElementById("serviceForm");
+  if (!field || !form.contains(field)) return;
+  setTimeout(() => {
+    const viewport = window.visualViewport;
+    const visibleTop = (viewport?.offsetTop || 0) + 72;
+    const visibleBottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight) - 24;
+    const rect = field.getBoundingClientRect();
+    if (rect.bottom > visibleBottom) {
+      form.scrollBy({ top: rect.bottom - visibleBottom + 28, behavior: "smooth" });
+    } else if (rect.top < visibleTop) {
+      form.scrollBy({ top: rect.top - visibleTop - 18, behavior: "smooth" });
+    }
+  }, 320);
+}
+
+document.getElementById("serviceForm").addEventListener("focusin", (event) => {
+  if (event.target.matches("input, select, textarea")) keepServiceFieldVisible(event.target);
+});
+
 document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
   const form = event.currentTarget;
@@ -3820,6 +3831,16 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     && !form.elements.hasSupplierService.disabled;
   const additionalEnabled = form.elements.hasAdditionalServices.checked
     && !form.elements.hasAdditionalServices.disabled;
+
+  function focusField(field) {
+    if (!field) return;
+    try {
+      field.focus({ preventScroll: true });
+    } catch {
+      field.focus();
+    }
+    keepServiceFieldVisible(field);
+  }
 
   function focusNextFrom(target) {
     const fields = [
@@ -3843,7 +3864,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     ].filter((field) => field && !field.disabled);
     const index = fields.indexOf(target);
     if (index >= 0 && index < fields.length - 1) {
-      fields[index + 1].focus();
+      focusField(fields[index + 1]);
       return true;
     }
     if (index === fields.length - 1) {
@@ -3855,24 +3876,24 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
 
   if (event.target.name === "hasAdditionalServices") {
     event.preventDefault();
-    if (additionalEnabled) form.elements.additionalCatalogSearch.focus();
-    else form.elements.hasSupplierService.focus();
+    if (additionalEnabled) focusField(form.elements.additionalCatalogSearch);
+    else focusField(form.elements.hasSupplierService);
     return;
   }
   if (event.target.name === "hasSupplierService") {
     event.preventDefault();
-    if (supplierEnabled) form.elements.supplierId.focus();
-    else form.elements.status.focus();
+    if (supplierEnabled) focusField(form.elements.supplierId);
+    else focusField(form.elements.status);
     return;
   }
   if (event.target.name === "supplierServiceSearch") {
     event.preventDefault();
     if (!event.target.value.trim() && window.supplierModule?.hasClientSupplierServices()) {
-      form.elements.status.focus();
+      focusField(form.elements.status);
       return;
     }
     if (!window.supplierModule?.syncClientEntryServiceSelection(true)) return;
-    form.elements.supplierAmount.focus();
+    focusField(form.elements.supplierAmount);
     return;
   }
   if (event.target.name === "supplierAmount") {
@@ -3884,11 +3905,11 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (event.target.name === "additionalCatalogSearch") {
     event.preventDefault();
     if (!event.target.value.trim() && additionalServiceValues.length) {
-      form.elements.hasSupplierService.focus();
+      focusField(form.elements.hasSupplierService);
       return;
     }
     syncAdditionalCatalogSelection();
-    form.elements.additionalAmount.focus();
+    focusField(form.elements.additionalAmount);
     return;
   }
   if (event.target.name === "additionalAmount") {
@@ -3902,18 +3923,13 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
       addCurrentReference();
       return;
     }
-    form.elements.amount.focus();
+    focusField(form.elements.amount);
     return;
   }
   event.preventDefault();
   if (event.target.name === "clientSearch") syncServiceClientSelection();
   if (event.target.name === "catalogSearch") syncServiceCatalogSelection();
   focusNextFrom(event.target);
-});
-
-document.querySelector('#serviceForm input[name="date"]').addEventListener("change", (event) => {
-  if (!window.matchMedia("(max-width: 700px)").matches || !event.target.value) return;
-  setTimeout(() => event.target.form.elements.catalogSearch.focus(), 0);
 });
 
 document.addEventListener("keydown", (event) => {
@@ -3966,7 +3982,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=75").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=76").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
