@@ -5,6 +5,15 @@ const SYSTEM_SETTINGS_KEY = "gestor-servicos-system-settings-v1";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 
+function updateMobileViewportHeight() {
+  const height = window.visualViewport?.height || window.innerHeight;
+  document.documentElement.style.setProperty("--mobile-viewport-height", `${Math.round(height)}px`);
+}
+
+updateMobileViewportHeight();
+window.visualViewport?.addEventListener("resize", updateMobileViewportHeight);
+window.addEventListener("orientationchange", updateMobileViewportHeight);
+
 const initialState = {
   priceTables: ["Tabela 01", "Tabela 02", "Tabela 03"],
   clients: [
@@ -3827,7 +3836,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
       form.elements.hasSupplierService,
       ...(supplierEnabled ? [
         form.elements.supplierId,
-        form.elements.supplierServiceId,
+        form.elements.supplierServiceSearch,
         form.elements.supplierAmount
       ] : []),
       form.elements.status
@@ -3856,12 +3865,13 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     else form.elements.status.focus();
     return;
   }
-  if (event.target.name === "supplierServiceId") {
+  if (event.target.name === "supplierServiceSearch") {
     event.preventDefault();
-    if (!event.target.value && window.supplierModule?.hasClientSupplierServices()) {
+    if (!event.target.value.trim() && window.supplierModule?.hasClientSupplierServices()) {
       form.elements.status.focus();
       return;
     }
+    if (!window.supplierModule?.syncClientEntryServiceSelection(true)) return;
     form.elements.supplierAmount.focus();
     return;
   }
@@ -3899,6 +3909,11 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (event.target.name === "clientSearch") syncServiceClientSelection();
   if (event.target.name === "catalogSearch") syncServiceCatalogSelection();
   focusNextFrom(event.target);
+});
+
+document.querySelector('#serviceForm input[name="date"]').addEventListener("change", (event) => {
+  if (!window.matchMedia("(max-width: 700px)").matches || !event.target.value) return;
+  setTimeout(() => event.target.form.elements.catalogSearch.focus(), 0);
 });
 
 document.addEventListener("keydown", (event) => {
@@ -3951,7 +3966,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=74").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=75").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

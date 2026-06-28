@@ -61,6 +61,37 @@
       .join("")}`;
   }
 
+  function supplierServiceOptionLabel(service) {
+    if (!service) return "";
+    const name = service.code ? `${service.code} - ${service.name}` : service.name;
+    return `${name} · ${money.format(service.cost)}`;
+  }
+
+  function clientSupplierServiceMatch(supplierId, value) {
+    const search = normalized(value).trim();
+    if (!search) return null;
+    const services = state.supplierServices.filter((item) => item.supplierId === supplierId);
+    const exact = services.find((item) =>
+      normalized(supplierServiceOptionLabel(item)) === search
+      || normalized(item.name) === search
+      || normalized(item.code) === search
+    );
+    if (exact) return exact;
+    const partial = services.filter((item) => normalized(supplierServiceOptionLabel(item)).includes(search));
+    return partial.length === 1 ? partial[0] : null;
+  }
+
+  function setClientSupplierServiceError(message = "") {
+    const form = byId("serviceForm");
+    const field = form.elements.supplierServiceSearch;
+    const invalid = Boolean(message);
+    field.setCustomValidity(message);
+    field.setAttribute("aria-invalid", String(invalid));
+    byId("clientSupplierServiceField").classList.toggle("field-invalid", invalid);
+    byId("clientSupplierServiceError").textContent = message;
+    byId("clientSupplierServiceError").classList.toggle("hidden", !invalid);
+  }
+
   function fillSelects() {
     const ids = [
       "supplierDashboardFilter", "supplierEntrySupplierFilter",
@@ -280,9 +311,28 @@
   function syncClientEntryServices(selected = "") {
     const form = byId("serviceForm");
     const supplierId = form.elements.supplierId.value;
-    form.elements.supplierServiceId.innerHTML = serviceOptions(supplierId, selected);
-    const service = supplierServiceById(form.elements.supplierServiceId.value);
+    const services = state.supplierServices.filter((item) => item.supplierId === supplierId);
+    byId("clientSupplierServiceOptions").innerHTML = services
+      .map((item) => `<option value="${escapeHtml(supplierServiceOptionLabel(item))}"></option>`)
+      .join("");
+    const service = services.find((item) => item.id === selected);
+    form.elements.supplierServiceId.value = service?.id || "";
+    form.elements.supplierServiceSearch.value = supplierServiceOptionLabel(service);
     form.elements.supplierAmount.value = service ? Number(service.cost).toFixed(2) : "";
+    setClientSupplierServiceError();
+  }
+
+  function syncClientEntryServiceSelection(showError = false) {
+    const form = byId("serviceForm");
+    const service = clientSupplierServiceMatch(
+      form.elements.supplierId.value,
+      form.elements.supplierServiceSearch.value
+    );
+    form.elements.supplierServiceId.value = service?.id || "";
+    form.elements.supplierAmount.value = service ? Number(service.cost).toFixed(2) : "";
+    if (service) setClientSupplierServiceError();
+    else if (showError) setClientSupplierServiceError("Digite o código ou nome e escolha um serviço válido da lista.");
+    return Boolean(service);
   }
 
   function renderClientSupplierServices() {
@@ -299,6 +349,7 @@
 
   function addClientSupplierService() {
     const form = byId("serviceForm");
+    syncClientEntryServiceSelection(true);
     const supplierId = form.elements.supplierId.value;
     const supplierServiceId = form.elements.supplierServiceId.value;
     const amount = Number(form.elements.supplierAmount.value);
@@ -308,8 +359,7 @@
       return false;
     }
     if (!supplierServiceId) {
-      alert("Selecione o serviço do fornecedor.");
-      form.elements.supplierServiceId.focus();
+      form.elements.supplierServiceSearch.focus();
       return false;
     }
     if (!Number.isFinite(amount) || amount < 0) {
@@ -320,14 +370,16 @@
     if (clientSupplierServiceValues.some((item) =>
       item.supplierId === supplierId && item.supplierServiceId === supplierServiceId)) {
       alert("Este serviço do fornecedor já foi adicionado.");
-      form.elements.supplierServiceId.focus();
+      form.elements.supplierServiceSearch.focus();
       return false;
     }
     clientSupplierServiceValues.push({ supplierId, supplierServiceId, amount });
     renderClientSupplierServices();
     form.elements.supplierServiceId.value = "";
+    form.elements.supplierServiceSearch.value = "";
     form.elements.supplierAmount.value = "";
-    form.elements.supplierServiceId.focus();
+    setClientSupplierServiceError();
+    form.elements.supplierServiceSearch.focus();
     return true;
   }
 
@@ -357,7 +409,7 @@
     if (!clientSupplierServiceValues.length) {
       return {
         error: "Adicione pelo menos um serviço do fornecedor usando o botão +.",
-        field: form.elements.supplierServiceId
+        field: form.elements.supplierServiceSearch
       };
     }
     return clientSupplierServiceValues.map((item) => ({ ...item }));
@@ -834,15 +886,22 @@
       }
     }
     if (event.target.matches("#serviceForm select[name=supplierId]")) syncClientEntryServices();
-    if (event.target.matches("#serviceForm select[name=supplierServiceId]")) {
-      const service = supplierServiceById(event.target.value);
-      event.target.form.elements.supplierAmount.value = service ? Number(service.cost).toFixed(2) : "";
-    }
     if (event.target.matches("#supplierEntryForm select[name=supplierServiceId]")) {
       const service = supplierServiceById(event.target.value);
       if (service) event.target.form.elements.amount.value = Number(service.cost).toFixed(2);
     }
   });
+
+  document.addEventListener("input", (event) => {
+    if (!event.target.matches("#serviceForm input[name=supplierServiceSearch]")) return;
+    setClientSupplierServiceError();
+    syncClientEntryServiceSelection();
+  });
+
+  document.addEventListener("blur", (event) => {
+    if (!event.target.matches("#serviceForm input[name=supplierServiceSearch]")) return;
+    if (event.target.value.trim()) syncClientEntryServiceSelection(true);
+  }, true);
 
   document.addEventListener("click", async (event) => {
     const tab = event.target.closest("[data-supplier-tab]"); if (tab) showSupplierTab(tab.dataset.supplierTab);
@@ -974,6 +1033,7 @@
     clientEntrySelection,
     createForClientEntries,
     addClientSupplierService,
+    syncClientEntryServiceSelection,
     hasClientSupplierServices
   };
   resetClientEntryOptions();

@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=59">
+  <link rel="stylesheet" href="styles.css?v=60">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -690,9 +690,12 @@
         <label>Fornecedor
           <select name="supplierId"></select>
         </label>
-        <label>Serviço do fornecedor
-          <select name="supplierServiceId"></select>
+        <input name="supplierServiceId" type="hidden">
+        <label id="clientSupplierServiceField">Serviço do fornecedor
+          <input name="supplierServiceSearch" type="search" list="clientSupplierServiceOptions" autocomplete="off" placeholder="Digite o código ou nome">
+          <span id="clientSupplierServiceError" class="field-error hidden" role="alert">Selecione um serviço válido da lista.</span>
         </label>
+        <datalist id="clientSupplierServiceOptions"></datalist>
         <label>Custo por serviço/referência
           <span class="supplier-service-entry-row">
             <input name="supplierAmount" type="number" min="0" step="0.01">
@@ -1072,7 +1075,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=37"></script>
-  <script src="app.js?v=73"></script>
-  <script src="supplier.js?v=36"></script>
+  <script src="app.js?v=74"></script>
+  <script src="supplier.js?v=37"></script>
 </body>
 </html>
