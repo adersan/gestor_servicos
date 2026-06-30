@@ -104,9 +104,10 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .quick-actions button { display: grid; gap: 3px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.74); color: var(--brand); text-align: left; box-shadow: 0 10px 24px rgba(23,63,53,.05); }
 .quick-actions button:hover { background: white; transform: translateY(-1px); }
 .quick-actions span { color: var(--muted); font-size: 12px; }
-.primary, .secondary { border: 0; border-radius: 12px; padding: 12px 18px; font-weight: 750; }
+.primary, .secondary, .danger-button { border: 0; border-radius: 12px; padding: 12px 18px; font-weight: 750; }
 .primary { background: var(--accent); color: #241b0d; }
 .secondary { background: white; color: var(--brand); }
+.danger-button { background: var(--danger); color: white; }
 .full { width: 100%; margin-top: 8px; }
 .hidden { display: none; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 18px 0; }

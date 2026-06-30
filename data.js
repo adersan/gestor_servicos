@@ -512,11 +512,11 @@
     }
 
     await deleteMissing("payments", state.payments.map((item) => item.id));
+    await deleteMissing("supplier_entries", (state.supplierEntries || []).map((item) => item.id));
     await deleteMissing("service_entries", state.services.map((item) => item.id));
     await deleteMissing("billings", state.billings.map((item) => item.id));
     await deleteMissing("payment_methods", state.paymentMethods.map((item) => item.id));
     await deleteMissing("supplier_payments", (state.supplierPayments || []).map((item) => item.id));
-    await deleteMissing("supplier_entries", (state.supplierEntries || []).map((item) => item.id));
     await deleteMissing("supplier_payables", (state.supplierPayables || []).map((item) => item.id));
     await deleteMissing("supplier_services", (state.supplierServices || []).map((item) => item.id));
     await deleteMissing("suppliers", (state.suppliers || []).map((item) => item.id));

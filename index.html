@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=64">
+  <link rel="stylesheet" href="styles.css?v=65">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -756,6 +756,28 @@
     </form>
   </dialog>
 
+  <dialog id="deleteServiceDialog">
+    <form id="deleteServiceForm" method="dialog">
+      <div class="dialog-heading"><h2>Excluir lançamento</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="entryId" type="hidden">
+      <p id="deleteServiceDescription" class="meta"></p>
+      <p class="cancellation-reason"><strong>Atenção:</strong> a exclusão remove o registro definitivamente.</p>
+      <label id="deleteComplementaryOption" class="checkbox-label hidden">
+        <input name="deleteComplementary" type="checkbox">
+        Excluir também os serviços complementares desta referência
+      </label>
+      <label id="deleteSupplierOption" class="checkbox-label hidden">
+        <input name="deleteSupplier" type="checkbox">
+        Excluir também os lançamentos correspondentes do fornecedor
+      </label>
+      <p id="deleteSupplierLockedNote" class="hint hidden">Algum lançamento do fornecedor já está em uma conta a pagar e será preservado.</p>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Voltar</button>
+        <button class="danger-button" value="default">Confirmar exclusão</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="trackingDialog">
     <form id="trackingForm" method="dialog">
       <div class="dialog-heading"><h2>Acompanhamento do cliente</h2><button class="icon-button" value="cancel">×</button></div>
@@ -1092,8 +1114,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=38"></script>
-  <script src="app.js?v=77"></script>
+  <script src="data.js?v=39"></script>
+  <script src="app.js?v=78"></script>
   <script src="supplier.js?v=39"></script>
 </body>
 </html>

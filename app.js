@@ -1914,6 +1914,29 @@ function openServiceCancellation(entry) {
   setTimeout(() => form.elements.reason.focus(), 0);
 }
 
+function openServiceDeletion(entry) {
+  if (!entry) return;
+  if (entry.billingId) {
+    alert("Este serviço já está em uma cobrança. Exclua a cobrança primeiro para remover o lançamento.");
+    return;
+  }
+  const form = document.getElementById("deleteServiceForm");
+  form.reset();
+  form.elements.entryId.value = entry.id;
+  const group = cancellationGroup(entry);
+  const complementary = group.filter((item) => item.id !== entry.id && item.isSecondary);
+  const linkedEntryIds = new Set(group.map((item) => item.id));
+  const supplierEntries = state.supplierEntries.filter((item) => linkedEntryIds.has(item.clientServiceEntryId));
+  const removableSupplierEntries = supplierEntries.filter((item) => !item.payableId);
+  const lockedSupplierEntries = supplierEntries.filter((item) => item.payableId);
+  document.getElementById("deleteServiceDescription").textContent =
+    `${entry.description} · ${entry.reference || "Sem referência"} · ${clientById(entry.clientId)?.name || ""}`;
+  document.getElementById("deleteComplementaryOption").classList.toggle("hidden", !complementary.length || entry.isSecondary);
+  document.getElementById("deleteSupplierOption").classList.toggle("hidden", !removableSupplierEntries.length);
+  document.getElementById("deleteSupplierLockedNote").classList.toggle("hidden", !lockedSupplierEntries.length);
+  document.getElementById("deleteServiceDialog").showModal();
+}
+
 function openEntryForm(item = null, preferredClientId = "", request = null) {
   const form = document.getElementById("serviceForm");
   form.reset();
@@ -2809,14 +2832,7 @@ document.addEventListener("click", async (event) => {
     }
   }
   const deleteEntry = event.target.closest("[data-delete-entry]");
-  if (deleteEntry && confirm("Excluir este lançamento?")) {
-    const entryId = deleteEntry.dataset.deleteEntry;
-    state.supplierEntries.forEach((item) => {
-      if (item.clientServiceEntryId === entryId) item.clientServiceEntryId = null;
-    });
-    state.services = state.services.filter((item) => item.id !== entryId);
-    saveState();
-  }
+  if (deleteEntry) openServiceDeletion(state.services.find((item) => item.id === deleteEntry.dataset.deleteEntry));
 
   const editPayment = event.target.closest("[data-edit-payment]");
   if (editPayment) {
@@ -3276,6 +3292,38 @@ document.getElementById("cancelServiceForm").addEventListener("submit", (event) 
         item.updatedAt = now;
       });
   }
+  event.currentTarget.closest("dialog").close();
+  saveState();
+});
+
+document.getElementById("deleteServiceForm").addEventListener("submit", (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  const entry = state.services.find((item) => item.id === data.get("entryId"));
+  if (!entry) return;
+  const group = cancellationGroup(entry);
+  const targets = [entry];
+  if (data.get("deleteComplementary") === "on" && !entry.isSecondary) {
+    targets.push(...group.filter((item) => item.id !== entry.id && item.isSecondary));
+  }
+  const targetIds = new Set(targets.map((item) => item.id));
+  if (data.get("deleteSupplier") === "on") {
+    state.supplierEntries = state.supplierEntries.filter((item) =>
+      !targetIds.has(item.clientServiceEntryId) || Boolean(item.payableId)
+    );
+  }
+  state.supplierEntries.forEach((item) => {
+    if (targetIds.has(item.clientServiceEntryId)) item.clientServiceEntryId = null;
+  });
+  if (!entry.isSecondary && data.get("deleteComplementary") !== "on") {
+    group.filter((item) => item.id !== entry.id && item.isSecondary).forEach((item) => {
+      item.primaryEntryId = null;
+      item.isSecondary = false;
+      item.notes = [item.notes, "Serviço de origem excluído"].filter(Boolean).join(" · ");
+    });
+  }
+  state.services = state.services.filter((item) => !targetIds.has(item.id));
   event.currentTarget.closest("dialog").close();
   saveState();
 });
@@ -4012,7 +4060,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=78").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=79").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
