@@ -1887,6 +1887,21 @@ function applyServiceStatus(entry, status, changedAt = new Date().toISOString())
     if (item.status === "A fazer") item.doneAt = null;
     item.updatedAt = changedAt;
   });
+
+  const supplierStatus = status === "Pronto" ? "Feito" : status === "Entregue" ? "Entregue" : "";
+  if (!supplierStatus) return;
+  const targetIds = new Set(targets.map((item) => item.id));
+  const statusRank = { "A fazer": 0, "Feito": 1, "Entregue": 2 };
+  state.supplierEntries
+    .filter((item) => targetIds.has(item.clientServiceEntryId) && item.status !== "Cancelado")
+    .forEach((item) => {
+      if ((statusRank[item.status] ?? 0) >= statusRank[supplierStatus]) return;
+      item.status = supplierStatus;
+      item.doneAt ||= changedAt;
+      item.deliveredAt = supplierStatus === "Entregue" ? changedAt : null;
+      item.lastChangedBy = "Administrador";
+      item.updatedAt = changedAt;
+    });
 }
 
 function openServiceCancellation(entry) {
@@ -4060,7 +4075,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=79").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=80").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
