@@ -324,6 +324,13 @@ function deliveredLabel(item) {
   return `Confirmado pelo ${source}`;
 }
 
+function serviceStatusDates(item) {
+  const parts = [];
+  if (item?.doneAt) parts.push(`Feito em ${new Date(item.doneAt).toLocaleString("pt-BR")}`);
+  if (item?.deliveredAt) parts.push(`Entregue em ${new Date(item.deliveredAt).toLocaleString("pt-BR")}`);
+  return parts.join(" · ");
+}
+
 function randomDeliveryCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const bytes = crypto.getRandomValues(new Uint8Array(6));
@@ -1275,7 +1282,7 @@ function renderServices() {
         <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
         <p class="meta service-card-context">${escapeHtml(clientById(item.clientId)?.name || "")}</p>
         ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
-        <span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">${escapeHtml(deliveredLabel(item))}</span>` : ""}${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
+        <span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">${escapeHtml(deliveredLabel(item))}</span>` : ""}${serviceStatusDates(item) ? `<p class="service-status-dates">${escapeHtml(serviceStatusDates(item))}</p>` : ""}${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
       </div>
       <strong>${money.format(item.amount)}</strong>
       <div class="service-actions">
@@ -1865,14 +1872,19 @@ function applyServiceStatus(entry, status, changedAt = new Date().toISOString())
   const targets = entry.isSecondary ? [entry] : cancellationGroup(entry).filter((item) => item.status !== "Cancelado");
   targets.forEach((item) => {
     item.status = status;
-    if (item.status === "Pronto" && !item.deliveryCode) item.deliveryCode = randomDeliveryCode();
+    if (item.status === "Pronto") {
+      item.doneAt ||= changedAt;
+      if (!item.deliveryCode) item.deliveryCode = randomDeliveryCode();
+    }
     if (item.status === "Entregue") {
+      item.doneAt ||= changedAt;
       item.deliveredAt = changedAt;
       item.deliverySource = adminDisplayName();
     } else {
       item.deliveredAt = null;
       item.deliverySource = "";
     }
+    if (item.status === "A fazer") item.doneAt = null;
     item.updatedAt = changedAt;
   });
 }
@@ -3154,6 +3166,9 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
           ? existingEntry.deliveryCode
           : randomDeliveryCode(),
         confirmationRequestedAt: isPrimary ? existingEntry?.confirmationRequestedAt || null : null,
+        doneAt: ["Pronto", "Entregue"].includes(data.get("status"))
+          ? (isPrimary ? existingEntry?.doneAt : null) || now
+          : null,
         deliveredAt: data.get("status") === "Entregue"
           ? (isPrimary ? existingEntry?.deliveredAt : null) || now
           : null,
@@ -3178,9 +3193,9 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   }
   form.reset();
   form.closest("dialog").close();
-  if (!existingEntry) {
-    window.supplierModule?.createForClientEntries(createdEntries, supplierSelection);
-  }
+  const createdSupplierEntries = !existingEntry
+    ? window.supplierModule?.createForClientEntries(createdEntries, supplierSelection) || []
+    : [];
   try {
     if (sourceRequest && !existingEntry) {
       await window.dataStore?.updateClientServiceRequest?.(sourceRequest.id, {
@@ -3199,6 +3214,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   }
   if (existingEntry) return;
 
+  await window.supplierModule?.offerSupplierRequestShare(createdSupplierEntries);
   const next = await askEntryContinuation();
   if (next === "same") openEntryForm(null, savedClientId);
   if (next === "other") openEntryForm();
@@ -3807,12 +3823,12 @@ document.getElementById("continueEntryDialog").addEventListener("cancel", (event
 function keepServiceFieldVisible(field) {
   const form = document.getElementById("serviceForm");
   if (!field || !form.contains(field)) return;
-  setTimeout(() => {
+  const adjustScroll = (behavior = "smooth") => {
     const viewport = window.visualViewport;
     const formRect = form.getBoundingClientRect();
     const actionBar = form.querySelector(".dialog-form-actions");
     const stickyActionHeight = actionBar && getComputedStyle(actionBar).position === "sticky"
-      ? actionBar.getBoundingClientRect().height + 12
+      ? actionBar.getBoundingClientRect().height + 20
       : 0;
     const visibleTop = Math.max((viewport?.offsetTop || 0) + 18, formRect.top + 72);
     const visibleBottom = Math.min(
@@ -3821,11 +3837,17 @@ function keepServiceFieldVisible(field) {
     );
     const rect = field.getBoundingClientRect();
     if (rect.bottom > visibleBottom) {
-      form.scrollBy({ top: rect.bottom - visibleBottom + 28, behavior: "smooth" });
+      form.scrollBy({ top: rect.bottom - visibleBottom + 24, behavior });
     } else if (rect.top < visibleTop) {
-      form.scrollBy({ top: rect.top - visibleTop - 18, behavior: "smooth" });
+      form.scrollBy({ top: rect.top - visibleTop - 16, behavior });
     }
-  }, window.matchMedia("(max-width: 700px)").matches ? 320 : 40);
+  };
+
+  requestAnimationFrame(() => adjustScroll("auto"));
+  setTimeout(
+    () => adjustScroll("smooth"),
+    window.matchMedia("(max-width: 700px)").matches ? 280 : 90
+  );
 }
 
 document.getElementById("serviceForm").addEventListener("focusin", (event) => {
@@ -3990,7 +4012,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=77").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=78").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

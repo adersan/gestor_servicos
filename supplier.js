@@ -4,6 +4,7 @@
   let generatedSupplierAccessUrl = "";
   let generatedSupplierAccessText = "";
   let activeSupplierReportId = "";
+  let supplierRequestShareResolver = null;
 
   const byId = (id) => document.getElementById(id);
   const today = () => new Date().toISOString().slice(0, 10);
@@ -186,7 +187,7 @@
     byId("supplierEntryPeriodLabel").textContent = start && end
       ? `${formatDate(start)} a ${formatDate(end)}`
       : "Todos os períodos";
-    const statusOrder = { "A fazer": 0, "Feito": 1, "Cancelado": 2 };
+    const statusOrder = { "A fazer": 0, "Feito": 1, "Entregue": 2, "Cancelado": 3 };
     const entries = [...state.supplierEntries].filter((item) =>
       (!supplierId || item.supplierId === supplierId)
       && (!status || item.status === status)
@@ -210,13 +211,15 @@
           ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
           <p class="meta service-card-context">${item.clientId ? escapeHtml(clientName(item.clientId)) : "Sem cliente vinculado"} · ${escapeHtml(item.source)}</p>
           ${item.lastChangedBy === "Fornecedor" ? `<span class="supplier-change-label">Alterado pelo fornecedor</span>` : ""}
+          ${item.doneAt || item.deliveredAt ? `<p class="service-status-dates">${item.doneAt ? `Feito em ${new Date(item.doneAt).toLocaleString("pt-BR")}` : ""}${item.doneAt && item.deliveredAt ? " · " : ""}${item.deliveredAt ? `Entregue em ${new Date(item.deliveredAt).toLocaleString("pt-BR")}` : ""}</p>` : ""}
           ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Custo anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
         </div>
         <div><span class="status status-${normalized(item.status).replace(/\s/g, "-")}">${item.status}</span><strong>${money.format(item.amount)}</strong></div>
         <div class="service-actions">
           ${item.status !== "Cancelado" ? `<div class="status-actions">
             ${item.status === "A fazer" ? `<button class="table-action success" data-supplier-entry-status="Feito" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Marcar feito</button>` : ""}
-            ${item.status === "Feito" ? `<button class="table-action" data-supplier-entry-status="A fazer" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Voltar para A fazer</button>` : ""}
+            ${item.status === "Feito" ? `<button class="table-action success" data-supplier-entry-status="Entregue" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Marcar entregue</button><button class="table-action" data-supplier-entry-status="A fazer" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Voltar para A fazer</button>` : ""}
+            ${item.status === "Entregue" ? `<button class="table-action" data-supplier-entry-status="Feito" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Voltar para Feito</button>` : ""}
           </div>` : ""}
           <div class="row-actions">
             ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Editar</button><button class="table-action danger" data-cancel-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Cancelar</button>` : ""}
@@ -284,6 +287,8 @@
     form.elements.id.value = item?.id || "";
     form.elements.name.value = item?.name || "";
     form.elements.phone.value = item?.phone || "";
+    form.elements.whatsappDestination.value = item?.whatsappDestination || "individual";
+    form.elements.whatsappGroupName.value = item?.whatsappGroupName || "";
     form.elements.document.value = item?.document || "";
     form.elements.notes.value = item?.notes || "";
     form.elements.isDefault.checked = Boolean(item?.isDefault);
@@ -416,13 +421,14 @@
   }
 
   function createForClientEntries(entries, selections) {
-    if (!selections?.length || !entries?.length) return;
+    if (!selections?.length || !entries?.length) return [];
     const now = new Date().toISOString();
+    const created = [];
     const entriesByReference = entries.filter((entry) => !entry.isSecondary);
     entriesByReference.forEach((entry) => selections.forEach((selection) => {
       const service = supplierServiceById(selection.supplierServiceId);
       if (!service) return;
-      state.supplierEntries.push({
+      const supplierEntry = {
         id: crypto.randomUUID(),
         supplierId: selection.supplierId,
         supplierServiceId: selection.supplierServiceId,
@@ -437,13 +443,80 @@
         source: "Cliente",
         notes: `Vinculado a ${entry.description}`,
         lastChangedBy: "Administrador",
+        doneAt: null,
+        deliveredAt: null,
         createdAt: now,
         updatedAt: now
-      });
+      };
+      state.supplierEntries.push(supplierEntry);
+      created.push(supplierEntry);
     }));
     clientSupplierServiceValues = [];
     renderClientSupplierServices();
     saveState();
+    return created;
+  }
+
+  function supplierRequestMessage(supplier, entries) {
+    const lines = entries.map((item) => `• ${item.reference || "Sem referência"} - ${item.description}`).join("\n");
+    return `Olá, ${supplier.name}!\n\nNovos serviços solicitados:\n${lines}\n\nTotal de itens: ${entries.length}`;
+  }
+
+  async function shareSupplierRequests(supplierId) {
+    const supplier = supplierById(supplierId);
+    const selectedIds = [...document.querySelectorAll(`[data-supplier-share-entry="${supplierId}"]:checked`)]
+      .map((field) => field.value);
+    const entries = state.supplierEntries.filter((item) => selectedIds.includes(item.id));
+    if (!supplier || !entries.length) return alert("Selecione pelo menos um serviço.");
+    const text = supplierRequestMessage(supplier, entries);
+    if (supplier.whatsappDestination === "group") {
+      if (navigator.share) {
+        await navigator.share({ title: supplier.whatsappGroupName || supplier.name, text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+        alert(`Mensagem copiada. Escolha o grupo "${supplier.whatsappGroupName || supplier.name}" no WhatsApp.`);
+      }
+      return;
+    }
+    const digits = String(supplier.phone || "").replace(/\D/g, "");
+    const phone = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
+    if (!phone) return alert("Cadastre o WhatsApp deste fornecedor.");
+    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`, "_blank", "noopener");
+  }
+
+  function offerSupplierRequestShare(entries) {
+    if (!entries?.length) return Promise.resolve();
+    const grouped = entries.reduce((result, item) => {
+      (result[item.supplierId] ||= []).push(item);
+      return result;
+    }, {});
+    byId("supplierRequestShareList").innerHTML = Object.entries(grouped).map(([supplierId, items]) => {
+      const supplier = supplierById(supplierId);
+      const destination = supplier?.whatsappDestination === "group"
+        ? `Grupo: ${supplier.whatsappGroupName || "escolher no WhatsApp"}`
+        : `WhatsApp: ${supplier?.phone || "não cadastrado"}`;
+      return `<section class="supplier-request-share-card">
+        <div><h3>${escapeHtml(supplier?.name || "Fornecedor")}</h3><span>${escapeHtml(destination)}</span></div>
+        ${items.map((item) => `<label class="supplier-share-option">
+          <input type="checkbox" value="${item.id}" data-supplier-share-entry="${supplierId}" checked>
+          <span><strong>${escapeHtml(item.reference || "Sem referência")}</strong><small>${escapeHtml(item.description)}</small></span>
+        </label>`).join("")}
+        <button class="primary" type="button" data-share-new-supplier-entries="${supplierId}">
+          ${supplier?.whatsappDestination === "group" ? "Compartilhar no WhatsApp" : "Enviar pelo WhatsApp"}
+        </button>
+      </section>`;
+    }).join("");
+    byId("supplierRequestShareDialog").showModal();
+    return new Promise((resolve) => { supplierRequestShareResolver = resolve; });
+  }
+
+  function closeSupplierRequestShare() {
+    const dialog = byId("supplierRequestShareDialog");
+    if (dialog.open) dialog.close();
+    const resolve = supplierRequestShareResolver;
+    supplierRequestShareResolver = null;
+    resolve?.();
   }
 
   function openSupplierEntry(item) {
@@ -692,7 +765,17 @@
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const item = { id: data.get("id") || crypto.randomUUID(), name: data.get("name").trim(), phone: data.get("phone").trim(), document: data.get("document").trim(), notes: data.get("notes").trim(), isDefault: data.get("isDefault") === "on", active: true };
+    const item = {
+      id: data.get("id") || crypto.randomUUID(),
+      name: data.get("name").trim(),
+      phone: data.get("phone").trim(),
+      whatsappDestination: data.get("whatsappDestination") || "individual",
+      whatsappGroupName: data.get("whatsappGroupName").trim(),
+      document: data.get("document").trim(),
+      notes: data.get("notes").trim(),
+      isDefault: data.get("isDefault") === "on",
+      active: true
+    };
     if (item.isDefault) state.suppliers.forEach((supplier) => { supplier.isDefault = false; });
     const index = state.suppliers.findIndex((supplier) => supplier.id === item.id);
     if (index >= 0) state.suppliers[index] = item; else state.suppliers.push(item);
@@ -716,7 +799,8 @@
     const existing = state.supplierEntries.find((entry) => entry.id === data.get("id"));
     const service = supplierServiceById(data.get("supplierServiceId"));
     const now = new Date().toISOString();
-    const item = { id: data.get("id") || crypto.randomUUID(), supplierId: data.get("supplierId"), supplierServiceId: data.get("supplierServiceId"), clientId: data.get("clientId") || null, clientServiceEntryId: data.get("clientServiceEntryId") || null, payableId: existing?.payableId || null, date: data.get("date"), description: service?.name || "", reference: data.get("reference").trim(), amount: Number(data.get("amount")), status: data.get("status"), source: existing?.source || (data.get("clientId") ? "Cliente" : "Direto"), notes: data.get("notes").trim(), lastChangedBy: "Administrador", createdAt: existing?.createdAt || now, updatedAt: now };
+    const status = data.get("status");
+    const item = { id: data.get("id") || crypto.randomUUID(), supplierId: data.get("supplierId"), supplierServiceId: data.get("supplierServiceId"), clientId: data.get("clientId") || null, clientServiceEntryId: data.get("clientServiceEntryId") || null, payableId: existing?.payableId || null, date: data.get("date"), description: service?.name || "", reference: data.get("reference").trim(), amount: Number(data.get("amount")), status, source: existing?.source || (data.get("clientId") ? "Cliente" : "Direto"), notes: data.get("notes").trim(), lastChangedBy: "Administrador", doneAt: ["Feito", "Entregue"].includes(status) ? existing?.doneAt || now : null, deliveredAt: status === "Entregue" ? existing?.deliveredAt || now : null, createdAt: existing?.createdAt || now, updatedAt: now };
     const index = state.supplierEntries.findIndex((entry) => entry.id === item.id);
     if (index >= 0) state.supplierEntries[index] = item; else state.supplierEntries.push(item);
     event.currentTarget.closest("dialog").close();
@@ -908,6 +992,17 @@
     const action = event.target.closest("[data-supplier-action]");
     if (action) ({ supplier: () => openSupplier(), service: () => openSupplierService(), entry: () => openSupplierEntry(), payable: openPayable, access: openAccess }[action.dataset.supplierAction])?.();
     const close = event.target.closest("[data-close-supplier-dialog]"); if (close) close.closest("dialog")?.close();
+    const closeRequestShare = event.target.closest("[data-close-supplier-request-share]");
+    if (closeRequestShare) closeSupplierRequestShare();
+    const shareNewEntries = event.target.closest("[data-share-new-supplier-entries]");
+    if (shareNewEntries) {
+      try {
+        await shareSupplierRequests(shareNewEntries.dataset.shareNewSupplierEntries);
+        shareNewEntries.textContent = "Compartilhado";
+      } catch (error) {
+        if (error?.name !== "AbortError") alert("Não foi possível abrir o compartilhamento do WhatsApp.");
+      }
+    }
     const currentWeekButton = event.target.closest("[data-supplier-current-week]");
     if (currentWeekButton) {
       const week = currentOperationalWeek();
@@ -959,9 +1054,15 @@
       const entry = state.supplierEntries.find((item) => item.id === entryStatus.dataset.entryId);
       if (entry?.payableId) alert("Este serviço já está em uma conta a pagar e não pode ter o status alterado.");
       else if (entry && entry.status !== "Cancelado") {
-        entry.status = entryStatus.dataset.supplierEntryStatus;
+        const nextStatus = entryStatus.dataset.supplierEntryStatus;
+        const changedAt = new Date().toISOString();
+        entry.status = nextStatus;
+        if (["Feito", "Entregue"].includes(nextStatus)) entry.doneAt ||= changedAt;
+        if (nextStatus === "Entregue") entry.deliveredAt = changedAt;
+        else entry.deliveredAt = null;
+        if (nextStatus === "A fazer") entry.doneAt = null;
         entry.lastChangedBy = "Administrador";
-        entry.updatedAt = new Date().toISOString();
+        entry.updatedAt = changedAt;
         saveState();
       }
     }
@@ -1032,10 +1133,15 @@
     resetClientEntryOptions,
     clientEntrySelection,
     createForClientEntries,
+    offerSupplierRequestShare,
     addClientSupplierService,
     syncClientEntryServiceSelection,
     hasClientSupplierServices
   };
   resetClientEntryOptions();
+  byId("supplierRequestShareDialog").addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeSupplierRequestShare();
+  });
   render();
 })();

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=62">
+  <link rel="stylesheet" href="styles.css?v=63">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -419,7 +419,7 @@
         </div>
         <div class="filters">
           <select id="supplierEntrySupplierFilter"><option value="">Todos os fornecedores</option></select>
-          <select id="supplierEntryStatusFilter"><option value="">Todos os status</option><option>A fazer</option><option>Feito</option><option>Cancelado</option></select>
+          <select id="supplierEntryStatusFilter"><option value="">Todos os status</option><option>A fazer</option><option>Feito</option><option>Entregue</option><option>Cancelado</option></select>
           <input id="supplierEntryStart" type="date" aria-label="Data inicial">
           <input id="supplierEntryEnd" type="date" aria-label="Data final">
           <input id="supplierEntrySearch" type="search" placeholder="Buscar serviço, cliente ou referência">
@@ -909,6 +909,13 @@
       <input name="id" type="hidden">
       <label>Nome<input name="name" required></label>
       <label>WhatsApp<input name="phone"></label>
+      <label>Destino das solicitações
+        <select name="whatsappDestination">
+          <option value="individual">Número individual</option>
+          <option value="group">Grupo do WhatsApp</option>
+        </select>
+      </label>
+      <label>Nome do grupo<input name="whatsappGroupName" placeholder="Ex.: Serviços Lorena"></label>
       <label>CPF ou CNPJ<input name="document"></label>
       <label>Observações<textarea name="notes" rows="3"></textarea></label>
       <label class="checkbox-label"><input name="isDefault" type="checkbox"> Fornecedor padrão dos novos lançamentos</label>
@@ -935,7 +942,7 @@
       <label>Data<input name="date" type="date" required></label>
       <label>Referência<input name="reference"></label>
       <label>Valor do fornecedor<input name="amount" type="number" min="0" step="0.01" required></label>
-      <label>Status<select name="status"><option>A fazer</option><option>Feito</option></select></label>
+      <label>Status<select name="status"><option>A fazer</option><option>Feito</option><option>Entregue</option></select></label>
       <label>Observações<textarea name="notes" rows="2"></textarea></label>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Salvar</button></div>
     </form>
@@ -949,6 +956,17 @@
       <p class="hint">O lançamento continuará visível, mas seu custo será zerado.</p>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Confirmar</button></div>
     </form>
+  </dialog>
+  <dialog id="supplierRequestShareDialog" class="supplier-request-share-dialog">
+    <div class="supplier-request-share-content">
+      <div class="dialog-heading">
+        <div><span class="eyebrow">Solicitação ao fornecedor</span><h2>Enviar serviços agora?</h2></div>
+        <button class="icon-button" type="button" data-close-supplier-request-share>×</button>
+      </div>
+      <p class="meta">Marque os serviços. Para grupos, escolha o grupo quando o WhatsApp abrir.</p>
+      <div id="supplierRequestShareList" class="supplier-request-share-list"></div>
+      <button class="secondary full" type="button" data-close-supplier-request-share>Agora não</button>
+    </div>
   </dialog>
   <dialog id="supplierPayableDialog">
     <form id="supplierPayableForm" method="dialog">
@@ -1074,8 +1092,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=37"></script>
-  <script src="app.js?v=76"></script>
-  <script src="supplier.js?v=37"></script>
+  <script src="data.js?v=38"></script>
+  <script src="app.js?v=77"></script>
+  <script src="supplier.js?v=38"></script>
 </body>
 </html>

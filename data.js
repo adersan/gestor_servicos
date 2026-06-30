@@ -98,6 +98,7 @@
         amount: Number(entry.amount),
         status: entry.status,
         notes: entry.notes || "",
+        doneAt: entry.done_at,
         deliveryCode: entry.delivery_code || "",
         confirmationRequestedAt: entry.confirmation_requested_at,
         deliveredAt: entry.delivered_at,
@@ -162,7 +163,9 @@
       })),
       suppliers: suppliersResult.data.map((item) => ({
         id: item.id, name: item.name, phone: item.phone || "", document: item.document || "",
-        notes: item.notes || "", isDefault: item.is_default, active: item.active
+        notes: item.notes || "", isDefault: item.is_default, active: item.active,
+        whatsappDestination: item.whatsapp_destination || "individual",
+        whatsappGroupName: item.whatsapp_group_name || ""
       })),
       supplierServices: supplierServicesResult.data.map((item) => ({
         id: item.id, supplierId: item.supplier_id, code: item.code || "",
@@ -175,6 +178,7 @@
         reference: item.reference || "", amount: Number(item.amount), status: item.status,
         source: item.source, notes: item.notes || "",
         lastChangedBy: item.last_changed_by || "",
+        doneAt: item.done_at, deliveredAt: item.delivered_at,
         cancellationReason: item.cancellation_reason || "",
         cancellationOriginalAmount: item.cancellation_original_amount === null
           ? null
@@ -291,6 +295,7 @@
           amount: Number(item.amount),
           status: item.status,
           notes: item.notes || null,
+          done_at: item.doneAt || null,
           billing_id: item.billingId || null,
           delivery_code: item.deliveryCode || null,
           confirmation_requested_at: item.confirmationRequestedAt || null,
@@ -303,9 +308,10 @@
           cancellation_original_amount: item.cancellationOriginalAmount ?? null
         }));
       let entriesResult = await client.from("service_entries").upsert(entries);
-      if (entriesResult.error && /delivery_(code|source)|confirmation_requested_at|delivered_at|service_group_id|primary_entry_id|is_secondary|cancellation_reason|cancellation_original_amount/i.test(entriesResult.error.message || "")) {
+      if (entriesResult.error && /done_at|delivery_(code|source)|confirmation_requested_at|delivered_at|service_group_id|primary_entry_id|is_secondary|cancellation_reason|cancellation_original_amount/i.test(entriesResult.error.message || "")) {
         const compatibleEntries = entries.map((entry) => {
           const {
+            done_at,
             delivery_code,
             confirmation_requested_at,
             delivered_at,
@@ -403,10 +409,18 @@
           .eq("is_default", true);
         if (clearDefault.error) throw clearDefault.error;
       }
-      const result = await client.from("suppliers").upsert(state.suppliers.map((item) => ({
+      const supplierRows = state.suppliers.map((item) => ({
         id: item.id, name: item.name, phone: item.phone || null, document: item.document || null,
-        notes: item.notes || null, is_default: false, active: item.active !== false
-      })));
+        notes: item.notes || null, is_default: false, active: item.active !== false,
+        whatsapp_destination: item.whatsappDestination || "individual",
+        whatsapp_group_name: item.whatsappGroupName || null
+      }));
+      let result = await client.from("suppliers").upsert(supplierRows);
+      if (result.error && /whatsapp_destination|whatsapp_group_name/i.test(result.error.message || "")) {
+        result = await client.from("suppliers").upsert(supplierRows.map(({
+          whatsapp_destination, whatsapp_group_name, ...item
+        }) => item));
+      }
       if (result.error) throw result.error;
       if (defaultSupplier) {
         const setDefault = await client.from("suppliers")
@@ -442,13 +456,16 @@
         reference: item.reference || null, amount: Number(item.amount), status: item.status,
         source: item.source || "Direto", notes: item.notes || null,
         last_changed_by: item.lastChangedBy || null,
+        done_at: item.doneAt || null, delivered_at: item.deliveredAt || null,
         cancellation_reason: item.cancellationReason || null,
         cancellation_original_amount: item.cancellationOriginalAmount ?? null,
         created_at: item.createdAt
       }));
       let result = await client.from("supplier_entries").upsert(supplierEntryRows);
-      if (result.error && /last_changed_by/i.test(result.error.message || "")) {
-        result = await client.from("supplier_entries").upsert(supplierEntryRows.map(({ last_changed_by, ...item }) => item));
+      if (result.error && /last_changed_by|done_at|delivered_at/i.test(result.error.message || "")) {
+        result = await client.from("supplier_entries").upsert(supplierEntryRows.map(({
+          last_changed_by, done_at, delivered_at, ...item
+        }) => item));
       }
       if (result.error) throw result.error;
     }
