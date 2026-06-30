@@ -250,6 +250,8 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 dialog { width: min(92vw, 480px); padding: 0; border: 0; border-radius: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
 dialog::backdrop { background: rgba(12,31,26,.58); backdrop-filter: blur(4px); }
 dialog form { display: grid; gap: 14px; padding: 24px; }
+#serviceDialog { max-height: 92vh; overflow: hidden; }
+#serviceDialog form { max-height: 92vh; overflow-y: auto; overscroll-behavior: contain; scroll-padding: 76px 0; }
 .notification-dialog { width: min(92vw, 620px); }
 .notification-content { padding: 24px; }
 .notification-daily-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
@@ -514,7 +516,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   #serviceDialog .dialog-heading-actions { gap: 6px; }
   #serviceDialog .dialog-heading-actions .secondary { padding: 9px 10px; font-size: 11px; }
   #serviceDialog label { gap: 5px; }
-  #serviceDialog .dialog-form-actions { position: sticky; bottom: 0; z-index: 5; margin: 4px -14px calc(-14px - env(safe-area-inset-bottom)); padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(255,255,255,.98); box-shadow: 0 -8px 20px rgba(23,63,53,.1); }
+  #serviceDialog .dialog-form-actions { position: sticky; bottom: 0; z-index: 5; margin: 4px -14px 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(255,255,255,.98); box-shadow: 0 -8px 20px rgba(23,63,53,.1); }
   .topbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px; padding: 10px 12px; box-shadow: 0 6px 22px rgba(23,63,53,.16); }
   .brand-lockup { flex: 1; min-width: 0; gap: 9px; }
   .brand-lockup img { width: 38px; height: 38px; border-radius: 11px; box-shadow: none; }

@@ -3809,15 +3809,23 @@ function keepServiceFieldVisible(field) {
   if (!field || !form.contains(field)) return;
   setTimeout(() => {
     const viewport = window.visualViewport;
-    const visibleTop = (viewport?.offsetTop || 0) + 72;
-    const visibleBottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight) - 24;
+    const formRect = form.getBoundingClientRect();
+    const actionBar = form.querySelector(".dialog-form-actions");
+    const stickyActionHeight = actionBar && getComputedStyle(actionBar).position === "sticky"
+      ? actionBar.getBoundingClientRect().height + 12
+      : 0;
+    const visibleTop = Math.max((viewport?.offsetTop || 0) + 18, formRect.top + 72);
+    const visibleBottom = Math.min(
+      (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight) - 18,
+      formRect.bottom - stickyActionHeight - 12
+    );
     const rect = field.getBoundingClientRect();
     if (rect.bottom > visibleBottom) {
       form.scrollBy({ top: rect.bottom - visibleBottom + 28, behavior: "smooth" });
     } else if (rect.top < visibleTop) {
       form.scrollBy({ top: rect.top - visibleTop - 18, behavior: "smooth" });
     }
-  }, 320);
+  }, window.matchMedia("(max-width: 700px)").matches ? 320 : 40);
 }
 
 document.getElementById("serviceForm").addEventListener("focusin", (event) => {
@@ -3982,7 +3990,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=76").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=77").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
