@@ -457,9 +457,15 @@
     return created;
   }
 
-  function supplierRequestMessage(supplier, entries) {
+  function supplierRequestMessage(supplier, entries, includeGreeting = false) {
     const lines = entries.map((item) => `• ${item.reference || "Sem referência"} - ${item.description}`).join("\n");
-    return `Olá, ${supplier.name}!\n\nNovos serviços solicitados:\n${lines}\n\nTotal de itens: ${entries.length}`;
+    const greeting = includeGreeting ? `Olá, ${supplier.name}!\n\n` : "";
+    return `${greeting}${lines}`;
+  }
+
+  function openWhatsApp(url) {
+    const whatsappWindow = window.open(url, "gestor_servicos_whatsapp");
+    whatsappWindow?.focus?.();
   }
 
   async function shareSupplierRequests(supplierId) {
@@ -468,21 +474,26 @@
       .map((field) => field.value);
     const entries = state.supplierEntries.filter((item) => selectedIds.includes(item.id));
     if (!supplier || !entries.length) return alert("Selecione pelo menos um serviço.");
-    const text = supplierRequestMessage(supplier, entries);
+    const includeGreeting = document.querySelector(`[data-supplier-share-greeting="${supplierId}"]`)?.checked;
+    const text = supplierRequestMessage(supplier, entries, includeGreeting);
     if (supplier.whatsappDestination === "group") {
-      if (navigator.share) {
+      const mobileShare = navigator.share && window.matchMedia("(pointer: coarse)").matches;
+      if (mobileShare) {
         await navigator.share({ title: supplier.whatsappGroupName || supplier.name, text });
       } else {
         await navigator.clipboard.writeText(text);
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank", "noopener");
-        alert(`Mensagem copiada. Escolha o grupo "${supplier.whatsappGroupName || supplier.name}" no WhatsApp.`);
+        openWhatsApp("https://web.whatsapp.com/");
+        alert(`Mensagem copiada. Escolha o grupo "${supplier.whatsappGroupName || supplier.name}" e cole a mensagem.`);
       }
       return;
     }
     const digits = String(supplier.phone || "").replace(/\D/g, "");
     const phone = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
     if (!phone) return alert("Cadastre o WhatsApp deste fornecedor.");
-    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`, "_blank", "noopener");
+    const baseUrl = window.matchMedia("(pointer: coarse)").matches
+      ? "https://api.whatsapp.com/send"
+      : "https://web.whatsapp.com/send";
+    openWhatsApp(`${baseUrl}?phone=${phone}&text=${encodeURIComponent(text)}`);
   }
 
   function offerSupplierRequestShare(entries) {
@@ -502,6 +513,10 @@
           <input type="checkbox" value="${item.id}" data-supplier-share-entry="${supplierId}" checked>
           <span><strong>${escapeHtml(item.reference || "Sem referência")}</strong><small>${escapeHtml(item.description)}</small></span>
         </label>`).join("")}
+        <label class="supplier-share-greeting">
+          <input type="checkbox" data-supplier-share-greeting="${supplierId}">
+          <span>Incluir saudação</span>
+        </label>
         <button class="primary" type="button" data-share-new-supplier-entries="${supplierId}">
           ${supplier?.whatsappDestination === "group" ? "Compartilhar no WhatsApp" : "Enviar pelo WhatsApp"}
         </button>

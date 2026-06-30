@@ -212,6 +212,8 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .supplier-share-option input { width: 18px; height: 18px; }
 .supplier-share-option strong, .supplier-share-option small { display: block; }
 .supplier-share-option small { margin-top: 2px; color: var(--muted); }
+.supplier-share-greeting { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.supplier-share-greeting input { width: 17px; height: 17px; }
 .delivered-label { background: #edf9f2; color: #117440; }
 .cancellation-reason { margin-top: 8px; padding: 9px 11px; border-radius: 10px; background: #fdecea; color: #8d3d35; font-size: 12px; line-height: 1.4; }
 .service-overdue { border-color: #dca59f; background: #fffafa; box-shadow: inset 4px 0 0 var(--danger); }
