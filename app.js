@@ -859,7 +859,7 @@ function renderDashboard() {
   document.getElementById("clientCount").textContent = state.clients.length;
   document.getElementById("serviceTotal").textContent = money.format(serviceTotal);
   document.getElementById("paymentTotal").textContent = money.format(paymentTotal);
-  const pending = state.services.filter((item) => item.status === "A fazer");
+  const pending = state.services.filter((item) => item.status === "A fazer" && !item.isSecondary);
   const overdue = pending.filter(isOverdueService);
   const alertPanel = document.getElementById("serviceAlertPanel");
   alertPanel.classList.toggle("has-alerts", overdue.length > 0);
@@ -941,7 +941,7 @@ function renderDashboard() {
   const list = document.getElementById("accountList");
   list.innerHTML = state.clients.length ? state.clients.map((client) => {
     const balance = balanceFor(client.id);
-    const count = state.services.filter((item) => item.clientId === client.id).length;
+    const count = state.services.filter((item) => item.clientId === client.id && !item.isSecondary).length;
     return `<div class="account-row">
       <div><strong>${escapeHtml(client.name)}</strong><span class="meta">${escapeHtml(client.priceGroup)}</span></div>
       <span class="meta">${count} serviço(s)</span>
@@ -983,11 +983,17 @@ function renderDashboardV2() {
     item.status !== "Cancelada" && inPeriod(item.endDate, range));
   const serviceMetrics = (range) => {
     const services = servicesFor(range);
+    const primaryServices = services.filter((item) => !item.isSecondary);
+    const complementaryServices = services.filter((item) => item.isSecondary);
     return {
       services,
-      pending: services.filter((item) => item.status === "A fazer"),
-      done: services.filter((item) => item.status === "Pronto"),
-      delivered: services.filter((item) => item.status === "Entregue"),
+      primaryServices,
+      complementaryServices,
+      pending: primaryServices.filter((item) => item.status === "A fazer"),
+      done: primaryServices.filter((item) => item.status === "Pronto"),
+      delivered: primaryServices.filter((item) => item.status === "Entregue"),
+      primaryTotal: primaryServices.reduce((sum, item) => sum + Number(item.amount), 0),
+      complementaryTotal: complementaryServices.reduce((sum, item) => sum + Number(item.amount), 0),
       total: services.reduce((sum, item) => sum + Number(item.amount), 0)
     };
   };
@@ -1000,7 +1006,8 @@ function renderDashboardV2() {
     return `${card("A fazer", metrics.pending, "metric-pending")}
       ${card("Feitos", metrics.done, "metric-done")}
       ${card("Entregues", metrics.delivered, "metric-delivered")}
-      <article class="metric-card metric-main"><span>Total de serviços</span><strong>${metrics.services.length}</strong><small>${money.format(metrics.total)}</small></article>`;
+      <article class="metric-card metric-complementary"><span>Serviços complementares</span><strong>${metrics.complementaryServices.length}</strong><small>${money.format(metrics.complementaryTotal)}</small></article>
+      <article class="metric-card metric-main"><span>Total de serviços</span><strong>${metrics.primaryServices.length}</strong><small>${money.format(metrics.primaryTotal)}</small></article>`;
   };
 
   const weekServices = serviceMetrics(week);
@@ -1010,12 +1017,12 @@ function renderDashboardV2() {
   document.getElementById("serviceWeekCards").innerHTML = serviceCards(weekServices);
   document.getElementById("servicePeriodCards").innerHTML = serviceCards(periodServices);
 
-  const statusTotal = periodServices.services.length || 1;
+  const statusTotal = periodServices.primaryServices.length || 1;
   const pendingDegrees = periodServices.pending.length / statusTotal * 360;
   const doneDegrees = periodServices.done.length / statusTotal * 360;
   document.getElementById("serviceStatusDashboardChart").innerHTML = `
     <div class="donut-chart service-donut" style="--pending:${pendingDegrees}deg;--done:${pendingDegrees + doneDegrees}deg">
-      <div><strong>${periodServices.services.length}</strong><span>serviços</span></div>
+      <div><strong>${periodServices.primaryServices.length}</strong><span>serviços</span></div>
     </div>
     <div class="chart-legend">
       <button><i class="legend-service-pending"></i><span>A fazer</span><strong>${periodServices.pending.length}</strong></button>
@@ -1026,7 +1033,7 @@ function renderDashboardV2() {
   const volumeDates = dateKeysBetween(period.startDate, period.endDate, 31);
   const dailyVolumes = volumeDates.map((date) => ({
     date,
-    count: periodServices.services.filter((item) => item.date === date).length
+    count: periodServices.primaryServices.filter((item) => item.date === date).length
   }));
   const volumeMaximum = Math.max(...dailyVolumes.map((item) => item.count), 1);
   document.getElementById("serviceVolumeChart").innerHTML = dailyVolumes.map((item) => `
@@ -1038,9 +1045,10 @@ function renderDashboardV2() {
 
   const clientVolumes = state.clients.map((client) => {
     const services = periodServices.services.filter((item) => item.clientId === client.id);
+    const primaryServices = services.filter((item) => !item.isSecondary);
     return {
       client,
-      count: services.length,
+      count: primaryServices.length,
       amount: services.reduce((sum, item) => sum + Number(item.amount), 0)
     };
   }).filter((item) => item.count).sort((a, b) => b.count - a.count || b.amount - a.amount);
@@ -1054,7 +1062,7 @@ function renderDashboardV2() {
       </article>`).join("")
     : `<p class="meta">Nenhum serviço no período selecionado.</p>`;
 
-  const pending = state.services.filter((item) => item.status === "A fazer");
+  const pending = state.services.filter((item) => item.status === "A fazer" && !item.isSecondary);
   const overdue = pending.filter(isOverdueService);
   const serviceAlertPanel = document.getElementById("serviceAlertPanel");
   serviceAlertPanel.classList.toggle("has-alerts", overdue.length > 0);
@@ -1255,12 +1263,16 @@ function renderServices() {
     : startDate && endDate
     ? `${formatDate(startDate)} a ${formatDate(endDate)}`
     : "Todos os períodos";
-  const items = state.services
+  const groupKey = (item) => item.serviceGroupId
+    ? `${item.serviceGroupId}:${item.reference || ""}`
+    : item.id;
+  const generallyEligible = state.services
     .filter((item) => !clientFilter || item.clientId === clientFilter)
     .filter((item) => !clientNameFilter || matchesSearch(clientNameFilter, clientById(item.clientId)?.name))
-    .filter((item) => !statusFilter || item.status === statusFilter)
     .filter((item) => searchAcrossHistory || !startDate || item.date >= startDate)
-    .filter((item) => searchAcrossHistory || !endDate || item.date <= endDate)
+    .filter((item) => searchAcrossHistory || !endDate || item.date <= endDate);
+  const matchingGroupKeys = new Set(generallyEligible
+    .filter((item) => !statusFilter || item.status === statusFilter)
     .filter((item) => matchesSearch(
       search,
       item.description,
@@ -1268,14 +1280,28 @@ function renderServices() {
       clientById(item.clientId)?.name,
       serviceStatusLabel(item.status)
     ))
-    .sort((a, b) => {
-      const statusOrder = { "A fazer": 0, Pronto: 1, Entregue: 2, Cancelado: 3 };
-      const statusDifference = (statusOrder[a.status] ?? 4) - (statusOrder[b.status] ?? 4);
-      return statusDifference || b.date.localeCompare(a.date)
-        || String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
-    });
-  document.getElementById("serviceList").innerHTML = items.length ? items.map((item) => `
-    <article class="timeline-item ${isOverdueService(item) ? "service-overdue" : ""} ${item.isSecondary ? "secondary-service" : ""}">
+    .map(groupKey));
+  const groupedItems = Object.values(generallyEligible.reduce((groups, item) => {
+    const key = groupKey(item);
+    if (!matchingGroupKeys.has(key)) return groups;
+    (groups[key] ||= []).push(item);
+    return groups;
+  }, {})).map((group) => {
+    const primary = group.find((item) => !item.isSecondary) || group[0];
+    const complementary = group.filter((item) => item.id !== primary.id);
+    const ordered = primary.status === "Cancelado" && complementary.some((item) => item.status !== "Cancelado")
+      ? [...complementary, primary]
+      : [primary, ...complementary];
+    return { primary, ordered };
+  }).sort((a, b) => {
+    const statusOrder = { "A fazer": 0, Pronto: 1, Entregue: 2, Cancelado: 3 };
+    const statusDifference = (statusOrder[a.primary.status] ?? 4) - (statusOrder[b.primary.status] ?? 4);
+    return statusDifference || b.primary.date.localeCompare(a.primary.date)
+      || String(b.primary.createdAt || "").localeCompare(String(a.primary.createdAt || ""));
+  });
+
+  const serviceItemMarkup = (item, linked = false) => `
+    <article class="timeline-item ${linked ? "linked-service-entry" : ""} ${isOverdueService(item) ? "service-overdue" : ""} ${item.isSecondary ? "secondary-service" : ""}">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
       <div>
         <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
@@ -1297,7 +1323,12 @@ function renderServices() {
           <button class="table-action danger" data-delete-entry="${item.id}">Excluir</button>
         </div>
       </div>
-    </article>`).join("") : emptyMarkup();
+    </article>`;
+  document.getElementById("serviceList").innerHTML = groupedItems.length
+    ? groupedItems.map(({ ordered }) => ordered.length > 1
+      ? `<section class="linked-service-group">${ordered.map((item) => serviceItemMarkup(item, true)).join("")}</section>`
+      : serviceItemMarkup(ordered[0])).join("")
+    : emptyMarkup();
 }
 
 function renderServiceRequests() {
@@ -4075,7 +4106,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=80").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=81").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
