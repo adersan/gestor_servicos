@@ -1316,6 +1316,7 @@ function renderServices() {
           ${item.status === "A fazer" ? `<button class="table-action success" data-service-status="Pronto" data-entry-id="${item.id}">Marcar feito</button>` : ""}
           ${item.status === "Pronto" ? `<button class="table-action" data-request-delivery="${item.id}">Solicitar confirmação</button>` : ""}
           ${item.status === "Pronto" ? `<button class="table-action success" data-service-status="Entregue" data-entry-id="${item.id}">Marcar entregue</button>` : ""}
+          ${item.status === "Entregue" ? `<button class="table-action" data-service-status="Pronto" data-entry-id="${item.id}">Voltar para Feito</button>` : ""}
         </div>
         <button class="mobile-service-more" type="button" data-toggle-service-actions="${item.id}" aria-expanded="false">Mais opcoes</button>
         <div class="row-actions">
