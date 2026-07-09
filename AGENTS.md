@@ -175,6 +175,7 @@ Estas regras refletem o combinado com o usuario durante o desenvolvimento real d
 - Fazer mudancas localmente primeiro. O sistema esta em uso real.
 - Commits locais sao permitidos quando organizam bem o trabalho.
 - Nao executar `git push` sem autorizacao clara do usuario.
+- Quando o usuario autorizar "pode subir", publicar o lote ja commitado/validado sem pedir nova confirmacao; ainda assim, sempre perguntar antes de qualquer `git push` quando nao houver autorizacao explicita no turno.
 - Cada `git push origin main` dispara deploy automatico no Netlify e consome creditos.
 - Agrupar pequenas correcoes em lote antes de publicar.
 - Antes de publicar frontend, atualizar versoes de cache em `index.html`, `sw.js` e no registro do service worker em `app.js` quando houver mudanca em assets cacheados.
