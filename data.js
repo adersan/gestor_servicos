@@ -79,6 +79,17 @@
         id: client.id,
         name: client.name,
         phone: client.phone || "",
+        document: client.document || "",
+        email: client.email || "",
+        contactName: client.contact_name || "",
+        zipCode: client.zip_code || "",
+        address: client.address || "",
+        addressNumber: client.address_number || "",
+        addressComplement: client.address_complement || "",
+        neighborhood: client.neighborhood || "",
+        city: client.city || "",
+        state: client.state || "",
+        notes: client.notes || "",
         priceGroup: tableById[client.price_table_id] || ""
       })),
       catalog: catalogResult.data.map((service) => ({
@@ -272,15 +283,31 @@
     }
 
     if (state.clients.length) {
-      const clientsResult = await client.from("clients").upsert(
-        state.clients.map((item) => ({
+      const clientRows = state.clients.map((item) => ({
           id: item.id,
           name: item.name,
           phone: item.phone || null,
+          document: item.document || null,
+          email: item.email || null,
+          contact_name: item.contactName || null,
+          zip_code: item.zipCode || null,
+          address: item.address || null,
+          address_number: item.addressNumber || null,
+          address_complement: item.addressComplement || null,
+          neighborhood: item.neighborhood || null,
+          city: item.city || null,
+          state: item.state || null,
+          notes: item.notes || null,
           price_table_id: existingByName[item.priceGroup] || null,
           active: true
-        }))
-      );
+        }));
+      let clientsResult = await client.from("clients").upsert(clientRows);
+      if (clientsResult.error && /document|email|contact_name|zip_code|address|neighborhood|city|state|notes|schema cache|Could not find/i.test(clientsResult.error.message || "")) {
+        clientsResult = await client.from("clients").upsert(clientRows.map(({
+          document, email, contact_name, zip_code, address, address_number,
+          address_complement, neighborhood, city, state, notes, ...row
+        }) => row));
+      }
       if (clientsResult.error) throw clientsResult.error;
     }
 

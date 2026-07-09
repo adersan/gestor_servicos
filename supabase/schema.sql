@@ -31,11 +31,34 @@ create table if not exists public.clients (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   phone text,
+  document text,
+  email text,
+  contact_name text,
+  zip_code text,
+  address text,
+  address_number text,
+  address_complement text,
+  neighborhood text,
+  city text,
+  state text,
+  notes text,
   price_table_id uuid references public.price_tables(id),
   active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.clients add column if not exists document text;
+alter table public.clients add column if not exists email text;
+alter table public.clients add column if not exists contact_name text;
+alter table public.clients add column if not exists zip_code text;
+alter table public.clients add column if not exists address text;
+alter table public.clients add column if not exists address_number text;
+alter table public.clients add column if not exists address_complement text;
+alter table public.clients add column if not exists neighborhood text;
+alter table public.clients add column if not exists city text;
+alter table public.clients add column if not exists state text;
+alter table public.clients add column if not exists notes text;
 
 create table if not exists public.service_catalog (
   id uuid primary key default gen_random_uuid(),

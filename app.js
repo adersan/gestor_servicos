@@ -1235,11 +1235,14 @@ function renderClients() {
   const target = document.getElementById("clientList");
   const search = document.getElementById("clientSearch").value.trim();
   const items = state.clients.filter((client) =>
-    matchesSearch(search, client.name, client.phone, client.priceGroup));
+    matchesSearch(search, client.name, client.phone, client.priceGroup, client.document, client.email, client.city));
   target.innerHTML = items.length ? items.map((client) => `
     <article class="client-card">
       <h3>${escapeHtml(client.name)}</h3>
       <p class="meta">${escapeHtml(client.phone)}</p>
+      ${client.document ? `<p class="meta">${escapeHtml(client.document)}</p>` : ""}
+      ${client.email ? `<p class="meta">${escapeHtml(client.email)}</p>` : ""}
+      ${client.city || client.state ? `<p class="meta">${escapeHtml([client.city, client.state].filter(Boolean).join(" - "))}</p>` : ""}
       <span class="badge">${escapeHtml(client.priceGroup)}</span>
       <div class="access-box">Saldo atual: ${money.format(balanceFor(client.id))}</div>
       <div class="card-actions">
@@ -1876,6 +1879,17 @@ function openClientForm(client = null) {
   form.elements.clientId.value = client?.id || "";
   form.elements.name.value = client?.name || "";
   form.elements.phone.value = client?.phone || "";
+  form.elements.document.value = client?.document || "";
+  form.elements.email.value = client?.email || "";
+  form.elements.contactName.value = client?.contactName || "";
+  form.elements.zipCode.value = client?.zipCode || "";
+  form.elements.address.value = client?.address || "";
+  form.elements.addressNumber.value = client?.addressNumber || "";
+  form.elements.addressComplement.value = client?.addressComplement || "";
+  form.elements.neighborhood.value = client?.neighborhood || "";
+  form.elements.city.value = client?.city || "";
+  form.elements.state.value = client?.state || "";
+  form.elements.notes.value = client?.notes || "";
   form.elements.priceGroup.value = client?.priceGroup || "";
   document.getElementById("clientDialogTitle").textContent = client ? "Editar cliente" : "Novo cliente";
   document.getElementById("clientDialog").showModal();
@@ -3062,8 +3076,19 @@ document.getElementById("clientForm").addEventListener("submit", (event) => {
   const data = new FormData(event.currentTarget);
   const client = {
     id: data.get("clientId") || crypto.randomUUID(),
-    name: data.get("name"),
-    phone: data.get("phone"),
+    name: data.get("name").trim(),
+    phone: data.get("phone").trim(),
+    document: data.get("document").trim(),
+    email: data.get("email").trim(),
+    contactName: data.get("contactName").trim(),
+    zipCode: data.get("zipCode").trim(),
+    address: data.get("address").trim(),
+    addressNumber: data.get("addressNumber").trim(),
+    addressComplement: data.get("addressComplement").trim(),
+    neighborhood: data.get("neighborhood").trim(),
+    city: data.get("city").trim(),
+    state: data.get("state").trim().toUpperCase(),
+    notes: data.get("notes").trim(),
     priceGroup: data.get("priceGroup")
   };
   const index = state.clients.findIndex((item) => item.id === client.id);

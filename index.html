@@ -615,7 +615,18 @@
       <input name="clientId" type="hidden">
       <label>Nome<input name="name" required></label>
       <label>WhatsApp<input name="phone" required placeholder="(00) 00000-0000"></label>
+      <label>CPF ou CNPJ<input name="document" placeholder="Opcional"></label>
+      <label>E-mail<input name="email" type="email" placeholder="cliente@email.com"></label>
+      <label>Contato<input name="contactName" placeholder="Responsavel ou setor"></label>
+      <label>CEP<input name="zipCode" placeholder="00000-000"></label>
+      <label>Endereco<input name="address" placeholder="Rua, avenida, travessa"></label>
+      <label>Numero<input name="addressNumber" placeholder="Numero"></label>
+      <label>Complemento<input name="addressComplement" placeholder="Sala, bloco, referencia"></label>
+      <label>Bairro<input name="neighborhood"></label>
+      <label>Cidade<input name="city"></label>
+      <label>UF<input name="state" maxlength="2" placeholder="SP"></label>
       <label>Tabela de preços<select name="priceGroup" required></select></label>
+      <label>Observacoes<textarea name="notes" rows="3" placeholder="Dados cadastrais adicionais"></textarea></label>
       <div class="dialog-actions">
         <button class="secondary" type="button" data-close-dialog>Cancelar</button>
         <button class="primary" value="default">Salvar cliente</button>
@@ -1114,8 +1125,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=39"></script>
-  <script src="app.js?v=81"></script>
+  <script src="data.js?v=40"></script>
+  <script src="app.js?v=82"></script>
   <script src="supplier.js?v=39"></script>
 </body>
 </html>
