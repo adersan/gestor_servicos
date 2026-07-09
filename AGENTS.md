@@ -164,6 +164,78 @@ Sem versionamento de cache, o celular pode continuar usando arquivo antigo.
 - Se a mudanca impactar celular, testar mentalmente layout responsivo e reduzir excesso visual.
 - Se a mudanca impactar financeiro/cobranca, conferir pagamentos parciais, quitacao, credito e saldo anterior.
 
+## Regras Para Codex No Terminal
+
+Estas regras refletem o combinado com o usuario durante o desenvolvimento real do sistema.
+
+- Trabalhar sempre a partir da pasta `D:\GitHub\gestor_servicos`.
+- Antes de qualquer alteracao, rodar `git status -sb` e identificar arquivos ja modificados.
+- Nao reverter, apagar ou sobrescrever mudancas existentes que nao foram feitas por voce.
+- A alteracao atual em `.gitignore` nao pertence ao agente; nao incluir em commits e nao reverter sem pedido explicito.
+- Fazer mudancas localmente primeiro. O sistema esta em uso real.
+- Commits locais sao permitidos quando organizam bem o trabalho.
+- Nao executar `git push` sem autorizacao clara do usuario.
+- Cada `git push origin main` dispara deploy automatico no Netlify e consome creditos.
+- Agrupar pequenas correcoes em lote antes de publicar.
+- Antes de publicar frontend, atualizar versoes de cache em `index.html`, `sw.js` e no registro do service worker em `app.js` quando houver mudanca em assets cacheados.
+- Depois de mudar `app.js`, normalmente atualizar:
+  - `index.html`: `app.js?v=N`
+  - `sw.js`: `CACHE = "gestor-servicos-vN"` e asset `app.js?v=N`
+  - `app.js`: `navigator.serviceWorker.register("sw.js?v=N")`
+- Rodar validacoes antes de commit/deploy:
+  - `node --check app.js`
+  - `node --check data.js`
+  - `node --check cliente.js`
+  - `node --check acompanhamento.js`
+  - `node --check fornecedor.js`
+  - `node --check supplier.js`
+  - `node tests\billing-rollover.test.mjs`
+  - `node tests\reference-history.test.mjs`
+  - `git diff --check`
+- Se a mudanca envolver Netlify Functions, rodar `node --check` na funcao alterada.
+- Se a mudanca exigir banco, criar/atualizar arquivo SQL em `supabase` e avisar o usuario exatamente qual script executar no Supabase.
+- Nunca colocar secrets no codigo:
+  - Supabase service role/secret key
+  - Bearer token
+  - Device token
+  - Webhook secret
+  - Chaves de API
+- Secrets devem ficar somente nas variaveis de ambiente do Netlify.
+- Evitar comandos destrutivos como `git reset --hard`, `git checkout --`, `rm`/`Remove-Item` sem pedido explicito e confirmacao.
+- Preferir patches pequenos e revisar o diff antes de commitar.
+- Ao final, informar:
+  - arquivos alterados;
+  - testes executados;
+  - se foi publicado ou ficou apenas local;
+  - se existe alguma pendencia de SQL/cache/deploy.
+
+### Publicacao
+
+Fluxo recomendado quando o usuario disser claramente "pode subir":
+
+1. Rodar `git status -sb`.
+2. Confirmar que apenas arquivos do lote serao commitados.
+3. Atualizar cache se necessario.
+4. Rodar testes e `git diff --check`.
+5. Fazer commit com mensagem objetiva.
+6. Executar `git push origin main`.
+7. Aguardar o Netlify publicar.
+8. Verificar `https://gestordeservicos.com.br` e confirmar se a versao nova apareceu.
+
+### Git No Windows
+
+Se `git` nao estiver no PATH no terminal, usar o Git do GitHub Desktop:
+
+```powershell
+C:\Users\aders\AppData\Local\GitHubDesktop\app-3.5.8\resources\app\git\cmd\git.exe
+```
+
+Exemplo:
+
+```powershell
+C:\Users\aders\AppData\Local\GitHubDesktop\app-3.5.8\resources\app\git\cmd\git.exe status -sb
+```
+
 ## Fluxos Importantes Do Sistema
 
 ### Cliente
@@ -202,4 +274,3 @@ Sem versionamento de cache, o celular pode continuar usando arquivo antigo.
 - Esse commit local nao foi enviado ao GitHub/Netlify para economizar creditos.
 - Se for publicar esse ajuste, lembrar de atualizar versoes de cache antes do push.
 - Ha uma alteracao preexistente em `.gitignore`; nao reverter sem pedido explicito.
-
