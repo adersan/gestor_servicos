@@ -42,6 +42,31 @@ function referenceChip(reference) {
   return `<span class="client-reference-chip">${escapeHtml(reference || "Sem referencia")}</span>`;
 }
 
+function requesterName(item) {
+  return String(item?.requested_by || "").trim() || "Sem solicitante";
+}
+
+function requesterBadge(item) {
+  return `<span class="client-requester-badge">Solicitante: ${escapeHtml(requesterName(item))}</span>`;
+}
+
+function requesterOptionsFromServices(services, selected = "") {
+  const names = [...new Set((services || []).map(requesterName))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return `<option value="">Todos</option>${names.map((name) =>
+    `<option value="${escapeHtml(name)}" ${selected === name ? "selected" : ""}>${escapeHtml(name)}</option>`).join("")}`;
+}
+
+function sortServiceGroups(groups, sortBy) {
+  return [...groups].sort((a, b) => {
+    const left = a.primary;
+    const right = b.primary;
+    if (sortBy === "requester") return requesterName(left).localeCompare(requesterName(right), "pt-BR") || left.service_date.localeCompare(right.service_date);
+    if (sortBy === "status") return serviceStatusData(left.status).label.localeCompare(serviceStatusData(right.status).label, "pt-BR") || requesterName(left).localeCompare(requesterName(right), "pt-BR");
+    if (sortBy === "service") return String(left.service_name || "").localeCompare(String(right.service_name || ""), "pt-BR") || requesterName(left).localeCompare(requesterName(right), "pt-BR");
+    return left.service_date.localeCompare(right.service_date) || requesterName(left).localeCompare(requesterName(right), "pt-BR");
+  });
+}
+
 function complementaryLabel(item) {
   return item.is_secondary
     ? `<span class="client-secondary-label">Complementar vinculado ao serviço original</span>`
@@ -310,14 +335,15 @@ function renderStatement(data) {
   function serviceTable(items) {
     const rows = items.map(({ primary: item, secondaries }) => `<tr class="${secondaries.length ? "client-secondary-service" : ""}">
       <td>${formatDate(item.service_date)}</td>
-      <td title="${escapeHtml(item.service_name)}">${groupedServiceName(item, secondaries)}${secondaries.length ? `<span class="client-secondary-label">Complementar vinculado ao serviÃ§o original</span>` : complementaryLabel(item)}</td>
+      <td title="${escapeHtml(item.service_name)}">${groupedServiceName(item, secondaries)}${requesterBadge(item)}${secondaries.length ? `<span class="client-secondary-label">Complementar vinculado ao servico original</span>` : complementaryLabel(item)}</td>
       <td title="${escapeHtml(item.reference || "-")}">${referenceChip(item.reference || "-")}</td>
+      <td>${escapeHtml(requesterName(item))}</td>
       <td>${serviceStatusChip(item.status)}</td>
       <td class="amount-service">${money.format([item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0))}</td>
     </tr>`).join("");
     return `<table class="client-report-service-table">
-      <thead><tr><th>Data</th><th>Serviço</th><th>Ref</th><th>Status</th><th>Valor</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="5">-</td></tr>`}</tbody>
+      <thead><tr><th>Data</th><th>Servico</th><th>Ref</th><th>Solicitante</th><th>Status</th><th>Valor</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="6">-</td></tr>`}</tbody>
     </table>`;
   }
   function requesterSummary(items) {
@@ -338,7 +364,10 @@ function renderStatement(data) {
       .map((group) => ({ ...group, services: [...group.services.values()] }))
       .sort((a, b) => b.total - a.total || a.requester.localeCompare(b.requester, "pt-BR"));
   }
-  const serviceGroups = groupPortalServices(services);
+  const requesterFilter = document.getElementById("statementRequesterFilter")?.value || "";
+  const statementSort = document.getElementById("statementServiceSort")?.value || "date";
+  const serviceGroups = sortServiceGroups(groupPortalServices(services)
+    .filter(({ primary }) => !requesterFilter || requesterName(primary) === requesterFilter), statementSort);
   const serviceRows = serviceGroups.length
     ? serviceTable(serviceGroups)
     : `<p class="meta">Nenhum serviço neste fechamento.</p>`;
@@ -409,6 +438,8 @@ function serviceFilters() {
     start: document.getElementById("currentServiceStart")?.value || "",
     end: document.getElementById("currentServiceEnd")?.value || "",
     status: document.getElementById("currentServiceStatus")?.value || "",
+    requester: document.getElementById("currentServiceRequester")?.value || "",
+    sort: document.getElementById("currentServiceSort")?.value || "date",
     search: document.getElementById("currentServiceSearch")?.value || ""
   };
 }
@@ -419,16 +450,18 @@ function renderCurrentServices(data) {
     (!filters.start || item.service_date >= filters.start)
     && (!filters.end || item.service_date <= filters.end)
     && (!filters.status || item.status === filters.status)
+    && (!filters.requester || requesterName(item) === filters.requester)
     && (!filters.search || searchableText(item.service_name, item.reference, item.status, item.requested_by).includes(searchableText(filters.search))));
-  const serviceGroups = groupPortalServices(items);
+  const serviceGroups = sortServiceGroups(groupPortalServices(items), filters.sort);
   const total = items.reduce((sum, item) => sum + Number(item.amount), 0);
   const rows = serviceGroups.length ? serviceGroups.map(({ primary: item, secondaries }) => `<tr class="${secondaries.length ? "client-secondary-service" : ""}">
     <td>${formatDate(item.service_date)}</td>
-    <td>${groupedServiceName(item, secondaries)}${secondaries.length ? `<span class="client-secondary-label">Complementar vinculado ao servi\u00E7o original</span>` : complementaryLabel(item)}</td>
+    <td>${groupedServiceName(item, secondaries)}${requesterBadge(item)}${secondaries.length ? `<span class="client-secondary-label">Complementar vinculado ao servico original</span>` : complementaryLabel(item)}</td>
     <td>${referenceChip(item.reference || "-")}</td>
+    <td>${escapeHtml(requesterName(item))}</td>
     <td>${serviceStatusChip(item.status)}</td>
     <td class="amount-service">${money.format([item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0))}</td>
-  </tr>`).join("") : `<tr><td colspan="5">Nenhum servi\u00E7o encontrado.</td></tr>`;
+  </tr>`).join("") : `<tr><td colspan="6">Nenhum servico encontrado.</td></tr>`;
 
   document.getElementById("clientName").textContent = data.client.name;
   document.getElementById("billingPeriod").textContent = "Serviços ainda não incluídos em uma cobrança";
@@ -776,8 +809,9 @@ document.getElementById("statementContent").addEventListener("click", async (eve
   const historyButton = event.target.closest("[data-open-history]");
   if (historyButton) await loadStatement(historyButton.dataset.openHistory);
 });
-document.getElementById("statementContent").addEventListener("change", () => {
+document.getElementById("statementContent").addEventListener("change", (event) => {
   if (activeView === "current-services") renderCurrentServices(portalData);
+  if (currentStatement && (event.target.id === "statementRequesterFilter" || event.target.id === "statementServiceSort")) renderStatement(currentStatement);
   if (activeView === "history") renderHistory(portalData);
   if (activeView === "request") {
     const form = document.getElementById("clientRequestForm");

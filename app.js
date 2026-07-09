@@ -1965,15 +1965,18 @@ function openClientForm(client = null) {
 
 function renderClientRequesterManager(clientId) {
   const target = document.getElementById("clientRequesterList");
-  const requesters = requestersForClient(clientId);
+  const form = document.querySelector("#clientRequesterDialog form");
+  const search = form?.elements.requesterSearch?.value?.trim() || "";
+  const selectedId = form?.elements.selectedRequesterId?.value || "";
+  const requesters = requestersForClient(clientId).filter((item) => matchesSearch(search, item.name));
+  if (selectedId && !requesters.some((item) => item.id === selectedId)) {
+    form.elements.selectedRequesterId.value = "";
+  }
   target.innerHTML = requesters.length ? requesters.map((item) => `
-    <article class="requester-manager-item">
+    <button class="requester-manager-item${item.id === selectedId ? " active" : ""}" type="button" data-select-managed-requester="${item.id}">
       <strong>${escapeHtml(item.name)}</strong>
-      <div>
-        <button class="table-action" type="button" data-edit-managed-requester="${item.id}">Editar</button>
-        <button class="table-action danger" type="button" data-delete-managed-requester="${item.id}">Excluir</button>
-      </div>
-    </article>`).join("") : `<div class="notification-empty"><strong>Nenhum solicitante cadastrado.</strong></div>`;
+      <span>${item.id === selectedId ? "Selecionado" : "Selecionar"}</span>
+    </button>`).join("") : `<div class="notification-empty"><strong>Nenhum solicitante encontrado.</strong></div>`;
 }
 
 function openClientRequesterManager(client) {
@@ -1981,6 +1984,7 @@ function openClientRequesterManager(client) {
   const form = document.querySelector("#clientRequesterDialog form");
   form.reset();
   form.elements.clientId.value = client.id;
+  form.elements.selectedRequesterId.value = "";
   document.getElementById("clientRequesterDialogTitle").textContent = `Solicitantes - ${client.name}`;
   renderClientRequesterManager(client.id);
   document.getElementById("clientRequesterDialog").showModal();
@@ -2767,6 +2771,7 @@ document.addEventListener("click", async (event) => {
   const clientServiceScrollButton = event.target.closest("[data-scroll-client-services]");
   const addRequesterButton = event.target.closest("#addRequesterButton");
   const addManagedRequesterButton = event.target.closest("[data-add-managed-requester]");
+  const selectManagedRequesterButton = event.target.closest("[data-select-managed-requester]");
   const editManagedRequesterButton = event.target.closest("[data-edit-managed-requester]");
   const deleteManagedRequesterButton = event.target.closest("[data-delete-managed-requester]");
   const retryRemoteLoadButton = event.target.closest("[data-retry-remote-load]");
@@ -2798,9 +2803,20 @@ document.addEventListener("click", async (event) => {
     if (saveManagedRequester(clientId, form.elements.requesterName.value)) form.elements.requesterName.value = "";
     return;
   }
+  if (selectManagedRequesterButton) {
+    const form = selectManagedRequesterButton.closest("form");
+    form.elements.selectedRequesterId.value = selectManagedRequesterButton.dataset.selectManagedRequester;
+    renderClientRequesterManager(form.elements.clientId.value);
+    return;
+  }
   if (editManagedRequesterButton) {
-    const requester = (state.clientRequesters || []).find((item) => item.id === editManagedRequesterButton.dataset.editManagedRequester);
-    if (!requester) return;
+    const form = editManagedRequesterButton.closest("form");
+    const requesterId = form?.elements.selectedRequesterId.value;
+    const requester = (state.clientRequesters || []).find((item) => item.id === requesterId);
+    if (!requester) {
+      alert("Selecione um solicitante para editar.");
+      return;
+    }
     const name = prompt("Nome do solicitante:", requester.name);
     if (name === null) return;
     const cleanName = name.trim().replace(/\s+/g, " ");
@@ -2825,9 +2841,16 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (deleteManagedRequesterButton) {
-    const requester = (state.clientRequesters || []).find((item) => item.id === deleteManagedRequesterButton.dataset.deleteManagedRequester);
-    if (!requester || !confirm(`Excluir o solicitante "${requester.name}"?`)) return;
+    const form = deleteManagedRequesterButton.closest("form");
+    const requesterId = form?.elements.selectedRequesterId.value;
+    const requester = (state.clientRequesters || []).find((item) => item.id === requesterId);
+    if (!requester) {
+      alert("Selecione um solicitante para excluir.");
+      return;
+    }
+    if (!confirm(`Excluir o solicitante "${requester.name}"?`)) return;
     requester.active = false;
+    form.elements.selectedRequesterId.value = "";
     saveState();
     renderClientRequesterManager(requester.clientId);
     return;
@@ -4011,7 +4034,11 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["billingStatusFilter", "change", renderBillings],
   ["billingStartFilter", "change", () => { setFinancePeriodFromInputs("billing"); refreshFinanceViews(); }],
   ["billingEndFilter", "change", () => { setFinancePeriodFromInputs("billing"); refreshFinanceViews(); }],
-  ["billingSearch", "input", renderBillings]
+  ["billingSearch", "input", renderBillings],
+  ["clientRequesterSearch", "input", () => {
+    const form = document.querySelector("#clientRequesterDialog form");
+    renderClientRequesterManager(form.elements.clientId.value);
+  }]
 ].forEach(([id, eventName, handler]) => {
   document.getElementById(id).addEventListener(eventName, handler);
 });
@@ -4346,7 +4373,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=85").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=86").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

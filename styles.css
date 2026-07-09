@@ -427,11 +427,13 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .requester-summary-card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 #clientRequesterDialog { width: min(92vw, 560px); }
 #clientRequesterDialog form { max-height: 88vh; overflow: hidden; }
-.requester-manager-list { display: grid; gap: 7px; max-height: min(42vh, 360px); overflow-y: auto; padding-right: 3px; }
-.requester-manager-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfa; }
+.requester-manager-list { display: grid; gap: 6px; min-height: 170px; max-height: min(38vh, 330px); overflow-y: auto; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: #f6f8f6; }
+.requester-manager-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 10px 11px; border: 1px solid var(--line); border-radius: 9px; background: white; color: var(--ink); text-align: left; }
+.requester-manager-item.active { border-color: var(--brand); background: var(--brand-soft); box-shadow: inset 4px 0 0 var(--brand); }
 .requester-manager-item strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.requester-manager-item div { display: flex; gap: 6px; justify-content: flex-end; }
-.requester-manager-item .table-action { padding: 7px 9px; font-size: 12px; white-space: nowrap; }
+.requester-manager-item span { color: var(--muted); font-size: 11px; font-weight: 800; }
+.requester-manager-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.requester-manager-actions button { width: 100%; }
 .payment-options { display: grid; gap: 10px; }
 .payment-option { padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
 .payment-option strong { display: block; margin-bottom: 5px; }

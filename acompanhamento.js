@@ -30,6 +30,26 @@ function searchableText(...values) {
     .toLowerCase();
 }
 
+function requesterName(item) {
+  return String(item?.requested_by || "").trim() || "Sem solicitante";
+}
+
+function requesterOptionsFromServices(services, selected = "") {
+  const names = [...new Set((services || []).map(requesterName))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return `<option value="">Todos os solicitantes</option>${names.map((name) =>
+    `<option value="${escapeHtml(name)}" ${selected === name ? "selected" : ""}>${escapeHtml(name)}</option>`).join("")}`;
+}
+
+function sortTrackingServices(services, sortBy) {
+  const statusOrder = { "A fazer": 0, Pronto: 1, Entregue: 2 };
+  return [...services].sort((a, b) => {
+    if (sortBy === "requester") return requesterName(a).localeCompare(requesterName(b), "pt-BR") || b.service_date.localeCompare(a.service_date);
+    if (sortBy === "status") return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3) || requesterName(a).localeCompare(requesterName(b), "pt-BR");
+    if (sortBy === "service") return String(a.service_name || "").localeCompare(String(b.service_name || ""), "pt-BR") || requesterName(a).localeCompare(requesterName(b), "pt-BR");
+    return b.service_date.localeCompare(a.service_date) || requesterName(a).localeCompare(requesterName(b), "pt-BR");
+  });
+}
+
 function originCancelledNote(item, primary = null) {
   const note = String(item.notes || "");
   const reason = note.match(/cancelad[ao] por:\s*(.+)$/i)?.[1]
@@ -125,11 +145,10 @@ function groupedServices(services) {
 
 function render(data) {
   trackingData = data;
-  const statusOrder = { "A fazer": 0, Pronto: 1, Entregue: 2 };
-  const services = [...(data.services || [])].sort((a, b) =>
-    (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3)
-    || b.service_date.localeCompare(a.service_date)
-  );
+  const requesterFilter = document.getElementById("trackingRequesterFilter")?.value || "";
+  const sortBy = document.getElementById("trackingServiceSort")?.value || "date";
+  const services = sortTrackingServices([...(data.services || [])], sortBy)
+    .filter((item) => !requesterFilter || requesterName(item) === requesterFilter);
   const counts = {
     pending: services.filter((item) => item.status === "A fazer").length,
     done: services.filter((item) => item.status === "Pronto").length,
@@ -145,6 +164,10 @@ function render(data) {
   document.getElementById("periodText").textContent = `${formatDate(data.period.startDate)} a ${formatDate(data.period.endDate)}`;
   document.getElementById("updatedAt").textContent = new Date(data.updatedAt).toLocaleString("pt-BR");
   const search = searchableText(document.getElementById("trackingServiceSearch")?.value || "");
+  const requesterSelect = document.getElementById("trackingRequesterFilter");
+  if (requesterSelect) requesterSelect.innerHTML = requesterOptionsFromServices(data.services || [], requesterFilter);
+  const sortSelect = document.getElementById("trackingServiceSort");
+  if (sortSelect) sortSelect.value = sortBy;
   document.getElementById("expiryText").textContent = `Link valido ate ${new Date(data.expiresAt).toLocaleString("pt-BR")}.`;
   document.getElementById("trackingSummary").innerHTML = `
     <article class="summary-item summary-pending"><span>A fazer</span><strong>${counts.pending}</strong><small>${amountText(values.pending)}</small></article>
@@ -159,8 +182,9 @@ function render(data) {
       primary.service_name,
       primary.reference,
       primary.status,
+      primary.requested_by,
       status.label,
-      ...secondaries.flatMap((item) => [item.service_name, item.reference, item.status])
+      ...secondaries.flatMap((item) => [item.service_name, item.reference, item.status, item.requested_by])
     ).includes(search);
   });
   document.getElementById("serviceCount").textContent = search
@@ -175,6 +199,7 @@ function render(data) {
       <div>
         <h4>${escapeHtml(item.service_name)}${secondaries.length ? `<span class="secondary-label">+ ${secondaries.length} complementar(es)</span>` : ""}</h4>
         ${secondaries.length ? `<div class="tracking-complement-list">${secondaries.map((secondary) => `<span>${escapeHtml(secondary.service_name)} · ${amountText(secondary.amount)}${originCancelledNote(secondary, item)}</span>`).join("")}</div>` : originCancelledNote(item)}
+        <span class="tracking-requester-badge">Solicitante: ${escapeHtml(requesterName(item))}</span>
         <p class="tracking-reference">${escapeHtml(item.reference || "Sem referencia")}</p>
       </div>
       <div class="tracking-amount"><strong>${amountText(total)}</strong><span class="status status-${status.className}">${status.label}</span></div>
@@ -253,6 +278,12 @@ function showError(error) {
 
 document.getElementById("refreshButton").addEventListener("click", refreshTracking);
 document.getElementById("trackingServiceSearch")?.addEventListener("input", () => {
+  if (trackingData) render(trackingData);
+});
+document.getElementById("trackingRequesterFilter")?.addEventListener("change", () => {
+  if (trackingData) render(trackingData);
+});
+document.getElementById("trackingServiceSort")?.addEventListener("change", () => {
   if (trackingData) render(trackingData);
 });
 document.getElementById("openTrackingRequestDialog").addEventListener("click", () => {

@@ -39,7 +39,14 @@
       <section class="tracking-card">
         <div class="section-title"><h3>Serviços do período</h3><span id="serviceCount"></span></div>
         <div class="tracking-search">
-          <input id="trackingServiceSearch" type="search" placeholder="Buscar placa, servico ou status">
+          <input id="trackingServiceSearch" type="search" placeholder="Buscar placa, servico, status ou solicitante">
+          <select id="trackingRequesterFilter" aria-label="Filtrar por solicitante"></select>
+          <select id="trackingServiceSort" aria-label="Ordenar servicos">
+            <option value="date">Data</option>
+            <option value="requester">Solicitante</option>
+            <option value="status">Status</option>
+            <option value="service">Servico</option>
+          </select>
         </div>
         <div id="serviceList" class="tracking-list"></div>
       </section>
@@ -69,6 +76,6 @@
       </div>
     </form>
   </dialog>
-  <script src="acompanhamento.js?v=20"></script>
+  <script src="acompanhamento.js?v=21"></script>
 </body>
 </html>
