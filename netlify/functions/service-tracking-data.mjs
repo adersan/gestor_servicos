@@ -36,7 +36,7 @@ export default async (request) => {
     ]);
     if (!clients.length) return json(404, { error: "Cliente não encontrado." });
     const client = clients[0];
-    const [requestCatalog, clientRequests] = await Promise.all([
+    const [requestCatalog, clientRequests, clientRequesters] = await Promise.all([
       link.allow_requests && client.price_table_id
         ? supabase(`/rest/v1/service_prices?price_table_id=eq.${encodeURIComponent(client.price_table_id)}&select=amount,service_catalog(id,name,code)&service_catalog.active=eq.true`)
         : Promise.resolve([]),
@@ -44,6 +44,13 @@ export default async (request) => {
         ? supabase(`/rest/v1/client_service_requests?client_id=eq.${clientId}&status=eq.Novo&select=id,service_name,references_list,requested_date,amount,requested_by,notes,status,created_at&order=created_at.desc`)
         .catch((error) => {
           if (/client_service_requests|schema cache|does not exist|Could not find/i.test(error.message || "")) return [];
+          throw error;
+        })
+        : Promise.resolve([]),
+      link.allow_requests
+        ? supabase(`/rest/v1/client_requesters?client_id=eq.${clientId}&active=eq.true&select=id,name,normalized_name&order=name.asc`)
+        .catch((error) => {
+          if (/client_requesters|schema cache|does not exist|Could not find/i.test(error.message || "")) return [];
           throw error;
         })
         : Promise.resolve([])
@@ -81,6 +88,11 @@ export default async (request) => {
         notes: item.notes || "",
         status: item.status,
         created_at: item.created_at
+      })),
+      clientRequesters: clientRequesters.map((item) => ({
+        id: item.id,
+        name: item.name,
+        normalizedName: item.normalized_name
       }))
     });
   } catch (error) {

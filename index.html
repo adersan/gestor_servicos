@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=68">
+  <link rel="stylesheet" href="styles.css?v=69">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -642,6 +642,24 @@
     </form>
   </dialog>
 
+  <dialog id="clientRequesterDialog">
+    <form method="dialog">
+      <div class="dialog-heading"><h2 id="clientRequesterDialogTitle">Solicitantes</h2><button class="icon-button" value="cancel">×</button></div>
+      <input name="clientId" type="hidden">
+      <div id="clientRequesterList" class="requester-manager-list"></div>
+      <label>Novo solicitante
+        <span class="requester-entry-row">
+          <input name="requesterName" placeholder="Nome do solicitante">
+          <button class="secondary" type="button" data-add-managed-requester>+</button>
+        </span>
+      </label>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Fechar</button>
+        <button class="primary" type="button" data-close-dialog>Concluir</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="priceTableDialog">
     <form id="priceTableForm" method="dialog">
       <div class="dialog-heading"><h2 id="priceTableDialogTitle">Nova tabela</h2><button class="icon-button" value="cancel">×</button></div>
@@ -1147,8 +1165,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=41"></script>
-  <script src="app.js?v=84"></script>
+  <script src="data.js?v=42"></script>
+  <script src="app.js?v=85"></script>
   <script src="supplier.js?v=39"></script>
 </body>
 </html>

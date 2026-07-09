@@ -78,7 +78,9 @@ dialog::backdrop { background:rgba(21,38,34,.42); backdrop-filter:blur(3px); }
 .tracking-close-button { width:38px; height:38px; padding:0; border:0; border-radius:50%; color:var(--brand); background:#eef6f2; font-size:20px; }
 .tracking-request-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .tracking-request-form { padding:18px; }
-.tracking-request-form label:nth-child(4), .tracking-request-form label:nth-child(6), .tracking-form-message, .tracking-request-actions { grid-column:1 / -1; }
+.tracking-request-form label:nth-child(4), .tracking-request-form label:nth-child(6), .tracking-request-form label:nth-child(7), .tracking-request-form label:nth-child(9), .tracking-form-message, .tracking-request-actions { grid-column:1 / -1; }
+.tracking-requester-row { display:grid; grid-template-columns:1fr 46px; gap:8px; align-items:stretch; }
+.tracking-requester-row button { min-height:44px; padding:8px; color:var(--brand); font-size:20px; }
 .tracking-form-message { min-height:20px; margin:0; color:var(--brand); font-weight:800; }
 .tracking-request-actions { display:flex; justify-content:flex-end; gap:10px; }
 .tracking-primary { border-color:transparent; color:#241b0d; background:#d89b45; }

@@ -1297,6 +1297,7 @@ function renderClients() {
       <div class="access-box">Saldo atual: ${money.format(balanceFor(client.id))}</div>
       <div class="card-actions">
         <button class="table-action" data-edit-client="${client.id}">Editar</button>
+        <button class="table-action" data-manage-client-requesters="${client.id}">Gerenciar solicitantes</button>
         <button class="table-action danger" data-delete-client="${client.id}">Excluir</button>
       </div>
     </article>`).join("") : emptyMarkup();
@@ -1960,6 +1961,40 @@ function openClientForm(client = null) {
   setClientDialogTab("main");
   document.getElementById("clientDialogTitle").textContent = client ? "Editar cliente" : "Novo cliente";
   document.getElementById("clientDialog").showModal();
+}
+
+function renderClientRequesterManager(clientId) {
+  const target = document.getElementById("clientRequesterList");
+  const requesters = requestersForClient(clientId);
+  target.innerHTML = requesters.length ? requesters.map((item) => `
+    <article class="requester-manager-item">
+      <strong>${escapeHtml(item.name)}</strong>
+      <div>
+        <button class="table-action" type="button" data-edit-managed-requester="${item.id}">Editar</button>
+        <button class="table-action danger" type="button" data-delete-managed-requester="${item.id}">Excluir</button>
+      </div>
+    </article>`).join("") : `<div class="notification-empty"><strong>Nenhum solicitante cadastrado.</strong></div>`;
+}
+
+function openClientRequesterManager(client) {
+  if (!client) return;
+  const form = document.querySelector("#clientRequesterDialog form");
+  form.reset();
+  form.elements.clientId.value = client.id;
+  document.getElementById("clientRequesterDialogTitle").textContent = `Solicitantes - ${client.name}`;
+  renderClientRequesterManager(client.id);
+  document.getElementById("clientRequesterDialog").showModal();
+}
+
+function saveManagedRequester(clientId, name) {
+  const result = addClientRequester(clientId, name);
+  if (!result.ok) {
+    alert(result.message);
+    return false;
+  }
+  saveState();
+  renderClientRequesterManager(clientId);
+  return true;
 }
 
 function openCatalogForm(item = null) {
@@ -2731,6 +2766,9 @@ document.addEventListener("click", async (event) => {
   const soundAlertButton = event.target.closest("#soundAlertButton, #settingsSoundShortcut");
   const clientServiceScrollButton = event.target.closest("[data-scroll-client-services]");
   const addRequesterButton = event.target.closest("#addRequesterButton");
+  const addManagedRequesterButton = event.target.closest("[data-add-managed-requester]");
+  const editManagedRequesterButton = event.target.closest("[data-edit-managed-requester]");
+  const deleteManagedRequesterButton = event.target.closest("[data-delete-managed-requester]");
   const retryRemoteLoadButton = event.target.closest("[data-retry-remote-load]");
   const closeRemoteLoadButton = event.target.closest("[data-close-remote-load]");
   if (retryRemoteLoadButton) {
@@ -2752,6 +2790,46 @@ document.addEventListener("click", async (event) => {
     alert(result.ok ? "Solicitante cadastrado." : result.message);
     updateServiceRequesterOptions();
     if (result.ok) saveState();
+    return;
+  }
+  if (addManagedRequesterButton) {
+    const form = addManagedRequesterButton.closest("form");
+    const clientId = form.elements.clientId.value;
+    if (saveManagedRequester(clientId, form.elements.requesterName.value)) form.elements.requesterName.value = "";
+    return;
+  }
+  if (editManagedRequesterButton) {
+    const requester = (state.clientRequesters || []).find((item) => item.id === editManagedRequesterButton.dataset.editManagedRequester);
+    if (!requester) return;
+    const name = prompt("Nome do solicitante:", requester.name);
+    if (name === null) return;
+    const cleanName = name.trim().replace(/\s+/g, " ");
+    const normalizedName = normalizeRequesterName(cleanName);
+    if (!normalizedName) {
+      alert("Informe o solicitante.");
+      return;
+    }
+    if ((state.clientRequesters || []).some((item) =>
+      item.id !== requester.id
+      && item.clientId === requester.clientId
+      && item.active !== false
+      && item.normalizedName === normalizedName)) {
+      alert("Este solicitante ja esta cadastrado para este cliente.");
+      return;
+    }
+    requester.name = cleanName;
+    requester.normalizedName = normalizedName;
+    requester.active = true;
+    saveState();
+    renderClientRequesterManager(requester.clientId);
+    return;
+  }
+  if (deleteManagedRequesterButton) {
+    const requester = (state.clientRequesters || []).find((item) => item.id === deleteManagedRequesterButton.dataset.deleteManagedRequester);
+    if (!requester || !confirm(`Excluir o solicitante "${requester.name}"?`)) return;
+    requester.active = false;
+    saveState();
+    renderClientRequesterManager(requester.clientId);
     return;
   }
   if (soundAlertButton) {
@@ -2945,6 +3023,8 @@ document.addEventListener("click", async (event) => {
 
   const editClient = event.target.closest("[data-edit-client]");
   if (editClient) openClientForm(clientById(editClient.dataset.editClient));
+  const manageClientRequesters = event.target.closest("[data-manage-client-requesters]");
+  if (manageClientRequesters) openClientRequesterManager(clientById(manageClientRequesters.dataset.manageClientRequesters));
   const deleteClient = event.target.closest("[data-delete-client]");
   if (deleteClient) {
     const id = deleteClient.dataset.deleteClient;
@@ -4266,7 +4346,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=84").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=85").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

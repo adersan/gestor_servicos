@@ -383,7 +383,7 @@
         normalized_name: item.normalizedName || String(item.name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR"),
         active: item.active !== false
       }));
-      const requestersResult = await client.from("client_requesters").upsert(requesterRows, { onConflict: "client_id,normalized_name" });
+      const requestersResult = await client.from("client_requesters").upsert(requesterRows);
       if (requestersResult.error && !/client_requesters|schema cache|does not exist|Could not find/i.test(requestersResult.error.message || "")) {
         throw requestersResult.error;
       }

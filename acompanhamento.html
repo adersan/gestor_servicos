@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=19">
+  <link rel="stylesheet" href="acompanhamento.css?v=20">
 </head>
 <body>
   <header class="tracking-header">
@@ -54,7 +54,13 @@
       <label>Serviço<select name="serviceId" required></select></label>
       <label>Valor<input name="amount" type="text" readonly></label>
       <label>Placa/referência<textarea name="references" rows="4" required placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea></label>
-      <label>Quem solicitou<input name="requestedBy" placeholder="Nome do solicitante"></label>
+      <label>Quem solicitou
+        <span class="tracking-requester-row">
+          <input name="requestedBy" list="trackingRequesterOptions" placeholder="Nome do solicitante">
+          <button class="tracking-secondary" type="button" data-add-tracking-requester>+</button>
+        </span>
+      </label>
+      <datalist id="trackingRequesterOptions"></datalist>
       <label>Observação<textarea name="notes" rows="3" placeholder="Detalhes importantes"></textarea></label>
       <p id="trackingRequestMessage" class="tracking-form-message"></p>
       <div class="tracking-request-actions">
@@ -63,6 +69,6 @@
       </div>
     </form>
   </dialog>
-  <script src="acompanhamento.js?v=19"></script>
+  <script src="acompanhamento.js?v=20"></script>
 </body>
 </html>

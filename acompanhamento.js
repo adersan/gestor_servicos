@@ -69,6 +69,17 @@ async function sendTrackingRequest(payload) {
   return data;
 }
 
+async function saveTrackingRequester(payload) {
+  const response = await fetch("/.netlify/functions/tracking-requester-save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Nao foi possivel cadastrar o solicitante.");
+  return data;
+}
+
 function renderCharts(services, counts) {
   const totalCount = Math.max(1, services.length);
   const pendingEnd = counts.pending / totalCount * 100;
@@ -190,6 +201,9 @@ function renderRequestArea(data) {
   const selected = services.find((service) => service.id === form.elements.serviceId.value) || services[0];
   form.elements.amount.value = data.showAmounts === false ? "Valor sob consulta" : money.format(Number(selected?.amount || 0));
   form.querySelector('button[value="default"]').disabled = !services.length;
+  document.getElementById("trackingRequesterOptions").innerHTML = (data.clientRequesters || [])
+    .map((item) => `<option value="${escapeHtml(item.name)}"></option>`)
+    .join("");
 
   const requests = data.serviceRequests || [];
   document.getElementById("trackingRequestHistory").innerHTML = requests.length ? requests.slice(0, 8).map((item) => `
@@ -256,6 +270,35 @@ document.getElementById("trackingRequestForm").addEventListener("change", (event
   if (event.target.name !== "serviceId" || !trackingData) return;
   const service = (trackingData.requestServices || []).find((item) => item.id === event.target.value);
   event.currentTarget.elements.amount.value = trackingData.showAmounts === false ? "Valor sob consulta" : money.format(Number(service?.amount || 0));
+});
+document.getElementById("trackingRequestForm").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-add-tracking-requester]");
+  if (!button) return;
+  const form = event.currentTarget;
+  const message = document.getElementById("trackingRequestMessage");
+  const name = form.elements.requestedBy.value.trim().replace(/\s+/g, " ");
+  if (!name) {
+    message.textContent = "Informe o nome do solicitante.";
+    form.elements.requestedBy.focus();
+    return;
+  }
+  button.disabled = true;
+  message.textContent = "Cadastrando solicitante...";
+  try {
+    const result = await saveTrackingRequester({
+      accessCode: sessionStorage.getItem(trackingTokenKey),
+      name
+    });
+    trackingData.clientRequesters ||= [];
+    trackingData.clientRequesters.push(result.requester);
+    renderRequestArea(trackingData);
+    form.elements.requestedBy.value = result.requester.name;
+    message.textContent = "Solicitante cadastrado.";
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
 });
 document.getElementById("trackingRequestForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
