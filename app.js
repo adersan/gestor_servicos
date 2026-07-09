@@ -1873,6 +1873,16 @@ function renderCatalogPriceFields(item = null) {
     </label>`).join("");
 }
 
+function setClientDialogTab(tabName = "main") {
+  const form = document.getElementById("clientForm");
+  form.querySelectorAll("[data-client-dialog-tab]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.clientDialogTab === tabName);
+  });
+  form.querySelectorAll("[data-client-dialog-panel]").forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.clientDialogPanel !== tabName);
+  });
+}
+
 function openClientForm(client = null) {
   const form = document.getElementById("clientForm");
   form.reset();
@@ -1891,6 +1901,7 @@ function openClientForm(client = null) {
   form.elements.state.value = client?.state || "";
   form.elements.notes.value = client?.notes || "";
   form.elements.priceGroup.value = client?.priceGroup || "";
+  setClientDialogTab("main");
   document.getElementById("clientDialogTitle").textContent = client ? "Editar cliente" : "Novo cliente";
   document.getElementById("clientDialog").showModal();
 }
@@ -2614,6 +2625,7 @@ document.addEventListener("click", async (event) => {
   const dashboardTab = event.target.closest("[data-dashboard-tab]");
   const dashboardPeriodButton = event.target.closest("[data-dashboard-period]");
   const dashboardMonthButton = event.target.closest("[data-dashboard-month]");
+  const clientDialogTab = event.target.closest("[data-client-dialog-tab]");
   const soundAlertButton = event.target.closest("#soundAlertButton, #settingsSoundShortcut");
   const clientServiceScrollButton = event.target.closest("[data-scroll-client-services]");
   const retryRemoteLoadButton = event.target.closest("[data-retry-remote-load]");
@@ -2624,6 +2636,10 @@ document.addEventListener("click", async (event) => {
   }
   if (closeRemoteLoadButton) {
     closeRemoteLoadError();
+    return;
+  }
+  if (clientDialogTab) {
+    setClientDialogTab(clientDialogTab.dataset.clientDialogTab);
     return;
   }
   if (soundAlertButton) {
