@@ -1,0 +1,205 @@
+# AGENTS.md - Gestor de Servicos
+
+Este arquivo orienta qualquer agente/Codex que continuar o projeto. O sistema ja esta em uso real, entao mudancas devem ser pequenas, testadas localmente e publicadas em lote para economizar creditos do Netlify.
+
+## Local Atual Do Projeto
+
+- Projeto principal: `D:\GitHub\gestor_servicos`
+- Site em producao: `https://gestordeservicos.com.br`
+- Site Netlify original: `https://gestor-servicos-adersan.netlify.app`
+- Banco: Supabase do projeto `tfkhhxopxupbefaaijcz`
+- Branch principal: `main`
+
+## Estado De Publicacao
+
+- O Netlify faz deploy automaticamente quando existe `git push` para o GitHub.
+- Nao publicar pequenas alteracoes isoladas sem autorizacao do usuario.
+- Preferencia atual: desenvolver e testar localmente, commitar local se fizer sentido, e so dar `git push` quando o usuario autorizar um pacote.
+- O projeto ja consumiu muitos creditos do Netlify por deploys frequentes. Economizar deploys e uma regra importante.
+
+## Estrutura Principal
+
+- `index.html`: painel administrativo principal.
+- `app.js`: logica principal do admin, renderizacao das telas, lancamentos, clientes, financeiro, fornecedores e dashboard.
+- `styles.css`: estilos globais do painel administrativo.
+- `data.js`: camada de dados local/Supabase, sincronizacao, upsert/delete e cache local.
+- `auth.js`: autenticacao administrativa com Supabase.
+- `config.js`: configuracao local real com URL e anon key do Supabase. Nao commitar segredos.
+- `config.example.js`: modelo seguro de configuracao.
+- `server.js`: servidor local simples para desenvolvimento.
+- `sw.js`: service worker/cache PWA. Atualizar versao quando publicar alteracoes de frontend.
+- `manifest.webmanifest`: manifesto PWA.
+- `logo.svg`, `icon-192.png`, `icon-512.png`: identidade visual/PWA.
+
+## Portais Publicos
+
+- `cliente.html`, `cliente.js`, `cliente.css`: portal de cobranca do cliente com credenciais/link.
+- `acompanhamento.html`, `acompanhamento.js`, `acompanhamento.css`: acompanhamento de servicos pelo cliente, somente leitura e pedidos online quando permitido.
+- `fornecedor.html`, `fornecedor.js`, `fornecedor.css`: portal do fornecedor, acompanhamento/confirmacao conforme permissoes do link.
+
+## Netlify Functions
+
+As funcoes ficam em `netlify/functions`.
+
+- `client-login.mjs`: login temporario do cliente.
+- `client-magic-login.mjs`: acesso do cliente por link assinado.
+- `issue-client-access.mjs`: gera acesso/credenciais de cobranca.
+- `issue-client-magic-link.mjs`: gera link direto de cobranca.
+- `issue-service-tracking-link.mjs`: gera link de acompanhamento do cliente.
+- `service-tracking-data.mjs`: entrega dados do acompanhamento.
+- `client-service-request.mjs`: recebe pedido online do cliente.
+- `admin-client-service-requests.mjs`: consulta/gestao administrativa de pedidos online.
+- `issue-supplier-link.mjs`: gera link do fornecedor.
+- `supplier-portal-data.mjs`: entrega dados ao portal do fornecedor.
+- `supplier-portal-save.mjs`: salva alteracoes permitidas pelo fornecedor.
+- `payment-webhook.mjs`: webhook de baixa automatica de pagamentos.
+- `keep-alive.mjs`: manter vivo/verificacao leve.
+- `apibrasil-whatsapp-*.mjs` e `whatsapp-status-webhook.mjs`: integracao experimental com APIBrasil/WhatsApp.
+- `_shared/server.mjs`: helpers compartilhados de servidor/Supabase.
+- `_shared/apibrasil-whatsapp.mjs`: cliente compartilhado APIBrasil.
+
+## Supabase
+
+SQL e migracoes ficam em `supabase`.
+
+- `schema.sql`: esquema base.
+- `suppliers.sql`: fornecedores e servicos de fornecedor.
+- `client_service_requests.sql`: pedidos online de clientes.
+- `service_tracking_links.sql`: links de acompanhamento.
+- `client_magic_link.sql`: links diretos de cliente.
+- `service_cancellations.sql`: cancelamentos e motivos.
+- `service_entry_groups.sql`: agrupamento de servico principal/complementar.
+- `service_status_dates_and_supplier_whatsapp.sql`: datas de feito/entregue e campos WhatsApp fornecedor.
+- `supplier_portal_permissions.sql`: permissoes do portal do fornecedor.
+- `supplier_portal_show_entries.sql`: exibicao/lista para fornecedor.
+- `whatsapp_sessions.sql`: sessoes WhatsApp.
+- `fix_*.sql`: scripts corretivos pontuais.
+
+Antes de alterar codigo que depende de coluna/tabela nova, criar ou atualizar o SQL correspondente e orientar o usuario a executar no Supabase.
+
+## Variaveis De Ambiente
+
+Variaveis secretas ficam no Netlify, nunca no frontend:
+
+- `SUPABASE_URL`
+- `SUPABASE_SECRET_KEY`
+- `CLIENT_PORTAL_SECRET`
+- `PAYMENT_WEBHOOK_SECRET`
+- `WHATSAPP_WEBHOOK_SECRET`
+- `APIBRASIL_DEVICE_TOKEN`
+- `APIBRASIL_BEARER_TOKEN`
+- `APIBRASIL_WHATSAPP_SESSION`
+- `APIBRASIL_BASE_URL` opcional
+
+No navegador usar somente `supabaseAnonKey` em `config.js`.
+
+## Como Rodar Localmente
+
+Na pasta `D:\GitHub\gestor_servicos`:
+
+```powershell
+node server.js
+```
+
+Abrir:
+
+```text
+http://localhost:8080
+```
+
+Tambem pode ser usado:
+
+```powershell
+python -m http.server 8094 --directory D:\GitHub\gestor_servicos
+```
+
+## Testes E Validacao
+
+Nao existe `package.json`. Os testes atuais sao scripts Node diretos.
+
+Comandos recomendados antes de commit/deploy:
+
+```powershell
+node --check app.js
+node --check data.js
+node --check cliente.js
+node --check acompanhamento.js
+node --check fornecedor.js
+node --check supplier.js
+node tests\billing-rollover.test.mjs
+node tests\reference-history.test.mjs
+git diff --check
+```
+
+Se a alteracao mexer em Netlify Functions, validar tambem:
+
+```powershell
+node --check netlify\functions\nome-da-funcao.mjs
+```
+
+## Publicacao E Cache
+
+Quando for publicar frontend:
+
+1. Atualizar query strings em `index.html` se `app.js`, `styles.css` ou outros assets mudarem.
+2. Atualizar `sw.js`:
+   - nome/numero do cache;
+   - lista de assets com as novas query strings.
+3. Rodar validacoes.
+4. Commitar.
+5. So dar `git push origin main` com autorizacao do usuario.
+6. Conferir producao depois do deploy.
+
+Sem versionamento de cache, o celular pode continuar usando arquivo antigo.
+
+## Regras De Trabalho
+
+- Nao reverter alteracoes que nao foram feitas por voce.
+- Conferir `git status -sb` antes de editar/commitar.
+- Manter alteracoes pequenas e coerentes com o padrao atual.
+- Evitar refatoracoes grandes enquanto o sistema esta em uso.
+- Usar `apply_patch` para edicoes manuais.
+- Nao gravar tokens, bearer, service role ou chaves secretas em arquivos versionados.
+- Se mudar banco, documentar qual SQL deve ser executado no Supabase.
+- Se a mudanca impactar celular, testar mentalmente layout responsivo e reduzir excesso visual.
+- Se a mudanca impactar financeiro/cobranca, conferir pagamentos parciais, quitacao, credito e saldo anterior.
+
+## Fluxos Importantes Do Sistema
+
+### Cliente
+
+- Cadastro, tabelas, servicos, lancamentos e pedidos online ficam agrupados no menu `Clientes`.
+- A ordem desejada do submenu de clientes e: `Lancamento`, `Pedido on-line`, `Cadastro`, `Servicos`.
+- Lancamentos da tela de cliente devem priorizar a semana operacional atual, mas busca por referencia/placa deve poder localizar em todo o historico.
+- Servicos complementares ficam vinculados ao servico principal. No resumo, complementares nao contam como servicos principais, mas seu valor aparece separado.
+
+### Financeiro
+
+- Pagamentos podem ocorrer antes ou depois da geracao da cobranca.
+- Pagamentos ja abatidos/vinculados nao devem ficar editaveis.
+- Cobrancas podem estar abertas, parciais, quitadas ou canceladas.
+- Ao gerar cobranca, pagamentos do periodo devem abater a cobranca.
+- Se pagamento passar do valor devido, tratar como credito para abater futuramente.
+- O resumo financeiro deve evitar mostrar pagamento atrasado como credito indevido da semana atual.
+
+### Fornecedor
+
+- Fornecedores possuem cadastro, servicos, lancamentos, pagamentos, relatorios e portal proprio.
+- Servico de fornecedor pode ser gerado a partir de lancamento do cliente ou lancamento direto.
+- Status do fornecedor pode avancar automaticamente quando o servico do cliente vira `Feito` ou `Entregue`, mas pode ser ajustado manualmente.
+- Ao excluir ou cancelar servico do cliente, perguntar o que fazer com fornecedores vinculados.
+- Registrar datas de `Feito` e `Entregue` quando status muda.
+
+### Portais
+
+- Cliente e fornecedor veem apenas o que o link/token permite.
+- Links devem ser somente leitura salvo permissoes explicitas, especialmente no fornecedor.
+- Alteracoes feitas pelo fornecedor devem ficar marcadas para o administrador identificar.
+
+## Observacoes Recentes
+
+- Existe commit local ainda nao publicado com botao para desfazer entrega: `Voltar para Feito`.
+- Esse commit local nao foi enviado ao GitHub/Netlify para economizar creditos.
+- Se for publicar esse ajuste, lembrar de atualizar versoes de cache antes do push.
+- Ha uma alteracao preexistente em `.gitignore`; nao reverter sem pedido explicito.
+
