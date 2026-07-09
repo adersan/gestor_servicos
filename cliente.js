@@ -320,10 +320,33 @@ function renderStatement(data) {
       <tbody>${rows || `<tr><td colspan="5">-</td></tr>`}</tbody>
     </table>`;
   }
+  function requesterSummary(items) {
+    const groups = new Map();
+    items.forEach(({ primary: item, secondaries }) => {
+      const requester = String(item.requested_by || "").trim() || "Sem solicitante";
+      if (!groups.has(requester)) groups.set(requester, { requester, count: 0, total: 0, services: new Map() });
+      const group = groups.get(requester);
+      const amount = [item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0);
+      group.count += 1;
+      group.total += amount;
+      const service = group.services.get(item.service_name) || { name: item.service_name, count: 0, total: 0 };
+      service.count += 1;
+      service.total += amount;
+      group.services.set(item.service_name, service);
+    });
+    return [...groups.values()]
+      .map((group) => ({ ...group, services: [...group.services.values()] }))
+      .sort((a, b) => b.total - a.total || a.requester.localeCompare(b.requester, "pt-BR"));
+  }
   const serviceGroups = groupPortalServices(services);
   const serviceRows = serviceGroups.length
     ? serviceTable(serviceGroups)
     : `<p class="meta">Nenhum serviço neste fechamento.</p>`;
+  const requesterRows = requesterSummary(serviceGroups).map((group) => `
+    <article class="requester-summary-card">
+      <div><strong>${escapeHtml(group.requester)}</strong><span>${group.count} servico(s) - ${money.format(group.total)}</span></div>
+      <ul>${group.services.map((service) => `<li>${escapeHtml(service.name)}: ${service.count} - ${money.format(service.total)}</li>`).join("")}</ul>
+    </article>`).join("") || `<p class="meta">Nenhum solicitante informado neste periodo.</p>`;
   const paymentRows = payments.length
     ? payments.map((item) => `<tr>
         <td>${formatDate(item.payment_date)}</td>
@@ -366,6 +389,8 @@ function renderStatement(data) {
       </div>
     </section>
     <section class="client-section section-services">
+      <h3>Resumo por solicitante</h3>
+      <div class="requester-summary-list">${requesterRows}</div>
       <h3>Serviços do período</h3>
       <div class="client-report-service-grid">${serviceRows}</div>
     </section>
@@ -394,7 +419,7 @@ function renderCurrentServices(data) {
     (!filters.start || item.service_date >= filters.start)
     && (!filters.end || item.service_date <= filters.end)
     && (!filters.status || item.status === filters.status)
-    && (!filters.search || searchableText(item.service_name, item.reference, item.status).includes(searchableText(filters.search))));
+    && (!filters.search || searchableText(item.service_name, item.reference, item.status, item.requested_by).includes(searchableText(filters.search))));
   const serviceGroups = groupPortalServices(items);
   const total = items.reduce((sum, item) => sum + Number(item.amount), 0);
   const rows = serviceGroups.length ? serviceGroups.map(({ primary: item, secondaries }) => `<tr class="${secondaries.length ? "client-secondary-service" : ""}">
@@ -440,6 +465,9 @@ function renderCurrentServices(data) {
 function renderClientRequest(data) {
   const services = data.requestServices || [];
   const requests = data.serviceRequests || [];
+  const requesterOptions = (data.clientRequesters || [])
+    .map((item) => `<option value="${escapeHtml(item.name)}"></option>`)
+    .join("");
   const selectedService = services[0];
   const options = services.length
     ? services.map((service) => `<option value="${escapeHtml(service.id)}" data-amount="${Number(service.amount || 0)}">${escapeHtml(service.code ? `${service.code} - ${service.name}` : service.name)}</option>`).join("")
@@ -463,7 +491,13 @@ function renderClientRequest(data) {
         <label>Serviço<select name="serviceId" required>${options}</select></label>
         <label>Valor<input name="amount" type="text" value="${money.format(Number(selectedService?.amount || 0))}" readonly></label>
         <label>Placa/referência<textarea name="references" rows="5" required placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea></label>
-        <label>Quem solicitou<input name="requestedBy" placeholder="Nome do solicitante"></label>
+        <label>Quem solicitou
+          <span class="requester-entry-row">
+            <input name="requestedBy" list="clientRequesterOptions" placeholder="Nome do solicitante">
+            <button class="secondary" type="button" data-add-client-requester>+</button>
+          </span>
+        </label>
+        <datalist id="clientRequesterOptions">${requesterOptions}</datalist>
         <label>Observação<textarea name="notes" rows="3" placeholder="Detalhes importantes do pedido"></textarea></label>
         <p id="clientRequestMessage" class="form-message" role="status"></p>
         <div class="client-request-actions">
@@ -476,6 +510,31 @@ function renderClientRequest(data) {
       <h3>Pedidos enviados</h3>
       <div class="client-request-history-list">${history}</div>
     </section>`;
+}
+
+async function addClientRequesterFromPortal(form) {
+  const message = document.getElementById("clientRequestMessage");
+  const name = form.elements.requestedBy.value.trim().replace(/\s+/g, " ");
+  if (!name) {
+    message.textContent = "Informe o nome do solicitante.";
+    form.elements.requestedBy.focus();
+    return;
+  }
+  message.textContent = "Cadastrando solicitante...";
+  try {
+    const result = await request("client-requester-save", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${sessionStorage.getItem(tokenKey)}` },
+      body: JSON.stringify({ name })
+    });
+    portalData.clientRequesters ||= [];
+    portalData.clientRequesters.push(result.requester);
+    message.textContent = "Solicitante cadastrado.";
+    renderClientRequest(portalData);
+    document.querySelector('#clientRequestForm input[name="requestedBy"]').value = result.requester.name;
+  } catch (error) {
+    message.textContent = error.message;
+  }
 }
 
 function historyFilters() {
@@ -691,6 +750,12 @@ document.getElementById("clientPortalNav").addEventListener("click", async (even
   selectView(button.dataset.clientView);
 });
 document.getElementById("statementContent").addEventListener("click", async (event) => {
+  const addRequesterButton = event.target.closest("[data-add-client-requester]");
+  if (addRequesterButton) {
+    const form = addRequesterButton.closest("#clientRequestForm");
+    if (form) await addClientRequesterFromPortal(form);
+    return;
+  }
   const copyPixButton = event.target.closest("[data-copy-pix]");
   if (copyPixButton) {
     const value = copyPixButton.dataset.copyPix;

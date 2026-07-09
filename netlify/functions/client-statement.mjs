@@ -36,9 +36,9 @@ export default async (request) => {
     const [clients, billings, services, payments, currentServices, methods, allBillings] = await Promise.all([
       supabase(`/rest/v1/clients?id=eq.${clientId}&select=id,name,price_table_id`),
       supabase(`/rest/v1/billings?id=eq.${billingId}&client_id=eq.${clientId}&status=neq.Cancelada&select=*`),
-      supabase(`/rest/v1/service_entries?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,service_name,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason&order=service_date.asc`),
+      supabase(`/rest/v1/service_entries?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason&order=service_date.asc`),
       supabase(`/rest/v1/payments?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,payment_date,amount,method,notes,created_at&order=payment_date.asc`),
-      supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason&order=service_date.desc`),
+      supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason&order=service_date.desc`),
       supabase("/rest/v1/payment_methods?active=eq.true&select=id,type,name,details,payment_link&order=created_at.asc"),
       historyEnabled
         ? supabase(`/rest/v1/billings?client_id=eq.${clientId}&status=neq.Cancelada&select=id,period_start,period_end,total_due,status,created_at,snapshot&order=period_end.desc`)
@@ -48,13 +48,18 @@ export default async (request) => {
 
     const billing = billings[0];
     const client = clients[0];
-    const [requestCatalog, clientRequests] = await Promise.all([
+    const [requestCatalog, clientRequests, clientRequesters] = await Promise.all([
       client.price_table_id
         ? supabase(`/rest/v1/service_prices?price_table_id=eq.${encodeURIComponent(client.price_table_id)}&select=amount,service_catalog(id,name,code)&service_catalog.active=eq.true`)
         : Promise.resolve([]),
       supabase(`/rest/v1/client_service_requests?client_id=eq.${clientId}&select=id,service_name,references_list,requested_date,amount,requested_by,notes,status,created_at&order=created_at.desc`)
         .catch((error) => {
           if (/client_service_requests|schema cache|does not exist|Could not find/i.test(error.message || "")) return [];
+          throw error;
+        }),
+      supabase(`/rest/v1/client_requesters?client_id=eq.${clientId}&active=eq.true&select=id,name,normalized_name&order=name.asc`)
+        .catch((error) => {
+          if (/client_requesters|schema cache|does not exist|Could not find/i.test(error.message || "")) return [];
           throw error;
         })
     ]);
@@ -104,6 +109,11 @@ export default async (request) => {
         notes: item.notes || "",
         status: item.status,
         created_at: item.created_at
+      })),
+      clientRequesters: clientRequesters.map((item) => ({
+        id: item.id,
+        name: item.name,
+        normalizedName: item.normalized_name
       })),
       historyEnabled,
       accessBillingId: payload.billingId,

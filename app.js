@@ -31,6 +31,7 @@ const initialState = {
   supplierEntries: [],
   supplierPayables: [],
   supplierPayments: [],
+  clientRequesters: [],
   serviceRequests: []
 };
 
@@ -274,6 +275,37 @@ window.persistStateNow = persistStateNow;
 
 function clientById(id) {
   return state.clients.find((client) => client.id === id);
+}
+
+function normalizeRequesterName(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
+}
+
+function requestersForClient(clientId) {
+  return (state.clientRequesters || [])
+    .filter((item) => item.clientId === clientId && item.active !== false)
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
+function requesterExists(clientId, name) {
+  const normalized = normalizeRequesterName(name);
+  return Boolean(normalized && requestersForClient(clientId).some((item) => item.normalizedName === normalized));
+}
+
+function addClientRequester(clientId, name) {
+  const cleanName = String(name || "").trim().replace(/\s+/g, " ");
+  const normalizedName = normalizeRequesterName(cleanName);
+  if (!clientId || !normalizedName) return { ok: false, message: "Informe o solicitante." };
+  if (requesterExists(clientId, cleanName)) return { ok: false, message: "Este solicitante ja esta cadastrado para este cliente." };
+  state.clientRequesters ||= [];
+  state.clientRequesters.push({
+    id: crypto.randomUUID(),
+    clientId,
+    name: cleanName,
+    normalizedName,
+    active: true
+  });
+  return { ok: true, name: cleanName };
 }
 
 function balanceFor(clientId, endDate = null) {
@@ -789,6 +821,7 @@ function renderSelects() {
     .join("");
   document.getElementById("serviceClientOptions").innerHTML = clientDatalistOptions;
   document.getElementById("serviceClientFilterOptions").innerHTML = clientDatalistOptions;
+  updateServiceRequesterOptions();
   document.getElementById("serviceCatalogOptions").innerHTML = [...state.catalog]
     .sort((a, b) => (Number(a.code) || 999999) - (Number(b.code) || 999999)
       || a.name.localeCompare(b.name, "pt-BR"))
@@ -809,6 +842,23 @@ function renderSelects() {
     .map((method) => `<option value="${escapeHtml(method.name)}">${escapeHtml(method.name)}</option>`)
     .join("")}`;
   paymentMethodSelect.value = selectedPaymentMethod;
+}
+
+function updateServiceRequesterOptions() {
+  const form = document.getElementById("serviceForm");
+  const datalist = document.getElementById("serviceRequesterOptions");
+  if (!form || !datalist) return;
+  const clientId = form.elements.clientId.value;
+  datalist.innerHTML = requestersForClient(clientId)
+    .map((item) => `<option value="${escapeHtml(item.name)}"></option>`)
+    .join("");
+}
+
+function toggleServiceRequesterSection() {
+  const form = document.getElementById("serviceForm");
+  const enabled = Boolean(form.elements.hasRequester?.checked);
+  document.getElementById("serviceRequesterSection")?.classList.toggle("hidden", !enabled);
+  if (!enabled) form.elements.requestedBy.value = "";
 }
 
 function renderCatalog() {
@@ -1280,6 +1330,7 @@ function renderServices() {
       search,
       item.description,
       item.reference,
+      item.requestedBy,
       clientById(item.clientId)?.name,
       serviceStatusLabel(item.status)
     ))
@@ -1310,6 +1361,7 @@ function renderServices() {
         <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
         <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
         <p class="meta service-card-context">${escapeHtml(clientById(item.clientId)?.name || "")}</p>
+        ${item.requestedBy ? `<p class="meta">Solicitante: ${escapeHtml(item.requestedBy)}</p>` : ""}
         ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
         <span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">${escapeHtml(deliveredLabel(item))}</span>` : ""}${serviceStatusDates(item) ? `<p class="service-status-dates">${escapeHtml(serviceStatusDates(item))}</p>` : ""}${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
       </div>
@@ -1814,7 +1866,11 @@ function syncServiceClientSelection() {
   const previousClientId = form.elements.clientId.value;
   const client = itemByExactLabel(state.clients, form.elements.clientSearch.value, clientOptionLabel);
   form.elements.clientId.value = client?.id || "";
-  if (form.elements.clientId.value !== previousClientId) updateSuggestedPrice();
+  if (form.elements.clientId.value !== previousClientId) {
+    form.elements.requestedBy.value = "";
+    updateSuggestedPrice();
+    updateServiceRequesterOptions();
+  }
 }
 
 function setServiceCatalogError(message = "") {
@@ -2027,6 +2083,10 @@ function openEntryForm(item = null, preferredClientId = "", request = null) {
   form.elements.reference.value = request?.references?.length ? request.references.join("\n") : item?.reference || "";
   form.elements.amount.value = request ? Number(request.amount || 0).toFixed(2) : item ? Number(item.amount).toFixed(2) : "";
   form.elements.status.value = item?.status || "A fazer";
+  form.elements.hasRequester.checked = Boolean(request?.requestedBy || item?.requestedBy);
+  form.elements.requestedBy.value = request?.requestedBy || item?.requestedBy || "";
+  updateServiceRequesterOptions();
+  toggleServiceRequesterSection();
   form.elements.hasAdditionalServices.checked = false;
   form.elements.hasAdditionalServices.disabled = Boolean(item);
   document.getElementById("additionalServicesSection").classList.add("hidden");
@@ -2134,6 +2194,24 @@ function billingDetails(billing) {
   return { services, payments, serviceTotal, paymentTotal, previousBalance };
 }
 
+function requesterServiceSummary(services) {
+  const groups = new Map();
+  services.forEach((item) => {
+    const requester = String(item.requestedBy || "").trim() || "Sem solicitante";
+    if (!groups.has(requester)) groups.set(requester, { requester, count: 0, total: 0, services: new Map() });
+    const group = groups.get(requester);
+    group.count += 1;
+    group.total += Number(item.amount || 0);
+    const service = group.services.get(item.description) || { name: item.description, count: 0, total: 0 };
+    service.count += 1;
+    service.total += Number(item.amount || 0);
+    group.services.set(item.description, service);
+  });
+  return [...groups.values()]
+    .map((group) => ({ ...group, services: [...group.services.values()] }))
+    .sort((a, b) => b.total - a.total || a.requester.localeCompare(b.requester, "pt-BR"));
+}
+
 function pdfSafeText(value) {
   return String(value ?? "")
     .normalize("NFD")
@@ -2159,6 +2237,7 @@ function createBillingReportPdf(billing) {
   const client = clientById(billing.clientId);
   const details = billingDetails(billing);
   const laterPayments = state.payments.filter((payment) => paymentWasAfterBilling(payment, billing));
+  const requesterGroups = requesterServiceSummary(details.services);
   const selectedMethodIds = billing.paymentMethodIds || [];
   const methods = billing.paymentMethods?.length
     ? billing.paymentMethods
@@ -2235,6 +2314,21 @@ function createBillingReportPdf(billing) {
     commands.push(`1 1 1 rg BT /F2 12 Tf ${x + 9} ${y - 17} Td (${pdfSafeText(money.format(Number(amount)))}) Tj ET`);
   });
   y -= 72;
+
+  if (requesterGroups.length) {
+    heading("Resumo por solicitante");
+    for (const group of requesterGroups) {
+      ensureSpace(28);
+      text(`${group.requester}: ${group.count} servico(s) - ${money.format(group.total)}`, margin, 9, colors.dark, true);
+      y -= 16;
+      for (const service of group.services) {
+        ensureSpace(18);
+        text(`- ${service.name}: ${service.count} - ${money.format(service.total)}`, margin + 12, 8, colors.gray);
+        y -= 14;
+      }
+      y -= 4;
+    }
+  }
 
   heading("Servicos do periodo");
   if (!details.services.length) {
@@ -2423,6 +2517,7 @@ function openBillingReport(billingId) {
     : state.paymentMethods.filter((method) =>
       selectedMethodIds.length ? selectedMethodIds.includes(method.id) : method.active);
   const laterPayments = state.payments.filter((payment) => paymentWasAfterBilling(payment, billing));
+  const requesterGroups = requesterServiceSummary(details.services);
   function serviceTable(items) {
     const rows = items.map((item) => `<tr>
       <td>${item.date.split("-").reverse().join("/")}</td>
@@ -2438,6 +2533,11 @@ function openBillingReport(billingId) {
   const serviceRows = details.services.length
     ? serviceTable(details.services)
     : `<p class="meta">Nenhum serviço neste período.</p>`;
+  const requesterRows = requesterGroups.length ? requesterGroups.map((group) => `
+    <article class="requester-summary-card">
+      <div><strong>${escapeHtml(group.requester)}</strong><span>${group.count} servico(s) - ${money.format(group.total)}</span></div>
+      <ul>${group.services.map((service) => `<li>${escapeHtml(service.name)}: ${service.count} - ${money.format(service.total)}</li>`).join("")}</ul>
+    </article>`).join("") : `<p class="meta">Nenhum solicitante informado neste periodo.</p>`;
   const methodRows = methods.length ? methods.map((method) => `
     <div class="payment-option">
       <strong>${escapeHtml(method.name)} (${escapeHtml(method.type)})</strong>
@@ -2469,6 +2569,8 @@ function openBillingReport(billingId) {
       <div class="chart-row"><span>Serviços</span><div class="chart-track"><div class="chart-bar" style="width:${details.serviceTotal / maxValue * 100}%"></div></div><strong>${money.format(details.serviceTotal)}</strong></div>
       <div class="chart-row"><span>Pagamentos</span><div class="chart-track"><div class="chart-bar credit" style="width:${details.paymentTotal / maxValue * 100}%"></div></div><strong>${money.format(details.paymentTotal)}</strong></div>
     </div>
+    <h3>Resumo por solicitante</h3>
+    <div class="requester-summary-list">${requesterRows}</div>
     <h3>Serviços do período</h3>
     <div class="report-service-grid">${serviceRows}</div>
     <h3>Formas de pagamento</h3>
@@ -2628,6 +2730,7 @@ document.addEventListener("click", async (event) => {
   const clientDialogTab = event.target.closest("[data-client-dialog-tab]");
   const soundAlertButton = event.target.closest("#soundAlertButton, #settingsSoundShortcut");
   const clientServiceScrollButton = event.target.closest("[data-scroll-client-services]");
+  const addRequesterButton = event.target.closest("#addRequesterButton");
   const retryRemoteLoadButton = event.target.closest("[data-retry-remote-load]");
   const closeRemoteLoadButton = event.target.closest("[data-close-remote-load]");
   if (retryRemoteLoadButton) {
@@ -2640,6 +2743,15 @@ document.addEventListener("click", async (event) => {
   }
   if (clientDialogTab) {
     setClientDialogTab(clientDialogTab.dataset.clientDialogTab);
+    return;
+  }
+  if (addRequesterButton) {
+    const form = document.getElementById("serviceForm");
+    syncServiceClientSelection();
+    const result = addClientRequester(form.elements.clientId.value, form.elements.requestedBy.value);
+    alert(result.ok ? "Solicitante cadastrado." : result.message);
+    updateServiceRequesterOptions();
+    if (result.ok) saveState();
     return;
   }
   if (soundAlertButton) {
@@ -3244,6 +3356,10 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     const shouldContinue = await confirmHistoricalReferenceReuse(duplicates);
     if (!shouldContinue) return;
   }
+  const requestedBy = form.elements.hasRequester.checked
+    ? String(data.get("requestedBy") || "").trim().replace(/\s+/g, " ")
+    : "";
+  if (requestedBy) addClientRequester(data.get("clientId"), requestedBy);
   const createdEntries = [];
   entryReferences.forEach((reference, referenceIndex) => {
     const serviceGroupId = existingEntry?.serviceGroupId || crypto.randomUUID();
@@ -3258,6 +3374,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
         catalogId: service.catalogId,
         date: data.get("date"),
         description: service.description,
+        requestedBy,
         reference,
         amount: service.amount,
         status: data.get("status"),
@@ -3880,6 +3997,7 @@ document.addEventListener("click", (event) => {
 });
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("input", syncServiceClientSelection);
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("change", syncServiceClientSelection);
+document.querySelector('#serviceForm input[name="hasRequester"]').addEventListener("change", toggleServiceRequesterSection);
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("input", () => setServiceCatalogError());
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("input", syncServiceCatalogSelection);
 document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListener("change", syncServiceCatalogSelection);
@@ -4148,7 +4266,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=82").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=84").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

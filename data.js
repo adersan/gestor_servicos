@@ -64,6 +64,14 @@
     } else {
       clientRequestsResult = requestsResult;
     }
+    let clientRequestersResult = { data: [] };
+    const requestersResult = await client.from("client_requesters").select("*").eq("active", true).order("name");
+    if (requestersResult.error) {
+      const message = requestersResult.error.message || "";
+      if (!/client_requesters|schema cache|does not exist|Could not find/i.test(message)) throw requestersResult.error;
+    } else {
+      clientRequestersResult = requestersResult;
+    }
 
     const priceTables = priceTablesResult.data;
     const tableById = Object.fromEntries(priceTables.map((table) => [table.id, table.name]));
@@ -105,6 +113,7 @@
         billingId: entry.billing_id,
         date: entry.service_date,
         description: entry.service_name,
+        requestedBy: entry.requested_by || "",
         reference: entry.reference || "",
         amount: Number(entry.amount),
         status: entry.status,
@@ -123,6 +132,13 @@
           : Number(entry.cancellation_original_amount),
         createdAt: entry.created_at,
         updatedAt: entry.updated_at
+      })),
+      clientRequesters: clientRequestersResult.data.map((item) => ({
+        id: item.id,
+        clientId: item.client_id,
+        name: item.name,
+        normalizedName: item.normalized_name,
+        active: item.active !== false
       })),
       payments: paymentsResult.data.map((payment) => ({
         id: payment.id,
@@ -317,6 +333,7 @@
           client_id: item.clientId,
           service_id: item.catalogId || null,
           service_name: item.description,
+          requested_by: item.requestedBy || null,
           reference: item.reference || null,
           service_date: item.date,
           amount: Number(item.amount),
@@ -335,9 +352,10 @@
           cancellation_original_amount: item.cancellationOriginalAmount ?? null
         }));
       let entriesResult = await client.from("service_entries").upsert(entries);
-      if (entriesResult.error && /done_at|delivery_(code|source)|confirmation_requested_at|delivered_at|service_group_id|primary_entry_id|is_secondary|cancellation_reason|cancellation_original_amount/i.test(entriesResult.error.message || "")) {
+      if (entriesResult.error && /requested_by|done_at|delivery_(code|source)|confirmation_requested_at|delivered_at|service_group_id|primary_entry_id|is_secondary|cancellation_reason|cancellation_original_amount/i.test(entriesResult.error.message || "")) {
         const compatibleEntries = entries.map((entry) => {
           const {
+            requested_by,
             done_at,
             delivery_code,
             confirmation_requested_at,
@@ -355,6 +373,20 @@
         entriesResult = await client.from("service_entries").upsert(compatibleEntries);
       }
       if (entriesResult.error) throw entriesResult.error;
+    }
+
+    if (state.clientRequesters?.length) {
+      const requesterRows = state.clientRequesters.map((item) => ({
+        id: item.id,
+        client_id: item.clientId,
+        name: item.name,
+        normalized_name: item.normalizedName || String(item.name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR"),
+        active: item.active !== false
+      }));
+      const requestersResult = await client.from("client_requesters").upsert(requesterRows, { onConflict: "client_id,normalized_name" });
+      if (requestersResult.error && !/client_requesters|schema cache|does not exist|Could not find/i.test(requestersResult.error.message || "")) {
+        throw requestersResult.error;
+      }
     }
 
     if (state.payments.length) {

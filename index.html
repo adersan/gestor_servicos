@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=67">
+  <link rel="stylesheet" href="styles.css?v=68">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -663,6 +663,20 @@
       <div id="serviceImportHint" class="import-hint hidden"></div>
       <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
       <datalist id="serviceClientOptions"></datalist>
+      <label class="checkbox-label requester-toggle">
+        <input name="hasRequester" type="checkbox">
+        Informar solicitante do cliente
+      </label>
+      <section id="serviceRequesterSection" class="requester-section hidden">
+        <label>Solicitante
+          <span class="requester-entry-row">
+            <input name="requestedBy" type="search" list="serviceRequesterOptions" autocomplete="off" placeholder="Digite ou escolha o solicitante">
+            <button id="addRequesterButton" class="secondary" type="button" aria-label="Adicionar solicitante">+</button>
+          </span>
+          <span id="serviceRequesterHint" class="field-hint">A lista muda conforme o cliente selecionado.</span>
+        </label>
+        <datalist id="serviceRequesterOptions"></datalist>
+      </section>
       <label>Data<input name="date" type="date" required></label>
       <input name="catalogId" type="hidden">
       <label id="serviceCatalogField">
@@ -1133,8 +1147,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=40"></script>
-  <script src="app.js?v=83"></script>
+  <script src="data.js?v=41"></script>
+  <script src="app.js?v=84"></script>
   <script src="supplier.js?v=39"></script>
 </body>
 </html>

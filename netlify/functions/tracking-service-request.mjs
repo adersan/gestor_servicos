@@ -8,6 +8,10 @@ function normalizeReferences(value) {
     .filter((item, index, list) => list.indexOf(item) === index);
 }
 
+function normalizeRequesterName(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
+}
+
 export default async (request) => {
   if (request.method !== "POST") return json(405, { error: "Metodo nao permitido." });
 
@@ -47,6 +51,21 @@ export default async (request) => {
       : [];
     const amount = Number(priceRows[0]?.amount || 0);
     const requestedDate = new Date().toISOString().slice(0, 10);
+    const normalizedRequester = normalizeRequesterName(requestedBy);
+    if (normalizedRequester) {
+      await supabase("/rest/v1/client_requesters", {
+        method: "POST",
+        prefer: "resolution=merge-duplicates",
+        body: JSON.stringify({
+          client_id: link.client_id,
+          name: requestedBy,
+          normalized_name: normalizedRequester,
+          active: true
+        })
+      }).catch((error) => {
+        if (!/client_requesters|schema cache|does not exist|Could not find|duplicate key/i.test(error.message || "")) throw error;
+      });
+    }
     const inserted = await supabase("/rest/v1/client_service_requests?select=id", {
       method: "POST",
       prefer: "return=representation",

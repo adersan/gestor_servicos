@@ -88,6 +88,7 @@ create table if not exists public.service_entries (
   client_id uuid not null references public.clients(id),
   service_id uuid references public.service_catalog(id),
   service_name text not null,
+  requested_by text,
   reference text,
   service_date date not null default current_date,
   amount numeric(12,2) not null check (amount >= 0),
@@ -110,6 +111,18 @@ alter table public.service_entries add column if not exists delivery_source text
 alter table public.service_entries add column if not exists service_group_id uuid;
 alter table public.service_entries add column if not exists primary_entry_id uuid;
 alter table public.service_entries add column if not exists is_secondary boolean not null default false;
+alter table public.service_entries add column if not exists requested_by text;
+
+create table if not exists public.client_requesters (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid not null references public.clients(id) on delete cascade,
+  name text not null,
+  normalized_name text not null,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (client_id, normalized_name)
+);
 
 create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
@@ -256,6 +269,10 @@ drop trigger if exists clients_updated_at on public.clients;
 create trigger clients_updated_at
 before update on public.clients
 for each row execute function public.set_updated_at();
+drop trigger if exists client_requesters_updated_at on public.client_requesters;
+create trigger client_requesters_updated_at
+before update on public.client_requesters
+for each row execute function public.set_updated_at();
 drop trigger if exists service_catalog_updated_at on public.service_catalog;
 create trigger service_catalog_updated_at
 before update on public.service_catalog
@@ -280,6 +297,7 @@ for each row execute function public.set_updated_at();
 alter table public.admin_users enable row level security;
 alter table public.price_tables enable row level security;
 alter table public.clients enable row level security;
+alter table public.client_requesters enable row level security;
 alter table public.service_catalog enable row level security;
 alter table public.service_prices enable row level security;
 alter table public.service_entries enable row level security;
@@ -298,6 +316,7 @@ alter default privileges in schema public grant all privileges on sequences to s
 grant select, insert, update, delete on table public.admin_users to authenticated;
 grant select, insert, update, delete on table public.price_tables to authenticated;
 grant select, insert, update, delete on table public.clients to authenticated;
+grant select, insert, update, delete on table public.client_requesters to authenticated;
 grant select, insert, update, delete on table public.service_catalog to authenticated;
 grant select, insert, update, delete on table public.service_prices to authenticated;
 grant select, insert, update, delete on table public.service_entries to authenticated;
@@ -310,6 +329,7 @@ grant select, insert, update, delete on table public.whatsapp_sessions to authen
 drop policy if exists "admin_users_admin_all" on public.admin_users;
 drop policy if exists "price_tables_admin_all" on public.price_tables;
 drop policy if exists "clients_admin_all" on public.clients;
+drop policy if exists "client_requesters_admin_all" on public.client_requesters;
 drop policy if exists "service_catalog_admin_all" on public.service_catalog;
 drop policy if exists "service_prices_admin_all" on public.service_prices;
 drop policy if exists "service_entries_admin_all" on public.service_entries;
@@ -324,6 +344,8 @@ for all to authenticated using (public.is_admin()) with check (public.is_admin()
 create policy "price_tables_admin_all" on public.price_tables
 for all to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy "clients_admin_all" on public.clients
+for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "client_requesters_admin_all" on public.client_requesters
 for all to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy "service_catalog_admin_all" on public.service_catalog
 for all to authenticated using (public.is_admin()) with check (public.is_admin());
