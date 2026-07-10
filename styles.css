@@ -533,6 +533,17 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .supplier-access-result > a { overflow-wrap: anywhere; color: #155f9f; font-size: 12px; font-weight: 700; }
 .supplier-access-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .supplier-access-actions button { min-width: 0; padding-inline: 8px; }
+.tracking-access-fieldset { padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+.tracking-access-fieldset legend { padding: 0 6px; color: var(--muted); font-size: 12px; font-weight: 750; }
+.tracking-access-fieldset .checkbox-label { margin-bottom: 6px; }
+.tracking-service-toggle-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+.tracking-service-toggle-actions button { width: auto; padding-inline: 10px; }
+.tracking-service-checklist { display: grid; gap: 2px; max-height: 220px; overflow-y: auto; padding-right: 4px; }
+.tracking-access-result { display: grid; gap: 10px; padding: 14px; border: 1px solid #b9d9ca; border-radius: 12px; background: #f2faf6; }
+.tracking-access-result.hidden { display: none; }
+.tracking-access-result > strong { color: #176647; }
+.tracking-access-credentials { display: grid; gap: 6px; font-size: 13px; }
+.tracking-access-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .form-error { margin: 0; padding: 10px 12px; border-radius: 10px; color: var(--danger); background: #fdecea; font-size: 12px; font-weight: 700; }
 .form-error.hidden { display: none; }
 .help-heading { align-items: flex-start; }

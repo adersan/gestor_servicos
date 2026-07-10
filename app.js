@@ -1918,6 +1918,16 @@ function syncBillingClientSelection() {
   form.elements.clientId.value = client?.id || "";
 }
 
+function renderTrackingServiceOptions() {
+  const target = document.getElementById("trackingServiceOptions");
+  target.innerHTML = state.catalog.length
+    ? [...state.catalog]
+      .sort((a, b) => (Number(a.code) || 999999) - (Number(b.code) || 999999) || a.name.localeCompare(b.name, "pt-BR"))
+      .map((item) => `<label class="checkbox-label"><input type="checkbox" name="visibleServiceId" value="${item.id}" checked>${escapeHtml(item.code ? `${item.code} - ${item.name}` : item.name)}</label>`)
+      .join("")
+    : `<p class="meta">Cadastre servicos no catalogo.</p>`;
+}
+
 function openTrackingForm() {
   const form = document.getElementById("trackingForm");
   form.reset();
@@ -1928,6 +1938,8 @@ function openTrackingForm() {
   form.elements.startDate.value = week.startDate;
   form.elements.endDate.value = week.endDate;
   form.elements.validDays.value = "30";
+  renderTrackingServiceOptions();
+  document.getElementById("trackingAccessResult").classList.add("hidden");
   document.getElementById("trackingDialog").showModal();
   setTimeout(() => (preferredClient ? form.elements.startDate : form.elements.clientSearch).focus(), 0);
 }
@@ -3733,6 +3745,9 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
   const button = event.submitter;
   button.disabled = true;
   button.textContent = "Gerando link...";
+  const formData = new FormData(form);
+  const passwordMode = formData.get("passwordMode") || "embedded";
+  const visibleServiceIds = formData.getAll("visibleServiceId");
   try {
     const { data } = await window.supabaseClient.auth.getSession();
     const accessToken = data.session?.access_token;
@@ -3749,17 +3764,26 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
         endDate: form.elements.endDate.value,
         validDays: Number(form.elements.validDays.value),
         allowRequests: form.elements.allowRequests.checked,
-        showAmounts: form.elements.showAmounts.checked
+        passwordMode,
+        showFinancial: form.elements.showFinancial.checked,
+        showBilling: form.elements.showBilling.checked,
+        visibleServiceIds
       })
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Não foi possível gerar o link.");
     const client = clientById(form.elements.clientId.value);
-    const url = `${location.origin}/acompanhamento.html?access=${encodeURIComponent(result.accessCode)}`;
+    const baseUrl = `${location.origin}/acompanhamento.html?access=${encodeURIComponent(result.accessCode)}`;
+    const url = passwordMode === "embedded" && result.fullAccessCode
+      ? `${baseUrl}&full=${encodeURIComponent(result.fullAccessCode)}`
+      : baseUrl;
     const requestText = form.elements.allowRequests.checked
       ? "\n\nNeste link voc\u00EA tamb\u00E9m pode enviar novos pedidos."
       : "";
-    const text = `Ol\u00E1, ${client?.name || ""}!\n\nAcompanhe seus servi\u00E7os de ${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)} pelo link abaixo:\n\n${url}${requestText}\n\nEste acesso \u00E9 somente para consulta dos servi\u00E7os.`;
+    const passwordText = passwordMode === "typed" && result.identifier
+      ? `\n\nPara acesso completo, use:\nIdentificador: ${result.identifier}\nSenha: ${result.password}`
+      : "";
+    const text = `Ol\u00E1, ${client?.name || ""}!\n\nAcompanhe seus servi\u00E7os de ${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)} pelo link abaixo:\n\n${url}${requestText}${passwordText}\n\nVoc\u00EA pode entrar sem senha s\u00F3 para acompanhar, ou usar a senha para acesso completo.`;
     const phone = whatsappPhone(client);
     const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
     const link = document.createElement("a");
@@ -3769,7 +3793,13 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
     document.body.appendChild(link);
     link.click();
     link.remove();
-    form.closest("dialog").close();
+    if (passwordMode === "typed" && result.identifier) {
+      document.getElementById("trackingAccessIdentifier").textContent = result.identifier;
+      document.getElementById("trackingAccessPassword").textContent = result.password;
+      document.getElementById("trackingAccessResult").classList.remove("hidden");
+    } else {
+      form.closest("dialog").close();
+    }
   } catch (error) {
     console.error(error);
     alert(error.message);
@@ -4144,6 +4174,19 @@ document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListe
 });
 document.querySelector('#trackingForm input[name="clientSearch"]').addEventListener("input", syncTrackingClientSelection);
 document.querySelector('#trackingForm input[name="clientSearch"]').addEventListener("change", syncTrackingClientSelection);
+document.querySelector('#trackingForm [data-tracking-services-all]').addEventListener("click", () => {
+  document.querySelectorAll('#trackingServiceOptions input[name="visibleServiceId"]').forEach((checkbox) => { checkbox.checked = true; });
+});
+document.querySelector('#trackingForm [data-tracking-services-none]').addEventListener("click", () => {
+  document.querySelectorAll('#trackingServiceOptions input[name="visibleServiceId"]').forEach((checkbox) => { checkbox.checked = false; });
+});
+document.getElementById("trackingAccessResult").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-copy-tracking]");
+  if (!button) return;
+  const isPassword = button.dataset.copyTracking === "password";
+  const field = document.getElementById(isPassword ? "trackingAccessPassword" : "trackingAccessIdentifier");
+  await copyText(field.textContent, isPassword ? "Senha" : "Identificador");
+});
 document.querySelector('#paymentForm input[name="clientSearch"]').addEventListener("input", syncPaymentClientSelection);
 document.querySelector('#paymentForm input[name="clientSearch"]').addEventListener("change", syncPaymentClientSelection);
 document.querySelector('#billingForm input[name="clientSearch"]').addEventListener("input", syncBillingClientSelection);
@@ -4400,7 +4443,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=87").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=88").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

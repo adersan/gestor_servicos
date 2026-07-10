@@ -131,6 +131,21 @@ export function selectBillingPaymentMethods(billing, methods) {
       : methods);
 }
 
+export function resolveTrackingTier(link, credentials = {}) {
+  const isGated = Boolean(link.identifier_hash || link.full_token_hash);
+  if (!isGated) return "full-legacy";
+  const { fullAccessCode, identifier, password } = credentials;
+  if (fullAccessCode && link.full_token_hash && accessCodeHash(fullAccessCode) === link.full_token_hash) {
+    return "full";
+  }
+  if (identifier && password && link.identifier_hash && link.password_hash
+    && identifierHash(identifier) === link.identifier_hash
+    && verifyPassword(password, link.password_hash)) {
+    return "full";
+  }
+  return "restricted";
+}
+
 function encode(value) {
   return Buffer.from(value).toString("base64url");
 }

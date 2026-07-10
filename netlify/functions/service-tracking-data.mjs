@@ -1,67 +1,98 @@
-import { accessCodeHash, billingOpenAmount, json, selectBillingPaymentMethods, supabase } from "./_shared/server.mjs";
+import {
+  accessCodeHash,
+  billingOpenAmount,
+  json,
+  resolveTrackingTier,
+  selectBillingPaymentMethods,
+  supabase
+} from "./_shared/server.mjs";
+
+function visibleServiceFilter(visibleServiceIds) {
+  if (!Array.isArray(visibleServiceIds) || !visibleServiceIds.length) return "";
+  const ids = visibleServiceIds.map((id) => encodeURIComponent(id)).join(",");
+  return `&or=(service_id.is.null,service_id.in.(${ids}))`;
+}
 
 export default async (request) => {
   if (request.method !== "POST") return json(405, { error: "Método não permitido." });
 
   try {
-    const { accessCode } = await request.json();
+    const { accessCode, fullAccessCode, identifier, password } = await request.json();
     if (!accessCode || String(accessCode).length < 32) {
       return json(400, { error: "Link de acompanhamento inválido." });
     }
 
+    const fullSelect = "id,client_id,period_start,period_end,expires_at,allow_requests,show_amounts,identifier_hash,password_hash,full_token_hash,full_show_financial,full_show_billing,visible_service_ids";
+    const legacySelect = "id,client_id,period_start,period_end,expires_at";
     let links;
     try {
       links = await supabase(
-        `/rest/v1/service_tracking_links?token_hash=eq.${accessCodeHash(accessCode)}&active=eq.true&select=id,client_id,period_start,period_end,expires_at,allow_requests,show_amounts&limit=1`
+        `/rest/v1/service_tracking_links?token_hash=eq.${accessCodeHash(accessCode)}&active=eq.true&select=${fullSelect}&limit=1`
       );
     } catch (error) {
-      if (!/allow_requests|show_amounts|schema cache|Could not find/i.test(error.message || "")) throw error;
+      if (!/allow_requests|show_amounts|identifier_hash|password_hash|full_token_hash|full_show_financial|full_show_billing|visible_service_ids|schema cache|Could not find/i.test(error.message || "")) throw error;
       links = await supabase(
-        `/rest/v1/service_tracking_links?token_hash=eq.${accessCodeHash(accessCode)}&active=eq.true&select=id,client_id,period_start,period_end,expires_at&limit=1`
+        `/rest/v1/service_tracking_links?token_hash=eq.${accessCodeHash(accessCode)}&active=eq.true&select=${legacySelect}&limit=1`
       );
-      if (links[0]) links[0].allow_requests = false;
-      if (links[0]) links[0].show_amounts = true;
+      if (links[0]) {
+        links[0].allow_requests = false;
+        links[0].show_amounts = true;
+        links[0].identifier_hash = null;
+        links[0].password_hash = null;
+        links[0].full_token_hash = null;
+        links[0].full_show_financial = true;
+        links[0].full_show_billing = true;
+        links[0].visible_service_ids = [];
+      }
     }
     const link = links[0];
     if (!link || new Date(link.expires_at) <= new Date()) {
       return json(401, { error: "Este link expirou ou foi substituído." });
     }
 
+    const linkMode = (link.identifier_hash || link.full_token_hash) ? "gated" : "legacy";
+    const tier = resolveTrackingTier(link, { fullAccessCode, identifier, password });
+    const visibleServiceIds = Array.isArray(link.visible_service_ids) ? link.visible_service_ids : [];
+    const serviceFilter = visibleServiceFilter(visibleServiceIds);
+
+    const legacyFinancial = tier === "full-legacy" && link.show_amounts !== false;
+    const includeCurrentServices = legacyFinancial || (tier === "full" && link.full_show_financial !== false);
+    const includeBilling = legacyFinancial || (tier === "full" && link.full_show_billing !== false);
+
     const clientId = encodeURIComponent(link.client_id);
     const [clients, services] = await Promise.all([
       supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,name,price_table_id&limit=1`),
       supabase(
-        `/rest/v1/service_entries?client_id=eq.${clientId}&service_date=gte.${link.period_start}&service_date=lte.${link.period_end}&status=neq.Cancelado&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,updated_at,billing_id&order=service_date.desc`
+        `/rest/v1/service_entries?client_id=eq.${clientId}&service_date=gte.${link.period_start}&service_date=lte.${link.period_end}&status=neq.Cancelado&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,updated_at,billing_id,service_id${serviceFilter}&order=service_date.desc`
       )
     ]);
     if (!clients.length) return json(404, { error: "Cliente não encontrado." });
     const client = clients[0];
 
-    const includeFinancial = link.show_amounts !== false;
-    const [currentServices, latestBillings, paymentMethodsList] = includeFinancial
-      ? await Promise.all([
-        supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason&order=service_date.desc`),
-        supabase(`/rest/v1/billings?client_id=eq.${clientId}&status=neq.Cancelada&select=*&order=period_end.desc,created_at.desc&limit=1`),
-        supabase("/rest/v1/payment_methods?active=eq.true&select=id,type,name,details,payment_link&order=created_at.asc")
-      ])
-      : [[], [], []];
+    const currentServices = includeCurrentServices
+      ? await supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,service_id${serviceFilter}&order=service_date.desc`)
+      : [];
 
     let billing = null;
-    if (latestBillings[0]) {
-      const latest = latestBillings[0];
-      const billingId = encodeURIComponent(latest.id);
-      const [billingServices, billingPayments] = await Promise.all([
-        supabase(`/rest/v1/service_entries?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason&order=service_date.asc`),
-        supabase(`/rest/v1/payments?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,payment_date,amount,method,notes,created_at&order=payment_date.asc`)
-      ]);
-      billing = {
-        ...latest,
-        status: latest.snapshot?.rolledIntoBillingId ? "Consolidada" : latest.status,
-        open_amount: billingOpenAmount(latest, billingPayments),
-        services: billingServices,
-        payments: billingPayments,
-        paymentMethods: selectBillingPaymentMethods(latest, paymentMethodsList)
-      };
+    if (includeBilling) {
+      const latestBillings = await supabase(`/rest/v1/billings?client_id=eq.${clientId}&status=neq.Cancelada&select=*&order=period_end.desc,created_at.desc&limit=1`);
+      if (latestBillings[0]) {
+        const latest = latestBillings[0];
+        const billingId = encodeURIComponent(latest.id);
+        const [billingServices, billingPayments, paymentMethodsList] = await Promise.all([
+          supabase(`/rest/v1/service_entries?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,service_id${serviceFilter}&order=service_date.asc`),
+          supabase(`/rest/v1/payments?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,payment_date,amount,method,notes,created_at&order=payment_date.asc`),
+          supabase("/rest/v1/payment_methods?active=eq.true&select=id,type,name,details,payment_link&order=created_at.asc")
+        ]);
+        billing = {
+          ...latest,
+          status: latest.snapshot?.rolledIntoBillingId ? "Consolidada" : latest.status,
+          open_amount: billingOpenAmount(latest, billingPayments),
+          services: billingServices,
+          payments: billingPayments,
+          paymentMethods: selectBillingPaymentMethods(latest, paymentMethodsList)
+        };
+      }
     }
     const [requestCatalog, clientRequests, clientRequesters] = await Promise.all([
       link.allow_requests && client.price_table_id
@@ -93,13 +124,16 @@ export default async (request) => {
       period: { startDate: link.period_start, endDate: link.period_end },
       expiresAt: link.expires_at,
       allowRequests: Boolean(link.allow_requests),
-      showAmounts: link.show_amounts !== false,
+      showAmounts: includeCurrentServices,
+      linkMode,
+      tier,
       updatedAt: new Date().toISOString(),
       services,
       currentServices,
       billing,
       requestServices: requestCatalog
         .filter((item) => item.service_catalog)
+        .filter((item) => !visibleServiceIds.length || visibleServiceIds.includes(item.service_catalog.id))
         .map((item) => ({
           id: item.service_catalog.id,
           code: item.service_catalog.code || "",

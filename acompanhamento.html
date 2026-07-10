@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=21">
+  <link rel="stylesheet" href="acompanhamento.css?v=22">
 </head>
 <body>
   <header class="tracking-header">
@@ -15,11 +15,24 @@
   <main class="tracking-main">
     <section id="loadingPanel" class="tracking-card tracking-message">Carregando serviços...</section>
     <section id="errorPanel" class="tracking-card tracking-message tracking-error hidden"></section>
+    <section id="trackingAccessChoice" class="tracking-card tracking-access-choice hidden">
+      <h2>Como deseja entrar?</h2>
+      <p class="meta">Entre sem senha para só acompanhar os serviços, ou digite a senha para o acesso completo.</p>
+      <button id="enterWithoutPasswordButton" class="tracking-primary full" type="button">Entrar sem senha</button>
+      <form id="trackingPasswordForm" class="tracking-password-form">
+        <label>Identificador<input name="identifier" autocomplete="username" required placeholder="GS-00000000"></label>
+        <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="tracking-secondary full" type="submit">Entrar com senha</button>
+        <p id="trackingPasswordError" class="tracking-form-message" role="alert"></p>
+        <button id="cancelPasswordEntryButton" class="tracking-link-button" type="button">Voltar</button>
+      </form>
+    </section>
     <section id="trackingPanel" class="hidden">
       <div class="tracking-intro">
         <div><span class="eyebrow">Consulta somente leitura</span><h2 id="clientName"></h2><p id="periodText"></p></div>
         <div class="updated-box"><span>Atualizado em</span><strong id="updatedAt"></strong></div>
       </div>
+      <button id="switchToFullAccessButton" class="tracking-link-button hidden" type="button">Tenho senha, quero acesso completo</button>
       <nav id="trackingNav" class="tracking-nav" aria-label="Areas do acompanhamento">
         <button class="active" type="button" data-tracking-view="services">Serviços</button>
         <button id="trackingFinancialTab" class="hidden" type="button" data-tracking-view="financial">Financeiro</button>
@@ -96,6 +109,6 @@
       </div>
     </form>
   </dialog>
-  <script src="acompanhamento.js?v=23"></script>
+  <script src="acompanhamento.js?v=24"></script>
 </body>
 </html>

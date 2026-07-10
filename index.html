@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=72">
+  <link rel="stylesheet" href="styles.css?v=73">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -839,7 +839,7 @@
   <dialog id="trackingDialog">
     <form id="trackingForm" method="dialog">
       <div class="dialog-heading"><h2>Acompanhamento do cliente</h2><button class="icon-button" value="cancel">×</button></div>
-      <p class="meta">Crie um link somente para consulta dos serviços e valores no período selecionado.</p>
+      <p class="meta">Cria um link com dois niveis de acesso: sem senha (so a aba Servicos, sem valores) e com senha (acesso completo aos itens escolhidos abaixo).</p>
       <input name="clientId" type="hidden">
       <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
       <div class="date-pair">
@@ -857,10 +857,36 @@
         <input name="allowRequests" type="checkbox">
         Permitir que o cliente envie novos pedidos por este link
       </label>
-      <label class="checkbox-label">
-        <input name="showAmounts" type="checkbox" checked>
-        Exibir valores e informações financeiras (Financeiro e Relatório de cobrança) neste link
-      </label>
+      <fieldset class="tracking-access-fieldset">
+        <legend>Acesso completo (com senha)</legend>
+        <label class="checkbox-label"><input type="radio" name="passwordMode" value="embedded" checked> Link com senha embutida (o cliente abre e já entra)</label>
+        <label class="checkbox-label"><input type="radio" name="passwordMode" value="typed"> Gerar identificador e senha para eu enviar ao cliente</label>
+      </fieldset>
+      <fieldset class="tracking-access-fieldset">
+        <legend>Abas do acesso completo</legend>
+        <label class="checkbox-label"><input name="showFinancial" type="checkbox" checked> Financeiro</label>
+        <label class="checkbox-label"><input name="showBilling" type="checkbox" checked> Relatório de cobrança</label>
+        <p class="hint">O acesso sem senha mostra sempre só a aba Serviços, sem valores.</p>
+      </fieldset>
+      <fieldset class="tracking-access-fieldset">
+        <legend>Serviços visíveis para o cliente</legend>
+        <div class="tracking-service-toggle-actions">
+          <button class="secondary" type="button" data-tracking-services-all>Marcar todos</button>
+          <button class="secondary" type="button" data-tracking-services-none>Desmarcar todos</button>
+        </div>
+        <div id="trackingServiceOptions" class="tracking-service-checklist"></div>
+      </fieldset>
+      <div id="trackingAccessResult" class="tracking-access-result hidden" aria-live="polite">
+        <strong id="trackingAccessStatus">Acesso completo gerado</strong>
+        <div class="tracking-access-credentials">
+          <span>Identificador: <strong id="trackingAccessIdentifier"></strong></span>
+          <span>Senha: <strong id="trackingAccessPassword"></strong></span>
+        </div>
+        <div class="tracking-access-actions">
+          <button class="secondary" type="button" data-copy-tracking="identifier">Copiar identificador</button>
+          <button class="secondary" type="button" data-copy-tracking="password">Copiar senha</button>
+        </div>
+      </div>
       <p class="hint">Um novo link para o mesmo cliente e período invalidará o anterior.</p>
       <div class="dialog-form-actions">
         <button class="secondary" type="button" data-close-dialog>Cancelar</button>
@@ -1181,7 +1207,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=87"></script>
+  <script src="app.js?v=88"></script>
   <script src="supplier.js?v=40"></script>
 </body>
 </html>

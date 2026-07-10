@@ -19,7 +19,29 @@ alter table public.service_tracking_links
 alter table public.service_tracking_links
   add column if not exists show_amounts boolean not null default true;
 
+alter table public.service_tracking_links
+  add column if not exists identifier_hash text;
+
+alter table public.service_tracking_links
+  add column if not exists password_hash text;
+
+alter table public.service_tracking_links
+  add column if not exists full_token_hash text;
+
+alter table public.service_tracking_links
+  add column if not exists full_show_financial boolean not null default true;
+
+alter table public.service_tracking_links
+  add column if not exists full_show_billing boolean not null default true;
+
+alter table public.service_tracking_links
+  add column if not exists visible_service_ids uuid[] not null default '{}';
+
 create index if not exists service_tracking_links_client_period_idx
   on public.service_tracking_links(client_id, period_start, period_end);
+
+create unique index if not exists service_tracking_links_full_token_idx
+  on public.service_tracking_links(full_token_hash)
+  where full_token_hash is not null;
 
 alter table public.service_tracking_links enable row level security;

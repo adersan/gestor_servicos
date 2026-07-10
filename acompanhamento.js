@@ -1,7 +1,12 @@
 const trackingTokenKey = "gestor_servicos_tracking_code";
+const trackingFullKey = "gestor_servicos_tracking_full";
+const trackingIdentifierKey = "gestor_servicos_tracking_identifier";
+const trackingPasswordKey = "gestor_servicos_tracking_password";
+const trackingChoiceKey = "gestor_servicos_tracking_choice";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 let refreshInProgress = false;
 let trackingData = null;
+let pendingRestrictedData = null;
 let activeTrackingView = "services";
 
 function escapeHtml(value) {
@@ -325,15 +330,39 @@ function syncRequestServiceSelection() {
   return service;
 }
 
-async function requestData(accessCode) {
+async function requestData(accessCode, credentials = {}) {
   const response = await fetch("/.netlify/functions/service-tracking-data", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accessCode })
+    body: JSON.stringify({ accessCode, ...credentials })
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "Nao foi possivel abrir o acompanhamento.");
   return data;
+}
+
+function storedTrackingCredentials() {
+  return {
+    fullAccessCode: sessionStorage.getItem(trackingFullKey) || undefined,
+    identifier: sessionStorage.getItem(trackingIdentifierKey) || undefined,
+    password: sessionStorage.getItem(trackingPasswordKey) || undefined
+  };
+}
+
+function showAccessChoice() {
+  document.getElementById("loadingPanel").classList.add("hidden");
+  document.getElementById("errorPanel").classList.add("hidden");
+  document.getElementById("trackingPanel").classList.add("hidden");
+  document.getElementById("trackingAccessChoice").classList.remove("hidden");
+}
+
+function enterRestricted() {
+  const data = pendingRestrictedData || trackingData;
+  if (!data) return;
+  sessionStorage.setItem(trackingChoiceKey, "restricted");
+  document.getElementById("trackingAccessChoice").classList.add("hidden");
+  pendingRestrictedData = null;
+  render(data);
 }
 
 async function sendTrackingRequest(payload) {
@@ -586,6 +615,7 @@ function render(data) {
   renderRequestArea(data);
   document.getElementById("trackingFinancialTab").classList.toggle("hidden", data.showAmounts === false);
   document.getElementById("trackingBillingTab").classList.toggle("hidden", !data.billing);
+  document.getElementById("switchToFullAccessButton").classList.toggle("hidden", !(data.linkMode === "gated" && data.tier === "restricted"));
   renderFinancialView(data);
   if (data.billing) renderBillingView(data);
   selectTrackingView(activeTrackingView);
@@ -628,16 +658,28 @@ function renderRequestArea(data) {
 }
 
 async function loadTracking() {
-  const queryCode = new URLSearchParams(location.search).get("access");
+  const params = new URLSearchParams(location.search);
+  const queryCode = params.get("access");
+  const queryFull = params.get("full");
   if (queryCode) {
     sessionStorage.setItem(trackingTokenKey, queryCode);
+    if (queryFull) sessionStorage.setItem(trackingFullKey, queryFull);
     history.replaceState({}, "", location.pathname);
   }
   const accessCode = queryCode || sessionStorage.getItem(trackingTokenKey);
   if (!accessCode) throw new Error("Este link de acompanhamento e invalido.");
   document.getElementById("loadingPanel").classList.remove("hidden");
   document.getElementById("errorPanel").classList.add("hidden");
-  render(await requestData(accessCode));
+  const data = await requestData(accessCode, storedTrackingCredentials());
+  const storedChoice = sessionStorage.getItem(trackingChoiceKey);
+  if (data.linkMode === "gated" && data.tier === "restricted" && !storedChoice) {
+    pendingRestrictedData = data;
+    showAccessChoice();
+    return;
+  }
+  if (data.linkMode === "gated") sessionStorage.setItem(trackingChoiceKey, data.tier);
+  document.getElementById("trackingAccessChoice").classList.add("hidden");
+  render(data);
 }
 
 async function refreshTracking() {
@@ -666,6 +708,42 @@ function showError(error) {
 }
 
 document.getElementById("refreshButton").addEventListener("click", refreshTracking);
+document.getElementById("enterWithoutPasswordButton").addEventListener("click", enterRestricted);
+document.getElementById("cancelPasswordEntryButton").addEventListener("click", enterRestricted);
+document.getElementById("switchToFullAccessButton").addEventListener("click", () => {
+  sessionStorage.removeItem(trackingChoiceKey);
+  showAccessChoice();
+});
+document.getElementById("trackingPasswordForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const errorBox = document.getElementById("trackingPasswordError");
+  const button = form.querySelector('button[type="submit"]');
+  const identifier = form.elements.identifier.value.trim();
+  const password = form.elements.password.value;
+  errorBox.textContent = "";
+  button.disabled = true;
+  button.textContent = "Entrando...";
+  try {
+    const accessCode = sessionStorage.getItem(trackingTokenKey);
+    const data = await requestData(accessCode, { ...storedTrackingCredentials(), identifier, password });
+    if (data.tier !== "full") {
+      errorBox.textContent = "Identificador ou senha inválidos.";
+      return;
+    }
+    sessionStorage.setItem(trackingIdentifierKey, identifier);
+    sessionStorage.setItem(trackingPasswordKey, password);
+    sessionStorage.setItem(trackingChoiceKey, "full");
+    pendingRestrictedData = null;
+    document.getElementById("trackingAccessChoice").classList.add("hidden");
+    render(data);
+  } catch (error) {
+    errorBox.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Entrar com senha";
+  }
+});
 document.getElementById("trackingNav").addEventListener("click", (event) => {
   const button = event.target.closest("[data-tracking-view]");
   if (!button) return;

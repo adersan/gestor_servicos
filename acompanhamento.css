@@ -125,6 +125,12 @@ dialog::backdrop { background:rgba(21,38,34,.42); backdrop-filter:blur(3px); }
 .tracking-payments-table { width:100%; border-collapse:collapse; margin:0; }
 .tracking-payments-table th, .tracking-payments-table td { padding:11px; border-bottom:1px solid var(--line); text-align:left; }
 .tracking-payments-table th:last-child, .tracking-payments-table td:last-child { text-align:right; }
+.full { width:100%; margin-top:8px; }
+.tracking-access-choice { max-width:420px; margin:40px auto; text-align:center; display:grid; gap:14px; }
+.tracking-access-choice h2 { margin:0; }
+.tracking-password-form { display:grid; gap:10px; margin-top:6px; text-align:left; }
+.tracking-link-button { padding:6px; border:0; color:var(--brand); background:transparent; font-weight:750; text-decoration:underline; cursor:pointer; }
+#switchToFullAccessButton { margin-bottom:10px; }
 @media (max-width:700px) {
   .tracking-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .tracking-dashboard { grid-template-columns:1fr; }
