@@ -67,6 +67,34 @@ function originCancelledNote(item, primary = null) {
   return `<em class="tracking-origin-cancelled-note">${escapeHtml(message)}</em>`;
 }
 
+function requestServiceOptionLabel(item) {
+  return item ? (item.code ? `${item.code} - ${item.name}` : item.name) : "";
+}
+
+function requestServiceMatch(value) {
+  const services = trackingData?.requestServices || [];
+  const search = searchableText(value).trim();
+  if (!search) return null;
+  const exact = services.find((item) =>
+    searchableText(requestServiceOptionLabel(item)) === search
+    || searchableText(item.name) === search
+    || searchableText(item.code) === search);
+  if (exact) return exact;
+  const partial = services.filter((item) => searchableText(requestServiceOptionLabel(item)).includes(search));
+  return partial.length === 1 ? partial[0] : null;
+}
+
+function syncRequestServiceSelection() {
+  const form = document.getElementById("trackingRequestForm");
+  const previousServiceId = form.elements.serviceId.value;
+  const service = requestServiceMatch(form.elements.serviceSearch.value);
+  form.elements.serviceId.value = service?.id || "";
+  if (form.elements.serviceId.value !== previousServiceId) {
+    form.elements.amount.value = trackingData?.showAmounts === false ? "Valor sob consulta" : money.format(Number(service?.amount || 0));
+  }
+  return service;
+}
+
 async function requestData(accessCode) {
   const response = await fetch("/.netlify/functions/service-tracking-data", {
     method: "POST",
@@ -218,13 +246,19 @@ function renderRequestArea(data) {
   const form = document.getElementById("trackingRequestForm");
   const services = data.requestServices || [];
   form.elements.requestedDate.value = new Date().toISOString().slice(0, 10);
-  const currentService = form.elements.serviceId.value;
-  form.elements.serviceId.innerHTML = services.length
-    ? services.map((service) => `<option value="${escapeHtml(service.id)}" data-amount="${Number(service.amount || 0)}">${escapeHtml(service.code ? `${service.code} - ${service.name}` : service.name)}</option>`).join("")
-    : `<option value="">Nenhum serviço disponível</option>`;
-  if (services.some((service) => service.id === currentService)) form.elements.serviceId.value = currentService;
-  const selected = services.find((service) => service.id === form.elements.serviceId.value) || services[0];
-  form.elements.amount.value = data.showAmounts === false ? "Valor sob consulta" : money.format(Number(selected?.amount || 0));
+  document.getElementById("trackingRequestServiceOptions").innerHTML = services
+    .map((service) => `<option value="${escapeHtml(requestServiceOptionLabel(service))}"></option>`)
+    .join("");
+  form.elements.serviceSearch.disabled = !services.length;
+  form.elements.serviceSearch.placeholder = services.length ? "Digite o código ou nome" : "Nenhum serviço disponível";
+  if (document.activeElement !== form.elements.serviceSearch) {
+    const currentServiceId = form.elements.serviceId.value;
+    const currentService = services.find((service) => service.id === currentServiceId) || null;
+    const selected = currentService || services[0] || null;
+    form.elements.serviceId.value = selected?.id || "";
+    form.elements.serviceSearch.value = requestServiceOptionLabel(selected);
+    form.elements.amount.value = !services.length ? "" : data.showAmounts === false ? "Valor sob consulta" : money.format(Number(selected?.amount || 0));
+  }
   form.querySelector('button[value="default"]').disabled = !services.length;
   document.getElementById("trackingRequesterOptions").innerHTML = (data.clientRequesters || [])
     .map((item) => `<option value="${escapeHtml(item.name)}"></option>`)
@@ -289,7 +323,7 @@ document.getElementById("trackingServiceSort")?.addEventListener("change", () =>
 document.getElementById("openTrackingRequestDialog").addEventListener("click", () => {
   renderRequestArea(trackingData || {});
   document.getElementById("trackingRequestDialog").showModal();
-  setTimeout(() => document.querySelector('#trackingRequestForm select[name="serviceId"]').focus(), 0);
+  setTimeout(() => document.querySelector('#trackingRequestForm input[name="serviceSearch"]').focus(), 0);
 });
 document.querySelectorAll("[data-close-tracking-request]").forEach((button) => button.addEventListener("click", () => {
   const form = document.getElementById("trackingRequestForm");
@@ -297,10 +331,11 @@ document.querySelectorAll("[data-close-tracking-request]").forEach((button) => b
   document.getElementById("trackingRequestMessage").textContent = "";
   document.getElementById("trackingRequestDialog").close();
 }));
+document.getElementById("trackingRequestForm").addEventListener("input", (event) => {
+  if (event.target.name === "serviceSearch" && trackingData) syncRequestServiceSelection();
+});
 document.getElementById("trackingRequestForm").addEventListener("change", (event) => {
-  if (event.target.name !== "serviceId" || !trackingData) return;
-  const service = (trackingData.requestServices || []).find((item) => item.id === event.target.value);
-  event.currentTarget.elements.amount.value = trackingData.showAmounts === false ? "Valor sob consulta" : money.format(Number(service?.amount || 0));
+  if (event.target.name === "serviceSearch" && trackingData) syncRequestServiceSelection();
 });
 document.getElementById("trackingRequestForm").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-add-tracking-requester]");
@@ -337,7 +372,7 @@ document.getElementById("trackingRequestForm").addEventListener("keydown", (even
   event.preventDefault();
   const fields = [
     form.elements.requestedDate,
-    form.elements.serviceId,
+    form.elements.serviceSearch,
     form.elements.amount,
     form.elements.references,
     form.elements.requestedBy,
@@ -351,6 +386,11 @@ document.getElementById("trackingRequestForm").addEventListener("submit", async 
   event.preventDefault();
   const form = event.currentTarget;
   const message = document.getElementById("trackingRequestMessage");
+  if (!syncRequestServiceSelection()) {
+    message.textContent = "Selecione um serviço válido da lista.";
+    form.elements.serviceSearch.focus();
+    return;
+  }
   const button = form.querySelector('button[value="default"]');
   const accessCode = sessionStorage.getItem(trackingTokenKey);
   button.disabled = true;

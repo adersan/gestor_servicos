@@ -1,6 +1,6 @@
-# AGENTS.md - Gestor de Servicos
+# CLAUDE.md - Gestor de Servicos
 
-Este arquivo orienta qualquer agente/Codex que continuar o projeto. O sistema ja esta em uso real, entao mudancas devem ser pequenas, testadas localmente e publicadas em lote para economizar creditos do Netlify.
+Este arquivo orienta o Claude Code (e qualquer agente) que trabalhar neste projeto. O sistema ja esta em uso real, entao mudancas devem ser pequenas, testadas localmente e publicadas em lote para economizar creditos do Netlify.
 
 ## Local Atual Do Projeto
 
@@ -158,13 +158,12 @@ Sem versionamento de cache, o celular pode continuar usando arquivo antigo.
 - Conferir `git status -sb` antes de editar/commitar.
 - Manter alteracoes pequenas e coerentes com o padrao atual.
 - Evitar refatoracoes grandes enquanto o sistema esta em uso.
-- Usar `apply_patch` para edicoes manuais.
 - Nao gravar tokens, bearer, service role ou chaves secretas em arquivos versionados.
 - Se mudar banco, documentar qual SQL deve ser executado no Supabase.
 - Se a mudanca impactar celular, testar mentalmente layout responsivo e reduzir excesso visual.
 - Se a mudanca impactar financeiro/cobranca, conferir pagamentos parciais, quitacao, credito e saldo anterior.
 
-## Regras Para Codex No Terminal
+## Regras De Git E Publicacao
 
 Estas regras refletem o combinado com o usuario durante o desenvolvimento real do sistema.
 
@@ -183,34 +182,16 @@ Estas regras refletem o combinado com o usuario durante o desenvolvimento real d
   - `index.html`: `app.js?v=N`
   - `sw.js`: `CACHE = "gestor-servicos-vN"` e asset `app.js?v=N`
   - `app.js`: `navigator.serviceWorker.register("sw.js?v=N")`
-- Rodar validacoes antes de commit/deploy:
-  - `node --check app.js`
-  - `node --check data.js`
-  - `node --check cliente.js`
-  - `node --check acompanhamento.js`
-  - `node --check fornecedor.js`
-  - `node --check supplier.js`
-  - `node tests\billing-rollover.test.mjs`
-  - `node tests\reference-history.test.mjs`
-  - `git diff --check`
+- Rodar validacoes antes de commit/deploy (ver secao Testes E Validacao acima).
 - Se a mudanca envolver Netlify Functions, rodar `node --check` na funcao alterada.
 - Se a mudanca exigir banco, criar/atualizar arquivo SQL em `supabase` e avisar o usuario exatamente qual script executar no Supabase.
-- Nunca colocar secrets no codigo:
-  - Supabase service role/secret key
-  - Bearer token
-  - Device token
-  - Webhook secret
-  - Chaves de API
+- Nunca colocar secrets no codigo: Supabase service role/secret key, Bearer token, Device token, Webhook secret, Chaves de API.
 - Secrets devem ficar somente nas variaveis de ambiente do Netlify.
 - Evitar comandos destrutivos como `git reset --hard`, `git checkout --`, `rm`/`Remove-Item` sem pedido explicito e confirmacao.
 - Preferir patches pequenos e revisar o diff antes de commitar.
-- Ao final, informar:
-  - arquivos alterados;
-  - testes executados;
-  - se foi publicado ou ficou apenas local;
-  - se existe alguma pendencia de SQL/cache/deploy.
+- Ao final, informar: arquivos alterados; testes executados; se foi publicado ou ficou apenas local; se existe alguma pendencia de SQL/cache/deploy.
 
-### Publicacao
+### Fluxo De Publicacao
 
 Fluxo recomendado quando o usuario disser claramente "pode subir":
 

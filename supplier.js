@@ -49,17 +49,22 @@
     return payableOpen(payable) <= 0.001 ? "Paga" : "Parcial";
   }
 
-  function supplierOptions(selected = "") {
-    return `<option value="">Selecione</option>${state.suppliers.map((item) =>
-      `<option value="${item.id}" ${item.id === selected ? "selected" : ""}>${escapeHtml(item.name)}${item.isDefault ? " (padrão)" : ""}</option>`
-    ).join("")}`;
+  function supplierOptionLabel(supplier) {
+    return supplier ? `${supplier.name}${supplier.isDefault ? " (padrão)" : ""}` : "";
   }
 
-  function serviceOptions(supplierId, selected = "") {
-    return `<option value="">Selecione</option>${state.supplierServices
-      .filter((item) => item.supplierId === supplierId)
-      .map((item) => `<option value="${item.id}" ${item.id === selected ? "selected" : ""}>${escapeHtml(item.code ? `${item.code} - ${item.name}` : item.name)} · ${money.format(item.cost)}</option>`)
-      .join("")}`;
+  function uniqueSupplierMatch(value) {
+    const search = normalized(value).trim();
+    if (!search) return null;
+    const matches = state.suppliers.filter((item) => normalized(item.name).includes(search));
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  function syncSupplierSearchField(form) {
+    const supplier = itemByExactLabel(state.suppliers, form.elements.supplierSearch.value, supplierOptionLabel)
+      || uniqueSupplierMatch(form.elements.supplierSearch.value);
+    form.elements.supplierId.value = supplier?.id || "";
+    return supplier;
   }
 
   function supplierServiceOptionLabel(service) {
@@ -106,13 +111,10 @@
         `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("")}`;
       field.value = selected;
     });
-    document.querySelectorAll(
-      "#supplierServiceForm select[name=supplierId], #supplierEntryForm select[name=supplierId], #supplierPayableForm select[name=supplierId], #supplierAccessForm select[name=supplierId]"
-    ).forEach((field) => {
-      const selected = field.value;
-      field.innerHTML = supplierOptions(selected);
-      field.value = selected;
-    });
+    byId("supplierOptions").innerHTML = [...state.suppliers]
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+      .map((item) => `<option value="${escapeHtml(supplierOptionLabel(item))}"></option>`)
+      .join("");
   }
 
   function renderDashboard() {
@@ -302,6 +304,7 @@
     fillSelects();
     form.elements.id.value = item?.id || "";
     form.elements.supplierId.value = item?.supplierId || defaultSupplier()?.id || "";
+    form.elements.supplierSearch.value = supplierOptionLabel(supplierById(form.elements.supplierId.value));
     form.elements.code.value = item?.code || "";
     form.elements.name.value = item?.name || "";
     form.elements.cost.value = item ? Number(item.cost).toFixed(2) : "";
@@ -310,7 +313,20 @@
   }
 
   function syncEntryServices(form, selected = "") {
-    form.elements.supplierServiceId.innerHTML = serviceOptions(form.elements.supplierId.value, selected);
+    const supplierId = form.elements.supplierId.value;
+    const services = state.supplierServices.filter((item) => item.supplierId === supplierId);
+    byId("supplierEntryServiceOptions").innerHTML = services
+      .map((item) => `<option value="${escapeHtml(supplierServiceOptionLabel(item))}"></option>`)
+      .join("");
+    const service = services.find((item) => item.id === selected) || null;
+    form.elements.supplierServiceId.value = service?.id || "";
+    form.elements.supplierServiceSearch.value = supplierServiceOptionLabel(service);
+  }
+
+  function syncSupplierEntryServiceSelection(form) {
+    const service = clientSupplierServiceMatch(form.elements.supplierId.value, form.elements.supplierServiceSearch.value);
+    form.elements.supplierServiceId.value = service?.id || "";
+    if (service) form.elements.amount.value = Number(service.cost).toFixed(2);
   }
 
   function syncClientEntryServices(selected = "") {
@@ -354,13 +370,14 @@
 
   function addClientSupplierService() {
     const form = byId("serviceForm");
+    syncSupplierSearchField(form);
     syncClientEntryServiceSelection(true);
     const supplierId = form.elements.supplierId.value;
     const supplierServiceId = form.elements.supplierServiceId.value;
     const amount = Number(form.elements.supplierAmount.value);
     if (!supplierId) {
       alert("Selecione o fornecedor.");
-      form.elements.supplierId.focus();
+      form.elements.supplierSearch.focus();
       return false;
     }
     if (!supplierServiceId) {
@@ -400,8 +417,8 @@
     checkbox.checked = false;
     checkbox.disabled = disabled || !state.suppliers.length || !state.supplierServices.length;
     byId("clientSupplierServiceSection").classList.add("hidden");
-    form.elements.supplierId.innerHTML = supplierOptions();
     form.elements.supplierId.value = defaultSupplier()?.id || "";
+    form.elements.supplierSearch.value = supplierOptionLabel(defaultSupplier());
     syncClientEntryServices();
     byId("clientSupplierServiceHint").textContent = checkbox.disabled && !disabled
       ? "Cadastre um fornecedor e pelo menos um serviço para ativar esta opção."
@@ -542,6 +559,7 @@
     form.elements.clientServiceEntryId.value = item?.clientServiceEntryId || "";
     form.elements.clientId.value = item?.clientId || "";
     form.elements.supplierId.value = item?.supplierId || defaultSupplier()?.id || "";
+    form.elements.supplierSearch.value = supplierOptionLabel(supplierById(form.elements.supplierId.value));
     syncEntryServices(form, item?.supplierServiceId || "");
     form.elements.date.value = item?.date || today();
     form.elements.reference.value = item?.reference || "";
@@ -558,6 +576,7 @@
     fillSelects();
     const week = currentOperationalWeek();
     form.elements.supplierId.value = defaultSupplier()?.id || "";
+    form.elements.supplierSearch.value = supplierOptionLabel(defaultSupplier());
     form.elements.startDate.value = week.startDate;
     form.elements.endDate.value = week.endDate;
     byId("supplierPayableDialog").showModal();
@@ -579,6 +598,7 @@
     fillSelects();
     const week = currentOperationalWeek();
     form.elements.supplierId.value = defaultSupplier()?.id || "";
+    form.elements.supplierSearch.value = supplierOptionLabel(defaultSupplier());
     form.elements.startDate.value = week.startDate;
     form.elements.endDate.value = week.endDate;
     byId("supplierAccessDialog").showModal();
@@ -800,7 +820,13 @@
   byId("supplierServiceForm").addEventListener("submit", (event) => {
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    if (!syncSupplierSearchField(form)) {
+      alert("Selecione um fornecedor válido da lista.");
+      form.elements.supplierSearch.focus();
+      return;
+    }
+    const data = new FormData(form);
     const item = { id: data.get("id") || crypto.randomUUID(), supplierId: data.get("supplierId"), code: data.get("code").trim(), name: data.get("name").trim(), cost: Number(data.get("cost")), active: true };
     const index = state.supplierServices.findIndex((service) => service.id === item.id);
     if (index >= 0) state.supplierServices[index] = item; else state.supplierServices.push(item);
@@ -810,7 +836,19 @@
   byId("supplierEntryForm").addEventListener("submit", async (event) => {
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    if (!syncSupplierSearchField(form)) {
+      alert("Selecione um fornecedor válido da lista.");
+      form.elements.supplierSearch.focus();
+      return;
+    }
+    syncSupplierEntryServiceSelection(form);
+    if (!form.elements.supplierServiceId.value) {
+      alert("Selecione um serviço válido da lista.");
+      form.elements.supplierServiceSearch.focus();
+      return;
+    }
+    const data = new FormData(form);
     const existing = state.supplierEntries.find((entry) => entry.id === data.get("id"));
     const service = supplierServiceById(data.get("supplierServiceId"));
     const now = new Date().toISOString();
@@ -833,8 +871,8 @@
     event.preventDefault();
     const form = event.currentTarget;
     const fields = [
-      form.elements.supplierId,
-      form.elements.supplierServiceId,
+      form.elements.supplierSearch,
+      form.elements.supplierServiceSearch,
       form.elements.date,
       form.elements.reference,
       form.elements.amount,
@@ -868,7 +906,13 @@
   byId("supplierPayableForm").addEventListener("submit", async (event) => {
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    if (!syncSupplierSearchField(form)) {
+      alert("Selecione um fornecedor válido da lista.");
+      form.elements.supplierSearch.focus();
+      return;
+    }
+    const data = new FormData(form);
     const entries = state.supplierEntries.filter((item) => item.supplierId === data.get("supplierId") && !item.payableId && item.status !== "Cancelado" && item.date >= data.get("startDate") && item.date <= data.get("endDate"));
     if (!entries.length) return alert("Não há lançamentos livres neste período.");
     const payableId = crypto.randomUUID();
@@ -920,6 +964,11 @@
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
     const form = event.currentTarget;
+    if (!syncSupplierSearchField(form)) {
+      alert("Selecione um fornecedor válido da lista.");
+      form.elements.supplierSearch.focus();
+      return;
+    }
     const submitButton = event.submitter;
     const data = new FormData(form);
     const errorBox = byId("supplierAccessError");
@@ -972,29 +1021,37 @@
     }
   });
 
+  function handleSupplierSearchChange(event) {
+    if (!event.target.matches('input[name="supplierSearch"]')) return;
+    const form = event.target.form;
+    syncSupplierSearchField(form);
+    if (form.id === "serviceForm") syncClientEntryServices();
+    if (form.id === "supplierEntryForm") syncEntryServices(form);
+  }
+
   document.addEventListener("change", (event) => {
-    if (event.target.matches("#supplierEntryForm select[name=supplierId]")) syncEntryServices(event.target.form);
+    handleSupplierSearchChange(event);
     if (event.target.matches("#serviceForm input[name=hasSupplierService]")) {
       byId("clientSupplierServiceSection").classList.toggle("hidden", !event.target.checked);
       if (event.target.checked) {
         event.target.form.elements.supplierId.value ||= defaultSupplier()?.id || "";
+        event.target.form.elements.supplierSearch.value ||= supplierOptionLabel(supplierById(event.target.form.elements.supplierId.value));
         syncClientEntryServices();
       } else {
         clientSupplierServiceValues = [];
         renderClientSupplierServices();
       }
     }
-    if (event.target.matches("#serviceForm select[name=supplierId]")) syncClientEntryServices();
-    if (event.target.matches("#supplierEntryForm select[name=supplierServiceId]")) {
-      const service = supplierServiceById(event.target.value);
-      if (service) event.target.form.elements.amount.value = Number(service.cost).toFixed(2);
-    }
+    if (event.target.matches("#supplierEntryForm input[name=supplierServiceSearch]")) syncSupplierEntryServiceSelection(event.target.form);
   });
 
   document.addEventListener("input", (event) => {
-    if (!event.target.matches("#serviceForm input[name=supplierServiceSearch]")) return;
-    setClientSupplierServiceError();
-    syncClientEntryServiceSelection();
+    handleSupplierSearchChange(event);
+    if (event.target.matches("#serviceForm input[name=supplierServiceSearch]")) {
+      setClientSupplierServiceError();
+      syncClientEntryServiceSelection();
+    }
+    if (event.target.matches("#supplierEntryForm input[name=supplierServiceSearch]")) syncSupplierEntryServiceSelection(event.target.form);
   });
 
   document.addEventListener("blur", (event) => {

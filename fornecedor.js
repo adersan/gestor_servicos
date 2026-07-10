@@ -125,6 +125,35 @@
     `).join("") : `<div class="empty">Nenhum fornecimento no período.</div>`;
   }
 
+  function serviceOptionLabel(item) {
+    if (!item) return "";
+    const name = item.code ? `${item.code} - ${item.name}` : item.name;
+    return `${name} · ${money.format(Number(item.default_cost))}`;
+  }
+
+  function serviceMatch(value) {
+    const search = normalized(value).trim();
+    if (!search) return null;
+    const exact = data.services.find((item) =>
+      normalized(serviceOptionLabel(item)) === search
+      || normalized(item.name) === search
+      || normalized(item.code) === search);
+    if (exact) return exact;
+    const partial = data.services.filter((item) => normalized(serviceOptionLabel(item)).includes(search));
+    return partial.length === 1 ? partial[0] : null;
+  }
+
+  function syncServiceSelection() {
+    const form = document.getElementById("entryForm");
+    const previousServiceId = form.elements.serviceId.value;
+    const service = serviceMatch(form.elements.serviceSearch.value);
+    form.elements.serviceId.value = service?.id || "";
+    if (service && form.elements.serviceId.value !== previousServiceId) {
+      form.elements.amount.value = Number(service.default_cost).toFixed(2);
+    }
+    return service;
+  }
+
   function paidForPayable(payableId) {
     return data.payments.filter((item) => item.payable_id === payableId)
       .reduce((sum, item) => sum + Number(item.amount), 0);
@@ -196,9 +225,9 @@
 
     document.getElementById("openEntryEditor").classList.toggle("hidden", !permissions.canEdit);
     const form = document.getElementById("entryForm");
-    form.elements.serviceId.innerHTML = `<option value="">Selecione</option>${data.services.map((item) =>
-      `<option value="${item.id}" data-cost="${item.default_cost}">${escape(item.code ? `${item.code} - ${item.name}` : item.name)}</option>`
-    ).join("")}`;
+    document.getElementById("entryServiceOptions").innerHTML = data.services
+      .map((item) => `<option value="${escape(serviceOptionLabel(item))}"></option>`)
+      .join("");
     form.elements.date.min = data.period.startDate;
     form.elements.date.max = data.period.endDate;
     form.elements.status.closest("label").classList.toggle("hidden", !permissions.canMarkDone);
@@ -246,10 +275,11 @@
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && !document.querySelector("dialog[open]")) refresh();
   });
+  document.getElementById("entryForm").addEventListener("input", (event) => {
+    if (event.target.name === "serviceSearch") syncServiceSelection();
+  });
   document.getElementById("entryForm").addEventListener("change", (event) => {
-    if (event.target.name === "serviceId") {
-      event.currentTarget.elements.amount.value = Number(event.target.selectedOptions[0]?.dataset.cost || 0).toFixed(2);
-    }
+    if (event.target.name === "serviceSearch") syncServiceSelection();
   });
   document.getElementById("paymentPreferenceForm").addEventListener("change", (event) => {
     if (event.target.name === "method") syncPixField();
@@ -277,6 +307,11 @@
     event.preventDefault();
     const form = event.currentTarget;
     const button = event.submitter;
+    if (!syncServiceSelection()) {
+      alert("Selecione um serviço válido da lista.");
+      form.elements.serviceSearch.focus();
+      return;
+    }
     button.disabled = true;
     try {
       await request({ action: "save", ...Object.fromEntries(new FormData(form)) });
@@ -313,7 +348,9 @@
       const item = data.entries.find((entry) => entry.id === editButton.dataset.edit);
       const form = document.getElementById("entryForm");
       form.elements.entryId.value = item.id;
-      form.elements.serviceId.value = item.supplier_service_id;
+      const service = data.services.find((entry) => entry.id === item.supplier_service_id);
+      form.elements.serviceId.value = service?.id || item.supplier_service_id || "";
+      form.elements.serviceSearch.value = serviceOptionLabel(service);
       form.elements.date.value = item.service_date;
       form.elements.reference.value = item.reference || "";
       form.elements.amount.value = Number(item.amount).toFixed(2);

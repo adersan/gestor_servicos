@@ -76,7 +76,9 @@
         <button class="icon-button" value="cancel">×</button>
       </div>
       <input name="entryId" type="hidden">
-      <label>Serviço<select name="serviceId" required></select></label>
+      <input name="serviceId" type="hidden">
+      <label>Serviço<input name="serviceSearch" type="search" list="entryServiceOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
+      <datalist id="entryServiceOptions"></datalist>
       <label>Data<input name="date" type="date" required></label>
       <label>Placa ou referência<input name="reference" placeholder="Ex.: ABC1D23"></label>
       <label>Valor<input name="amount" type="number" min="0" step="0.01" required></label>

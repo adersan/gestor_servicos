@@ -803,11 +803,6 @@ function formatDate(value) {
 
 function renderSelects() {
   const options = state.clients.map((client) => `<option value="${client.id}">${escapeHtml(client.name)}</option>`).join("");
-  document.querySelectorAll('select[name="clientId"]').forEach((select) => {
-    const current = select.value;
-    select.innerHTML = `<option value="">Selecione</option>${options}`;
-    select.value = current;
-  });
   ["paymentClientFilter", "billingClientFilter"].forEach((id) => {
     const filter = document.getElementById(id);
     const currentFilter = filter.value;
@@ -1909,6 +1904,20 @@ function syncTrackingClientSelection() {
   form.elements.clientId.value = client?.id || "";
 }
 
+function syncPaymentClientSelection() {
+  const form = document.getElementById("paymentForm");
+  const client = itemByExactLabel(state.clients, form.elements.clientSearch.value, clientOptionLabel)
+    || uniqueClientMatch(form.elements.clientSearch.value);
+  form.elements.clientId.value = client?.id || "";
+}
+
+function syncBillingClientSelection() {
+  const form = document.getElementById("billingForm");
+  const client = itemByExactLabel(state.clients, form.elements.clientSearch.value, clientOptionLabel)
+    || uniqueClientMatch(form.elements.clientSearch.value);
+  form.elements.clientId.value = client?.id || "";
+}
+
 function openTrackingForm() {
   const form = document.getElementById("trackingForm");
   form.reset();
@@ -2185,6 +2194,7 @@ function openPaymentForm(item = null, billing = null, mode = "partial") {
   form.elements.paymentId.value = item?.id || "";
   form.elements.billingId.value = item?.billingId || billing?.id || "";
   form.elements.clientId.value = item?.clientId || billing?.clientId || "";
+  form.elements.clientSearch.value = clientOptionLabel(clientById(form.elements.clientId.value));
   form.elements.date.value = item?.date || new Date().toISOString().slice(0, 10);
   form.elements.amount.value = item
     ? Number(item.amount).toFixed(2)
@@ -3639,6 +3649,13 @@ document.getElementById("deleteServiceForm").addEventListener("submit", (event) 
 document.getElementById("paymentForm").addEventListener("submit", (event) => {
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
+  const form = event.currentTarget;
+  syncPaymentClientSelection();
+  if (!form.elements.clientId.value) {
+    alert("Selecione um cliente válido da lista.");
+    form.elements.clientSearch.focus();
+    return;
+  }
   const data = new FormData(event.currentTarget);
   const existingPayment = state.payments.find((item) => item.id === data.get("paymentId"));
   const now = new Date().toISOString();
@@ -3766,6 +3783,12 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
   const form = event.currentTarget;
+  syncBillingClientSelection();
+  if (!form.elements.clientId.value) {
+    alert("Selecione um cliente válido da lista.");
+    form.elements.clientSearch.focus();
+    return;
+  }
   const dialog = form.closest("dialog");
   const submitButton = event.submitter;
   const data = new FormData(form);
@@ -4121,6 +4144,10 @@ document.querySelector('#serviceForm input[name="catalogSearch"]').addEventListe
 });
 document.querySelector('#trackingForm input[name="clientSearch"]').addEventListener("input", syncTrackingClientSelection);
 document.querySelector('#trackingForm input[name="clientSearch"]').addEventListener("change", syncTrackingClientSelection);
+document.querySelector('#paymentForm input[name="clientSearch"]').addEventListener("input", syncPaymentClientSelection);
+document.querySelector('#paymentForm input[name="clientSearch"]').addEventListener("change", syncPaymentClientSelection);
+document.querySelector('#billingForm input[name="clientSearch"]').addEventListener("input", syncBillingClientSelection);
+document.querySelector('#billingForm input[name="clientSearch"]').addEventListener("change", syncBillingClientSelection);
 ["dashboardStartDate", "dashboardEndDate"].forEach((id) => {
   document.getElementById(id).addEventListener("change", () => {
     const startDate = document.getElementById("dashboardStartDate").value;

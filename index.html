@@ -744,8 +744,9 @@
         Este lançamento utiliza serviço de fornecedor
       </label>
       <section id="clientSupplierServiceSection" class="supplier-service-section hidden">
+        <input name="supplierId" type="hidden">
         <label>Fornecedor
-          <select name="supplierId"></select>
+          <input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" placeholder="Digite o nome do fornecedor">
         </label>
         <input name="supplierServiceId" type="hidden">
         <label id="clientSupplierServiceField">Serviço do fornecedor
@@ -899,7 +900,8 @@
       <div class="dialog-heading"><h2 id="paymentDialogTitle">Registrar pagamento</h2><button class="icon-button" value="cancel">×</button></div>
       <input name="paymentId" type="hidden">
       <input name="billingId" type="hidden">
-      <label>Cliente<select name="clientId" required></select></label>
+      <input name="clientId" type="hidden">
+      <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
       <label>Data<input name="date" type="date" required></label>
       <label>Valor recebido<input name="amount" type="number" min="0.01" step="0.01" required></label>
       <label>Forma de pagamento<select name="method"><option value="">Não informada</option></select></label>
@@ -915,7 +917,8 @@
   <dialog id="billingDialog">
     <form id="billingForm" method="dialog">
       <div class="dialog-heading"><h2>Gerar cobrança</h2><button class="icon-button" value="cancel">×</button></div>
-      <label>Cliente<select name="clientId" required></select></label>
+      <input name="clientId" type="hidden">
+      <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
       <label>Data inicial<input name="startDate" type="date" required></label>
       <label>Data final<input name="endDate" type="date" required></label>
       <fieldset class="method-selector">
@@ -1001,11 +1004,13 @@
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Salvar</button></div>
     </form>
   </dialog>
+  <datalist id="supplierOptions"></datalist>
   <dialog id="supplierServiceDialog">
     <form id="supplierServiceForm" method="dialog">
       <div class="dialog-heading"><h2 id="supplierServiceDialogTitle">Serviço do fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
       <input name="id" type="hidden">
-      <label>Fornecedor<select name="supplierId" required></select></label>
+      <input name="supplierId" type="hidden">
+      <label>Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
       <label>Código<input name="code" inputmode="numeric"></label>
       <label>Nome do serviço<input name="name" required></label>
       <label>Valor cobrado pelo fornecedor<input name="cost" type="number" min="0" step="0.01" required></label>
@@ -1015,9 +1020,11 @@
   <dialog id="supplierEntryDialog">
     <form id="supplierEntryForm" method="dialog">
       <div class="dialog-heading"><h2 id="supplierEntryDialogTitle">Lançamento do fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
-      <input name="id" type="hidden"><input name="clientServiceEntryId" type="hidden"><input name="clientId" type="hidden">
-      <label>Fornecedor<select name="supplierId" required></select></label>
-      <label>Serviço<select name="supplierServiceId" required></select></label>
+      <input name="id" type="hidden"><input name="clientServiceEntryId" type="hidden"><input name="clientId" type="hidden"><input name="supplierId" type="hidden">
+      <label>Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
+      <input name="supplierServiceId" type="hidden">
+      <label>Serviço<input name="supplierServiceSearch" type="search" list="supplierEntryServiceOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
+      <datalist id="supplierEntryServiceOptions"></datalist>
       <label>Data<input name="date" type="date" required></label>
       <label>Referência<input name="reference"></label>
       <label>Valor do fornecedor<input name="amount" type="number" min="0" step="0.01" required></label>
@@ -1050,7 +1057,8 @@
   <dialog id="supplierPayableDialog">
     <form id="supplierPayableForm" method="dialog">
       <div class="dialog-heading"><h2>Gerar conta a pagar</h2><button class="icon-button" value="cancel">×</button></div>
-      <label>Fornecedor<select name="supplierId" required></select></label>
+      <input name="supplierId" type="hidden">
+      <label>Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
       <div class="date-pair"><label>De<input name="startDate" type="date" required></label><label>Até<input name="endDate" type="date" required></label></div>
       <p class="hint">Serão incluídos somente lançamentos ainda não fechados.</p>
       <label class="checkbox-label"><input name="generatePortalLink" type="checkbox" checked> Gerar link semanal para o fornecedor</label>
@@ -1083,7 +1091,8 @@
   <dialog id="supplierAccessDialog">
     <form id="supplierAccessForm" method="dialog">
       <div class="dialog-heading"><h2>Link do fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
-      <label>Fornecedor<select name="supplierId" required></select></label>
+      <input name="supplierId" type="hidden">
+      <label>Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
       <div class="date-pair"><label>De<input name="startDate" type="date" required></label><label>Até<input name="endDate" type="date" required></label></div>
       <label>Validade<select name="validDays"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select></label>
       <label class="checkbox-label"><input name="canEdit" type="checkbox"> Permitir lançar e alterar serviços neste período</label>
