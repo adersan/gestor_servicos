@@ -1,4 +1,4 @@
-import { accessCodeHash, json, supabase } from "./_shared/server.mjs";
+import { accessCodeHash, billingOpenAmount, json, selectBillingPaymentMethods, supabase } from "./_shared/server.mjs";
 
 export default async (request) => {
   if (request.method !== "POST") return json(405, { error: "Método não permitido." });
@@ -31,11 +31,38 @@ export default async (request) => {
     const [clients, services] = await Promise.all([
       supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,name,price_table_id&limit=1`),
       supabase(
-        `/rest/v1/service_entries?client_id=eq.${clientId}&service_date=gte.${link.period_start}&service_date=lte.${link.period_end}&status=neq.Cancelado&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,updated_at&order=service_date.desc`
+        `/rest/v1/service_entries?client_id=eq.${clientId}&service_date=gte.${link.period_start}&service_date=lte.${link.period_end}&status=neq.Cancelado&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,updated_at,billing_id&order=service_date.desc`
       )
     ]);
     if (!clients.length) return json(404, { error: "Cliente não encontrado." });
     const client = clients[0];
+
+    const includeFinancial = link.show_amounts !== false;
+    const [currentServices, latestBillings, paymentMethodsList] = includeFinancial
+      ? await Promise.all([
+        supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason&order=service_date.desc`),
+        supabase(`/rest/v1/billings?client_id=eq.${clientId}&status=neq.Cancelada&select=*&order=period_end.desc,created_at.desc&limit=1`),
+        supabase("/rest/v1/payment_methods?active=eq.true&select=id,type,name,details,payment_link&order=created_at.asc")
+      ])
+      : [[], [], []];
+
+    let billing = null;
+    if (latestBillings[0]) {
+      const latest = latestBillings[0];
+      const billingId = encodeURIComponent(latest.id);
+      const [billingServices, billingPayments] = await Promise.all([
+        supabase(`/rest/v1/service_entries?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason&order=service_date.asc`),
+        supabase(`/rest/v1/payments?billing_id=eq.${billingId}&client_id=eq.${clientId}&select=id,payment_date,amount,method,notes,created_at&order=payment_date.asc`)
+      ]);
+      billing = {
+        ...latest,
+        status: latest.snapshot?.rolledIntoBillingId ? "Consolidada" : latest.status,
+        open_amount: billingOpenAmount(latest, billingPayments),
+        services: billingServices,
+        payments: billingPayments,
+        paymentMethods: selectBillingPaymentMethods(latest, paymentMethodsList)
+      };
+    }
     const [requestCatalog, clientRequests, clientRequesters] = await Promise.all([
       link.allow_requests && client.price_table_id
         ? supabase(`/rest/v1/service_prices?price_table_id=eq.${encodeURIComponent(client.price_table_id)}&select=amount,service_catalog(id,name,code)&service_catalog.active=eq.true`)
@@ -69,6 +96,8 @@ export default async (request) => {
       showAmounts: link.show_amounts !== false,
       updatedAt: new Date().toISOString(),
       services,
+      currentServices,
+      billing,
       requestServices: requestCatalog
         .filter((item) => item.service_catalog)
         .map((item) => ({

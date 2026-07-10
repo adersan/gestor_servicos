@@ -103,6 +103,34 @@ export function accessCodeHash(code) {
   return createHash("sha256").update(String(code || "")).digest("hex");
 }
 
+export function billingOpenAmount(billing, payments) {
+  if (billing.snapshot?.rolledIntoBillingId) return 0;
+  const calculationVersion = Number(billing.snapshot?.calculationVersion || 1);
+  const createdAt = new Date(billing.created_at).getTime();
+  const appliedPayments = payments
+    .filter((payment) => calculationVersion >= 2 || new Date(payment.created_at).getTime() > createdAt)
+    .reduce((sum, payment) => sum + Number(payment.amount), 0);
+  return Math.max(0, Number(billing.total_due) - appliedPayments);
+}
+
+export function selectBillingPaymentMethods(billing, methods) {
+  const snapshotMethods = Array.isArray(billing.snapshot?.paymentMethods)
+    ? billing.snapshot.paymentMethods.map((method) => ({
+      id: method.id,
+      type: method.type,
+      name: method.name,
+      details: method.details || "",
+      payment_link: method.link || method.payment_link || ""
+    }))
+    : [];
+  const selectedMethodIds = billing.snapshot?.paymentMethodIds || [];
+  return snapshotMethods.length
+    ? snapshotMethods
+    : (selectedMethodIds.length
+      ? methods.filter((method) => selectedMethodIds.includes(method.id))
+      : methods);
+}
+
 function encode(value) {
   return Buffer.from(value).toString("base64url");
 }

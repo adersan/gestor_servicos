@@ -252,10 +252,7 @@ C:\Users\aders\AppData\Local\GitHubDesktop\app-3.5.8\resources\app\git\cmd\git.e
 
 ## Observacoes Recentes
 
-- Existe commit local ainda nao publicado com botao para desfazer entrega: `Voltar para Feito`.
-- Esse commit local nao foi enviado ao GitHub/Netlify para economizar creditos.
-- Se for publicar esse ajuste, lembrar de atualizar versoes de cache antes do push.
 - Ha uma alteracao preexistente em `.gitignore`; nao reverter sem pedido explicito.
-- Commit local pendente: corrigido rodape fixo do modal de lancamento (`serviceDialog`) no mobile, que sobrepunha o conteudo; agora fica no final do modal como os demais.
-- Commit local pendente: convertidos para busca por digitacao (datalist) os campos de lista que ainda eram `select` simples e podiam crescer bastante: Cliente em `paymentDialog` e `billingDialog`; Fornecedor em `serviceDialog`, `supplierServiceDialog`, `supplierEntryDialog`, `supplierPayableDialog` e `supplierAccessDialog`; Servico do fornecedor em `supplierEntryDialog`; Servico em `entryDialog` (portal fornecedor) e em `trackingRequestDialog` (acompanhamento). Regra adotada: todo modal com lista que pode crescer deve permitir digitar para buscar, sem excecao.
-- Esses ajustes ainda nao foram publicados; antes do proximo `git push`, atualizar versoes de cache (`app.js?v=`, `supplier.js?v=`, `fornecedor.js?v=`, `acompanhamento.js?v=` e `sw.js`).
+- Publicado: botao `Voltar para Feito`, busca por digitacao (datalist) em todos os modais com lista que podiam crescer (Cliente em `paymentDialog`/`billingDialog`; Fornecedor e Servico do fornecedor nos modais de fornecedor; Servico em `entryDialog` do portal fornecedor e em `trackingRequestDialog` do acompanhamento) e correcao do rodape fixo do modal de lancamento no mobile. Regra adotada: todo modal com lista que pode crescer deve permitir digitar para buscar, sem excecao.
+- Commit local pendente: portal de acompanhamento (`acompanhamento.html`/`.js`/`.css`) virou uma area de 3 abas — Servicos (o que ja existia), Financeiro (novo, tempo real, mesmo sem cobranca gerada) e Relatorio de cobranca (novo, so aparece quando existe cobranca do cliente). Backend (`service-tracking-data.mjs`) agora retorna `currentServices` e `billing`, condicionados a `show_amounts` do link. Helpers `billingOpenAmount`/`selectBillingPaymentMethods` extraidos para `_shared/server.mjs` e reaproveitados por `client-statement.mjs`. O `cliente.html`/`.js`/`.css` (login por cobranca) nao foi alterado.
+- Esse commit local ainda nao foi publicado; antes do proximo `git push`, atualizar versoes de cache (`acompanhamento.js?v=`, `acompanhamento.css?v=` e `sw.js`).

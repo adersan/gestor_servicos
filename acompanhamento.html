@@ -20,36 +20,54 @@
         <div><span class="eyebrow">Consulta somente leitura</span><h2 id="clientName"></h2><p id="periodText"></p></div>
         <div class="updated-box"><span>Atualizado em</span><strong id="updatedAt"></strong></div>
       </div>
-      <section id="trackingRequestSection" class="tracking-card tracking-request-card hidden">
-        <div class="section-title"><h3>Pedidos</h3><button id="openTrackingRequestDialog" class="tracking-primary" type="button">Novo pedido</button></div>
-        <div class="section-title request-history-title"><h3>Pedidos enviados</h3></div>
-        <div id="trackingRequestHistory" class="tracking-request-history"></div>
-      </section>
-      <div id="trackingSummary" class="tracking-summary"></div>
-      <section class="tracking-dashboard">
-        <article class="tracking-card tracking-chart-card">
-          <div class="section-title"><h3>Resumo por status</h3></div>
-          <div id="statusChart" class="tracking-status-chart"></div>
-        </article>
-        <article class="tracking-card tracking-chart-card">
-          <div class="section-title"><h3>Serviços mais pedidos</h3></div>
-          <div id="serviceChart" class="tracking-bar-chart"></div>
-        </article>
-      </section>
-      <section class="tracking-card">
-        <div class="section-title"><h3>Serviços do período</h3><span id="serviceCount"></span></div>
-        <div class="tracking-search">
-          <input id="trackingServiceSearch" type="search" placeholder="Buscar placa, servico, status ou solicitante">
-          <select id="trackingRequesterFilter" aria-label="Filtrar por solicitante"></select>
-          <select id="trackingServiceSort" aria-label="Ordenar servicos">
-            <option value="date">Data</option>
-            <option value="requester">Solicitante</option>
-            <option value="status">Status</option>
-            <option value="service">Servico</option>
-          </select>
-        </div>
-        <div id="serviceList" class="tracking-list"></div>
-      </section>
+      <nav id="trackingNav" class="tracking-nav" aria-label="Areas do acompanhamento">
+        <button class="active" type="button" data-tracking-view="services">Serviços</button>
+        <button id="trackingFinancialTab" class="hidden" type="button" data-tracking-view="financial">Financeiro</button>
+        <button id="trackingBillingTab" class="hidden" type="button" data-tracking-view="billing">Relatório de cobrança</button>
+      </nav>
+      <div id="trackingViewServices" class="tracking-view">
+        <section id="trackingRequestSection" class="tracking-card tracking-request-card hidden">
+          <div class="section-title"><h3>Pedidos</h3><button id="openTrackingRequestDialog" class="tracking-primary" type="button">Novo pedido</button></div>
+          <div class="section-title request-history-title"><h3>Pedidos enviados</h3></div>
+          <div id="trackingRequestHistory" class="tracking-request-history"></div>
+        </section>
+        <div id="trackingSummary" class="tracking-summary"></div>
+        <section class="tracking-dashboard">
+          <article class="tracking-card tracking-chart-card">
+            <div class="section-title"><h3>Resumo por status</h3></div>
+            <div id="statusChart" class="tracking-status-chart"></div>
+          </article>
+          <article class="tracking-card tracking-chart-card">
+            <div class="section-title"><h3>Serviços mais pedidos</h3></div>
+            <div id="serviceChart" class="tracking-bar-chart"></div>
+          </article>
+        </section>
+        <section class="tracking-card">
+          <div class="section-title"><h3>Serviços do período</h3><span id="serviceCount"></span></div>
+          <div class="tracking-search">
+            <input id="trackingServiceSearch" type="search" placeholder="Buscar placa, servico, status ou solicitante">
+            <select id="trackingRequesterFilter" aria-label="Filtrar por solicitante"></select>
+            <select id="trackingServiceSort" aria-label="Ordenar servicos">
+              <option value="date">Data</option>
+              <option value="requester">Solicitante</option>
+              <option value="status">Status</option>
+              <option value="service">Servico</option>
+            </select>
+          </div>
+          <div id="serviceList" class="tracking-list"></div>
+        </section>
+      </div>
+      <div id="trackingViewFinancial" class="tracking-view hidden">
+        <div id="trackingFinancialSummary" class="tracking-summary"></div>
+        <section class="tracking-card">
+          <div class="section-title"><h3>Consumo ainda não faturado</h3><span id="trackingUnbilledCount"></span></div>
+          <div id="trackingUnbilledList" class="tracking-list"></div>
+        </section>
+      </div>
+      <div id="trackingViewBilling" class="tracking-view hidden">
+        <div class="section-title"><h3>Relatório de cobrança</h3><button id="trackingBillingPdfButton" class="tracking-primary" type="button">Abrir PDF</button></div>
+        <div id="trackingBillingContent"></div>
+      </div>
       <p id="expiryText" class="tracking-expiry"></p>
     </section>
   </main>

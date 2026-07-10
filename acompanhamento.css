@@ -92,6 +92,39 @@ dialog::backdrop { background:rgba(21,38,34,.42); backdrop-filter:blur(3px); }
 .tracking-request-history-card span { color:var(--muted); font-size:12px; }
 .tracking-request-history-card p { display:flex; flex-wrap:wrap; gap:7px; margin:0; }
 .tracking-request-history-card p span { padding:6px 10px; border:1px solid #bdd8ef; border-radius:10px; color:#155f9f; background:#eef7ff; font-weight:850; }
+.tracking-nav { display:flex; gap:8px; margin-bottom:18px; padding:6px; overflow-x:auto; border:1px solid var(--line); border-radius:14px; background:white; }
+.tracking-nav button { min-width:max-content; padding:10px 16px; border:0; border-radius:10px; color:var(--ink); background:transparent; cursor:pointer; }
+.tracking-nav button.active { color:white; background:var(--brand); }
+.status-cancelled { color:#9c3026; background:#fdecea; }
+.tracking-billing-section { margin-top:18px; padding:20px; border:1px solid var(--line); border-radius:16px; background:var(--white); overflow-x:auto; }
+.tracking-billing-section h3 { margin-top:0; }
+.tracking-billing-methods { display:grid; gap:10px; }
+.tracking-billing-method { padding:14px; border:1px solid var(--line); border-radius:12px; }
+.tracking-billing-method strong { display:block; margin-bottom:5px; }
+.tracking-copy-pix-button { align-self:flex-start; margin-top:8px; padding:8px 11px; border:1px solid #c98925; border-radius:9px; color:#83520a; background:#fff; font-weight:800; cursor:pointer; }
+.tracking-billing-chart { display:grid; gap:12px; }
+.tracking-billing-chart-row { display:grid; grid-template-columns:130px 1fr 110px; gap:12px; align-items:center; }
+.tracking-billing-chart-row > div { height:18px; overflow:hidden; border-radius:999px; background:#e7ece9; }
+.tracking-billing-chart-row i { display:block; min-width:3px; height:100%; border-radius:inherit; background:var(--brand); }
+.tracking-billing-chart-row i.payment { background:var(--green); }
+.tracking-requester-summary-list { display:grid; gap:10px; margin-bottom:16px; }
+.tracking-requester-summary-card { display:grid; gap:8px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#f8fbf9; }
+.tracking-requester-summary-card div { display:flex; justify-content:space-between; gap:10px; }
+.tracking-requester-summary-card span { color:var(--muted); font-size:12px; font-weight:750; }
+.tracking-requester-summary-card ul { margin:0; padding-left:18px; color:var(--muted); font-size:12px; line-height:1.45; }
+.tracking-report-service-grid { display:grid; grid-template-columns:minmax(1020px,1fr); gap:10px; overflow-x:auto; }
+.tracking-report-table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:14px; }
+.tracking-report-table th, .tracking-report-table td { padding:12px 9px; overflow:hidden; border-bottom:1px solid var(--line); text-align:left; text-overflow:ellipsis; white-space:nowrap; }
+.tracking-report-table th { color:var(--brand); background:#eef4f1; }
+.tracking-report-table th:nth-child(1), .tracking-report-table td:nth-child(1) { width:96px; }
+.tracking-report-table th:nth-child(3), .tracking-report-table td:nth-child(3) { width:205px; overflow:hidden; text-overflow:clip; }
+.tracking-report-table th:nth-child(4), .tracking-report-table td:nth-child(4) { width:120px; }
+.tracking-report-table th:nth-child(5), .tracking-report-table td:nth-child(5) { width:105px; text-align:right; }
+.amount-service { color:var(--blue); }
+.amount-payment { color:var(--green); }
+.tracking-payments-table { width:100%; border-collapse:collapse; margin:0; }
+.tracking-payments-table th, .tracking-payments-table td { padding:11px; border-bottom:1px solid var(--line); text-align:left; }
+.tracking-payments-table th:last-child, .tracking-payments-table td:last-child { text-align:right; }
 @media (max-width:700px) {
   .tracking-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .tracking-dashboard { grid-template-columns:1fr; }
@@ -104,4 +137,18 @@ dialog::backdrop { background:rgba(21,38,34,.42); backdrop-filter:blur(3px); }
   .tracking-donut::before { width:72px; }
   .tracking-request-form { grid-template-columns:1fr; }
   .tracking-request-actions { flex-direction:column; }
+  .tracking-nav button { padding:8px 12px; font-size:13px; }
+  .tracking-billing-chart-row { grid-template-columns:90px 1fr; }
+  .tracking-billing-chart-row strong { grid-column:2; }
+  .tracking-report-service-grid { display:block; overflow:visible; }
+  .tracking-report-table { display:block; width:100%; font-size:11px; }
+  .tracking-report-table thead { display:none; }
+  .tracking-report-table tbody { display:block; }
+  .tracking-report-table tr { display:grid; grid-template-columns:minmax(105px,1fr) minmax(82px,auto) minmax(68px,auto); grid-template-rows:auto auto; gap:4px 8px; align-items:center; padding:8px 4px; border-bottom:1px solid var(--line); }
+  .tracking-report-table td { width:auto !important; padding:0; overflow:visible; border:0; white-space:normal; }
+  .tracking-report-table td:nth-child(1) { grid-column:1; grid-row:1; color:#65716d; font-size:10px; }
+  .tracking-report-table td:nth-child(2) { grid-column:1; grid-row:2; font-size:11px; font-weight:700; }
+  .tracking-report-table td:nth-child(3) { grid-column:2; grid-row:1 / 3; }
+  .tracking-report-table td:nth-child(4) { grid-column:3; grid-row:1; justify-self:end; }
+  .tracking-report-table td:nth-child(5) { grid-column:3; grid-row:2; justify-self:end; font-size:11px; }
 }

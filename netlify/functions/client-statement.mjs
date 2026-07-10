@@ -1,14 +1,10 @@
-import { json, supabase, verifyPortalToken } from "./_shared/server.mjs";
-
-function openAmount(billing, payments) {
-  if (billing.snapshot?.rolledIntoBillingId) return 0;
-  const calculationVersion = Number(billing.snapshot?.calculationVersion || 1);
-  const createdAt = new Date(billing.created_at).getTime();
-  const appliedPayments = payments
-    .filter((payment) => calculationVersion >= 2 || new Date(payment.created_at).getTime() > createdAt)
-    .reduce((sum, payment) => sum + Number(payment.amount), 0);
-  return Math.max(0, Number(billing.total_due) - appliedPayments);
-}
+import {
+  billingOpenAmount as openAmount,
+  json,
+  selectBillingPaymentMethods,
+  supabase,
+  verifyPortalToken
+} from "./_shared/server.mjs";
 
 export default async (request) => {
   if (request.method !== "GET") return json(405, { error: "Método não permitido." });
@@ -63,21 +59,7 @@ export default async (request) => {
           throw error;
         })
     ]);
-    const snapshotMethods = Array.isArray(billing.snapshot?.paymentMethods)
-      ? billing.snapshot.paymentMethods.map((method) => ({
-        id: method.id,
-        type: method.type,
-        name: method.name,
-        details: method.details || "",
-        payment_link: method.link || method.payment_link || ""
-      }))
-      : [];
-    const selectedMethodIds = billing.snapshot?.paymentMethodIds || [];
-    const selectedMethods = snapshotMethods.length
-      ? snapshotMethods
-      : (selectedMethodIds.length
-        ? methods.filter((method) => selectedMethodIds.includes(method.id))
-        : methods);
+    const selectedMethods = selectBillingPaymentMethods(billing, methods);
 
     return json(200, {
       client,
