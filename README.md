@@ -5,12 +5,18 @@ pagamentos, cobranças e relatórios enviados por WhatsApp.
 
 ## Aplicação publicada
 
-https://gestor-servicos-adersan.netlify.app
+https://gestordeservicos.com.br (domínio Netlify original: https://gestor-servicos-adersan.netlify.app)
 
 ## Estado atual
 
 A aplicação possui login administrativo pelo Supabase e sincroniza os dados
 com o banco online. O esquema do banco está em `supabase/schema.sql`.
+
+Além do painel administrativo, existem três portais públicos:
+
+- `cliente.html`: portal de cobrança do cliente, com login por identificador/senha ou link mágico, atrelado a uma cobrança gerada.
+- `fornecedor.html`: portal do fornecedor, com acompanhamento e confirmação de serviços conforme as permissões do link.
+- `acompanhamento.html`: portal de acompanhamento do cliente em tempo real (independente de cobrança), com três abas — Serviços, Financeiro e Relatório de cobrança (esta última só aparece quando existe cobrança). O link pode ser gerado com acesso completo embutido, ou com identificador/senha que o cliente digita; sem senha, o acesso fica restrito a Serviços, sem valores.
 
 ## Executar localmente
 
@@ -18,7 +24,15 @@ com o banco online. O esquema do banco está em `supabase/schema.sql`.
 node server.js
 ```
 
-Depois abra `http://localhost:8080`.
+Depois abra `http://localhost:8080`. Esse servidor só serve os arquivos estáticos; para testar as Netlify Functions (login, cobrança, portais, links de acompanhamento) de verdade, use o Netlify CLI:
+
+```powershell
+netlify login
+netlify link
+netlify dev
+```
+
+Se alguma função reclamar de variável de ambiente não configurada mesmo com o site linkado, confira no painel do Netlify (Site configuration > Environment variables) se cada variável tem o escopo **"Local development"** habilitado.
 
 ## Publicação
 
@@ -55,16 +69,11 @@ somente nas variáveis protegidas das funções do Netlify.
 
 Portal do cliente:
 
-https://gestor-servicos-adersan.netlify.app/cliente.html
+https://gestordeservicos.com.br/cliente.html
 
 ## Próximas etapas
 
-- Trocar `localStorage` pelo Supabase.
-- Criar login administrativo.
-- Criar portal do cliente com credenciais temporárias.
-- Gerar PDF no servidor.
-- Integrar a API de WhatsApp.
-- Importar os dados da planilha.
+- Integrar a API de WhatsApp de forma definitiva (hoje há uma integração experimental via APIBrasil).
 
 ## Confirmação de entrega pelo WhatsApp
 
