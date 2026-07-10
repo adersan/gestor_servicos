@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=22">
+  <link rel="stylesheet" href="acompanhamento.css?v=23">
 </head>
 <body>
   <header class="tracking-header">
@@ -17,12 +17,15 @@
     <section id="errorPanel" class="tracking-card tracking-message tracking-error hidden"></section>
     <section id="trackingAccessChoice" class="tracking-card tracking-access-choice hidden">
       <h2>Como deseja entrar?</h2>
-      <p class="meta">Entre sem senha para só acompanhar os serviços, ou digite a senha para o acesso completo.</p>
-      <button id="enterWithoutPasswordButton" class="tracking-primary full" type="button">Entrar sem senha</button>
-      <form id="trackingPasswordForm" class="tracking-password-form">
+      <p class="meta">Entre sem senha para só acompanhar os serviços, ou entre com senha para o acesso completo.</p>
+      <div id="trackingAccessButtons" class="tracking-access-buttons">
+        <button id="enterWithoutPasswordButton" class="tracking-primary full" type="button">Entrar sem senha</button>
+        <button id="showPasswordFormButton" class="tracking-secondary full" type="button">Entrar com senha</button>
+      </div>
+      <form id="trackingPasswordForm" class="tracking-password-form hidden">
         <label>Identificador<input name="identifier" autocomplete="username" required placeholder="GS-00000000"></label>
         <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
-        <button class="tracking-secondary full" type="submit">Entrar com senha</button>
+        <button class="tracking-secondary full" type="submit">Entrar</button>
         <p id="trackingPasswordError" class="tracking-form-message" role="alert"></p>
         <button id="cancelPasswordEntryButton" class="tracking-link-button" type="button">Voltar</button>
       </form>
@@ -109,6 +112,6 @@
       </div>
     </form>
   </dialog>
-  <script src="acompanhamento.js?v=24"></script>
+  <script src="acompanhamento.js?v=25"></script>
 </body>
 </html>

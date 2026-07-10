@@ -119,6 +119,9 @@ export default async (request) => {
       body: JSON.stringify({ last_access_at: new Date().toISOString() })
     });
 
+    const hideAmounts = !includeCurrentServices;
+    const sanitizedServices = hideAmounts ? services.map((item) => ({ ...item, amount: 0 })) : services;
+
     return json(200, {
       client,
       period: { startDate: link.period_start, endDate: link.period_end },
@@ -128,7 +131,7 @@ export default async (request) => {
       linkMode,
       tier,
       updatedAt: new Date().toISOString(),
-      services,
+      services: sanitizedServices,
       currentServices,
       billing,
       requestServices: requestCatalog
@@ -138,7 +141,7 @@ export default async (request) => {
           id: item.service_catalog.id,
           code: item.service_catalog.code || "",
           name: item.service_catalog.name,
-          amount: Number(item.amount || 0)
+          amount: hideAmounts ? 0 : Number(item.amount || 0)
         }))
         .sort((a, b) => (Number(a.code) || 999999) - (Number(b.code) || 999999) || a.name.localeCompare(b.name, "pt-BR")),
       serviceRequests: clientRequests.map((item) => ({

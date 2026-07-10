@@ -354,6 +354,8 @@ function showAccessChoice() {
   document.getElementById("errorPanel").classList.add("hidden");
   document.getElementById("trackingPanel").classList.add("hidden");
   document.getElementById("trackingAccessChoice").classList.remove("hidden");
+  document.getElementById("trackingAccessButtons").classList.remove("hidden");
+  document.getElementById("trackingPasswordForm").classList.add("hidden");
 }
 
 function enterRestricted() {
@@ -709,7 +711,14 @@ function showError(error) {
 
 document.getElementById("refreshButton").addEventListener("click", refreshTracking);
 document.getElementById("enterWithoutPasswordButton").addEventListener("click", enterRestricted);
-document.getElementById("cancelPasswordEntryButton").addEventListener("click", enterRestricted);
+document.getElementById("showPasswordFormButton").addEventListener("click", () => {
+  document.getElementById("trackingAccessButtons").classList.add("hidden");
+  document.getElementById("trackingPasswordForm").classList.remove("hidden");
+});
+document.getElementById("cancelPasswordEntryButton").addEventListener("click", () => {
+  document.getElementById("trackingPasswordForm").classList.add("hidden");
+  document.getElementById("trackingAccessButtons").classList.remove("hidden");
+});
 document.getElementById("switchToFullAccessButton").addEventListener("click", () => {
   sessionStorage.removeItem(trackingChoiceKey);
   showAccessChoice();
