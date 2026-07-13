@@ -2382,7 +2382,8 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
   }
   if (event.target.closest("[data-wizard-next]")) {
     if (serviceWizardStep >= SERVICE_WIZARD_STEP_COUNT) {
-      document.querySelector('#serviceForm button[value="default"]').click();
+      const form = document.getElementById("serviceForm");
+      form.requestSubmit(form.querySelector('button[value="default"]'));
     } else if (validateServiceWizardStep(serviceWizardStep)) {
       goToServiceWizardStep(serviceWizardStep + 1);
     }
@@ -4482,13 +4483,18 @@ document.querySelector('#serviceForm input[name="hasAdditionalServices"]').addEv
 document.querySelector('#serviceForm input[name="additionalCatalogSearch"]').addEventListener("input", syncAdditionalCatalogSelection);
 document.querySelector('#serviceForm input[name="additionalCatalogSearch"]').addEventListener("change", syncAdditionalCatalogSelection);
 document.getElementById("addAdditionalServiceButton").addEventListener("click", addAdditionalService);
-document.querySelector("[data-cancel-service-entry]").addEventListener("click", () => {
+function closeServiceDialog() {
   serviceReferenceValues = [];
   additionalServiceValues = [];
   document.getElementById("serviceForm").reset();
   document.getElementById("additionalServicesSection").classList.add("hidden");
   window.supplierModule?.resetClientEntryOptions();
   document.getElementById("serviceDialog").close();
+}
+document.querySelector("[data-cancel-service-entry]").addEventListener("click", closeServiceDialog);
+document.querySelector("[data-close-service-dialog]").addEventListener("click", (event) => {
+  event.preventDefault();
+  closeServiceDialog();
 });
 document.getElementById("referenceHistoryCancel").addEventListener("click", () => settleReferenceHistoryDialog(false));
 document.getElementById("referenceHistoryClose").addEventListener("click", () => settleReferenceHistoryDialog(false));
@@ -4559,6 +4565,10 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     }
     if (target.name === "additionalCatalogSearch") {
       event.preventDefault();
+      if (!target.value.trim() && additionalServiceValues.length) {
+        document.querySelector("[data-wizard-next]").click();
+        return;
+      }
       syncAdditionalCatalogSelection();
       wizardForm.elements.additionalAmount.focus();
       return;
@@ -4575,6 +4585,10 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     }
     if (target.name === "supplierServiceSearch") {
       event.preventDefault();
+      if (!target.value.trim() && window.supplierModule?.hasClientSupplierServices()) {
+        document.querySelector("[data-wizard-next]").click();
+        return;
+      }
       if (window.supplierModule?.syncClientEntryServiceSelection(true)) wizardForm.elements.supplierAmount.focus();
       return;
     }
@@ -4743,7 +4757,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=93").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=94").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
