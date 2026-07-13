@@ -618,8 +618,65 @@
     form.elements.status.value = item?.status || "A fazer";
     form.elements.notes.value = item?.notes || "";
     byId("supplierEntryDialogTitle").textContent = item ? "Editar lançamento do fornecedor" : "Lançamento direto";
+    supplierEntryWizard.activate(!item && window.matchMedia("(max-width: 1024px)").matches);
     byId("supplierEntryDialog").showModal();
+    if (!supplierEntryWizard.isActive()) setTimeout(() => form.elements.supplierSearch.focus(), 0);
   }
+
+  function renderSupplierEntryWizardSummary() {
+    const form = byId("supplierEntryForm");
+    const target = byId("supplierEntryWizardSummary");
+    if (!target) return;
+    const service = supplierServiceById(form.elements.supplierServiceId.value);
+    const rows = [
+      ["Fornecedor", form.elements.supplierSearch.value || "-"],
+      ["Serviço", service ? supplierServiceOptionLabel(service) : form.elements.supplierServiceSearch.value || "-"],
+      ["Data", formatDate(form.elements.date.value)],
+      form.elements.reference.value ? ["Referência", form.elements.reference.value] : null,
+      ["Valor do fornecedor", money.format(Number(form.elements.amount.value || 0))],
+      ["Status", form.elements.status.value],
+      form.elements.notes.value ? ["Observações", form.elements.notes.value] : null
+    ].filter(Boolean);
+    target.innerHTML = rows
+      .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+      .join("");
+  }
+
+  const supplierEntryWizard = createDialogWizard({
+    dialogId: "supplierEntryDialog",
+    formId: "supplierEntryForm",
+    navId: "supplierEntryWizardNav",
+    progressFillId: "supplierEntryWizardProgressFill",
+    progressLabelId: "supplierEntryWizardProgressLabel",
+    stepCount: 8,
+    onReachLastStep: renderSupplierEntryWizardSummary,
+    validateStep: (step, form) => {
+      if (step === 1) {
+        const supplier = syncSupplierSearchField(form);
+        if (!supplier) {
+          alert("Selecione um fornecedor válido da lista.");
+          form.elements.supplierSearch.focus();
+          return false;
+        }
+      }
+      if (step === 2) {
+        syncSupplierEntryServiceSelection(form);
+        if (!form.elements.supplierServiceId.value) {
+          alert("Selecione um serviço válido da lista.");
+          form.elements.supplierServiceSearch.focus();
+          return false;
+        }
+      }
+      if (step === 5) {
+        if (form.elements.amount.value === "" || Number(form.elements.amount.value) < 0) {
+          alert("Informe o valor do fornecedor.");
+          form.elements.amount.focus();
+          return false;
+        }
+      }
+      return true;
+    }
+  });
 
   function openPayable() {
     const form = byId("supplierPayableForm");
