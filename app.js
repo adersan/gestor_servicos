@@ -2225,11 +2225,15 @@ function goToServiceWizardStep(step) {
   form.querySelectorAll(".wizard-step").forEach((el) => {
     el.classList.toggle("hidden", Number(el.dataset.step) !== serviceWizardStep);
   });
-  const progress = document.getElementById("serviceWizardProgress");
-  if (progress) progress.textContent = `Passo ${serviceWizardStep} de ${SERVICE_WIZARD_STEP_COUNT}`;
+  const progressFill = document.getElementById("serviceWizardProgressFill");
+  if (progressFill) progressFill.style.width = `${(serviceWizardStep / SERVICE_WIZARD_STEP_COUNT) * 100}%`;
+  const progressLabel = document.getElementById("serviceWizardProgressLabel");
+  if (progressLabel) progressLabel.textContent = `Passo ${serviceWizardStep}`;
   const nav = document.getElementById("serviceWizardNav");
-  nav.querySelector("[data-wizard-back]").textContent = serviceWizardStep === 1 ? "Cancelar" : "Voltar";
-  nav.querySelector("[data-wizard-next]").textContent = serviceWizardStep === SERVICE_WIZARD_STEP_COUNT ? "Salvar lançamento" : "Próximo";
+  const backButton = nav.querySelector("[data-wizard-back]");
+  backButton.classList.toggle("hidden", serviceWizardStep === 1);
+  nav.classList.toggle("single-button", serviceWizardStep === 1);
+  nav.querySelector("[data-wizard-next]").textContent = serviceWizardStep === SERVICE_WIZARD_STEP_COUNT ? "Salvar lançamento" : "Continuar";
   if (serviceWizardStep === SERVICE_WIZARD_STEP_COUNT) renderServiceWizardSummary();
   const stepElement = form.querySelector(`.wizard-step[data-step="${serviceWizardStep}"]`);
   const focusable = stepElement ? firstVisibleServiceField(stepElement) : null;
@@ -2327,13 +2331,16 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
     const form = document.getElementById("serviceForm");
     const dateLabel = form.querySelector('.wizard-hide-native input[name="date"]')?.closest("label");
     dateButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === dateButton));
-    if (dateButton.dataset.dateChoice === "today") {
-      form.elements.date.value = new Date().toISOString().slice(0, 10);
-      dateLabel?.classList.add("hidden");
-      goToServiceWizardStep(serviceWizardStep + 1);
-    } else {
+    if (dateButton.dataset.dateChoice === "pick") {
       dateLabel?.classList.remove("hidden");
       setTimeout(() => form.elements.date.focus(), 0);
+    } else {
+      const days = dateButton.dataset.dateChoice === "tomorrow" ? 1 : 0;
+      const target = new Date();
+      target.setDate(target.getDate() + days);
+      form.elements.date.value = target.toISOString().slice(0, 10);
+      dateLabel?.classList.add("hidden");
+      goToServiceWizardStep(serviceWizardStep + 1);
     }
     return;
   }
@@ -4523,6 +4530,40 @@ document.getElementById("serviceForm").addEventListener("focusin", (event) => {
 document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
   if (serviceWizardModeActive()) {
+    const target = event.target;
+    const wizardForm = document.getElementById("serviceForm");
+    if (target.name === "reference") {
+      event.preventDefault();
+      if (target.value.trim()) addCurrentReference();
+      else document.querySelector("[data-wizard-next]").click();
+      return;
+    }
+    if (target.name === "additionalCatalogSearch") {
+      event.preventDefault();
+      syncAdditionalCatalogSelection();
+      wizardForm.elements.additionalAmount.focus();
+      return;
+    }
+    if (target.name === "additionalAmount") {
+      event.preventDefault();
+      addAdditionalService();
+      return;
+    }
+    if (target.name === "supplierSearch") {
+      event.preventDefault();
+      wizardForm.elements.supplierServiceSearch.focus();
+      return;
+    }
+    if (target.name === "supplierServiceSearch") {
+      event.preventDefault();
+      if (window.supplierModule?.syncClientEntryServiceSelection(true)) wizardForm.elements.supplierAmount.focus();
+      return;
+    }
+    if (target.name === "supplierAmount") {
+      event.preventDefault();
+      window.supplierModule?.addClientSupplierService();
+      return;
+    }
     event.preventDefault();
     document.querySelector("[data-wizard-next]").click();
     return;
@@ -4683,7 +4724,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=91").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=92").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
