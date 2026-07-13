@@ -1215,6 +1215,19 @@
   byId("supplierDashboardEnd").value = week.endDate;
   byId("supplierEntryStart").value = week.startDate;
   byId("supplierEntryEnd").value = week.endDate;
+  function removeClientSupplierServiceById(supplierServiceId) {
+    const index = clientSupplierServiceValues.findIndex((item) => item.supplierServiceId === supplierServiceId);
+    if (index < 0) return;
+    const target = clientSupplierServiceValues[index];
+    if (target.id && !confirm("Remover este serviço de fornecedor já salvo? Ele será excluído ao salvar o lançamento.")) return;
+    clientSupplierServiceValues.splice(index, 1);
+    if (!clientSupplierServiceValues.length) {
+      byId("serviceForm").elements.hasSupplierService.checked = false;
+      byId("clientSupplierServiceSection").classList.add("hidden");
+    }
+    renderClientSupplierServices();
+  }
+
   function pickerSuppliers() {
     const counts = {};
     (state.supplierEntries || []).forEach((entry) => {
@@ -1247,7 +1260,8 @@
     hasClientSupplierServices,
     currentClientSupplierServiceSelections,
     pickerSuppliers,
-    pickerServicesForSupplier
+    pickerServicesForSupplier,
+    removeClientSupplierServiceById
   };
   resetClientEntryOptions();
   byId("supplierRequestShareDialog").addEventListener("cancel", (event) => {

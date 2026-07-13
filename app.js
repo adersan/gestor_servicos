@@ -2365,15 +2365,16 @@ function resetServiceWizardPickerPages() {
   Object.keys(wizardPickerPages).forEach((key) => { wizardPickerPages[key] = 0; });
 }
 
-function renderWizardPickerGrid(key, items, selectedId) {
+function renderWizardPickerGrid(key, items, selectedIds) {
   const grid = document.getElementById(`${key}PickerGrid`);
   if (!grid) return;
+  const selected = new Set([].concat(selectedIds).filter(Boolean));
   const totalPages = Math.max(1, Math.ceil(items.length / WIZARD_PICKER_PAGE_SIZE));
   wizardPickerPages[key] = Math.min(Math.max(wizardPickerPages[key] || 0, 0), totalPages - 1);
   const page = wizardPickerPages[key];
   const pageItems = items.slice(page * WIZARD_PICKER_PAGE_SIZE, page * WIZARD_PICKER_PAGE_SIZE + WIZARD_PICKER_PAGE_SIZE);
   grid.innerHTML = pageItems.length
-    ? pageItems.map((item) => `<button type="button" class="wizard-choice-btn${item.id === selectedId ? " selected" : ""}" data-picker-item="${escapeHtml(item.id)}">${escapeHtml(item.label)}</button>`).join("")
+    ? pageItems.map((item) => `<button type="button" class="wizard-choice-btn${selected.has(item.id) ? " selected" : ""}" data-picker-item="${escapeHtml(item.id)}">${escapeHtml(item.label)}</button>`).join("")
     : '<span class="field-hint">Nada cadastrado ainda.</span>';
   const prevButton = document.querySelector(`[data-picker-prev="${key}"]`);
   const nextButton = document.querySelector(`[data-picker-next="${key}"]`);
@@ -2395,23 +2396,42 @@ function catalogUsagePickerItems(excludeId = "") {
 
 function renderServiceCatalogPicker() {
   const form = document.getElementById("serviceForm");
-  renderWizardPickerGrid("catalog", catalogUsagePickerItems(), form.elements.catalogId.value);
+  renderWizardPickerGrid("catalog", catalogUsagePickerItems(), [form.elements.catalogId.value]);
 }
 
 function renderAdditionalCatalogPicker() {
   const form = document.getElementById("serviceForm");
-  renderWizardPickerGrid("additionalCatalog", catalogUsagePickerItems(form.elements.catalogId.value), form.elements.additionalCatalogId.value);
+  const addedIds = additionalServiceValues.map((service) => service.catalogId);
+  renderWizardPickerGrid("additionalCatalog", catalogUsagePickerItems(form.elements.catalogId.value), [...addedIds, form.elements.additionalCatalogId.value]);
 }
 
 function renderSupplierPicker() {
   const form = document.getElementById("serviceForm");
-  renderWizardPickerGrid("supplier", window.supplierModule?.pickerSuppliers() || [], form.elements.supplierId.value);
+  renderWizardPickerGrid("supplier", window.supplierModule?.pickerSuppliers() || [], [form.elements.supplierId.value]);
 }
 
 function renderSupplierServicePicker() {
   const form = document.getElementById("serviceForm");
-  const items = form.elements.supplierId.value ? (window.supplierModule?.pickerServicesForSupplier(form.elements.supplierId.value) || []) : [];
-  renderWizardPickerGrid("supplierService", items, form.elements.supplierServiceId.value);
+  const supplierId = form.elements.supplierId.value;
+  const items = supplierId ? (window.supplierModule?.pickerServicesForSupplier(supplierId) || []) : [];
+  const addedIds = (window.supplierModule?.currentClientSupplierServiceSelections() || [])
+    .filter((item) => item.supplierId === supplierId)
+    .map((item) => item.supplierServiceId);
+  renderWizardPickerGrid("supplierService", items, [...addedIds, form.elements.supplierServiceId.value]);
+}
+
+function removeAdditionalServiceByCatalogId(catalogId) {
+  const index = additionalServiceValues.findIndex((service) => service.catalogId === catalogId);
+  if (index < 0) return;
+  const target = additionalServiceValues[index];
+  if (target.id && !confirm("Remover este serviço complementar já salvo? Ele será excluído ao salvar o lançamento.")) return;
+  additionalServiceValues.splice(index, 1);
+  if (!additionalServiceValues.length) {
+    document.getElementById("serviceForm").elements.hasAdditionalServices.checked = false;
+    document.getElementById("additionalServicesSection").classList.add("hidden");
+  }
+  renderAdditionalServiceList();
+  renderAdditionalCatalogPicker();
 }
 
 const WIZARD_PICKER_RENDERERS = {
@@ -2466,24 +2486,36 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
   if (pickerButton) {
     const key = pickerButton.closest(".wizard-picker")?.dataset.picker;
     const form = document.getElementById("serviceForm");
+    const itemId = pickerButton.dataset.pickerItem;
     const label = pickerButton.textContent.trim();
     if (key === "catalog") {
       form.elements.catalogSearch.value = label;
       syncServiceCatalogSelection();
       renderServiceCatalogPicker();
     } else if (key === "additionalCatalog") {
-      form.elements.additionalCatalogSearch.value = label;
-      syncAdditionalCatalogSelection();
-      renderAdditionalCatalogPicker();
+      if (additionalServiceValues.some((service) => service.catalogId === itemId)) {
+        removeAdditionalServiceByCatalogId(itemId);
+      } else {
+        form.elements.additionalCatalogSearch.value = label;
+        syncAdditionalCatalogSelection();
+        renderAdditionalCatalogPicker();
+      }
     } else if (key === "supplier") {
       form.elements.supplierSearch.value = label;
       form.elements.supplierSearch.dispatchEvent(new Event("change", { bubbles: true }));
       renderSupplierPicker();
       renderSupplierServicePicker();
     } else if (key === "supplierService") {
-      form.elements.supplierServiceSearch.value = label;
-      form.elements.supplierServiceSearch.dispatchEvent(new Event("input", { bubbles: true }));
-      renderSupplierServicePicker();
+      const alreadyAdded = (window.supplierModule?.currentClientSupplierServiceSelections() || [])
+        .some((item) => item.supplierId === form.elements.supplierId.value && item.supplierServiceId === itemId);
+      if (alreadyAdded) {
+        window.supplierModule?.removeClientSupplierServiceById(itemId);
+        renderSupplierServicePicker();
+      } else {
+        form.elements.supplierServiceSearch.value = label;
+        form.elements.supplierServiceSearch.dispatchEvent(new Event("input", { bubbles: true }));
+        renderSupplierServicePicker();
+      }
     }
     return;
   }
@@ -4887,7 +4919,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=97").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=98").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
