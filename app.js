@@ -2629,6 +2629,163 @@ function choosePendingRequestForForm() {
   importClientRequest(requests[selected - 1].id);
 }
 
+function createDialogWizard(config) {
+  const {
+    dialogId, formId, navId, progressFillId, progressLabelId, stepCount,
+    shouldSkipStep = () => false,
+    onEnterStep = () => {},
+    isPickerStep = () => false,
+    validateStep = () => true,
+    onReachLastStep = () => {},
+    submitButtonSelector = 'button[value="default"]',
+    nextLabel = "Continuar",
+    lastStepLabel = "Salvar"
+  } = config;
+
+  let currentStep = 1;
+  const getForm = () => document.getElementById(formId);
+  const getDialog = () => document.getElementById(dialogId);
+  const getNav = () => document.getElementById(navId);
+
+  function isActive() {
+    return getForm()?.classList.contains("wizard-mode") || false;
+  }
+
+  function firstVisibleField(container) {
+    const candidates = container.querySelectorAll("input, select, textarea");
+    for (const field of candidates) {
+      if (field.type === "hidden" || field.type === "date" || field.disabled) continue;
+      if (field.closest(".hidden")) continue;
+      return field;
+    }
+    return null;
+  }
+
+  function syncChoiceSelection(stepElement) {
+    const form = getForm();
+    stepElement.querySelectorAll(".wizard-choice-btn[data-choice-value]").forEach((btn) => {
+      const fieldName = btn.closest("[data-choice-for]")?.dataset.choiceFor;
+      const field = fieldName ? form.elements[fieldName] : null;
+      btn.classList.toggle("selected", Boolean(field) && field.value === btn.dataset.choiceValue);
+    });
+    const dateButtons = stepElement.querySelectorAll(".wizard-choice-btn[data-date-choice]");
+    if (dateButtons.length) {
+      const fieldName = dateButtons[0].closest("[data-choice-for]")?.dataset.choiceFor;
+      const field = fieldName ? form.elements[fieldName] : null;
+      const todayIso = new Date().toISOString().slice(0, 10);
+      dateButtons.forEach((btn) => {
+        btn.classList.toggle("selected", btn.dataset.dateChoice === "today" && field?.value === todayIso);
+      });
+    }
+  }
+
+  function goToStep(step) {
+    const form = getForm();
+    const direction = step >= currentStep ? 1 : -1;
+    let target = Math.min(Math.max(step, 1), stepCount);
+    while (target > 1 && target < stepCount && shouldSkipStep(target, form)) target += direction;
+    currentStep = Math.min(Math.max(target, 1), stepCount);
+    form.querySelectorAll(".wizard-step").forEach((el) => {
+      el.classList.toggle("hidden", Number(el.dataset.step) !== currentStep);
+    });
+    const progressFill = document.getElementById(progressFillId);
+    if (progressFill) progressFill.style.width = `${(currentStep / stepCount) * 100}%`;
+    const progressLabel = document.getElementById(progressLabelId);
+    if (progressLabel) progressLabel.textContent = `Passo ${currentStep}`;
+    const nav = getNav();
+    const backButton = nav.querySelector("[data-wizard-back]");
+    backButton.classList.toggle("hidden", currentStep === 1);
+    nav.classList.toggle("single-button", currentStep === 1);
+    nav.querySelector("[data-wizard-next]").textContent = currentStep === stepCount ? lastStepLabel : nextLabel;
+    if (currentStep === stepCount) onReachLastStep(form);
+    const stepElement = form.querySelector(`.wizard-step[data-step="${currentStep}"]`);
+    onEnterStep(currentStep, form);
+    if (stepElement) syncChoiceSelection(stepElement);
+    const pickerStep = isPickerStep(currentStep, form);
+    const focusable = stepElement && !pickerStep ? firstVisibleField(stepElement) : null;
+    setTimeout(() => {
+      if (focusable) {
+        try { focusable.focus({ preventScroll: true }); } catch { focusable.focus(); }
+      } else {
+        nav.querySelector("[data-wizard-next]")?.focus({ preventScroll: true });
+      }
+    }, 0);
+  }
+
+  function activate(enabled) {
+    const form = getForm();
+    const dialog = getDialog();
+    form.classList.toggle("wizard-mode", enabled);
+    dialog.querySelectorAll(".wizard-only").forEach((el) => el.classList.toggle("hidden", !enabled));
+    form.querySelectorAll(".wizard-hide-native").forEach((el) => el.classList.toggle("hidden", enabled));
+    form.querySelectorAll(".wizard-picker-search-field").forEach((el) => el.classList.toggle("hidden", enabled));
+    form.querySelectorAll(".wizard-choice-btn.selected").forEach((el) => el.classList.remove("selected"));
+    if (enabled) {
+      currentStep = 1;
+      goToStep(1);
+    } else {
+      form.querySelectorAll(".wizard-step.hidden").forEach((el) => el.classList.remove("hidden"));
+    }
+  }
+
+  getDialog().addEventListener("click", (event) => {
+    if (!isActive()) return;
+    const dateButton = event.target.closest(".wizard-choice-btn[data-date-choice]");
+    if (dateButton) {
+      const form = getForm();
+      const fieldName = dateButton.closest("[data-choice-for]")?.dataset.choiceFor;
+      const field = fieldName ? form.elements[fieldName] : null;
+      dateButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === dateButton));
+      if (dateButton.dataset.dateChoice === "pick") {
+        setTimeout(() => field?.focus(), 0);
+      } else if (field) {
+        field.value = new Date().toISOString().slice(0, 10);
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+        setTimeout(() => getNav().querySelector("[data-wizard-next]")?.focus(), 0);
+      }
+      return;
+    }
+    const choiceButton = event.target.closest(".wizard-choice-btn[data-choice-value]");
+    if (choiceButton) {
+      const form = getForm();
+      const fieldName = choiceButton.closest("[data-choice-for]")?.dataset.choiceFor;
+      const field = fieldName ? form.elements[fieldName] : null;
+      if (field) {
+        field.value = choiceButton.dataset.choiceValue;
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      choiceButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === choiceButton));
+      setTimeout(() => getNav().querySelector("[data-wizard-next]")?.focus(), 0);
+      return;
+    }
+    if (event.target.closest("[data-wizard-back]")) {
+      if (currentStep <= 1) {
+        getDialog().querySelector("[data-close-dialog]")?.click();
+      } else {
+        goToStep(currentStep - 1);
+      }
+      return;
+    }
+    if (event.target.closest("[data-wizard-next]")) {
+      if (currentStep >= stepCount) {
+        const form = getForm();
+        form.requestSubmit(form.querySelector(submitButtonSelector));
+      } else if (validateStep(currentStep, getForm())) {
+        goToStep(currentStep + 1);
+      }
+    }
+  });
+
+  getForm().addEventListener("keydown", (event) => {
+    if (!isActive()) return;
+    if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+    event.preventDefault();
+    getNav().querySelector("[data-wizard-next]")?.click();
+  });
+
+  return { activate, isActive, goToStep, getCurrentStep: () => currentStep };
+}
+
 function openPaymentForm(item = null, billing = null, mode = "partial") {
   const form = document.getElementById("paymentForm");
   form.reset();
@@ -2651,8 +2808,69 @@ function openPaymentForm(item = null, billing = null, mode = "partial") {
     hint.classList.add("hidden");
   }
   document.getElementById("paymentDialogTitle").textContent = item ? "Editar pagamento" : "Registrar pagamento";
+  paymentWizard.activate(!item && window.matchMedia("(max-width: 1024px)").matches);
   document.getElementById("paymentDialog").showModal();
+  if (!paymentWizard.isActive()) setTimeout(() => form.elements.clientSearch.focus(), 0);
 }
+
+function renderPaymentMethodChoices() {
+  const form = document.getElementById("paymentForm");
+  const container = document.getElementById("paymentMethodChoice");
+  if (!container) return;
+  const options = [...form.elements.method.options].filter((option) => option.value);
+  container.innerHTML = options.length
+    ? options.map((option) => `<button type="button" class="wizard-choice-btn" data-choice-value="${escapeHtml(option.value)}">${escapeHtml(option.value)}</button>`).join("")
+    : '<span class="field-hint">Nenhuma forma de pagamento cadastrada.</span>';
+}
+
+function renderPaymentWizardSummary() {
+  const form = document.getElementById("paymentForm");
+  const target = document.getElementById("paymentWizardSummary");
+  if (!target) return;
+  const client = clientById(form.elements.clientId.value);
+  const rows = [
+    ["Cliente", clientOptionLabel(client) || "-"],
+    ["Data", formatDate(form.elements.date.value)],
+    ["Valor", money.format(Number(form.elements.amount.value || 0))],
+    ["Forma", form.elements.method.value || "Não informada"],
+    form.elements.note.value ? ["Observação", form.elements.note.value] : null
+  ].filter(Boolean);
+  target.innerHTML = rows
+    .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+const paymentWizard = createDialogWizard({
+  dialogId: "paymentDialog",
+  formId: "paymentForm",
+  navId: "paymentWizardNav",
+  progressFillId: "paymentWizardProgressFill",
+  progressLabelId: "paymentWizardProgressLabel",
+  stepCount: 6,
+  lastStepLabel: "Dar baixa",
+  onEnterStep: (step) => {
+    if (step === 4) renderPaymentMethodChoices();
+  },
+  onReachLastStep: renderPaymentWizardSummary,
+  validateStep: (step, form) => {
+    if (step === 1) {
+      syncPaymentClientSelection();
+      if (!form.elements.clientId.value) {
+        alert("Selecione um cliente válido da lista.");
+        form.elements.clientSearch.focus();
+        return false;
+      }
+    }
+    if (step === 3) {
+      if (form.elements.amount.value === "" || Number(form.elements.amount.value) <= 0) {
+        alert("Informe o valor recebido.");
+        form.elements.amount.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+});
 
 function openPaymentMethodForm(method = null) {
   const form = document.getElementById("paymentMethodForm");
@@ -4963,7 +5181,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=100").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=101").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

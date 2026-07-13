@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=85">
+  <link rel="stylesheet" href="styles.css?v=86">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -1047,21 +1047,53 @@
 
   <dialog id="paymentDialog">
     <form id="paymentForm" method="dialog">
-      <div class="dialog-heading"><h2 id="paymentDialogTitle">Registrar pagamento</h2><button class="icon-button" value="cancel">×</button></div>
+      <div class="dialog-heading"><h2 id="paymentDialogTitle">Registrar pagamento</h2><button class="icon-button" value="cancel" data-close-dialog>×</button></div>
       <input name="paymentId" type="hidden">
       <input name="billingId" type="hidden">
       <input name="clientId" type="hidden">
-      <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
-      <label>Data<input name="date" type="date" required></label>
-      <label>Valor recebido<input name="amount" type="number" min="0.01" step="0.01" required></label>
-      <label>Forma de pagamento<select name="method"><option value="">Não informada</option></select></label>
-      <label>Observação<input name="note" placeholder="Ex.: PIX parcial"></label>
-      <p id="paymentBillingHint" class="hint hidden"></p>
+      <div id="paymentWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="paymentWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="paymentWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Cliente</h3>
+        <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Data</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="date" data-date-picker>
+          <button type="button" class="wizard-choice-btn" data-date-choice="today">Hoje</button>
+          <button type="button" class="wizard-choice-btn" data-date-choice="pick">Outra data</button>
+        </div>
+        <label>Data<input name="date" type="date" required></label>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Valor</h3>
+        <label>Valor recebido<input name="amount" type="number" min="0.01" step="0.01" required></label>
+        <p id="paymentBillingHint" class="hint hidden"></p>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Forma de pagamento</h3>
+        <div id="paymentMethodChoice" class="wizard-choice wizard-only hidden" data-choice-for="method"></div>
+        <label class="wizard-hide-native">Forma de pagamento<select name="method"><option value="">Não informada</option></select></label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">Observação</h3>
+        <label>Observação<input name="note" placeholder="Ex.: PIX parcial"></label>
+      </div>
+      <div class="wizard-step" data-step="6">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="paymentWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
       <div class="dialog-actions">
         <button class="secondary" type="button" data-close-dialog>Cancelar</button>
         <button class="primary" value="default">Dar baixa</button>
       </div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="paymentWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
 
   <dialog id="billingDialog">
@@ -1331,7 +1363,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=100"></script>
+  <script src="app.js?v=101"></script>
   <script src="supplier.js?v=44"></script>
 </body>
 </html>
