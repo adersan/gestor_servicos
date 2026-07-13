@@ -27,7 +27,7 @@ button { cursor: pointer; }
 .brand-lockup { display: flex; align-items: center; gap: 14px; }
 .brand-lockup img { width: 54px; height: 54px; border-radius: 16px; box-shadow: 0 12px 28px rgba(0,0,0,.2); }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
-.mobile-menu-button, .mobile-nav-actions { display: none; }
+.mobile-menu-button, .mobile-nav-actions, .mobile-bottom-nav { display: none; }
 .mobile-menu-button { align-items: center; justify-content: center; gap: 6px; min-width: 44px; height: 38px; padding: 0 10px; border: 1px solid rgba(255,255,255,.22); border-radius: 11px; background: rgba(255,255,255,.06); color: white; font-weight: 800; }
 .sound-alert-button { position: relative; display: grid; place-items: center; min-width: 44px; height: 38px; padding: 0 10px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; background: rgba(255,255,255,.06); color: rgba(255,255,255,.84); line-height: 1; }
 .sound-alert-button::before { content: ""; width: 19px; height: 19px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9'/%3E%3Cpath d='M10 21h4'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9'/%3E%3Cpath d='M10 21h4'/%3E%3C/svg%3E") center / contain no-repeat; }
@@ -387,6 +387,7 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .client-supplier-service-item { display: grid; grid-template-columns: 1fr auto auto; gap: 9px; align-items: center; padding: 9px 10px; border-radius: 10px; background: #e3f3ea; color: #145b40; font-size: 12px; font-weight: 750; }
 .client-supplier-service-item small { display: block; margin-top: 3px; color: #477261; font-weight: 600; }
 .client-supplier-service-item button { padding: 3px 6px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.locked-service-note { padding: 3px 7px; border-radius: 999px; background: rgba(0, 0, 0, .08); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; }
 .secondary-service { border-color: #cbbbe8; background: #fcfaff; box-shadow: inset 4px 0 0 #7654a8; }
 .secondary-service-label { display: inline-block; margin: 6px 0 0 8px; padding: 4px 7px; border-radius: 999px; background: #eee8fa; color: #654697; font-size: 11px; font-weight: 800; }
 .dialog-form-actions { display: grid; grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: 10px; }
@@ -588,7 +589,41 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .notification-button #notificationCount { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 4px; font-size: 9px; }
   .topbar .eyebrow { display: none; }
   h1 { font-size: clamp(22px, 7vw, 30px); line-height: 1.05; }
-  main { padding: 20px 14px 88px; }
+  main { padding: 20px 14px calc(92px + env(safe-area-inset-bottom)); }
+  .mobile-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 25;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -10px 26px rgba(23,63,53,.14);
+    scrollbar-width: none;
+  }
+  .mobile-bottom-nav::-webkit-scrollbar { display: none; }
+  .mobile-bottom-nav-button {
+    flex: 1 0 64px;
+    min-height: 56px;
+    display: grid;
+    place-items: center;
+    gap: 2px;
+    padding: 6px 4px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    touch-action: manipulation;
+  }
+  .mobile-bottom-nav-button span { font-size: 20px; line-height: 1; }
+  .mobile-bottom-nav-button small { font-size: 10px; line-height: 1.1; font-weight: 800; white-space: nowrap; }
+  .mobile-bottom-nav-button.active { background: #dff0f4; color: var(--brand); }
+  body.mobile-menu-open .mobile-bottom-nav { display: none; }
   .tabs { display: none; position: relative; top: auto; z-index: 20; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px 12px 12px; overflow: visible; border-bottom: 1px solid var(--line); background: #f8f6ef; box-shadow: 0 14px 28px rgba(23,63,53,.12); scrollbar-width: none; }
   body.mobile-menu-open .tabs { display: grid; }
   .tabs::-webkit-scrollbar { display: none; }

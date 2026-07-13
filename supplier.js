@@ -182,6 +182,7 @@
 
   function renderEntries() {
     const supplierId = byId("supplierEntrySupplierFilter").value;
+    const clientId = byId("supplierEntryClientFilter").value;
     const status = byId("supplierEntryStatusFilter").value;
     const start = byId("supplierEntryStart").value;
     const end = byId("supplierEntryEnd").value;
@@ -192,6 +193,7 @@
     const statusOrder = { "A fazer": 0, "Feito": 1, "Entregue": 2, "Cancelado": 3 };
     const entries = [...state.supplierEntries].filter((item) =>
       (!supplierId || item.supplierId === supplierId)
+      && (!clientId || item.clientId === clientId)
       && (!status || item.status === status)
       && (!start || item.date >= start)
       && (!end || item.date <= end)
@@ -363,7 +365,9 @@
       return `<div class="client-supplier-service-item">
         <span>${escapeHtml(service?.name || "Serviço")}<small>${escapeHtml(supplier?.name || "Fornecedor")}</small></span>
         <strong>${money.format(item.amount)}</strong>
-        <button type="button" data-remove-client-supplier-service="${index}" aria-label="Remover ${escapeHtml(service?.name || "serviço")}">×</button>
+        ${item.locked
+          ? `<span class="locked-service-note" title="Já está em uma conta a pagar e não pode ser removido aqui">Em conta</span>`
+          : `<button type="button" data-remove-client-supplier-service="${index}" aria-label="Remover ${escapeHtml(service?.name || "serviço")}">×</button>`}
       </div>`;
     }).join("");
   }
@@ -409,14 +413,18 @@
     return clientSupplierServiceValues.length > 0;
   }
 
-  function resetClientEntryOptions(disabled = false) {
+  function currentClientSupplierServiceSelections() {
+    return clientSupplierServiceValues.map((item) => ({ ...item }));
+  }
+
+  function resetClientEntryOptions(disabled = false, existingLinks = []) {
     const form = byId("serviceForm");
     const checkbox = form.elements.hasSupplierService;
-    clientSupplierServiceValues = [];
+    clientSupplierServiceValues = existingLinks.map((link) => ({ ...link }));
     renderClientSupplierServices();
-    checkbox.checked = false;
+    checkbox.checked = Boolean(clientSupplierServiceValues.length);
     checkbox.disabled = disabled || !state.suppliers.length || !state.supplierServices.length;
-    byId("clientSupplierServiceSection").classList.add("hidden");
+    byId("clientSupplierServiceSection").classList.toggle("hidden", !clientSupplierServiceValues.length);
     form.elements.supplierId.value = defaultSupplier()?.id || "";
     form.elements.supplierSearch.value = supplierOptionLabel(defaultSupplier());
     syncClientEntryServices();
@@ -880,11 +888,10 @@
       form.elements.notes
     ].filter((field) => field && !field.disabled);
     const index = fields.indexOf(event.target);
-    if (index >= 0 && index < fields.length - 1) {
-      fields[index + 1].focus();
-    } else if (index === fields.length - 1) {
-      form.requestSubmit(form.querySelector('button[value="default"]'));
-    }
+    if (index < 0) return;
+    const next = fields.slice(index + 1).find((field) => field !== form.elements.date);
+    if (next) next.focus();
+    else form.requestSubmit(form.querySelector('button[value="default"]'));
   });
 
   byId("supplierCancelForm").addEventListener("submit", (event) => {
@@ -1032,13 +1039,13 @@
   document.addEventListener("change", (event) => {
     handleSupplierSearchChange(event);
     if (event.target.matches("#serviceForm input[name=hasSupplierService]")) {
-      byId("clientSupplierServiceSection").classList.toggle("hidden", !event.target.checked);
+      if (!event.target.checked) clientSupplierServiceValues = clientSupplierServiceValues.filter((item) => item.id);
+      byId("clientSupplierServiceSection").classList.toggle("hidden", !event.target.checked && !clientSupplierServiceValues.length);
       if (event.target.checked) {
         event.target.form.elements.supplierId.value ||= defaultSupplier()?.id || "";
         event.target.form.elements.supplierSearch.value ||= supplierOptionLabel(supplierById(event.target.form.elements.supplierId.value));
         syncClientEntryServices();
       } else {
-        clientSupplierServiceValues = [];
         renderClientSupplierServices();
       }
     }
@@ -1115,8 +1122,16 @@
     if (addClientSupplierServiceButton) addClientSupplierService();
     const removeClientSupplierServiceButton = event.target.closest("[data-remove-client-supplier-service]");
     if (removeClientSupplierServiceButton) {
-      clientSupplierServiceValues.splice(Number(removeClientSupplierServiceButton.dataset.removeClientSupplierService), 1);
-      renderClientSupplierServices();
+      const removeIndex = Number(removeClientSupplierServiceButton.dataset.removeClientSupplierService);
+      const target = clientSupplierServiceValues[removeIndex];
+      if (!target?.id || confirm("Remover este serviço de fornecedor já salvo? Ele será excluído ao salvar o lançamento.")) {
+        clientSupplierServiceValues.splice(removeIndex, 1);
+        if (!clientSupplierServiceValues.length) {
+          byId("serviceForm").elements.hasSupplierService.checked = false;
+          byId("clientSupplierServiceSection").classList.add("hidden");
+        }
+        renderClientSupplierServices();
+      }
     }
     const editSupplier = event.target.closest("[data-edit-supplier]"); if (editSupplier) openSupplier(supplierById(editSupplier.dataset.editSupplier));
     const editService = event.target.closest("[data-edit-supplier-service]"); if (editService) openSupplierService(supplierServiceById(editService.dataset.editSupplierService));
@@ -1191,7 +1206,7 @@
     }
   });
 
-  ["supplierDashboardFilter", "supplierDashboardStart", "supplierDashboardEnd", "supplierEntrySupplierFilter", "supplierEntryStatusFilter", "supplierEntryStart", "supplierEntryEnd", "supplierEntrySearch", "supplierSearch", "supplierServiceSearch", "supplierPayableSupplierFilter", "supplierPayableStatusFilter"].forEach((id) => {
+  ["supplierDashboardFilter", "supplierDashboardStart", "supplierDashboardEnd", "supplierEntrySupplierFilter", "supplierEntryClientFilter", "supplierEntryStatusFilter", "supplierEntryStart", "supplierEntryEnd", "supplierEntrySearch", "supplierSearch", "supplierServiceSearch", "supplierPayableSupplierFilter", "supplierPayableStatusFilter"].forEach((id) => {
     byId(id).addEventListener(id.includes("Search") ? "input" : "change", render);
   });
 
@@ -1208,7 +1223,8 @@
     offerSupplierRequestShare,
     addClientSupplierService,
     syncClientEntryServiceSelection,
-    hasClientSupplierServices
+    hasClientSupplierServices,
+    currentClientSupplierServiceSelections
   };
   resetClientEntryOptions();
   byId("supplierRequestShareDialog").addEventListener("cancel", (event) => {

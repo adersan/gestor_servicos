@@ -740,12 +740,12 @@ function setMobileMenuOpen(open) {
 
 function showView(viewId) {
   setMobileMenuOpen(false);
-  document.querySelectorAll(".view, .tab").forEach((element) => element.classList.remove("active"));
+  document.querySelectorAll(".view, .tab, .mobile-bottom-nav-button").forEach((element) => element.classList.remove("active"));
   document.getElementById(viewId).classList.add("active");
   const clientViews = ["clients", "catalog", "services", "requests"];
   const financeViews = ["payments", "paymentMethods", "billing"];
   const mainView = clientViews.includes(viewId) ? "services" : financeViews.includes(viewId) ? "payments" : viewId;
-  document.querySelector(`[data-view="${mainView}"]`)?.classList.add("active");
+  document.querySelectorAll(`[data-view="${mainView}"]`).forEach((element) => element.classList.add("active"));
   document.querySelectorAll("[data-client-view]").forEach((button) => {
     const target = button.dataset.clientView;
     button.classList.toggle("active", target === viewId);
@@ -803,7 +803,7 @@ function formatDate(value) {
 
 function renderSelects() {
   const options = state.clients.map((client) => `<option value="${client.id}">${escapeHtml(client.name)}</option>`).join("");
-  ["paymentClientFilter", "billingClientFilter"].forEach((id) => {
+  ["paymentClientFilter", "billingClientFilter", "supplierEntryClientFilter"].forEach((id) => {
     const filter = document.getElementById(id);
     const currentFilter = filter.value;
     filter.innerHTML = `<option value="">Todos os clientes</option>${options}`;
@@ -1794,7 +1794,9 @@ function renderAdditionalServiceList() {
     <div class="additional-service-item">
       <span>${escapeHtml(catalogOptionLabel(state.catalog.find((item) => item.id === service.catalogId)))}</span>
       <strong>${money.format(service.amount)}</strong>
-      <button type="button" data-remove-additional-service="${index}" aria-label="Remover serviço complementar">×</button>
+      ${service.locked
+        ? `<span class="locked-service-note" title="Já está em uma cobrança e não pode ser removido aqui">Em cobrança</span>`
+        : `<button type="button" data-remove-additional-service="${index}" aria-label="Remover serviço complementar">×</button>`}
     </div>`).join("");
 }
 
@@ -1847,14 +1849,12 @@ function addAdditionalService() {
 function toggleAdditionalServices() {
   const form = document.getElementById("serviceForm");
   const enabled = form.elements.hasAdditionalServices.checked;
-  document.getElementById("additionalServicesSection").classList.toggle("hidden", !enabled);
-  if (!enabled) {
-    additionalServiceValues = [];
-    form.elements.additionalCatalogId.value = "";
-    form.elements.additionalCatalogSearch.value = "";
-    form.elements.additionalAmount.value = "";
-    renderAdditionalServiceList();
-  }
+  additionalServiceValues = enabled ? additionalServiceValues : additionalServiceValues.filter((service) => service.id);
+  document.getElementById("additionalServicesSection").classList.toggle("hidden", !enabled && !additionalServiceValues.length);
+  form.elements.additionalCatalogId.value = "";
+  form.elements.additionalCatalogSearch.value = "";
+  form.elements.additionalAmount.value = "";
+  renderAdditionalServiceList();
 }
 
 function syncServiceClientSelection() {
@@ -2147,16 +2147,37 @@ function openEntryForm(item = null, preferredClientId = "", request = null) {
   form.elements.requestedBy.value = request?.requestedBy || item?.requestedBy || "";
   updateServiceRequesterOptions();
   toggleServiceRequesterSection();
-  form.elements.hasAdditionalServices.checked = false;
-  form.elements.hasAdditionalServices.disabled = Boolean(item);
-  document.getElementById("additionalServicesSection").classList.add("hidden");
+  const isEditablePrimary = Boolean(item) && !item.isSecondary;
+  const editableSiblings = isEditablePrimary
+    ? state.services.filter((sibling) => sibling.primaryEntryId === item.id && sibling.isSecondary && sibling.status !== "Cancelado")
+    : [];
+  additionalServiceValues = editableSiblings.map((sibling) => ({
+    id: sibling.id,
+    catalogId: sibling.catalogId,
+    amount: Number(sibling.amount),
+    locked: Boolean(sibling.billingId)
+  }));
+  form.elements.hasAdditionalServices.checked = Boolean(additionalServiceValues.length);
+  form.elements.hasAdditionalServices.disabled = Boolean(item?.isSecondary);
+  document.getElementById("additionalServicesSection").classList.toggle("hidden", !additionalServiceValues.length);
   const importHint = document.getElementById("serviceImportHint");
   importHint.classList.toggle("hidden", !request);
   importHint.innerHTML = request ? `
     <strong>Pedido importado do cliente</strong>
     <span>${escapeHtml(request.references?.length || 0)} referência(s) · Solicitante: ${escapeHtml(request.requestedBy || "Não informado")}</span>
     ${request.notes ? `<small>${escapeHtml(request.notes)}</small>` : ""}` : "";
-  window.supplierModule?.resetClientEntryOptions(Boolean(item));
+  const existingSupplierLinks = isEditablePrimary
+    ? state.supplierEntries
+      .filter((entry) => entry.clientServiceEntryId === item.id && entry.status !== "Cancelado")
+      .map((entry) => ({
+        id: entry.id,
+        supplierId: entry.supplierId,
+        supplierServiceId: entry.supplierServiceId,
+        amount: Number(entry.amount),
+        locked: Boolean(entry.payableId)
+      }))
+    : [];
+  window.supplierModule?.resetClientEntryOptions(Boolean(item?.isSecondary), existingSupplierLinks);
   document.getElementById("serviceDialogTitle").textContent = item ? "Editar lançamento" : request ? "Importar pedido" : "Novo lançamento";
   document.getElementById("suggestedPrice").textContent = item
     ? "O valor pode ser alterado somente neste lançamento."
@@ -3055,8 +3076,16 @@ document.addEventListener("click", async (event) => {
   }
   const removeAdditionalServiceButton = event.target.closest("[data-remove-additional-service]");
   if (removeAdditionalServiceButton) {
-    additionalServiceValues.splice(Number(removeAdditionalServiceButton.dataset.removeAdditionalService), 1);
-    renderAdditionalServiceList();
+    const removeIndex = Number(removeAdditionalServiceButton.dataset.removeAdditionalService);
+    const target = additionalServiceValues[removeIndex];
+    if (!target?.id || confirm("Remover este serviço complementar já salvo? Ele será excluído ao salvar o lançamento.")) {
+      additionalServiceValues.splice(removeIndex, 1);
+      if (!additionalServiceValues.length) {
+        document.getElementById("serviceForm").elements.hasAdditionalServices.checked = false;
+        document.getElementById("additionalServicesSection").classList.add("hidden");
+      }
+      renderAdditionalServiceList();
+    }
   }
   const continuationButton = event.target.closest("[data-entry-next]");
   if (continuationButton && entryContinuationResolver) {
@@ -3456,6 +3485,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     alert("O serviço principal também está na lista de complementares. Remova-o ou escolha outro serviço.");
     return;
   }
+  const newAdditionalServiceValues = additionalServiceValues.filter((service) => !service.id);
   const serviceDefinitions = [
     {
       catalogId: data.get("catalogId"),
@@ -3463,7 +3493,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
       amount: Number(data.get("amount")),
       isSecondary: Boolean(existingEntry?.isSecondary)
     },
-    ...additionalServiceValues.map((service) => {
+    ...newAdditionalServiceValues.map((service) => {
       const additionalCatalog = state.catalog.find((item) => item.id === service.catalogId);
       return {
         catalogId: service.catalogId,
@@ -3485,6 +3515,9 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     ? String(data.get("requestedBy") || "").trim().replace(/\s+/g, " ")
     : "";
   if (requestedBy) addClientRequester(data.get("clientId"), requestedBy);
+  const existingSiblingIds = existingEntry && !existingEntry.isSecondary
+    ? new Set(state.services.filter((service) => service.primaryEntryId === existingEntry.id && service.isSecondary).map((service) => service.id))
+    : new Set();
   const createdEntries = [];
   entryReferences.forEach((reference, referenceIndex) => {
     const serviceGroupId = existingEntry?.serviceGroupId || crypto.randomUUID();
@@ -3504,9 +3537,9 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
         amount: service.amount,
         status: data.get("status"),
         serviceGroupId,
-        primaryEntryId: existingEntry
-          ? existingEntry.primaryEntryId || ""
-          : isPrimary ? "" : primaryEntryId,
+        primaryEntryId: isPrimary
+          ? (existingEntry ? existingEntry.primaryEntryId || "" : "")
+          : primaryEntryId,
         isSecondary: service.isSecondary,
         deliveryCode: isPrimary && existingEntry?.deliveryCode
           ? existingEntry.deliveryCode
@@ -3530,6 +3563,31 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
       createdEntries.push(entry);
     });
   });
+  let editedSupplierSelections = [];
+  if (existingEntry && !existingEntry.isSecondary) {
+    const keptComplementaryIds = new Set(additionalServiceValues.filter((service) => service.id).map((service) => service.id));
+    const complementaryToRemove = state.services.filter((service) =>
+      existingSiblingIds.has(service.id) && !keptComplementaryIds.has(service.id) && !service.billingId);
+    if (complementaryToRemove.length) {
+      const removedIds = new Set(complementaryToRemove.map((service) => service.id));
+      state.supplierEntries.forEach((entry) => {
+        if (removedIds.has(entry.clientServiceEntryId) && entry.payableId) entry.clientServiceEntryId = null;
+      });
+      state.supplierEntries = state.supplierEntries.filter((entry) => !removedIds.has(entry.clientServiceEntryId) || entry.payableId);
+      state.services = state.services.filter((service) => !removedIds.has(service.id));
+    }
+    editedSupplierSelections = window.supplierModule?.currentClientSupplierServiceSelections() || [];
+    const keptSupplierLinkIds = new Set(editedSupplierSelections.filter((selection) => selection.id).map((selection) => selection.id));
+    const supplierLinkIdsToRemove = new Set(
+      state.supplierEntries
+        .filter((entry) => entry.clientServiceEntryId === existingEntry.id && !keptSupplierLinkIds.has(entry.id) && !entry.payableId)
+        .map((entry) => entry.id)
+    );
+    if (supplierLinkIdsToRemove.size) {
+      state.supplierEntries = state.supplierEntries.filter((entry) => !supplierLinkIdsToRemove.has(entry.id));
+    }
+    editedSupplierSelections = editedSupplierSelections.filter((selection) => !selection.id);
+  }
   const savedClientId = data.get("clientId");
   if (sourceRequest && !existingEntry) {
     sourceRequest.status = "Importado";
@@ -3541,7 +3599,9 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   form.closest("dialog").close();
   const createdSupplierEntries = !existingEntry
     ? window.supplierModule?.createForClientEntries(createdEntries, supplierSelection) || []
-    : [];
+    : (editedSupplierSelections.length
+      ? window.supplierModule?.createForClientEntries([createdEntries[0]], editedSupplierSelections) || []
+      : []);
   try {
     if (sourceRequest && !existingEntry) {
       await window.dataStore?.updateClientServiceRequest?.(sourceRequest.id, {
@@ -4324,15 +4384,14 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
       form.elements.status
     ].filter((field) => field && !field.disabled);
     const index = fields.indexOf(target);
-    if (index >= 0 && index < fields.length - 1) {
-      focusField(fields[index + 1]);
+    if (index < 0) return false;
+    const next = fields.slice(index + 1).find((field) => field !== form.elements.date);
+    if (next) {
+      focusField(next);
       return true;
     }
-    if (index === fields.length - 1) {
-      form.requestSubmit(form.querySelector('button[value="default"]'));
-      return true;
-    }
-    return false;
+    form.requestSubmit(form.querySelector('button[value="default"]'));
+    return true;
   }
 
   if (event.target.name === "hasAdditionalServices") {
@@ -4405,7 +4464,8 @@ document.addEventListener("keydown", (event) => {
   const index = fields.indexOf(event.target);
   if (index < 0) return;
   event.preventDefault();
-  const next = fields.slice(index + 1).find((field) => field.tagName !== "BUTTON" || field.type === "submit" || field.value === "default");
+  const next = fields.slice(index + 1).find((field) =>
+    field.name !== "date" && (field.tagName !== "BUTTON" || field.type === "submit" || field.value === "default"));
   if (next && next.tagName !== "BUTTON") next.focus();
   else {
     const submitButton = form.querySelector('button[value="default"], button[type="submit"]');
@@ -4443,7 +4503,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=88").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=89").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
