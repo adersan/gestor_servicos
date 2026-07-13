@@ -2219,6 +2219,30 @@ function setServiceWizardMode(enabled) {
   }
 }
 
+function syncServiceWizardChoiceSelection(stepElement) {
+  const form = document.getElementById("serviceForm");
+  stepElement.querySelectorAll(".wizard-choice-btn[data-yesno-choice]").forEach((btn) => {
+    const checked = form.elements[btn.dataset.yesnoChoice].checked;
+    btn.classList.toggle("selected", (btn.dataset.yesnoValue === "1") === checked);
+  });
+  stepElement.querySelectorAll(".wizard-choice-btn[data-status-choice]").forEach((btn) => {
+    btn.classList.toggle("selected", btn.dataset.statusChoice === form.elements.status.value);
+  });
+  const dateButtons = stepElement.querySelectorAll(".wizard-choice-btn[data-date-choice]");
+  if (dateButtons.length) {
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayIso = today.toISOString().slice(0, 10);
+    const tomorrowIso = tomorrow.toISOString().slice(0, 10);
+    dateButtons.forEach((btn) => {
+      const isMatch = (btn.dataset.dateChoice === "today" && form.elements.date.value === todayIso)
+        || (btn.dataset.dateChoice === "tomorrow" && form.elements.date.value === tomorrowIso);
+      btn.classList.toggle("selected", isMatch);
+    });
+  }
+}
+
 function goToServiceWizardStep(step) {
   const form = document.getElementById("serviceForm");
   serviceWizardStep = Math.min(Math.max(step, 1), SERVICE_WIZARD_STEP_COUNT);
@@ -2236,6 +2260,7 @@ function goToServiceWizardStep(step) {
   nav.querySelector("[data-wizard-next]").textContent = serviceWizardStep === SERVICE_WIZARD_STEP_COUNT ? "Salvar lançamento" : "Continuar";
   if (serviceWizardStep === SERVICE_WIZARD_STEP_COUNT) renderServiceWizardSummary();
   const stepElement = form.querySelector(`.wizard-step[data-step="${serviceWizardStep}"]`);
+  if (stepElement) syncServiceWizardChoiceSelection(stepElement);
   const focusable = stepElement ? firstVisibleServiceField(stepElement) : null;
   if (focusable) {
     setTimeout(() => {
@@ -2323,24 +2348,19 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
     checkbox.checked = yesnoButton.dataset.yesnoValue === "1";
     checkbox.dispatchEvent(new Event("change", { bubbles: true }));
     yesnoButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === yesnoButton));
-    if (!checkbox.checked) goToServiceWizardStep(serviceWizardStep + 1);
     return;
   }
   const dateButton = event.target.closest(".wizard-choice-btn[data-date-choice]");
   if (dateButton) {
     const form = document.getElementById("serviceForm");
-    const dateLabel = form.querySelector('.wizard-hide-native input[name="date"]')?.closest("label");
     dateButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === dateButton));
     if (dateButton.dataset.dateChoice === "pick") {
-      dateLabel?.classList.remove("hidden");
       setTimeout(() => form.elements.date.focus(), 0);
     } else {
       const days = dateButton.dataset.dateChoice === "tomorrow" ? 1 : 0;
       const target = new Date();
       target.setDate(target.getDate() + days);
       form.elements.date.value = target.toISOString().slice(0, 10);
-      dateLabel?.classList.add("hidden");
-      goToServiceWizardStep(serviceWizardStep + 1);
     }
     return;
   }
@@ -2350,7 +2370,6 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
     form.elements.status.value = statusButton.dataset.statusChoice;
     form.elements.status.dispatchEvent(new Event("change", { bubbles: true }));
     statusButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === statusButton));
-    goToServiceWizardStep(serviceWizardStep + 1);
     return;
   }
   if (event.target.closest("[data-wizard-back]")) {
@@ -4724,7 +4743,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=92").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=93").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
