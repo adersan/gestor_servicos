@@ -2184,9 +2184,184 @@ function openEntryForm(item = null, preferredClientId = "", request = null) {
     : request ? "Valor sugerido pelo pedido. Você pode ajustar antes de salvar." : "Selecione o cliente e o serviço para preencher o valor.";
   renderReferenceList();
   renderAdditionalServiceList();
+  setServiceWizardMode(!item && window.matchMedia("(max-width: 700px)").matches);
   document.getElementById("serviceDialog").showModal();
-  setTimeout(() => form.elements.clientSearch.focus(), 0);
+  if (!serviceWizardModeActive()) setTimeout(() => form.elements.clientSearch.focus(), 0);
 }
+
+const SERVICE_WIZARD_STEP_COUNT = 9;
+let serviceWizardStep = 1;
+
+function serviceWizardModeActive() {
+  return document.getElementById("serviceForm").classList.contains("wizard-mode");
+}
+
+function firstVisibleServiceField(container) {
+  const candidates = container.querySelectorAll("input, select, textarea");
+  for (const field of candidates) {
+    if (field.type === "hidden" || field.disabled) continue;
+    if (field.closest(".hidden")) continue;
+    return field;
+  }
+  return null;
+}
+
+function setServiceWizardMode(enabled) {
+  const form = document.getElementById("serviceForm");
+  form.classList.toggle("wizard-mode", enabled);
+  form.querySelectorAll(".wizard-only").forEach((el) => el.classList.toggle("hidden", !enabled));
+  form.querySelectorAll(".wizard-hide-native").forEach((el) => el.classList.toggle("hidden", enabled));
+  form.querySelectorAll(".wizard-choice-btn.selected").forEach((el) => el.classList.remove("selected"));
+  if (enabled) {
+    goToServiceWizardStep(1);
+  } else {
+    form.querySelectorAll(".wizard-step.hidden").forEach((el) => el.classList.remove("hidden"));
+  }
+}
+
+function goToServiceWizardStep(step) {
+  const form = document.getElementById("serviceForm");
+  serviceWizardStep = Math.min(Math.max(step, 1), SERVICE_WIZARD_STEP_COUNT);
+  form.querySelectorAll(".wizard-step").forEach((el) => {
+    el.classList.toggle("hidden", Number(el.dataset.step) !== serviceWizardStep);
+  });
+  const progress = document.getElementById("serviceWizardProgress");
+  if (progress) progress.textContent = `Passo ${serviceWizardStep} de ${SERVICE_WIZARD_STEP_COUNT}`;
+  const nav = document.getElementById("serviceWizardNav");
+  nav.querySelector("[data-wizard-back]").textContent = serviceWizardStep === 1 ? "Cancelar" : "Voltar";
+  nav.querySelector("[data-wizard-next]").textContent = serviceWizardStep === SERVICE_WIZARD_STEP_COUNT ? "Salvar lançamento" : "Próximo";
+  if (serviceWizardStep === SERVICE_WIZARD_STEP_COUNT) renderServiceWizardSummary();
+  const stepElement = form.querySelector(`.wizard-step[data-step="${serviceWizardStep}"]`);
+  const focusable = stepElement ? firstVisibleServiceField(stepElement) : null;
+  if (focusable) {
+    setTimeout(() => {
+      try { focusable.focus({ preventScroll: true }); } catch { focusable.focus(); }
+    }, 0);
+  }
+}
+
+function validateServiceWizardStep(step) {
+  const form = document.getElementById("serviceForm");
+  if (step === 1) {
+    syncServiceClientSelection();
+    if (!form.elements.clientId.value) {
+      alert("Selecione um cliente válido da lista.");
+      form.elements.clientSearch.focus();
+      return false;
+    }
+  }
+  if (step === 3) {
+    syncServiceCatalogSelection();
+    if (!form.elements.catalogId.value) {
+      setServiceCatalogError("O serviço é obrigatório. Escolha uma opção válida pelo código ou nome.");
+      form.elements.catalogSearch.focus();
+      return false;
+    }
+    setServiceCatalogError();
+  }
+  if (step === 5) {
+    if (form.elements.amount.value === "" || Number(form.elements.amount.value) < 0) {
+      alert("Informe o valor do serviço.");
+      form.elements.amount.focus();
+      return false;
+    }
+  }
+  if (step === 6 && form.elements.hasAdditionalServices.checked && !additionalServiceValues.length) {
+    alert('Adicione pelo menos um serviço complementar ou toque em "Não".');
+    form.elements.additionalCatalogSearch.focus();
+    return false;
+  }
+  if (step === 7) {
+    const supplierSelection = window.supplierModule?.clientEntrySelection();
+    if (supplierSelection?.error) {
+      alert(supplierSelection.error);
+      supplierSelection.field?.focus();
+      return false;
+    }
+  }
+  return true;
+}
+
+function renderServiceWizardSummary() {
+  const target = document.getElementById("serviceWizardSummary");
+  if (!target) return;
+  const form = document.getElementById("serviceForm");
+  const client = clientById(form.elements.clientId.value);
+  const catalogItem = state.catalog.find((catalogEntry) => catalogEntry.id === form.elements.catalogId.value);
+  const typedReferences = String(form.elements.reference.value || "")
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const references = [...new Set([...serviceReferenceValues, ...typedReferences])];
+  const statusLabels = { "A fazer": "A fazer", "Pronto": "Feito", "Entregue": "Entregue" };
+  const rows = [
+    ["Cliente", clientOptionLabel(client) || "-"],
+    form.elements.hasRequester.checked ? ["Solicitante", form.elements.requestedBy.value || "-"] : null,
+    ["Data", formatDate(form.elements.date.value)],
+    ["Serviço", catalogOptionLabel(catalogItem) || "-"],
+    ["Placa ou referência", references.length ? references.join(", ") : "-"],
+    ["Valor", money.format(Number(form.elements.amount.value || 0))],
+    additionalServiceValues.length ? ["Complementares", `${additionalServiceValues.length} serviço(s) · ${money.format(additionalServiceValues.reduce((total, service) => total + Number(service.amount || 0), 0))}`] : null,
+    form.elements.hasSupplierService.checked ? ["Fornecedor", form.elements.supplierSearch.value || "-"] : null,
+    ["Situação", statusLabels[form.elements.status.value] || form.elements.status.value]
+  ].filter(Boolean);
+  target.innerHTML = rows
+    .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+document.getElementById("serviceForm").addEventListener("click", (event) => {
+  if (!serviceWizardModeActive()) return;
+  const yesnoButton = event.target.closest(".wizard-choice-btn[data-yesno-choice]");
+  if (yesnoButton) {
+    const form = document.getElementById("serviceForm");
+    const checkbox = form.elements[yesnoButton.dataset.yesnoChoice];
+    checkbox.checked = yesnoButton.dataset.yesnoValue === "1";
+    checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+    yesnoButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === yesnoButton));
+    if (!checkbox.checked) goToServiceWizardStep(serviceWizardStep + 1);
+    return;
+  }
+  const dateButton = event.target.closest(".wizard-choice-btn[data-date-choice]");
+  if (dateButton) {
+    const form = document.getElementById("serviceForm");
+    const dateLabel = form.querySelector('.wizard-hide-native input[name="date"]')?.closest("label");
+    dateButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === dateButton));
+    if (dateButton.dataset.dateChoice === "today") {
+      form.elements.date.value = new Date().toISOString().slice(0, 10);
+      dateLabel?.classList.add("hidden");
+      goToServiceWizardStep(serviceWizardStep + 1);
+    } else {
+      dateLabel?.classList.remove("hidden");
+      setTimeout(() => form.elements.date.focus(), 0);
+    }
+    return;
+  }
+  const statusButton = event.target.closest(".wizard-choice-btn[data-status-choice]");
+  if (statusButton) {
+    const form = document.getElementById("serviceForm");
+    form.elements.status.value = statusButton.dataset.statusChoice;
+    form.elements.status.dispatchEvent(new Event("change", { bubbles: true }));
+    statusButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === statusButton));
+    goToServiceWizardStep(serviceWizardStep + 1);
+    return;
+  }
+  if (event.target.closest("[data-wizard-back]")) {
+    if (serviceWizardStep <= 1) {
+      document.querySelector("[data-cancel-service-entry]").click();
+    } else {
+      goToServiceWizardStep(serviceWizardStep - 1);
+    }
+    return;
+  }
+  if (event.target.closest("[data-wizard-next]")) {
+    if (serviceWizardStep >= SERVICE_WIZARD_STEP_COUNT) {
+      document.querySelector('#serviceForm button[value="default"]').click();
+    } else if (validateServiceWizardStep(serviceWizardStep)) {
+      goToServiceWizardStep(serviceWizardStep + 1);
+    }
+  }
+});
 
 function importClientRequest(requestId) {
   const request = (state.serviceRequests || []).find((item) => item.id === requestId);
@@ -4347,6 +4522,11 @@ document.getElementById("serviceForm").addEventListener("focusin", (event) => {
 
 document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+  if (serviceWizardModeActive()) {
+    event.preventDefault();
+    document.querySelector("[data-wizard-next]").click();
+    return;
+  }
   const form = event.currentTarget;
   const supplierEnabled = form.elements.hasSupplierService.checked
     && !form.elements.hasSupplierService.disabled;
@@ -4503,7 +4683,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=90").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=91").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

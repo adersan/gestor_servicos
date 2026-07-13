@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=75">
+  <link rel="stylesheet" href="styles.css?v=76">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -695,87 +695,161 @@
       <input name="sourceRequestId" type="hidden">
       <input name="clientId" type="hidden">
       <div id="serviceImportHint" class="import-hint hidden"></div>
-      <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
-      <datalist id="serviceClientOptions"></datalist>
-      <label class="checkbox-label requester-toggle">
-        <input name="hasRequester" type="checkbox">
-        Informar solicitante do cliente
-      </label>
-      <section id="serviceRequesterSection" class="requester-section hidden">
-        <label>Solicitante
-          <span class="requester-entry-row">
-            <input name="requestedBy" type="search" list="serviceRequesterOptions" autocomplete="off" placeholder="Digite ou escolha o solicitante">
-            <button id="addRequesterButton" class="secondary" type="button" aria-label="Adicionar solicitante">+</button>
+      <div id="serviceWizardProgress" class="wizard-progress wizard-only hidden"></div>
+
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Cliente</h3>
+        <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
+        <datalist id="serviceClientOptions"></datalist>
+        <div class="wizard-yesno wizard-only hidden" data-yesno-for="hasRequester">
+          <span class="wizard-question">Informar solicitante do cliente?</span>
+          <div class="wizard-yesno-buttons">
+            <button type="button" class="wizard-choice-btn" data-yesno-choice="hasRequester" data-yesno-value="1">Sim</button>
+            <button type="button" class="wizard-choice-btn" data-yesno-choice="hasRequester" data-yesno-value="0">Não</button>
+          </div>
+        </div>
+        <label class="checkbox-label requester-toggle wizard-hide-native">
+          <input name="hasRequester" type="checkbox">
+          Informar solicitante do cliente
+        </label>
+        <section id="serviceRequesterSection" class="requester-section hidden">
+          <label>Solicitante
+            <span class="requester-entry-row">
+              <input name="requestedBy" type="search" list="serviceRequesterOptions" autocomplete="off" placeholder="Digite ou escolha o solicitante">
+              <button id="addRequesterButton" class="secondary" type="button" aria-label="Adicionar solicitante">+</button>
+            </span>
+            <span id="serviceRequesterHint" class="field-hint">A lista muda conforme o cliente selecionado.</span>
+          </label>
+          <datalist id="serviceRequesterOptions"></datalist>
+        </section>
+      </div>
+
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Data</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="date">
+          <button type="button" class="wizard-choice-btn" data-date-choice="today">Hoje</button>
+          <button type="button" class="wizard-choice-btn" data-date-choice="pick">Escolher outra data</button>
+        </div>
+        <label class="wizard-hide-native">Data<input name="date" type="date" required></label>
+      </div>
+
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Serviço</h3>
+        <input name="catalogId" type="hidden">
+        <label id="serviceCatalogField">
+          <span class="field-label-row"><span>Serviço</span><strong>Obrigatório</strong></span>
+          <input name="catalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" required aria-describedby="serviceCatalogError" placeholder="Digite o código ou nome">
+          <span id="serviceCatalogError" class="field-error hidden" role="alert">Selecione um serviço válido da lista.</span>
+        </label>
+        <datalist id="serviceCatalogOptions"></datalist>
+      </div>
+
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Placa ou referência</h3>
+        <label>Placa ou referência
+          <span class="reference-entry-row">
+            <textarea name="reference" rows="4" placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea>
+            <button id="addReferenceButton" class="secondary" type="button" aria-label="Adicionar referência">+</button>
           </span>
-          <span id="serviceRequesterHint" class="field-hint">A lista muda conforme o cliente selecionado.</span>
+          <span class="field-hint">Ao clicar em +, cada linha vira um serviço. Textos na mesma linha permanecem juntos.</span>
         </label>
-        <datalist id="serviceRequesterOptions"></datalist>
-      </section>
-      <label>Data<input name="date" type="date" required></label>
-      <input name="catalogId" type="hidden">
-      <label id="serviceCatalogField">
-        <span class="field-label-row"><span>Serviço</span><strong>Obrigatório</strong></span>
-        <input name="catalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" required aria-describedby="serviceCatalogError" placeholder="Digite o código ou nome">
-        <span id="serviceCatalogError" class="field-error hidden" role="alert">Selecione um serviço válido da lista.</span>
-      </label>
-      <datalist id="serviceCatalogOptions"></datalist>
-      <label>Placa ou referência
-        <span class="reference-entry-row">
-          <textarea name="reference" rows="4" placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea>
-          <button id="addReferenceButton" class="secondary" type="button" aria-label="Adicionar referência">+</button>
-        </span>
-        <span class="field-hint">Ao clicar em +, cada linha vira um serviço. Textos na mesma linha permanecem juntos.</span>
-      </label>
-      <div id="referenceList" class="reference-list"></div>
-      <label>Valor
-        <input name="amount" type="number" min="0" step="0.01" required>
-        <span id="suggestedPrice" class="field-hint">Selecione o cliente e o serviço para preencher o valor.</span>
-      </label>
-      <label class="checkbox-label additional-service-toggle">
-        <input name="hasAdditionalServices" type="checkbox">
-        Adicionar serviços complementares para a mesma referência
-      </label>
-      <section id="additionalServicesSection" class="additional-services-section hidden">
-        <input name="additionalCatalogId" type="hidden">
-        <label>Serviço complementar
-          <input name="additionalCatalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" placeholder="Digite o código ou nome">
+        <div id="referenceList" class="reference-list"></div>
+      </div>
+
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">Valor</h3>
+        <label>Valor
+          <input name="amount" type="number" min="0" step="0.01" required>
+          <span id="suggestedPrice" class="field-hint">Selecione o cliente e o serviço para preencher o valor.</span>
         </label>
-        <label>Valor do complementar
-          <span class="additional-service-entry-row">
-            <input name="additionalAmount" type="number" min="0" step="0.01">
-            <button id="addAdditionalServiceButton" class="secondary" type="button" aria-label="Adicionar serviço complementar">+</button>
-          </span>
-          <span id="additionalSuggestedPrice" class="field-hint">Escolha um serviço complementar.</span>
+      </div>
+
+      <div class="wizard-step" data-step="6">
+        <h3 class="wizard-step-title wizard-only hidden">Complementares</h3>
+        <div class="wizard-yesno wizard-only hidden" data-yesno-for="hasAdditionalServices">
+          <span class="wizard-question">Adicionar serviços complementares para a mesma referência?</span>
+          <div class="wizard-yesno-buttons">
+            <button type="button" class="wizard-choice-btn" data-yesno-choice="hasAdditionalServices" data-yesno-value="1">Sim</button>
+            <button type="button" class="wizard-choice-btn" data-yesno-choice="hasAdditionalServices" data-yesno-value="0">Não</button>
+          </div>
+        </div>
+        <label class="checkbox-label additional-service-toggle wizard-hide-native">
+          <input name="hasAdditionalServices" type="checkbox">
+          Adicionar serviços complementares para a mesma referência
         </label>
-        <div id="additionalServiceList" class="additional-service-list"></div>
-      </section>
-      <label class="checkbox-label supplier-service-toggle">
-        <input name="hasSupplierService" type="checkbox">
-        Este lançamento utiliza serviço de fornecedor
-      </label>
-      <section id="clientSupplierServiceSection" class="supplier-service-section hidden">
-        <input name="supplierId" type="hidden">
-        <label>Fornecedor
-          <input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" placeholder="Digite o nome do fornecedor">
+        <section id="additionalServicesSection" class="additional-services-section hidden">
+          <input name="additionalCatalogId" type="hidden">
+          <label>Serviço complementar
+            <input name="additionalCatalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" placeholder="Digite o código ou nome">
+          </label>
+          <label>Valor do complementar
+            <span class="additional-service-entry-row">
+              <input name="additionalAmount" type="number" min="0" step="0.01">
+              <button id="addAdditionalServiceButton" class="secondary" type="button" aria-label="Adicionar serviço complementar">+</button>
+            </span>
+            <span id="additionalSuggestedPrice" class="field-hint">Escolha um serviço complementar.</span>
+          </label>
+          <div id="additionalServiceList" class="additional-service-list"></div>
+        </section>
+      </div>
+
+      <div class="wizard-step" data-step="7">
+        <h3 class="wizard-step-title wizard-only hidden">Fornecedor</h3>
+        <div class="wizard-yesno wizard-only hidden" data-yesno-for="hasSupplierService">
+          <span class="wizard-question">Este lançamento utiliza serviço de fornecedor?</span>
+          <div class="wizard-yesno-buttons">
+            <button type="button" class="wizard-choice-btn" data-yesno-choice="hasSupplierService" data-yesno-value="1">Sim</button>
+            <button type="button" class="wizard-choice-btn" data-yesno-choice="hasSupplierService" data-yesno-value="0">Não</button>
+          </div>
+        </div>
+        <label class="checkbox-label supplier-service-toggle wizard-hide-native">
+          <input name="hasSupplierService" type="checkbox">
+          Este lançamento utiliza serviço de fornecedor
         </label>
-        <input name="supplierServiceId" type="hidden">
-        <label id="clientSupplierServiceField">Serviço do fornecedor
-          <input name="supplierServiceSearch" type="search" list="clientSupplierServiceOptions" autocomplete="off" placeholder="Digite o código ou nome">
-          <span id="clientSupplierServiceError" class="field-error hidden" role="alert">Selecione um serviço válido da lista.</span>
+        <section id="clientSupplierServiceSection" class="supplier-service-section hidden">
+          <input name="supplierId" type="hidden">
+          <label>Fornecedor
+            <input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" placeholder="Digite o nome do fornecedor">
+          </label>
+          <input name="supplierServiceId" type="hidden">
+          <label id="clientSupplierServiceField">Serviço do fornecedor
+            <input name="supplierServiceSearch" type="search" list="clientSupplierServiceOptions" autocomplete="off" placeholder="Digite o código ou nome">
+            <span id="clientSupplierServiceError" class="field-error hidden" role="alert">Selecione um serviço válido da lista.</span>
+          </label>
+          <datalist id="clientSupplierServiceOptions"></datalist>
+          <label>Custo por serviço/referência
+            <span class="supplier-service-entry-row">
+              <input name="supplierAmount" type="number" min="0" step="0.01">
+              <button id="addSupplierServiceButton" class="secondary" type="button" aria-label="Adicionar serviço do fornecedor">+</button>
+            </span>
+            <span id="clientSupplierServiceHint" class="field-hint">Adicione um ou mais serviços. Cada custo será lançado separadamente por placa/referência.</span>
+          </label>
+          <div id="clientSupplierServiceList" class="client-supplier-service-list"></div>
+        </section>
+      </div>
+
+      <div class="wizard-step" data-step="8">
+        <h3 class="wizard-step-title wizard-only hidden">Situação</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="status">
+          <button type="button" class="wizard-choice-btn" data-status-choice="A fazer">A fazer</button>
+          <button type="button" class="wizard-choice-btn" data-status-choice="Pronto">Feito</button>
+          <button type="button" class="wizard-choice-btn" data-status-choice="Entregue">Entregue</button>
+        </div>
+        <label class="wizard-hide-native">Situação
+          <select name="status"><option value="A fazer">A fazer</option><option value="Pronto">Feito</option><option value="Entregue">Entregue</option></select>
         </label>
-        <datalist id="clientSupplierServiceOptions"></datalist>
-        <label>Custo por serviço/referência
-          <span class="supplier-service-entry-row">
-            <input name="supplierAmount" type="number" min="0" step="0.01">
-            <button id="addSupplierServiceButton" class="secondary" type="button" aria-label="Adicionar serviço do fornecedor">+</button>
-          </span>
-          <span id="clientSupplierServiceHint" class="field-hint">Adicione um ou mais serviços. Cada custo será lançado separadamente por placa/referência.</span>
-        </label>
-        <div id="clientSupplierServiceList" class="client-supplier-service-list"></div>
-      </section>
-      <label>Situação
-        <select name="status"><option value="A fazer">A fazer</option><option value="Pronto">Feito</option><option value="Entregue">Entregue</option></select>
-      </label>
+      </div>
+
+      <div class="wizard-step" data-step="9">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="serviceWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
+
+      <div class="wizard-nav wizard-only hidden" id="serviceWizardNav">
+        <button type="button" class="secondary" data-wizard-back>Voltar</button>
+        <button type="button" class="primary" data-wizard-next>Próximo</button>
+      </div>
+
       <div class="dialog-form-actions">
         <button class="secondary" type="button" data-cancel-service-entry>Cancelar</button>
         <button class="primary" value="default">Salvar lançamento</button>
@@ -1217,7 +1291,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=90"></script>
+  <script src="app.js?v=91"></script>
   <script src="supplier.js?v=41"></script>
 </body>
 </html>
