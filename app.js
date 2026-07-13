@@ -2184,7 +2184,7 @@ function openEntryForm(item = null, preferredClientId = "", request = null) {
     : request ? "Valor sugerido pelo pedido. Você pode ajustar antes de salvar." : "Selecione o cliente e o serviço para preencher o valor.";
   renderReferenceList();
   renderAdditionalServiceList();
-  setServiceWizardMode(!item && window.matchMedia("(max-width: 700px)").matches);
+  setServiceWizardMode(!item && window.matchMedia("(max-width: 1024px)").matches);
   document.getElementById("serviceDialog").showModal();
   if (!serviceWizardModeActive()) setTimeout(() => form.elements.clientSearch.focus(), 0);
 }
@@ -2262,11 +2262,13 @@ function goToServiceWizardStep(step) {
   const stepElement = form.querySelector(`.wizard-step[data-step="${serviceWizardStep}"]`);
   if (stepElement) syncServiceWizardChoiceSelection(stepElement);
   const focusable = stepElement ? firstVisibleServiceField(stepElement) : null;
-  if (focusable) {
-    setTimeout(() => {
+  setTimeout(() => {
+    if (focusable) {
       try { focusable.focus({ preventScroll: true }); } catch { focusable.focus(); }
-    }, 0);
-  }
+    } else {
+      nav.querySelector("[data-wizard-next]")?.focus({ preventScroll: true });
+    }
+  }, 0);
 }
 
 function validateServiceWizardStep(step) {
@@ -2348,6 +2350,12 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
     checkbox.checked = yesnoButton.dataset.yesnoValue === "1";
     checkbox.dispatchEvent(new Event("change", { bubbles: true }));
     yesnoButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === yesnoButton));
+    const stepElement = yesnoButton.closest(".wizard-step");
+    const revealedField = checkbox.checked && stepElement ? firstVisibleServiceField(stepElement) : null;
+    setTimeout(() => {
+      if (revealedField) revealedField.focus();
+      else document.querySelector("[data-wizard-next]")?.focus();
+    }, 0);
     return;
   }
   const dateButton = event.target.closest(".wizard-choice-btn[data-date-choice]");
@@ -2361,6 +2369,7 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
       const target = new Date();
       target.setDate(target.getDate() + days);
       form.elements.date.value = target.toISOString().slice(0, 10);
+      setTimeout(() => document.querySelector("[data-wizard-next]")?.focus(), 0);
     }
     return;
   }
@@ -2370,6 +2379,7 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
     form.elements.status.value = statusButton.dataset.statusChoice;
     form.elements.status.dispatchEvent(new Event("change", { bubbles: true }));
     statusButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === statusButton));
+    setTimeout(() => document.querySelector("[data-wizard-next]")?.focus(), 0);
     return;
   }
   if (event.target.closest("[data-wizard-back]")) {
@@ -4544,7 +4554,7 @@ function keepServiceFieldVisible(field) {
   requestAnimationFrame(() => adjustScroll("auto"));
   setTimeout(
     () => adjustScroll("smooth"),
-    window.matchMedia("(max-width: 700px)").matches ? 280 : 90
+    window.matchMedia("(max-width: 1024px)").matches ? 280 : 90
   );
 }
 
@@ -4757,7 +4767,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=94").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=95").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
