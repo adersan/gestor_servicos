@@ -297,8 +297,46 @@
     form.elements.notes.value = item?.notes || "";
     form.elements.isDefault.checked = Boolean(item?.isDefault);
     byId("supplierDialogTitle").textContent = item ? "Editar fornecedor" : "Novo fornecedor";
+    supplierWizard.activate(!item && window.matchMedia("(max-width: 1024px)").matches);
     byId("supplierDialog").showModal();
+    if (!supplierWizard.isActive()) setTimeout(() => form.elements.name.focus(), 0);
   }
+
+  function renderSupplierWizardSummary() {
+    const form = byId("supplierForm");
+    const target = byId("supplierWizardSummary");
+    if (!target) return;
+    const rows = [
+      ["Nome", form.elements.name.value || "-"],
+      form.elements.phone.value ? ["WhatsApp", form.elements.phone.value] : null,
+      ["Destino das solicitações", form.elements.whatsappDestination.value === "group" ? "Grupo do WhatsApp" : "Número individual"],
+      form.elements.whatsappGroupName.value ? ["Nome do grupo", form.elements.whatsappGroupName.value] : null,
+      form.elements.document.value ? ["CPF ou CNPJ", form.elements.document.value] : null,
+      form.elements.notes.value ? ["Observações", form.elements.notes.value] : null,
+      ["Fornecedor padrão", form.elements.isDefault.checked ? "Sim" : "Não"]
+    ].filter(Boolean);
+    target.innerHTML = rows
+      .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+      .join("");
+  }
+
+  const supplierWizard = createDialogWizard({
+    dialogId: "supplierDialog",
+    formId: "supplierForm",
+    navId: "supplierWizardNav",
+    progressFillId: "supplierWizardProgressFill",
+    progressLabelId: "supplierWizardProgressLabel",
+    stepCount: 8,
+    onReachLastStep: renderSupplierWizardSummary,
+    validateStep: (step, form) => {
+      if (step === 1 && !form.elements.name.value.trim()) {
+        alert("Informe o nome do fornecedor.");
+        form.elements.name.focus();
+        return false;
+      }
+      return true;
+    }
+  });
 
   function openSupplierService(item) {
     const form = byId("supplierServiceForm");

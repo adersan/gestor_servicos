@@ -1234,22 +1234,63 @@
 
   <dialog id="supplierDialog">
     <form id="supplierForm" method="dialog">
-      <div class="dialog-heading"><h2 id="supplierDialogTitle">Novo fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
+      <div class="dialog-heading"><h2 id="supplierDialogTitle">Novo fornecedor</h2><button class="icon-button" value="cancel" data-close-supplier-dialog>×</button></div>
       <input name="id" type="hidden">
-      <label>Nome<input name="name" required></label>
-      <label>WhatsApp<input name="phone"></label>
-      <label>Destino das solicitações
-        <select name="whatsappDestination">
-          <option value="individual">Número individual</option>
-          <option value="group">Grupo do WhatsApp</option>
-        </select>
-      </label>
-      <label>Nome do grupo<input name="whatsappGroupName" placeholder="Ex.: Serviços Lorena"></label>
-      <label>CPF ou CNPJ<input name="document"></label>
-      <label>Observações<textarea name="notes" rows="3"></textarea></label>
-      <label class="checkbox-label"><input name="isDefault" type="checkbox"> Fornecedor padrão dos novos lançamentos</label>
+      <div id="supplierWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="supplierWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="supplierWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Nome</h3>
+        <label>Nome<input name="name" required></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">WhatsApp</h3>
+        <label>WhatsApp<input name="phone"></label>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Destino das solicitações</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="whatsappDestination">
+          <button type="button" class="wizard-choice-btn" data-choice-value="individual">Número individual</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="group">Grupo do WhatsApp</button>
+        </div>
+        <label class="wizard-hide-native">Destino das solicitações
+          <select name="whatsappDestination">
+            <option value="individual">Número individual</option>
+            <option value="group">Grupo do WhatsApp</option>
+          </select>
+        </label>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Nome do grupo</h3>
+        <label>Nome do grupo<input name="whatsappGroupName" placeholder="Ex.: Serviços Lorena"></label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">CPF ou CNPJ</h3>
+        <label>CPF ou CNPJ<input name="document"></label>
+      </div>
+      <div class="wizard-step" data-step="6">
+        <h3 class="wizard-step-title wizard-only hidden">Observações</h3>
+        <label>Observações<textarea name="notes" rows="3"></textarea></label>
+      </div>
+      <div class="wizard-step" data-step="7">
+        <h3 class="wizard-step-title wizard-only hidden">Fornecedor padrão</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="isDefault">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native"><input name="isDefault" type="checkbox"> Fornecedor padrão dos novos lançamentos</label>
+      </div>
+      <div class="wizard-step" data-step="8">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="supplierWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Salvar</button></div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="supplierWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
   <datalist id="supplierOptions"></datalist>
   <dialog id="supplierServiceDialog">
@@ -1429,6 +1470,6 @@
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
   <script src="app.js?v=103"></script>
-  <script src="supplier.js?v=44"></script>
+  <script src="supplier.js?v=45"></script>
 </body>
 </html>
