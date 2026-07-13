@@ -1215,6 +1215,27 @@
   byId("supplierDashboardEnd").value = week.endDate;
   byId("supplierEntryStart").value = week.startDate;
   byId("supplierEntryEnd").value = week.endDate;
+  function pickerSuppliers() {
+    const counts = {};
+    (state.supplierEntries || []).forEach((entry) => {
+      counts[entry.supplierId] = (counts[entry.supplierId] || 0) + 1;
+    });
+    return [...state.suppliers]
+      .sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0))
+      .map((item) => ({ id: item.id, label: supplierOptionLabel(item) }));
+  }
+
+  function pickerServicesForSupplier(supplierId) {
+    const counts = {};
+    (state.supplierEntries || []).forEach((entry) => {
+      if (entry.supplierId === supplierId) counts[entry.supplierServiceId] = (counts[entry.supplierServiceId] || 0) + 1;
+    });
+    return state.supplierServices
+      .filter((item) => item.supplierId === supplierId)
+      .sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0))
+      .map((item) => ({ id: item.id, label: supplierServiceOptionLabel(item) }));
+  }
+
   window.supplierModule = {
     render,
     resetClientEntryOptions,
@@ -1224,7 +1245,9 @@
     addClientSupplierService,
     syncClientEntryServiceSelection,
     hasClientSupplierServices,
-    currentClientSupplierServiceSelections
+    currentClientSupplierServiceSelections,
+    pickerSuppliers,
+    pickerServicesForSupplier
   };
   resetClientEntryOptions();
   byId("supplierRequestShareDialog").addEventListener("cancel", (event) => {

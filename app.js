@@ -2199,7 +2199,7 @@ function serviceWizardModeActive() {
 function firstVisibleServiceField(container) {
   const candidates = container.querySelectorAll("input, select, textarea");
   for (const field of candidates) {
-    if (field.type === "hidden" || field.disabled) continue;
+    if (field.type === "hidden" || field.type === "date" || field.disabled) continue;
     if (field.closest(".hidden")) continue;
     return field;
   }
@@ -2213,6 +2213,7 @@ function setServiceWizardMode(enabled) {
   form.querySelectorAll(".wizard-hide-native").forEach((el) => el.classList.toggle("hidden", enabled));
   form.querySelectorAll(".wizard-choice-btn.selected").forEach((el) => el.classList.remove("selected"));
   if (enabled) {
+    resetServiceWizardPickerPages();
     goToServiceWizardStep(1);
   } else {
     form.querySelectorAll(".wizard-step.hidden").forEach((el) => el.classList.remove("hidden"));
@@ -2230,15 +2231,9 @@ function syncServiceWizardChoiceSelection(stepElement) {
   });
   const dateButtons = stepElement.querySelectorAll(".wizard-choice-btn[data-date-choice]");
   if (dateButtons.length) {
-    const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const todayIso = today.toISOString().slice(0, 10);
-    const tomorrowIso = tomorrow.toISOString().slice(0, 10);
+    const todayIso = new Date().toISOString().slice(0, 10);
     dateButtons.forEach((btn) => {
-      const isMatch = (btn.dataset.dateChoice === "today" && form.elements.date.value === todayIso)
-        || (btn.dataset.dateChoice === "tomorrow" && form.elements.date.value === tomorrowIso);
-      btn.classList.toggle("selected", isMatch);
+      btn.classList.toggle("selected", btn.dataset.dateChoice === "today" && form.elements.date.value === todayIso);
     });
   }
 }
@@ -2261,7 +2256,13 @@ function goToServiceWizardStep(step) {
   if (serviceWizardStep === SERVICE_WIZARD_STEP_COUNT) renderServiceWizardSummary();
   const stepElement = form.querySelector(`.wizard-step[data-step="${serviceWizardStep}"]`);
   if (stepElement) syncServiceWizardChoiceSelection(stepElement);
-  const focusable = stepElement ? firstVisibleServiceField(stepElement) : null;
+  if (serviceWizardStep === 3) renderServiceCatalogPicker();
+  if (serviceWizardStep === 6 && form.elements.hasAdditionalServices.checked) renderAdditionalCatalogPicker();
+  if (serviceWizardStep === 7 && form.elements.hasSupplierService.checked) { renderSupplierPicker(); renderSupplierServicePicker(); }
+  const pickerStep = serviceWizardStep === 3
+    || (serviceWizardStep === 6 && form.elements.hasAdditionalServices.checked)
+    || (serviceWizardStep === 7 && form.elements.hasSupplierService.checked);
+  const focusable = stepElement && !pickerStep ? firstVisibleServiceField(stepElement) : null;
   setTimeout(() => {
     if (focusable) {
       try { focusable.focus({ preventScroll: true }); } catch { focusable.focus(); }
@@ -2289,6 +2290,14 @@ function validateServiceWizardStep(step) {
       return false;
     }
     setServiceCatalogError();
+  }
+  if (step === 4) {
+    if (form.elements.reference.value.trim()) addCurrentReference();
+    if (!serviceReferenceValues.length) {
+      alert("Adicione pelo menos uma placa ou referência.");
+      form.elements.reference.focus();
+      return false;
+    }
   }
   if (step === 5) {
     if (form.elements.amount.value === "" || Number(form.elements.amount.value) < 0) {
@@ -2341,6 +2350,69 @@ function renderServiceWizardSummary() {
     .join("");
 }
 
+const wizardPickerPages = { catalog: 0, additionalCatalog: 0, supplier: 0, supplierService: 0 };
+const WIZARD_PICKER_PAGE_SIZE = 8;
+
+function resetServiceWizardPickerPages() {
+  Object.keys(wizardPickerPages).forEach((key) => { wizardPickerPages[key] = 0; });
+}
+
+function renderWizardPickerGrid(key, items, selectedId) {
+  const grid = document.getElementById(`${key}PickerGrid`);
+  if (!grid) return;
+  const totalPages = Math.max(1, Math.ceil(items.length / WIZARD_PICKER_PAGE_SIZE));
+  wizardPickerPages[key] = Math.min(Math.max(wizardPickerPages[key] || 0, 0), totalPages - 1);
+  const page = wizardPickerPages[key];
+  const pageItems = items.slice(page * WIZARD_PICKER_PAGE_SIZE, page * WIZARD_PICKER_PAGE_SIZE + WIZARD_PICKER_PAGE_SIZE);
+  grid.innerHTML = pageItems.length
+    ? pageItems.map((item) => `<button type="button" class="wizard-choice-btn${item.id === selectedId ? " selected" : ""}" data-picker-item="${escapeHtml(item.id)}">${escapeHtml(item.label)}</button>`).join("")
+    : '<span class="field-hint">Nada cadastrado ainda.</span>';
+  const prevButton = document.querySelector(`[data-picker-prev="${key}"]`);
+  const nextButton = document.querySelector(`[data-picker-next="${key}"]`);
+  if (prevButton) prevButton.disabled = page === 0;
+  if (nextButton) nextButton.disabled = page >= totalPages - 1;
+}
+
+function catalogUsagePickerItems(excludeId = "") {
+  const counts = {};
+  state.services.forEach((entry) => {
+    if (entry.status === "Cancelado") return;
+    counts[entry.catalogId] = (counts[entry.catalogId] || 0) + 1;
+  });
+  return [...state.catalog]
+    .filter((item) => item.id !== excludeId)
+    .sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0))
+    .map((item) => ({ id: item.id, label: catalogOptionLabel(item) }));
+}
+
+function renderServiceCatalogPicker() {
+  const form = document.getElementById("serviceForm");
+  renderWizardPickerGrid("catalog", catalogUsagePickerItems(), form.elements.catalogId.value);
+}
+
+function renderAdditionalCatalogPicker() {
+  const form = document.getElementById("serviceForm");
+  renderWizardPickerGrid("additionalCatalog", catalogUsagePickerItems(form.elements.catalogId.value), form.elements.additionalCatalogId.value);
+}
+
+function renderSupplierPicker() {
+  const form = document.getElementById("serviceForm");
+  renderWizardPickerGrid("supplier", window.supplierModule?.pickerSuppliers() || [], form.elements.supplierId.value);
+}
+
+function renderSupplierServicePicker() {
+  const form = document.getElementById("serviceForm");
+  const items = form.elements.supplierId.value ? (window.supplierModule?.pickerServicesForSupplier(form.elements.supplierId.value) || []) : [];
+  renderWizardPickerGrid("supplierService", items, form.elements.supplierServiceId.value);
+}
+
+const WIZARD_PICKER_RENDERERS = {
+  catalog: renderServiceCatalogPicker,
+  additionalCatalog: renderAdditionalCatalogPicker,
+  supplier: renderSupplierPicker,
+  supplierService: renderSupplierServicePicker
+};
+
 document.getElementById("serviceForm").addEventListener("click", (event) => {
   if (!serviceWizardModeActive()) return;
   const yesnoButton = event.target.closest(".wizard-choice-btn[data-yesno-choice]");
@@ -2350,11 +2422,14 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
     checkbox.checked = yesnoButton.dataset.yesnoValue === "1";
     checkbox.dispatchEvent(new Event("change", { bubbles: true }));
     yesnoButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === yesnoButton));
+    const hasPicker = yesnoButton.dataset.yesnoChoice === "hasAdditionalServices" || yesnoButton.dataset.yesnoChoice === "hasSupplierService";
+    if (checkbox.checked && yesnoButton.dataset.yesnoChoice === "hasAdditionalServices") renderAdditionalCatalogPicker();
+    if (checkbox.checked && yesnoButton.dataset.yesnoChoice === "hasSupplierService") { renderSupplierPicker(); renderSupplierServicePicker(); }
     const stepElement = yesnoButton.closest(".wizard-step");
-    const revealedField = checkbox.checked && stepElement ? firstVisibleServiceField(stepElement) : null;
+    const revealedField = checkbox.checked && !hasPicker && stepElement ? firstVisibleServiceField(stepElement) : null;
     setTimeout(() => {
       if (revealedField) revealedField.focus();
-      else document.querySelector("[data-wizard-next]")?.focus();
+      else if (!checkbox.checked || hasPicker) document.querySelector("[data-wizard-next]")?.focus();
     }, 0);
     return;
   }
@@ -2365,10 +2440,7 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
     if (dateButton.dataset.dateChoice === "pick") {
       setTimeout(() => form.elements.date.focus(), 0);
     } else {
-      const days = dateButton.dataset.dateChoice === "tomorrow" ? 1 : 0;
-      const target = new Date();
-      target.setDate(target.getDate() + days);
-      form.elements.date.value = target.toISOString().slice(0, 10);
+      form.elements.date.value = new Date().toISOString().slice(0, 10);
       setTimeout(() => document.querySelector("[data-wizard-next]")?.focus(), 0);
     }
     return;
@@ -2380,6 +2452,38 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
     form.elements.status.dispatchEvent(new Event("change", { bubbles: true }));
     statusButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === statusButton));
     setTimeout(() => document.querySelector("[data-wizard-next]")?.focus(), 0);
+    return;
+  }
+  const pickerButton = event.target.closest(".wizard-picker-grid .wizard-choice-btn[data-picker-item]");
+  if (pickerButton) {
+    const key = pickerButton.closest(".wizard-picker")?.dataset.picker;
+    const form = document.getElementById("serviceForm");
+    const label = pickerButton.textContent.trim();
+    if (key === "catalog") {
+      form.elements.catalogSearch.value = label;
+      syncServiceCatalogSelection();
+      renderServiceCatalogPicker();
+    } else if (key === "additionalCatalog") {
+      form.elements.additionalCatalogSearch.value = label;
+      syncAdditionalCatalogSelection();
+      renderAdditionalCatalogPicker();
+    } else if (key === "supplier") {
+      form.elements.supplierSearch.value = label;
+      form.elements.supplierSearch.dispatchEvent(new Event("change", { bubbles: true }));
+      renderSupplierPicker();
+      renderSupplierServicePicker();
+    } else if (key === "supplierService") {
+      form.elements.supplierServiceSearch.value = label;
+      form.elements.supplierServiceSearch.dispatchEvent(new Event("input", { bubbles: true }));
+      renderSupplierServicePicker();
+    }
+    return;
+  }
+  const pagerButton = event.target.closest("[data-picker-prev], [data-picker-next]");
+  if (pagerButton) {
+    const key = pagerButton.dataset.pickerPrev || pagerButton.dataset.pickerNext;
+    wizardPickerPages[key] = Math.max(0, (wizardPickerPages[key] || 0) + (pagerButton.dataset.pickerPrev ? -1 : 1));
+    WIZARD_PICKER_RENDERERS[key]?.();
     return;
   }
   if (event.target.closest("[data-wizard-back]")) {
@@ -2398,6 +2502,14 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
       goToServiceWizardStep(serviceWizardStep + 1);
     }
   }
+});
+
+document.getElementById("serviceForm").addEventListener("change", (event) => {
+  if (!serviceWizardModeActive()) return;
+  if (event.target.name === "catalogSearch") renderServiceCatalogPicker();
+  if (event.target.name === "additionalCatalogSearch") renderAdditionalCatalogPicker();
+  if (event.target.name === "supplierSearch") { renderSupplierPicker(); renderSupplierServicePicker(); }
+  if (event.target.name === "supplierServiceSearch") renderSupplierServicePicker();
 });
 
 function importClientRequest(requestId) {
@@ -4767,7 +4879,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=95").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=96").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
