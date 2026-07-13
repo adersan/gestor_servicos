@@ -2208,8 +2208,9 @@ function firstVisibleServiceField(container) {
 
 function setServiceWizardMode(enabled) {
   const form = document.getElementById("serviceForm");
+  const dialog = document.getElementById("serviceDialog");
   form.classList.toggle("wizard-mode", enabled);
-  form.querySelectorAll(".wizard-only").forEach((el) => el.classList.toggle("hidden", !enabled));
+  dialog.querySelectorAll(".wizard-only").forEach((el) => el.classList.toggle("hidden", !enabled));
   form.querySelectorAll(".wizard-hide-native").forEach((el) => el.classList.toggle("hidden", enabled));
   form.querySelectorAll(".wizard-choice-btn.selected").forEach((el) => el.classList.remove("selected"));
   if (enabled) {
@@ -2441,7 +2442,7 @@ const WIZARD_PICKER_RENDERERS = {
   supplierService: renderSupplierServicePicker
 };
 
-document.getElementById("serviceForm").addEventListener("click", (event) => {
+document.getElementById("serviceDialog").addEventListener("click", (event) => {
   if (!serviceWizardModeActive()) return;
   const yesnoButton = event.target.closest(".wizard-choice-btn[data-yesno-choice]");
   if (yesnoButton) {
@@ -2497,7 +2498,8 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
         removeAdditionalServiceByCatalogId(itemId);
       } else {
         form.elements.additionalCatalogSearch.value = label;
-        syncAdditionalCatalogSelection();
+        addAdditionalService();
+        form.elements.additionalCatalogSearch.blur();
         renderAdditionalCatalogPicker();
       }
     } else if (key === "supplier") {
@@ -2510,12 +2512,12 @@ document.getElementById("serviceForm").addEventListener("click", (event) => {
         .some((item) => item.supplierId === form.elements.supplierId.value && item.supplierServiceId === itemId);
       if (alreadyAdded) {
         window.supplierModule?.removeClientSupplierServiceById(itemId);
-        renderSupplierServicePicker();
       } else {
         form.elements.supplierServiceSearch.value = label;
-        form.elements.supplierServiceSearch.dispatchEvent(new Event("input", { bubbles: true }));
-        renderSupplierServicePicker();
+        window.supplierModule?.addClientSupplierService();
+        form.elements.supplierServiceSearch.blur();
       }
+      renderSupplierServicePicker();
     }
     return;
   }
@@ -4919,7 +4921,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=98").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=99").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

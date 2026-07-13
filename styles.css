@@ -568,7 +568,6 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   input, select, textarea { font-size: 16px !important; }
   dialog[open]:not(.wide-dialog) { display: flex; flex-direction: column; width: min(94vw, 480px); max-width: none; max-height: 88vh; max-height: 88dvh; margin: auto; border-radius: 20px; overflow: hidden; }
   dialog[open]:not(.wide-dialog) form { flex: 0 1 auto; min-height: 0; gap: 11px; overflow-y: auto; overscroll-behavior: contain; scroll-padding: 82px 0 100px; padding: 0 14px calc(20px + env(safe-area-inset-bottom)); }
-  #serviceForm.wizard-mode { padding-bottom: calc(92px + env(safe-area-inset-bottom)); scroll-padding-bottom: 130px; }
   dialog .dialog-heading { position: sticky; top: 0; z-index: 4; margin: 0 -14px 2px; padding: 14px; border-bottom: 1px solid var(--line); background: #fff; }
   dialog .dialog-heading h2 { font-size: 23px; }
   #serviceDialog .dialog-heading-actions { gap: 6px; }
@@ -608,7 +607,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .wizard-picker-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
   .wizard-picker-nav button { min-height: 42px; padding: 9px; font-size: 13px; color: var(--brand); }
   .wizard-picker-nav button:disabled { color: var(--muted); opacity: .5; }
-  .wizard-nav:not(.hidden) { display: grid; grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: 10px; position: sticky; bottom: 0; z-index: 4; margin: 8px -14px 0; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -8px 20px rgba(0,0,0,.08); }
+  .wizard-nav:not(.hidden) { display: grid; grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: 10px; flex-shrink: 0; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: #fff; box-shadow: 0 -8px 20px rgba(0,0,0,.08); }
   .wizard-nav.single-button:not(.hidden) { grid-template-columns: 1fr; }
   .wizard-nav button { width: 100%; min-height: 48px; }
   .wizard-summary:not(.hidden) { display: grid; gap: 8px; padding: 4px 0; font-size: 14px; }
