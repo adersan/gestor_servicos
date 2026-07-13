@@ -2306,12 +2306,20 @@ function validateServiceWizardStep(step) {
       return false;
     }
   }
-  if (step === 6 && form.elements.hasAdditionalServices.checked && !additionalServiceValues.length) {
-    alert('Adicione pelo menos um serviço complementar ou toque em "Não".');
-    form.elements.additionalCatalogSearch.focus();
-    return false;
+  if (step === 6 && form.elements.hasAdditionalServices.checked) {
+    if (form.elements.additionalCatalogSearch.value.trim() || form.elements.additionalAmount.value) {
+      if (!addAdditionalService()) return false;
+    }
+    if (!additionalServiceValues.length) {
+      alert('Adicione pelo menos um serviço complementar ou toque em "Não".');
+      form.elements.additionalCatalogSearch.focus();
+      return false;
+    }
   }
-  if (step === 7) {
+  if (step === 7 && form.elements.hasSupplierService.checked) {
+    if (form.elements.supplierServiceSearch.value.trim() || form.elements.supplierAmount.value) {
+      if (!window.supplierModule?.addClientSupplierService()) return false;
+    }
     const supplierSelection = window.supplierModule?.clientEntrySelection();
     if (supplierSelection?.error) {
       alert(supplierSelection.error);
@@ -4879,7 +4887,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=96").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=97").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
