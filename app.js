@@ -2694,13 +2694,40 @@ function createDialogWizard(config) {
     onReachLastStep = () => {},
     submitButtonSelector = 'button[value="default"]',
     nextLabel = "Continuar",
-    lastStepLabel = "Salvar"
+    lastStepLabel = "Salvar",
+    pickers = {}
   } = config;
 
+  const PICKER_PAGE_SIZE = 6;
+  const pickerPages = {};
   let currentStep = 1;
   const getForm = () => document.getElementById(formId);
   const getDialog = () => document.getElementById(dialogId);
   const getNav = () => document.getElementById(navId);
+
+  function renderPicker(key) {
+    const picker = pickers[key];
+    const grid = document.getElementById(`${key}PickerGrid`);
+    if (!picker || !grid) return;
+    const form = getForm();
+    const items = picker.items(form);
+    const selectedId = form.elements[picker.idField]?.value || "";
+    const totalPages = Math.max(1, Math.ceil(items.length / PICKER_PAGE_SIZE));
+    pickerPages[key] = Math.min(Math.max(pickerPages[key] || 0, 0), totalPages - 1);
+    const page = pickerPages[key];
+    const pageItems = items.slice(page * PICKER_PAGE_SIZE, page * PICKER_PAGE_SIZE + PICKER_PAGE_SIZE);
+    grid.innerHTML = pageItems.length
+      ? pageItems.map((item) => `<button type="button" class="wizard-choice-btn${item.id === selectedId ? " selected" : ""}" data-picker-item="${escapeHtml(item.id)}">${escapeHtml(item.label)}</button>`).join("")
+      : '<span class="field-hint">Nada cadastrado ainda.</span>';
+    const prevButton = document.querySelector(`[data-picker-prev="${key}"]`);
+    const nextButton = document.querySelector(`[data-picker-next="${key}"]`);
+    if (prevButton) prevButton.disabled = page === 0;
+    if (nextButton) nextButton.disabled = page >= totalPages - 1;
+  }
+
+  function renderStepPickers(stepElement) {
+    stepElement?.querySelectorAll(".wizard-picker[data-picker]").forEach((el) => renderPicker(el.dataset.picker));
+  }
 
   function isActive() {
     return getForm()?.classList.contains("wizard-mode") || false;
@@ -2757,8 +2784,8 @@ function createDialogWizard(config) {
     if (currentStep === stepCount) onReachLastStep(form);
     const stepElement = form.querySelector(`.wizard-step[data-step="${currentStep}"]`);
     onEnterStep(currentStep, form);
-    if (stepElement) syncChoiceSelection(stepElement);
-    const pickerStep = isPickerStep(currentStep, form);
+    if (stepElement) { syncChoiceSelection(stepElement); renderStepPickers(stepElement); }
+    const pickerStep = isPickerStep(currentStep, form) || Boolean(stepElement?.querySelector(".wizard-picker[data-picker]"));
     const focusable = stepElement && !pickerStep ? firstVisibleField(stepElement) : null;
     setTimeout(() => {
       if (focusable) {
@@ -2778,6 +2805,7 @@ function createDialogWizard(config) {
     form.querySelectorAll(".wizard-picker-search-field").forEach((el) => el.classList.toggle("hidden", enabled));
     form.querySelectorAll(".wizard-choice-btn.selected").forEach((el) => el.classList.remove("selected"));
     if (enabled) {
+      Object.keys(pickerPages).forEach((key) => { pickerPages[key] = 0; });
       currentStep = 1;
       goToStep(1);
     } else {
@@ -2818,10 +2846,38 @@ function createDialogWizard(config) {
     }
     if (event.target.closest("[data-wizard-back]")) {
       if (currentStep <= 1) {
-        getDialog().querySelector("[data-close-dialog]")?.click();
+        getDialog().querySelector("[data-close-dialog], [data-close-supplier-dialog]")?.click();
       } else {
         goToStep(currentStep - 1);
       }
+      return;
+    }
+    const pickerButton = event.target.closest(".wizard-picker-grid .wizard-choice-btn[data-picker-item]");
+    if (pickerButton) {
+      const key = pickerButton.closest(".wizard-picker")?.dataset.picker;
+      const picker = pickers[key];
+      if (picker) {
+        const form = getForm();
+        form.elements[picker.searchField].value = pickerButton.textContent.trim();
+        form.elements[picker.searchField].dispatchEvent(new Event("change", { bubbles: true }));
+        picker.onApply?.(form);
+        renderPicker(key);
+      }
+      return;
+    }
+    const pagerButton = event.target.closest("[data-picker-prev], [data-picker-next]");
+    if (pagerButton) {
+      const key = pagerButton.dataset.pickerPrev || pagerButton.dataset.pickerNext;
+      pickerPages[key] = Math.max(0, (pickerPages[key] || 0) + (pagerButton.dataset.pickerPrev ? -1 : 1));
+      renderPicker(key);
+      return;
+    }
+    const searchButton = event.target.closest("[data-picker-search]");
+    if (searchButton) {
+      const key = searchButton.dataset.pickerSearch;
+      const field = document.querySelector(`[data-picker-search-target="${key}"] input`);
+      document.querySelector(`[data-picker-search-target="${key}"]`)?.classList.remove("hidden");
+      setTimeout(() => field?.focus(), 0);
       return;
     }
     if (event.target.closest("[data-wizard-next]")) {
@@ -2841,7 +2897,7 @@ function createDialogWizard(config) {
     getNav().querySelector("[data-wizard-next]")?.click();
   });
 
-  return { activate, isActive, goToStep, getCurrentStep: () => currentStep };
+  return { activate, isActive, goToStep, getCurrentStep: () => currentStep, renderPicker };
 }
 
 function openPaymentForm(item = null, billing = null, mode = "partial") {
@@ -5278,7 +5334,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=103").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=104").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

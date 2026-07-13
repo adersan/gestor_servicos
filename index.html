@@ -1315,12 +1315,28 @@
       </div>
       <div class="wizard-step" data-step="1">
         <h3 class="wizard-step-title wizard-only hidden">Fornecedor</h3>
-        <label>Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
+        <div id="supplierEntrySupplierPicker" class="wizard-picker wizard-only hidden" data-picker="supplierEntrySupplier">
+          <div id="supplierEntrySupplierPickerGrid" class="wizard-picker-grid"></div>
+          <div class="wizard-picker-nav">
+            <button type="button" class="secondary" data-picker-prev="supplierEntrySupplier">Voltar</button>
+            <button type="button" class="secondary" data-picker-search="supplierEntrySupplier">Buscar</button>
+            <button type="button" class="secondary" data-picker-next="supplierEntrySupplier">Mais</button>
+          </div>
+        </div>
+        <label class="wizard-picker-search-field hidden" data-picker-search-target="supplierEntrySupplier">Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
       </div>
       <div class="wizard-step" data-step="2">
         <h3 class="wizard-step-title wizard-only hidden">Serviço</h3>
         <input name="supplierServiceId" type="hidden">
-        <label>Serviço<input name="supplierServiceSearch" type="search" list="supplierEntryServiceOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
+        <div id="supplierEntryServicePicker" class="wizard-picker wizard-only hidden" data-picker="supplierEntryService">
+          <div id="supplierEntryServicePickerGrid" class="wizard-picker-grid"></div>
+          <div class="wizard-picker-nav">
+            <button type="button" class="secondary" data-picker-prev="supplierEntryService">Voltar</button>
+            <button type="button" class="secondary" data-picker-search="supplierEntryService">Buscar</button>
+            <button type="button" class="secondary" data-picker-next="supplierEntryService">Mais</button>
+          </div>
+        </div>
+        <label class="wizard-picker-search-field hidden" data-picker-search-target="supplierEntryService">Serviço<input name="supplierServiceSearch" type="search" list="supplierEntryServiceOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
         <datalist id="supplierEntryServiceOptions"></datalist>
       </div>
       <div class="wizard-step" data-step="3">
@@ -1511,7 +1527,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=103"></script>
-  <script src="supplier.js?v=46"></script>
+  <script src="app.js?v=104"></script>
+  <script src="supplier.js?v=47"></script>
 </body>
 </html>

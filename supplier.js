@@ -650,11 +650,26 @@
     progressLabelId: "supplierEntryWizardProgressLabel",
     stepCount: 8,
     onReachLastStep: renderSupplierEntryWizardSummary,
+    pickers: {
+      supplierEntrySupplier: {
+        searchField: "supplierSearch",
+        idField: "supplierId",
+        items: () => pickerSuppliers(),
+        onApply: (form) => { syncSupplierSearchField(form); supplierEntryWizard.renderPicker("supplierEntryService"); }
+      },
+      supplierEntryService: {
+        searchField: "supplierServiceSearch",
+        idField: "supplierServiceId",
+        items: (form) => form.elements.supplierId.value ? pickerServicesForSupplier(form.elements.supplierId.value) : [],
+        onApply: (form) => syncSupplierEntryServiceSelection(form)
+      }
+    },
     validateStep: (step, form) => {
       if (step === 1) {
         const supplier = syncSupplierSearchField(form);
         if (!supplier) {
           alert("Selecione um fornecedor válido da lista.");
+          document.querySelector('[data-picker-search-target="supplierEntrySupplier"]')?.classList.remove("hidden");
           form.elements.supplierSearch.focus();
           return false;
         }
@@ -663,6 +678,7 @@
         syncSupplierEntryServiceSelection(form);
         if (!form.elements.supplierServiceId.value) {
           alert("Selecione um serviço válido da lista.");
+          document.querySelector('[data-picker-search-target="supplierEntryService"]')?.classList.remove("hidden");
           form.elements.supplierServiceSearch.focus();
           return false;
         }
