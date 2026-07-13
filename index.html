@@ -1098,25 +1098,53 @@
 
   <dialog id="billingDialog">
     <form id="billingForm" method="dialog">
-      <div class="dialog-heading"><h2>Gerar cobrança</h2><button class="icon-button" value="cancel">×</button></div>
+      <div class="dialog-heading"><h2>Gerar cobrança</h2><button class="icon-button" value="cancel" data-close-dialog>×</button></div>
       <input name="clientId" type="hidden">
-      <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
-      <label>Data inicial<input name="startDate" type="date" required></label>
-      <label>Data final<input name="endDate" type="date" required></label>
-      <fieldset class="method-selector">
-        <legend>Formas de pagamento desta cobrança</legend>
-        <div id="billingPaymentMethods"></div>
-      </fieldset>
-      <label class="checkbox-label">
-        <input name="historyEnabled" type="checkbox">
-        Permitir que o cliente consulte cobranças anteriores
-      </label>
+      <div id="billingWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="billingWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="billingWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Cliente</h3>
+        <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Período</h3>
+        <label>Data inicial<input name="startDate" type="date" required></label>
+        <label>Data final<input name="endDate" type="date" required></label>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Formas de pagamento</h3>
+        <fieldset class="method-selector">
+          <legend>Formas de pagamento desta cobrança</legend>
+          <div id="billingPaymentMethods"></div>
+        </fieldset>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Consulta de cobranças anteriores</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="historyEnabled">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native">
+          <input name="historyEnabled" type="checkbox">
+          Permitir que o cliente consulte cobranças anteriores
+        </label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="billingWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
       <p class="hint">Será criada uma cobrança com identificador e senha novos. O acesso anterior será invalidado.</p>
       <div class="dialog-actions">
         <button class="secondary" type="button" data-close-dialog>Cancelar</button>
         <button class="primary" value="default">Fechar período</button>
       </div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="billingWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
 
   <dialog id="billingBatchDialog">
@@ -1363,7 +1391,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=101"></script>
+  <script src="app.js?v=102"></script>
   <script src="supplier.js?v=44"></script>
 </body>
 </html>

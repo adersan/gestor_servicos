@@ -1692,6 +1692,61 @@ function renderBillingPaymentMethods(targetId = "billingPaymentMethods") {
     </label>`).join("") : `<p class="meta">Cadastre uma forma de pagamento ativa.</p>`;
 }
 
+function renderBillingWizardSummary() {
+  const form = document.getElementById("billingForm");
+  const target = document.getElementById("billingWizardSummary");
+  if (!target) return;
+  const client = clientById(form.elements.clientId.value);
+  const methodCount = form.querySelectorAll('input[name="paymentMethodId"]:checked').length;
+  const rows = [
+    ["Cliente", clientOptionLabel(client) || "-"],
+    ["Período", `${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)}`],
+    ["Formas de pagamento", `${methodCount} selecionada(s)`],
+    ["Consulta anterior", form.elements.historyEnabled.checked ? "Sim" : "Não"]
+  ];
+  target.innerHTML = rows
+    .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+const billingWizard = createDialogWizard({
+  dialogId: "billingDialog",
+  formId: "billingForm",
+  navId: "billingWizardNav",
+  progressFillId: "billingWizardProgressFill",
+  progressLabelId: "billingWizardProgressLabel",
+  stepCount: 5,
+  lastStepLabel: "Fechar período",
+  onReachLastStep: renderBillingWizardSummary,
+  validateStep: (step, form) => {
+    if (step === 1) {
+      syncBillingClientSelection();
+      if (!form.elements.clientId.value) {
+        alert("Selecione um cliente válido da lista.");
+        form.elements.clientSearch.focus();
+        return false;
+      }
+    }
+    if (step === 2) {
+      if (!form.elements.startDate.value || !form.elements.endDate.value) {
+        alert("Informe o período (data inicial e final).");
+        return false;
+      }
+      if (form.elements.endDate.value < form.elements.startDate.value) {
+        alert("A data final deve ser igual ou depois da data inicial.");
+        return false;
+      }
+    }
+    if (step === 3) {
+      if (!form.querySelectorAll('input[name="paymentMethodId"]:checked').length) {
+        alert("Selecione pelo menos uma forma de pagamento.");
+        return false;
+      }
+    }
+    return true;
+  }
+});
+
 function updateSuggestedPrice() {
   const form = document.getElementById("serviceForm");
   const client = clientById(form.elements.clientId.value);
@@ -2666,7 +2721,9 @@ function createDialogWizard(config) {
     stepElement.querySelectorAll(".wizard-choice-btn[data-choice-value]").forEach((btn) => {
       const fieldName = btn.closest("[data-choice-for]")?.dataset.choiceFor;
       const field = fieldName ? form.elements[fieldName] : null;
-      btn.classList.toggle("selected", Boolean(field) && field.value === btn.dataset.choiceValue);
+      if (!field) { btn.classList.remove("selected"); return; }
+      const currentValue = field.type === "checkbox" ? (field.checked ? "1" : "0") : field.value;
+      btn.classList.toggle("selected", currentValue === btn.dataset.choiceValue);
     });
     const dateButtons = stepElement.querySelectorAll(".wizard-choice-btn[data-date-choice]");
     if (dateButtons.length) {
@@ -2751,7 +2808,8 @@ function createDialogWizard(config) {
       const fieldName = choiceButton.closest("[data-choice-for]")?.dataset.choiceFor;
       const field = fieldName ? form.elements[fieldName] : null;
       if (field) {
-        field.value = choiceButton.dataset.choiceValue;
+        if (field.type === "checkbox") field.checked = choiceButton.dataset.choiceValue === "1";
+        else field.value = choiceButton.dataset.choiceValue;
         field.dispatchEvent(new Event("change", { bubbles: true }));
       }
       choiceButton.parentElement.querySelectorAll(".wizard-choice-btn").forEach((btn) => btn.classList.toggle("selected", btn === choiceButton));
@@ -3682,7 +3740,10 @@ document.addEventListener("click", async (event) => {
     }
     else {
       setDefaultDates();
-      if (dialogButton.dataset.dialog === "billingDialog") renderBillingPaymentMethods();
+      if (dialogButton.dataset.dialog === "billingDialog") {
+        renderBillingPaymentMethods();
+        billingWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
+      }
       if (dialogButton.dataset.dialog === "billingBatchDialog") {
         renderBillingPaymentMethods("billingBatchPaymentMethods");
         const batchForm = document.getElementById("billingBatchForm");
@@ -5181,7 +5242,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=101").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=102").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
