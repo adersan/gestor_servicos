@@ -2940,8 +2940,44 @@ function openPaymentMethodForm(method = null) {
   form.elements.link.value = method?.link || "";
   form.elements.active.checked = method?.active ?? true;
   document.getElementById("paymentMethodDialogTitle").textContent = method ? "Editar forma de pagamento" : "Nova forma de pagamento";
+  paymentMethodWizard.activate(!method && window.matchMedia("(max-width: 1024px)").matches);
   document.getElementById("paymentMethodDialog").showModal();
+  if (!paymentMethodWizard.isActive()) setTimeout(() => form.elements.name.focus(), 0);
 }
+
+function renderPaymentMethodWizardSummary() {
+  const form = document.getElementById("paymentMethodForm");
+  const target = document.getElementById("paymentMethodWizardSummary");
+  if (!target) return;
+  const rows = [
+    ["Tipo", form.elements.type.value],
+    ["Nome para exibição", form.elements.name.value || "-"],
+    form.elements.details.value ? ["Chave ou instruções", form.elements.details.value] : null,
+    form.elements.link.value ? ["Link de pagamento", form.elements.link.value] : null,
+    ["Disponível nas cobranças", form.elements.active.checked ? "Sim" : "Não"]
+  ].filter(Boolean);
+  target.innerHTML = rows
+    .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+const paymentMethodWizard = createDialogWizard({
+  dialogId: "paymentMethodDialog",
+  formId: "paymentMethodForm",
+  navId: "paymentMethodWizardNav",
+  progressFillId: "paymentMethodWizardProgressFill",
+  progressLabelId: "paymentMethodWizardProgressLabel",
+  stepCount: 6,
+  onReachLastStep: renderPaymentMethodWizardSummary,
+  validateStep: (step, form) => {
+    if (step === 2 && !form.elements.name.value.trim()) {
+      alert("Informe o nome para exibição.");
+      form.elements.name.focus();
+      return false;
+    }
+    return true;
+  }
+});
 
 function billingDetails(billing) {
   const services = state.services.filter((item) =>
@@ -5242,7 +5278,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=102").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=103").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

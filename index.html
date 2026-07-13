@@ -1170,25 +1170,62 @@
 
   <dialog id="paymentMethodDialog">
     <form id="paymentMethodForm" method="dialog">
-      <div class="dialog-heading"><h2 id="paymentMethodDialogTitle">Nova forma de pagamento</h2><button class="icon-button" value="cancel">×</button></div>
+      <div class="dialog-heading"><h2 id="paymentMethodDialogTitle">Nova forma de pagamento</h2><button class="icon-button" value="cancel" data-close-dialog>×</button></div>
       <input name="methodId" type="hidden">
-      <label>Tipo
-        <select name="type" required>
-          <option value="PIX">PIX</option>
-          <option value="Dinheiro">Dinheiro</option>
-          <option value="Cartão de crédito">Cartão de crédito</option>
-          <option value="Outro">Outro</option>
-        </select>
-      </label>
-      <label>Nome para exibição<input name="name" required placeholder="Ex.: PIX Nubank"></label>
-      <label>Chave ou instruções<textarea name="details" rows="3" placeholder="CPF, telefone, e-mail, chave aleatória ou instruções"></textarea></label>
-      <label>Link de pagamento<input name="link" type="url" placeholder="Futuro link do Nubank"></label>
-      <label class="checkbox-label"><input name="active" type="checkbox" checked> Disponível nas cobranças</label>
+      <div id="paymentMethodWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="paymentMethodWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="paymentMethodWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Tipo</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="type">
+          <button type="button" class="wizard-choice-btn" data-choice-value="PIX">PIX</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Dinheiro">Dinheiro</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Cartão de crédito">Cartão de crédito</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Outro">Outro</button>
+        </div>
+        <label class="wizard-hide-native">Tipo
+          <select name="type" required>
+            <option value="PIX">PIX</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Cartão de crédito">Cartão de crédito</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Nome para exibição</h3>
+        <label>Nome para exibição<input name="name" required placeholder="Ex.: PIX Nubank"></label>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Chave ou instruções</h3>
+        <label>Chave ou instruções<textarea name="details" rows="3" placeholder="CPF, telefone, e-mail, chave aleatória ou instruções"></textarea></label>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Link de pagamento</h3>
+        <label>Link de pagamento<input name="link" type="url" placeholder="Futuro link do Nubank"></label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">Disponível nas cobranças</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="active">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native"><input name="active" type="checkbox" checked> Disponível nas cobranças</label>
+      </div>
+      <div class="wizard-step" data-step="6">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="paymentMethodWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
       <div class="dialog-actions">
         <button class="secondary" type="button" data-close-dialog>Cancelar</button>
         <button class="primary" value="default">Salvar forma de pagamento</button>
       </div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="paymentMethodWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
 
   <dialog id="reportDialog" class="report-dialog">
@@ -1391,7 +1428,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=102"></script>
+  <script src="app.js?v=103"></script>
   <script src="supplier.js?v=44"></script>
 </body>
 </html>
