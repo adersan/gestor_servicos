@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=84">
+  <link rel="stylesheet" href="styles.css?v=85">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -741,14 +741,15 @@
         <div id="serviceCatalogPicker" class="wizard-picker wizard-only hidden" data-picker="catalog">
           <div id="catalogPickerGrid" class="wizard-picker-grid"></div>
           <div class="wizard-picker-nav">
-            <button type="button" class="secondary" data-picker-prev="catalog">Anterior</button>
+            <button type="button" class="secondary" data-picker-prev="catalog">Voltar</button>
+            <button type="button" class="secondary" data-picker-search="catalog">Buscar</button>
             <button type="button" class="secondary" data-picker-next="catalog">Mais</button>
           </div>
         </div>
         <input name="catalogId" type="hidden">
-        <label id="serviceCatalogField">
+        <label id="serviceCatalogField" class="wizard-picker-search-field hidden" data-picker-search-target="catalog">
           <span class="field-label-row"><span>Serviço</span><strong>Obrigatório</strong></span>
-          <input name="catalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" required aria-describedby="serviceCatalogError" placeholder="Ou digite o código ou nome para buscar">
+          <input name="catalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" required aria-describedby="serviceCatalogError" placeholder="Digite o código ou nome">
           <span id="serviceCatalogError" class="field-error hidden" role="alert">Selecione um serviço válido da lista.</span>
         </label>
         <datalist id="serviceCatalogOptions"></datalist>
@@ -791,13 +792,14 @@
           <div id="additionalCatalogPicker" class="wizard-picker wizard-only hidden" data-picker="additionalCatalog">
             <div id="additionalCatalogPickerGrid" class="wizard-picker-grid"></div>
             <div class="wizard-picker-nav">
-              <button type="button" class="secondary" data-picker-prev="additionalCatalog">Anterior</button>
+              <button type="button" class="secondary" data-picker-prev="additionalCatalog">Voltar</button>
+              <button type="button" class="secondary" data-picker-search="additionalCatalog">Buscar</button>
               <button type="button" class="secondary" data-picker-next="additionalCatalog">Mais</button>
             </div>
           </div>
           <input name="additionalCatalogId" type="hidden">
-          <label>Serviço complementar
-            <input name="additionalCatalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" placeholder="Ou digite o código ou nome para buscar">
+          <label class="wizard-picker-search-field hidden" data-picker-search-target="additionalCatalog">Serviço complementar
+            <input name="additionalCatalogSearch" type="search" list="serviceCatalogOptions" autocomplete="off" placeholder="Digite o código ou nome">
           </label>
           <label>Valor do complementar
             <span class="additional-service-entry-row">
@@ -827,24 +829,32 @@
           <div id="supplierPicker" class="wizard-picker wizard-only hidden" data-picker="supplier">
             <div id="supplierPickerGrid" class="wizard-picker-grid"></div>
             <div class="wizard-picker-nav">
-              <button type="button" class="secondary" data-picker-prev="supplier">Anterior</button>
+              <button type="button" class="secondary" data-picker-prev="supplier">Voltar</button>
+              <button type="button" class="secondary" data-picker-search="supplier">Buscar</button>
               <button type="button" class="secondary" data-picker-next="supplier">Mais</button>
             </div>
           </div>
           <input name="supplierId" type="hidden">
-          <label>Fornecedor
-            <input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" placeholder="Ou digite o nome do fornecedor para buscar">
+          <label class="wizard-picker-search-field hidden" data-picker-search-target="supplier">Fornecedor
+            <input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" placeholder="Digite o nome do fornecedor">
           </label>
+        </section>
+      </div>
+
+      <div class="wizard-step" data-step="8">
+        <h3 class="wizard-step-title wizard-only hidden">Serviço do fornecedor</h3>
+        <section id="clientSupplierServiceItemsSection" class="supplier-service-section hidden">
           <div id="supplierServicePicker" class="wizard-picker wizard-only hidden" data-picker="supplierService">
             <div id="supplierServicePickerGrid" class="wizard-picker-grid"></div>
             <div class="wizard-picker-nav">
-              <button type="button" class="secondary" data-picker-prev="supplierService">Anterior</button>
+              <button type="button" class="secondary" data-picker-prev="supplierService">Voltar</button>
+              <button type="button" class="secondary" data-picker-search="supplierService">Buscar</button>
               <button type="button" class="secondary" data-picker-next="supplierService">Mais</button>
             </div>
           </div>
           <input name="supplierServiceId" type="hidden">
-          <label id="clientSupplierServiceField">Serviço do fornecedor
-            <input name="supplierServiceSearch" type="search" list="clientSupplierServiceOptions" autocomplete="off" placeholder="Ou digite o código ou nome para buscar">
+          <label id="clientSupplierServiceField" class="wizard-picker-search-field hidden" data-picker-search-target="supplierService">Serviço do fornecedor
+            <input name="supplierServiceSearch" type="search" list="clientSupplierServiceOptions" autocomplete="off" placeholder="Digite o código ou nome">
             <span id="clientSupplierServiceError" class="field-error hidden" role="alert">Selecione um serviço válido da lista.</span>
           </label>
           <datalist id="clientSupplierServiceOptions"></datalist>
@@ -859,7 +869,7 @@
         </section>
       </div>
 
-      <div class="wizard-step" data-step="8">
+      <div class="wizard-step" data-step="9">
         <h3 class="wizard-step-title wizard-only hidden">Situação</h3>
         <div class="wizard-choice wizard-choice-3 wizard-only hidden" data-choice-for="status">
           <button type="button" class="wizard-choice-btn" data-status-choice="A fazer">A fazer</button>
@@ -871,7 +881,7 @@
         </label>
       </div>
 
-      <div class="wizard-step" data-step="9">
+      <div class="wizard-step" data-step="10">
         <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
         <div id="serviceWizardSummary" class="wizard-summary wizard-only hidden"></div>
       </div>
@@ -1321,7 +1331,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=99"></script>
-  <script src="supplier.js?v=43"></script>
+  <script src="app.js?v=100"></script>
+  <script src="supplier.js?v=44"></script>
 </body>
 </html>

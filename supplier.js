@@ -417,6 +417,11 @@
     return clientSupplierServiceValues.map((item) => ({ ...item }));
   }
 
+  function toggleClientSupplierServiceSection(hidden) {
+    byId("clientSupplierServiceSection")?.classList.toggle("hidden", hidden);
+    byId("clientSupplierServiceItemsSection")?.classList.toggle("hidden", hidden);
+  }
+
   function resetClientEntryOptions(disabled = false, existingLinks = []) {
     const form = byId("serviceForm");
     const checkbox = form.elements.hasSupplierService;
@@ -424,7 +429,7 @@
     renderClientSupplierServices();
     checkbox.checked = Boolean(clientSupplierServiceValues.length);
     checkbox.disabled = disabled || !state.suppliers.length || !state.supplierServices.length;
-    byId("clientSupplierServiceSection").classList.toggle("hidden", !clientSupplierServiceValues.length);
+    toggleClientSupplierServiceSection(!clientSupplierServiceValues.length);
     form.elements.supplierId.value = defaultSupplier()?.id || "";
     form.elements.supplierSearch.value = supplierOptionLabel(defaultSupplier());
     syncClientEntryServices();
@@ -1040,7 +1045,7 @@
     handleSupplierSearchChange(event);
     if (event.target.matches("#serviceForm input[name=hasSupplierService]")) {
       if (!event.target.checked) clientSupplierServiceValues = clientSupplierServiceValues.filter((item) => item.id);
-      byId("clientSupplierServiceSection").classList.toggle("hidden", !event.target.checked && !clientSupplierServiceValues.length);
+      toggleClientSupplierServiceSection(!event.target.checked && !clientSupplierServiceValues.length);
       if (event.target.checked) {
         event.target.form.elements.supplierId.value ||= defaultSupplier()?.id || "";
         event.target.form.elements.supplierSearch.value ||= supplierOptionLabel(supplierById(event.target.form.elements.supplierId.value));
@@ -1128,7 +1133,7 @@
         clientSupplierServiceValues.splice(removeIndex, 1);
         if (!clientSupplierServiceValues.length) {
           byId("serviceForm").elements.hasSupplierService.checked = false;
-          byId("clientSupplierServiceSection").classList.add("hidden");
+          toggleClientSupplierServiceSection(true);
         }
         renderClientSupplierServices();
       }
@@ -1223,7 +1228,7 @@
     clientSupplierServiceValues.splice(index, 1);
     if (!clientSupplierServiceValues.length) {
       byId("serviceForm").elements.hasSupplierService.checked = false;
-      byId("clientSupplierServiceSection").classList.add("hidden");
+      toggleClientSupplierServiceSection(true);
     }
     renderClientSupplierServices();
   }

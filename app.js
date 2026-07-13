@@ -2189,7 +2189,7 @@ function openEntryForm(item = null, preferredClientId = "", request = null) {
   if (!serviceWizardModeActive()) setTimeout(() => form.elements.clientSearch.focus(), 0);
 }
 
-const SERVICE_WIZARD_STEP_COUNT = 9;
+const SERVICE_WIZARD_STEP_COUNT = 10;
 let serviceWizardStep = 1;
 
 function serviceWizardModeActive() {
@@ -2212,6 +2212,7 @@ function setServiceWizardMode(enabled) {
   form.classList.toggle("wizard-mode", enabled);
   dialog.querySelectorAll(".wizard-only").forEach((el) => el.classList.toggle("hidden", !enabled));
   form.querySelectorAll(".wizard-hide-native").forEach((el) => el.classList.toggle("hidden", enabled));
+  form.querySelectorAll(".wizard-picker-search-field").forEach((el) => el.classList.toggle("hidden", enabled));
   form.querySelectorAll(".wizard-choice-btn.selected").forEach((el) => el.classList.remove("selected"));
   if (enabled) {
     resetServiceWizardPickerPages();
@@ -2241,7 +2242,12 @@ function syncServiceWizardChoiceSelection(stepElement) {
 
 function goToServiceWizardStep(step) {
   const form = document.getElementById("serviceForm");
-  serviceWizardStep = Math.min(Math.max(step, 1), SERVICE_WIZARD_STEP_COUNT);
+  const direction = step >= serviceWizardStep ? 1 : -1;
+  let target = Math.min(Math.max(step, 1), SERVICE_WIZARD_STEP_COUNT);
+  while (target > 1 && target < SERVICE_WIZARD_STEP_COUNT && target === 8 && !form.elements.hasSupplierService.checked) {
+    target += direction;
+  }
+  serviceWizardStep = Math.min(Math.max(target, 1), SERVICE_WIZARD_STEP_COUNT);
   form.querySelectorAll(".wizard-step").forEach((el) => {
     el.classList.toggle("hidden", Number(el.dataset.step) !== serviceWizardStep);
   });
@@ -2259,10 +2265,12 @@ function goToServiceWizardStep(step) {
   if (stepElement) syncServiceWizardChoiceSelection(stepElement);
   if (serviceWizardStep === 3) renderServiceCatalogPicker();
   if (serviceWizardStep === 6 && form.elements.hasAdditionalServices.checked) renderAdditionalCatalogPicker();
-  if (serviceWizardStep === 7 && form.elements.hasSupplierService.checked) { renderSupplierPicker(); renderSupplierServicePicker(); }
+  if (serviceWizardStep === 7 && form.elements.hasSupplierService.checked) renderSupplierPicker();
+  if (serviceWizardStep === 8) renderSupplierServicePicker();
   const pickerStep = serviceWizardStep === 3
     || (serviceWizardStep === 6 && form.elements.hasAdditionalServices.checked)
-    || (serviceWizardStep === 7 && form.elements.hasSupplierService.checked);
+    || (serviceWizardStep === 7 && form.elements.hasSupplierService.checked)
+    || serviceWizardStep === 8;
   const focusable = stepElement && !pickerStep ? firstVisibleServiceField(stepElement) : null;
   setTimeout(() => {
     if (focusable) {
@@ -2287,6 +2295,7 @@ function validateServiceWizardStep(step) {
     syncServiceCatalogSelection();
     if (!form.elements.catalogId.value) {
       setServiceCatalogError("O serviço é obrigatório. Escolha uma opção válida pelo código ou nome.");
+      revealPickerSearchField("catalog");
       form.elements.catalogSearch.focus();
       return false;
     }
@@ -2309,26 +2318,46 @@ function validateServiceWizardStep(step) {
   }
   if (step === 6 && form.elements.hasAdditionalServices.checked) {
     if (form.elements.additionalCatalogSearch.value.trim() || form.elements.additionalAmount.value) {
-      if (!addAdditionalService()) return false;
+      if (!addAdditionalService()) {
+        revealPickerSearchField("additionalCatalog");
+        return false;
+      }
     }
     if (!additionalServiceValues.length) {
       alert('Adicione pelo menos um serviço complementar ou toque em "Não".');
+      revealPickerSearchField("additionalCatalog");
       form.elements.additionalCatalogSearch.focus();
       return false;
     }
   }
   if (step === 7 && form.elements.hasSupplierService.checked) {
+    if (!form.elements.supplierId.value) {
+      alert("Selecione o fornecedor.");
+      revealPickerSearchField("supplier");
+      form.elements.supplierSearch.focus();
+      return false;
+    }
+  }
+  if (step === 8 && form.elements.hasSupplierService.checked) {
     if (form.elements.supplierServiceSearch.value.trim() || form.elements.supplierAmount.value) {
-      if (!window.supplierModule?.addClientSupplierService()) return false;
+      if (!window.supplierModule?.addClientSupplierService()) {
+        revealPickerSearchField("supplierService");
+        return false;
+      }
     }
     const supplierSelection = window.supplierModule?.clientEntrySelection();
     if (supplierSelection?.error) {
       alert(supplierSelection.error);
+      revealPickerSearchField("supplierService");
       supplierSelection.field?.focus();
       return false;
     }
   }
   return true;
+}
+
+function revealPickerSearchField(key) {
+  document.querySelector(`[data-picker-search-target="${key}"]`)?.classList.remove("hidden");
 }
 
 function renderServiceWizardSummary() {
@@ -2351,7 +2380,12 @@ function renderServiceWizardSummary() {
     ["Placa ou referência", references.length ? references.join(", ") : "-"],
     ["Valor", money.format(Number(form.elements.amount.value || 0))],
     additionalServiceValues.length ? ["Complementares", `${additionalServiceValues.length} serviço(s) · ${money.format(additionalServiceValues.reduce((total, service) => total + Number(service.amount || 0), 0))}`] : null,
-    form.elements.hasSupplierService.checked ? ["Fornecedor", form.elements.supplierSearch.value || "-"] : null,
+    (() => {
+      const supplierSelections = window.supplierModule?.currentClientSupplierServiceSelections() || [];
+      return form.elements.hasSupplierService.checked && supplierSelections.length
+        ? ["Fornecedor", `${supplierSelections.length} serviço(s) · ${money.format(supplierSelections.reduce((total, item) => total + Number(item.amount || 0), 0))}`]
+        : null;
+    })(),
     ["Situação", statusLabels[form.elements.status.value] || form.elements.status.value]
   ].filter(Boolean);
   target.innerHTML = rows
@@ -2360,7 +2394,7 @@ function renderServiceWizardSummary() {
 }
 
 const wizardPickerPages = { catalog: 0, additionalCatalog: 0, supplier: 0, supplierService: 0 };
-const WIZARD_PICKER_PAGE_SIZE = 8;
+const WIZARD_PICKER_PAGE_SIZE = 6;
 
 function resetServiceWizardPickerPages() {
   Object.keys(wizardPickerPages).forEach((key) => { wizardPickerPages[key] = 0; });
@@ -2526,6 +2560,14 @@ document.getElementById("serviceDialog").addEventListener("click", (event) => {
     const key = pagerButton.dataset.pickerPrev || pagerButton.dataset.pickerNext;
     wizardPickerPages[key] = Math.max(0, (wizardPickerPages[key] || 0) + (pagerButton.dataset.pickerPrev ? -1 : 1));
     WIZARD_PICKER_RENDERERS[key]?.();
+    return;
+  }
+  const searchButton = event.target.closest("[data-picker-search]");
+  if (searchButton) {
+    const key = searchButton.dataset.pickerSearch;
+    revealPickerSearchField(key);
+    const field = document.querySelector(`[data-picker-search-target="${key}"] input`);
+    setTimeout(() => field?.focus(), 0);
     return;
   }
   if (event.target.closest("[data-wizard-back]")) {
@@ -4921,7 +4963,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=99").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=100").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
