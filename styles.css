@@ -130,6 +130,7 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .client-card h3, .billing-card h3, .price-table-card h3 { margin: 0 0 8px; font-size: 20px; }
 .badge { display: inline-block; margin-top: 14px; padding: 6px 9px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 12px; font-weight: 800; }
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
+#supplierEntriesPanel .filters { grid-template-columns: minmax(150px, 1.1fr) minmax(150px, 1.1fr) 170px 140px 140px minmax(160px, 1.3fr); }
 .mobile-filter-toggle, .mobile-service-more, .mobile-finance-more, .mobile-finance-balance { display: none; }
 .filters-compact { grid-template-columns: minmax(240px, 520px); }
 .payment-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
@@ -687,7 +688,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .stats { grid-template-columns: 1fr; }
   .account-row { grid-template-columns: 1fr auto; }
   .account-row .meta { display: none; }
-  .filters { grid-template-columns: 1fr; }
+  .filters, #supplierEntriesPanel .filters { grid-template-columns: 1fr; }
   #services .section-heading { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 12px; }
   #services .section-heading h2 { font-size: 24px; }
   #services .heading-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }

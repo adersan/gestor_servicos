@@ -4377,7 +4377,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
       ] : []),
       form.elements.hasSupplierService,
       ...(supplierEnabled ? [
-        form.elements.supplierId,
+        form.elements.supplierSearch,
         form.elements.supplierServiceSearch,
         form.elements.supplierAmount
       ] : []),
@@ -4402,7 +4402,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   }
   if (event.target.name === "hasSupplierService") {
     event.preventDefault();
-    if (supplierEnabled) focusField(form.elements.supplierId);
+    if (supplierEnabled) focusField(form.elements.supplierSearch);
     else focusField(form.elements.status);
     return;
   }
@@ -4503,7 +4503,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=89").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=90").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
