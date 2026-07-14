@@ -962,61 +962,98 @@
 
   <dialog id="trackingDialog">
     <form id="trackingForm" method="dialog">
-      <div class="dialog-heading"><h2>Acompanhamento do cliente</h2><button class="icon-button" value="cancel">×</button></div>
-      <p class="meta">Cria um link com dois niveis de acesso: sem senha (so a aba Servicos, sem valores) e com senha (acesso completo aos itens escolhidos abaixo).</p>
+      <div class="dialog-heading"><h2>Acompanhamento do cliente</h2><button class="icon-button" value="cancel" data-close-dialog>×</button></div>
+      <p class="meta wizard-hide-native">Cria um link com dois niveis de acesso: sem senha (so a aba Servicos, sem valores) e com senha (acesso completo aos itens escolhidos abaixo).</p>
       <input name="clientId" type="hidden">
-      <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
-      <div class="date-pair">
-        <label>Data inicial<input name="startDate" type="date" required></label>
-        <label>Data final<input name="endDate" type="date" required></label>
+      <div id="trackingWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="trackingWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="trackingWizardProgressLabel" class="wizard-progress-label"></span>
       </div>
-      <label>Validade do link
-        <select name="validDays">
-          <option value="7">7 dias</option>
-          <option value="30" selected>30 dias</option>
-          <option value="90">90 dias</option>
-        </select>
-      </label>
-      <label class="checkbox-label">
-        <input name="allowRequests" type="checkbox">
-        Permitir que o cliente envie novos pedidos por este link
-      </label>
-      <fieldset class="tracking-access-fieldset">
-        <legend>Acesso completo (com senha)</legend>
-        <label class="checkbox-label"><input type="radio" name="passwordMode" value="embedded" checked> Link com senha embutida (o cliente abre e já entra)</label>
-        <label class="checkbox-label"><input type="radio" name="passwordMode" value="typed"> Gerar identificador e senha para eu enviar ao cliente</label>
-      </fieldset>
-      <fieldset class="tracking-access-fieldset">
-        <legend>Abas do acesso completo</legend>
-        <label class="checkbox-label"><input name="showFinancial" type="checkbox" checked> Financeiro</label>
-        <label class="checkbox-label"><input name="showBilling" type="checkbox" checked> Relatório de cobrança</label>
-        <p class="hint">O acesso sem senha mostra sempre só a aba Serviços, sem valores.</p>
-      </fieldset>
-      <fieldset class="tracking-access-fieldset">
-        <legend>Serviços visíveis para o cliente</legend>
-        <div class="tracking-service-toggle-actions">
-          <button class="secondary" type="button" data-tracking-services-all>Marcar todos</button>
-          <button class="secondary" type="button" data-tracking-services-none>Desmarcar todos</button>
-        </div>
-        <div id="trackingServiceOptions" class="tracking-service-checklist"></div>
-      </fieldset>
-      <div id="trackingAccessResult" class="tracking-access-result hidden" aria-live="polite">
-        <strong id="trackingAccessStatus">Acesso completo gerado</strong>
-        <div class="tracking-access-credentials">
-          <span>Identificador: <strong id="trackingAccessIdentifier"></strong></span>
-          <span>Senha: <strong id="trackingAccessPassword"></strong></span>
-        </div>
-        <div class="tracking-access-actions">
-          <button class="secondary" type="button" data-copy-tracking="identifier">Copiar identificador</button>
-          <button class="secondary" type="button" data-copy-tracking="password">Copiar senha</button>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Cliente</h3>
+        <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Período</h3>
+        <div class="date-pair">
+          <label>Data inicial<input name="startDate" type="date" required></label>
+          <label>Data final<input name="endDate" type="date" required></label>
         </div>
       </div>
-      <p class="hint">Um novo link para o mesmo cliente e período invalidará o anterior.</p>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Validade do link</h3>
+        <label>Validade do link
+          <select name="validDays">
+            <option value="7">7 dias</option>
+            <option value="30" selected>30 dias</option>
+            <option value="90">90 dias</option>
+          </select>
+        </label>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Permitir pedidos on-line?</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="allowRequests">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native">
+          <input name="allowRequests" type="checkbox">
+          Permitir que o cliente envie novos pedidos por este link
+        </label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">Acesso completo (com senha)</h3>
+        <fieldset class="tracking-access-fieldset">
+          <legend>Acesso completo (com senha)</legend>
+          <label class="checkbox-label"><input type="radio" name="passwordMode" value="embedded" checked> Link com senha embutida (o cliente abre e já entra)</label>
+          <label class="checkbox-label"><input type="radio" name="passwordMode" value="typed"> Gerar identificador e senha para eu enviar ao cliente</label>
+        </fieldset>
+      </div>
+      <div class="wizard-step" data-step="6">
+        <h3 class="wizard-step-title wizard-only hidden">Abas do acesso completo</h3>
+        <fieldset class="tracking-access-fieldset">
+          <legend>Abas do acesso completo</legend>
+          <label class="checkbox-label"><input name="showFinancial" type="checkbox" checked> Financeiro</label>
+          <label class="checkbox-label"><input name="showBilling" type="checkbox" checked> Relatório de cobrança</label>
+          <p class="hint">O acesso sem senha mostra sempre só a aba Serviços, sem valores.</p>
+        </fieldset>
+      </div>
+      <div class="wizard-step" data-step="7">
+        <h3 class="wizard-step-title wizard-only hidden">Serviços visíveis para o cliente</h3>
+        <fieldset class="tracking-access-fieldset">
+          <legend>Serviços visíveis para o cliente</legend>
+          <div class="tracking-service-toggle-actions">
+            <button class="secondary" type="button" data-tracking-services-all>Marcar todos</button>
+            <button class="secondary" type="button" data-tracking-services-none>Desmarcar todos</button>
+          </div>
+          <div id="trackingServiceOptions" class="tracking-service-checklist"></div>
+        </fieldset>
+      </div>
+      <div class="wizard-step" data-step="8">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="trackingWizardSummary" class="wizard-summary wizard-only hidden"></div>
+        <div id="trackingAccessResult" class="tracking-access-result hidden" aria-live="polite">
+          <strong id="trackingAccessStatus">Acesso completo gerado</strong>
+          <div class="tracking-access-credentials">
+            <span>Identificador: <strong id="trackingAccessIdentifier"></strong></span>
+            <span>Senha: <strong id="trackingAccessPassword"></strong></span>
+          </div>
+          <div class="tracking-access-actions">
+            <button class="secondary" type="button" data-copy-tracking="identifier">Copiar identificador</button>
+            <button class="secondary" type="button" data-copy-tracking="password">Copiar senha</button>
+          </div>
+        </div>
+        <p class="hint">Um novo link para o mesmo cliente e período invalidará o anterior.</p>
+      </div>
       <div class="dialog-form-actions">
         <button class="secondary" type="button" data-close-dialog>Cancelar</button>
         <button class="primary" value="default">Gerar e compartilhar</button>
       </div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="trackingWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
 
   <dialog id="catalogDialog">
@@ -1590,28 +1627,92 @@
   </dialog>
   <dialog id="supplierAccessDialog">
     <form id="supplierAccessForm" method="dialog">
-      <div class="dialog-heading"><h2>Link do fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
+      <div class="dialog-heading"><h2>Link do fornecedor</h2><button class="icon-button" value="cancel" data-close-supplier-dialog>×</button></div>
       <input name="supplierId" type="hidden">
-      <label>Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
-      <div class="date-pair"><label>De<input name="startDate" type="date" required></label><label>Até<input name="endDate" type="date" required></label></div>
-      <label>Validade<select name="validDays"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select></label>
-      <label class="checkbox-label"><input name="canEdit" type="checkbox"> Permitir lançar e alterar serviços neste período</label>
-      <label class="checkbox-label"><input name="canMarkDone" type="checkbox"> Permitir marcar serviços como feitos</label>
-      <label class="checkbox-label"><input name="canCancel" type="checkbox"> Permitir cancelar serviços e informar o motivo</label>
-      <label class="checkbox-label"><input name="showLinkedNotes" type="checkbox"> Mostrar observações de vínculo, como “Vinculado a CRV cadastrado”</label>
-      <label class="checkbox-label"><input name="showEntries" type="checkbox" checked> Mostrar a lista detalhada de serviços</label>
-      <div id="supplierAccessResult" class="supplier-access-result hidden" aria-live="polite">
-        <strong id="supplierAccessStatus">Link gerado</strong>
-        <a id="supplierAccessLink" href="#" target="_blank" rel="noopener"></a>
-        <div class="supplier-access-actions">
-          <button class="secondary" type="button" data-copy-supplier-access>Copiar link</button>
-          <button class="secondary whatsapp-action" type="button" data-whatsapp-supplier-access>WhatsApp</button>
-          <button class="primary" type="button" data-share-supplier-access>Compartilhar</button>
-        </div>
+      <div id="supplierAccessWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="supplierAccessWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="supplierAccessWizardProgressLabel" class="wizard-progress-label"></span>
       </div>
-      <p id="supplierAccessError" class="form-error hidden" aria-live="assertive"></p>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Fornecedor</h3>
+        <div id="supplierAccessPicker" class="wizard-picker wizard-only hidden" data-picker="supplierAccess">
+          <div id="supplierAccessPickerGrid" class="wizard-picker-grid"></div>
+          <div class="wizard-picker-nav">
+            <button type="button" class="secondary" data-picker-prev="supplierAccess">Voltar</button>
+            <button type="button" class="secondary" data-picker-search="supplierAccess">Buscar</button>
+            <button type="button" class="secondary" data-picker-next="supplierAccess">Mais</button>
+          </div>
+        </div>
+        <label class="wizard-picker-search-field hidden" data-picker-search-target="supplierAccess">Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Período</h3>
+        <div class="date-pair"><label>De<input name="startDate" type="date" required></label><label>Até<input name="endDate" type="date" required></label></div>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Validade</h3>
+        <label>Validade<select name="validDays"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select></label>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Permitir lançar e alterar serviços?</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="canEdit">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native"><input name="canEdit" type="checkbox"> Permitir lançar e alterar serviços neste período</label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">Permitir marcar como feitos?</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="canMarkDone">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native"><input name="canMarkDone" type="checkbox"> Permitir marcar serviços como feitos</label>
+      </div>
+      <div class="wizard-step" data-step="6">
+        <h3 class="wizard-step-title wizard-only hidden">Permitir cancelar serviços?</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="canCancel">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native"><input name="canCancel" type="checkbox"> Permitir cancelar serviços e informar o motivo</label>
+      </div>
+      <div class="wizard-step" data-step="7">
+        <h3 class="wizard-step-title wizard-only hidden">Mostrar observações de vínculo?</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="showLinkedNotes">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native"><input name="showLinkedNotes" type="checkbox"> Mostrar observações de vínculo, como “Vinculado a CRV cadastrado”</label>
+      </div>
+      <div class="wizard-step" data-step="8">
+        <h3 class="wizard-step-title wizard-only hidden">Mostrar lista detalhada?</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="showEntries">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native"><input name="showEntries" type="checkbox" checked> Mostrar a lista detalhada de serviços</label>
+      </div>
+      <div class="wizard-step" data-step="9">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="supplierAccessWizardSummary" class="wizard-summary wizard-only hidden"></div>
+        <div id="supplierAccessResult" class="supplier-access-result hidden" aria-live="polite">
+          <strong id="supplierAccessStatus">Link gerado</strong>
+          <a id="supplierAccessLink" href="#" target="_blank" rel="noopener"></a>
+          <div class="supplier-access-actions">
+            <button class="secondary" type="button" data-copy-supplier-access>Copiar link</button>
+            <button class="secondary whatsapp-action" type="button" data-whatsapp-supplier-access>WhatsApp</button>
+            <button class="primary" type="button" data-share-supplier-access>Compartilhar</button>
+          </div>
+        </div>
+        <p id="supplierAccessError" class="form-error hidden" aria-live="assertive"></p>
+      </div>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Gerar link</button></div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="supplierAccessWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
 
   <dialog id="notificationDialog" class="notification-dialog">
@@ -1681,7 +1782,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=105"></script>
-  <script src="supplier.js?v=49"></script>
+  <script src="app.js?v=106"></script>
+  <script src="supplier.js?v=50"></script>
 </body>
 </html>

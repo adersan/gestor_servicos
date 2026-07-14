@@ -2028,6 +2028,59 @@ function renderTrackingServiceOptions() {
     : `<p class="meta">Cadastre servicos no catalogo.</p>`;
 }
 
+function renderTrackingWizardSummary() {
+  const form = document.getElementById("trackingForm");
+  const target = document.getElementById("trackingWizardSummary");
+  if (!target) return;
+  const client = clientById(form.elements.clientId.value);
+  const visibleCount = form.querySelectorAll('input[name="visibleServiceId"]:checked').length;
+  const totalCount = form.querySelectorAll('input[name="visibleServiceId"]').length;
+  const rows = [
+    ["Cliente", clientOptionLabel(client) || "-"],
+    ["Período", `${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)}`],
+    ["Validade", `${form.elements.validDays.value} dias`],
+    ["Pedidos on-line", form.elements.allowRequests.checked ? "Sim" : "Não"],
+    ["Acesso completo", form.elements.passwordMode.value === "typed" ? "Identificador e senha" : "Link com senha embutida"],
+    ["Abas visíveis", [form.elements.showFinancial.checked ? "Financeiro" : null, form.elements.showBilling.checked ? "Relatório de cobrança" : null].filter(Boolean).join(", ") || "Nenhuma"],
+    ["Serviços visíveis", `${visibleCount} de ${totalCount}`]
+  ];
+  target.innerHTML = rows
+    .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+const trackingWizard = createDialogWizard({
+  dialogId: "trackingDialog",
+  formId: "trackingForm",
+  navId: "trackingWizardNav",
+  progressFillId: "trackingWizardProgressFill",
+  progressLabelId: "trackingWizardProgressLabel",
+  stepCount: 8,
+  lastStepLabel: "Gerar e compartilhar",
+  onReachLastStep: renderTrackingWizardSummary,
+  validateStep: (step, form) => {
+    if (step === 1) {
+      syncTrackingClientSelection();
+      if (!form.elements.clientId.value) {
+        alert("Selecione um cliente válido da lista.");
+        form.elements.clientSearch.focus();
+        return false;
+      }
+    }
+    if (step === 2) {
+      if (!form.elements.startDate.value || !form.elements.endDate.value) {
+        alert("Informe o período (data inicial e final).");
+        return false;
+      }
+      if (form.elements.endDate.value < form.elements.startDate.value) {
+        alert("A data final deve ser igual ou posterior à data inicial.");
+        return false;
+      }
+    }
+    return true;
+  }
+});
+
 function openTrackingForm() {
   const form = document.getElementById("trackingForm");
   form.reset();
@@ -2040,8 +2093,9 @@ function openTrackingForm() {
   form.elements.validDays.value = "30";
   renderTrackingServiceOptions();
   document.getElementById("trackingAccessResult").classList.add("hidden");
+  trackingWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
   document.getElementById("trackingDialog").showModal();
-  setTimeout(() => (preferredClient ? form.elements.startDate : form.elements.clientSearch).focus(), 0);
+  if (!trackingWizard.isActive()) setTimeout(() => (preferredClient ? form.elements.startDate : form.elements.clientSearch).focus(), 0);
 }
 
 function renderCatalogPriceFields(item = null) {
@@ -5437,7 +5491,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=105").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=106").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

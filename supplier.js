@@ -862,6 +862,64 @@
     }
   });
 
+  function renderSupplierAccessWizardSummary() {
+    const form = byId("supplierAccessForm");
+    const target = byId("supplierAccessWizardSummary");
+    if (!target) return;
+    const rows = [
+      ["Fornecedor", form.elements.supplierSearch.value || "-"],
+      ["Período", `${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)}`],
+      ["Validade", `${form.elements.validDays.value} dias`],
+      ["Lançar e alterar", form.elements.canEdit.checked ? "Sim" : "Não"],
+      ["Marcar como feito", form.elements.canMarkDone.checked ? "Sim" : "Não"],
+      ["Cancelar serviços", form.elements.canCancel.checked ? "Sim" : "Não"],
+      ["Observações de vínculo", form.elements.showLinkedNotes.checked ? "Sim" : "Não"],
+      ["Lista detalhada", form.elements.showEntries.checked ? "Sim" : "Não"]
+    ];
+    target.innerHTML = rows
+      .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+      .join("");
+  }
+
+  const supplierAccessWizard = createDialogWizard({
+    dialogId: "supplierAccessDialog",
+    formId: "supplierAccessForm",
+    navId: "supplierAccessWizardNav",
+    progressFillId: "supplierAccessWizardProgressFill",
+    progressLabelId: "supplierAccessWizardProgressLabel",
+    stepCount: 9,
+    lastStepLabel: "Gerar link",
+    onReachLastStep: renderSupplierAccessWizardSummary,
+    pickers: {
+      supplierAccess: {
+        searchField: "supplierSearch",
+        idField: "supplierId",
+        items: () => pickerSuppliers(),
+        onApply: (form) => syncSupplierSearchField(form)
+      }
+    },
+    validateStep: (step, form) => {
+      if (step === 1) {
+        if (!syncSupplierSearchField(form)) {
+          alert("Selecione um fornecedor válido da lista.");
+          form.elements.supplierSearch.focus();
+          return false;
+        }
+      }
+      if (step === 2) {
+        if (!form.elements.startDate.value || !form.elements.endDate.value) {
+          alert("Informe o período (data inicial e final).");
+          return false;
+        }
+        if (form.elements.endDate.value < form.elements.startDate.value) {
+          alert("A data final deve ser igual ou depois da data inicial.");
+          return false;
+        }
+      }
+      return true;
+    }
+  });
+
   function openAccess() {
     const form = byId("supplierAccessForm");
     form.reset();
@@ -881,6 +939,7 @@
     form.elements.supplierSearch.value = supplierOptionLabel(defaultSupplier());
     form.elements.startDate.value = week.startDate;
     form.elements.endDate.value = week.endDate;
+    supplierAccessWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
     byId("supplierAccessDialog").showModal();
   }
 
