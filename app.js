@@ -1747,6 +1747,51 @@ const billingWizard = createDialogWizard({
   }
 });
 
+function renderBillingBatchWizardSummary() {
+  const form = document.getElementById("billingBatchForm");
+  const target = document.getElementById("billingBatchWizardSummary");
+  if (!target) return;
+  const methodCount = form.querySelectorAll('input[name="paymentMethodId"]:checked').length;
+  const rows = [
+    ["Período", `${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)}`],
+    ["Formas de pagamento", `${methodCount} selecionada(s)`],
+    ["Consulta anterior", form.elements.historyEnabled.checked ? "Sim" : "Não"]
+  ];
+  target.innerHTML = rows
+    .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+const billingBatchWizard = createDialogWizard({
+  dialogId: "billingBatchDialog",
+  formId: "billingBatchForm",
+  navId: "billingBatchWizardNav",
+  progressFillId: "billingBatchWizardProgressFill",
+  progressLabelId: "billingBatchWizardProgressLabel",
+  stepCount: 4,
+  lastStepLabel: "Gerar para todos",
+  onReachLastStep: renderBillingBatchWizardSummary,
+  validateStep: (step, form) => {
+    if (step === 1) {
+      if (!form.elements.startDate.value || !form.elements.endDate.value) {
+        alert("Informe o período (data inicial e final).");
+        return false;
+      }
+      if (form.elements.endDate.value < form.elements.startDate.value) {
+        alert("A data final deve ser igual ou depois da data inicial.");
+        return false;
+      }
+    }
+    if (step === 2) {
+      if (!form.querySelectorAll('input[name="paymentMethodId"]:checked').length) {
+        alert("Selecione pelo menos uma forma de pagamento.");
+        return false;
+      }
+    }
+    return true;
+  }
+});
+
 function updateSuggestedPrice() {
   const form = document.getElementById("serviceForm");
   const client = clientById(form.elements.clientId.value);
@@ -2077,6 +2122,61 @@ function saveManagedRequester(clientId, name) {
   return true;
 }
 
+function renderCatalogWizardSummary() {
+  const form = document.getElementById("catalogForm");
+  const target = document.getElementById("catalogWizardSummary");
+  if (!target) return;
+  const priceRows = [...form.querySelectorAll("[data-price-table]")]
+    .map((input) => [input.dataset.priceTable, money(Number(input.value || 0))]);
+  const rows = [
+    ["Código", form.elements.code.value.trim() || "-"],
+    ["Nome do serviço", form.elements.name.value.trim() || "-"],
+    ...priceRows
+  ];
+  target.innerHTML = rows
+    .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+const catalogWizard = createDialogWizard({
+  dialogId: "catalogDialog",
+  formId: "catalogForm",
+  navId: "catalogWizardNav",
+  progressFillId: "catalogWizardProgressFill",
+  progressLabelId: "catalogWizardProgressLabel",
+  stepCount: 4,
+  lastStepLabel: "Salvar serviço",
+  onReachLastStep: renderCatalogWizardSummary,
+  validateStep: (step, form) => {
+    if (step === 1) {
+      const code = form.elements.code.value.trim();
+      if (code && state.catalog.some((catalogItem) =>
+        catalogItem.code === code && catalogItem.id !== form.elements.catalogId.value)) {
+        alert("Este código já está sendo usado por outro serviço.");
+        form.elements.code.focus();
+        return false;
+      }
+    }
+    if (step === 2) {
+      if (!form.elements.name.value.trim()) {
+        alert("Informe o nome do serviço.");
+        form.elements.name.focus();
+        return false;
+      }
+    }
+    if (step === 3) {
+      const priceFields = [...form.querySelectorAll("[data-price-table]")];
+      const invalid = priceFields.find((field) => field.value === "" || Number(field.value) < 0);
+      if (invalid) {
+        alert("Informe o preço para todas as tabelas.");
+        invalid.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+});
+
 function openCatalogForm(item = null) {
   const form = document.getElementById("catalogForm");
   form.reset();
@@ -2085,7 +2185,9 @@ function openCatalogForm(item = null) {
   form.elements.name.value = item?.name || "";
   renderCatalogPriceFields(item);
   document.getElementById("catalogDialogTitle").textContent = item ? "Editar serviço" : "Novo serviço";
+  catalogWizard.activate(!item && window.matchMedia("(max-width: 1024px)").matches);
   document.getElementById("catalogDialog").showModal();
+  if (!catalogWizard.isActive()) setTimeout(() => form.elements.code.focus(), 0);
 }
 
 function cancellationGroup(entry) {
@@ -3842,6 +3944,7 @@ document.addEventListener("click", async (event) => {
         const week = currentOperationalWeek();
         batchForm.elements.startDate.value = week.startDate;
         batchForm.elements.endDate.value = week.endDate;
+        billingBatchWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
       }
       document.getElementById(dialogButton.dataset.dialog).showModal();
     }
@@ -5334,7 +5437,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=104").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=105").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

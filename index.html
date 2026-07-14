@@ -1021,16 +1021,37 @@
 
   <dialog id="catalogDialog">
     <form id="catalogForm" method="dialog">
-      <div class="dialog-heading"><h2 id="catalogDialogTitle">Serviço e preços</h2><button class="icon-button" value="cancel">×</button></div>
+      <div class="dialog-heading"><h2 id="catalogDialogTitle">Serviço e preços</h2><button class="icon-button" value="cancel" data-close-dialog>×</button></div>
       <input name="catalogId" type="hidden">
-      <label>Código numérico<input name="code" inputmode="numeric" pattern="[0-9]*" placeholder="Ex.: 10"></label>
-      <label>Nome do serviço<input name="name" required placeholder="Ex.: Vistoria"></label>
-      <div id="catalogPriceFields" class="price-fields"></div>
+      <div id="catalogWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="catalogWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="catalogWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Código numérico</h3>
+        <label>Código numérico<input name="code" inputmode="numeric" pattern="[0-9]*" placeholder="Ex.: 10"></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Nome do serviço</h3>
+        <label>Nome do serviço<input name="name" required placeholder="Ex.: Vistoria"></label>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Preços</h3>
+        <div id="catalogPriceFields" class="price-fields"></div>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="catalogWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
       <div class="dialog-actions">
         <button class="secondary" type="button" data-close-dialog>Cancelar</button>
         <button class="primary" value="default">Salvar serviço</button>
       </div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="catalogWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
 
   <dialog id="continueEntryDialog">
@@ -1149,23 +1170,49 @@
 
   <dialog id="billingBatchDialog">
     <form id="billingBatchForm" method="dialog">
-      <div class="dialog-heading"><h2>Gerar cobranças em lote</h2><button class="icon-button" value="cancel">×</button></div>
-      <p class="hint">Serão incluídos somente clientes com serviços ainda não cobrados no período.</p>
-      <label>Data inicial<input name="startDate" type="date" required></label>
-      <label>Data final<input name="endDate" type="date" required></label>
-      <fieldset class="method-selector">
-        <legend>Formas de pagamento das cobranças</legend>
-        <div id="billingBatchPaymentMethods"></div>
-      </fieldset>
-      <label class="checkbox-label">
-        <input name="historyEnabled" type="checkbox">
-        Permitir consulta de cobranças anteriores
-      </label>
+      <div class="dialog-heading"><h2>Gerar cobranças em lote</h2><button class="icon-button" value="cancel" data-close-dialog>×</button></div>
+      <div id="billingBatchWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="billingBatchWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="billingBatchWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Período</h3>
+        <p class="hint wizard-only hidden">Serão incluídos somente clientes com serviços ainda não cobrados no período.</p>
+        <label>Data inicial<input name="startDate" type="date" required></label>
+        <label>Data final<input name="endDate" type="date" required></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Formas de pagamento</h3>
+        <fieldset class="method-selector">
+          <legend>Formas de pagamento das cobranças</legend>
+          <div id="billingBatchPaymentMethods"></div>
+        </fieldset>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Consulta de cobranças anteriores</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="historyEnabled">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native">
+          <input name="historyEnabled" type="checkbox">
+          Permitir consulta de cobranças anteriores
+        </label>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="billingBatchWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
+      <p class="hint wizard-hide-native">Serão incluídos somente clientes com serviços ainda não cobrados no período.</p>
       <div class="dialog-actions">
         <button class="secondary" type="button" data-close-dialog>Cancelar</button>
         <button class="primary" value="default">Gerar para todos</button>
       </div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="billingBatchWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
 
   <dialog id="paymentMethodDialog">
@@ -1295,15 +1342,47 @@
   <datalist id="supplierOptions"></datalist>
   <dialog id="supplierServiceDialog">
     <form id="supplierServiceForm" method="dialog">
-      <div class="dialog-heading"><h2 id="supplierServiceDialogTitle">Serviço do fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
+      <div class="dialog-heading"><h2 id="supplierServiceDialogTitle">Serviço do fornecedor</h2><button class="icon-button" value="cancel" data-close-supplier-dialog>×</button></div>
       <input name="id" type="hidden">
       <input name="supplierId" type="hidden">
-      <label>Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
-      <label>Código<input name="code" inputmode="numeric"></label>
-      <label>Nome do serviço<input name="name" required></label>
-      <label>Valor cobrado pelo fornecedor<input name="cost" type="number" min="0" step="0.01" required></label>
+      <div id="supplierServiceWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="supplierServiceWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="supplierServiceWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Fornecedor</h3>
+        <div id="supplierServiceFormPicker" class="wizard-picker wizard-only hidden" data-picker="supplierServiceForm">
+          <div id="supplierServiceFormPickerGrid" class="wizard-picker-grid"></div>
+          <div class="wizard-picker-nav">
+            <button type="button" class="secondary" data-picker-prev="supplierServiceForm">Voltar</button>
+            <button type="button" class="secondary" data-picker-search="supplierServiceForm">Buscar</button>
+            <button type="button" class="secondary" data-picker-next="supplierServiceForm">Mais</button>
+          </div>
+        </div>
+        <label class="wizard-picker-search-field hidden" data-picker-search-target="supplierServiceForm">Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Código</h3>
+        <label>Código<input name="code" inputmode="numeric"></label>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Nome do serviço</h3>
+        <label>Nome do serviço<input name="name" required></label>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Valor cobrado</h3>
+        <label>Valor cobrado pelo fornecedor<input name="cost" type="number" min="0" step="0.01" required></label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="supplierServiceWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Salvar</button></div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="supplierServiceWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
   <dialog id="supplierEntryDialog">
     <form id="supplierEntryForm" method="dialog">
@@ -1454,14 +1533,49 @@
   </dialog>
   <dialog id="supplierPaymentDialog">
     <form id="supplierPaymentForm" method="dialog">
-      <div class="dialog-heading"><h2>Dar baixa no fornecedor</h2><button class="icon-button" value="cancel">×</button></div>
+      <div class="dialog-heading"><h2>Dar baixa no fornecedor</h2><button class="icon-button" value="cancel" data-close-supplier-dialog>×</button></div>
       <input name="payableId" type="hidden"><input name="supplierId" type="hidden">
-      <label>Data<input name="date" type="date" required></label>
-      <label>Valor pago<input name="amount" type="number" min="0.01" step="0.01" required></label>
-      <label>Forma<select name="method"><option>PIX</option><option>Transferência</option><option>Dinheiro</option><option>Cartão</option><option>Outro</option></select></label>
-      <label>Observação<input name="note"></label>
+      <div id="supplierPaymentWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="supplierPaymentWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="supplierPaymentWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Data</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="date">
+          <button type="button" class="wizard-choice-btn" data-date-choice="today">Hoje</button>
+          <button type="button" class="wizard-choice-btn" data-date-choice="pick">Outra data</button>
+        </div>
+        <label>Data<input name="date" type="date" required></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Valor pago</h3>
+        <label>Valor pago<input name="amount" type="number" min="0.01" step="0.01" required></label>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Forma</h3>
+        <div class="wizard-choice wizard-choice-3 wizard-only hidden" data-choice-for="method">
+          <button type="button" class="wizard-choice-btn" data-choice-value="PIX">PIX</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Transferência">Transferência</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Dinheiro">Dinheiro</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Cartão">Cartão</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Outro">Outro</button>
+        </div>
+        <label class="wizard-hide-native">Forma<select name="method"><option>PIX</option><option>Transferência</option><option>Dinheiro</option><option>Cartão</option><option>Outro</option></select></label>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Observação</h3>
+        <label>Observação<input name="note"></label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="supplierPaymentWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Confirmar baixa</button></div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="supplierPaymentWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
   <dialog id="supplierReportDialog" class="wide-dialog">
     <div class="supplier-report-dialog">
@@ -1567,7 +1681,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=104"></script>
-  <script src="supplier.js?v=48"></script>
+  <script src="app.js?v=105"></script>
+  <script src="supplier.js?v=49"></script>
 </body>
 </html>

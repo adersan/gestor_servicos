@@ -349,8 +349,65 @@
     form.elements.name.value = item?.name || "";
     form.elements.cost.value = item ? Number(item.cost).toFixed(2) : "";
     byId("supplierServiceDialogTitle").textContent = item ? "Editar serviço do fornecedor" : "Novo serviço do fornecedor";
+    supplierServiceWizard.activate(!item && window.matchMedia("(max-width: 1024px)").matches);
     byId("supplierServiceDialog").showModal();
+    if (!supplierServiceWizard.isActive()) setTimeout(() => form.elements.supplierSearch.focus(), 0);
   }
+
+  function renderSupplierServiceWizardSummary() {
+    const form = byId("supplierServiceForm");
+    const target = byId("supplierServiceWizardSummary");
+    if (!target) return;
+    const rows = [
+      ["Fornecedor", form.elements.supplierSearch.value || "-"],
+      form.elements.code.value ? ["Código", form.elements.code.value] : null,
+      ["Nome do serviço", form.elements.name.value || "-"],
+      ["Valor cobrado", money.format(Number(form.elements.cost.value || 0))]
+    ].filter(Boolean);
+    target.innerHTML = rows
+      .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+      .join("");
+  }
+
+  const supplierServiceWizard = createDialogWizard({
+    dialogId: "supplierServiceDialog",
+    formId: "supplierServiceForm",
+    navId: "supplierServiceWizardNav",
+    progressFillId: "supplierServiceWizardProgressFill",
+    progressLabelId: "supplierServiceWizardProgressLabel",
+    stepCount: 5,
+    onReachLastStep: renderSupplierServiceWizardSummary,
+    pickers: {
+      supplierServiceForm: {
+        searchField: "supplierSearch",
+        idField: "supplierId",
+        items: () => pickerSuppliers(),
+        onApply: (form) => syncSupplierSearchField(form)
+      }
+    },
+    validateStep: (step, form) => {
+      if (step === 1) {
+        const supplier = syncSupplierSearchField(form);
+        if (!supplier) {
+          alert("Selecione um fornecedor válido da lista.");
+          document.querySelector('[data-picker-search-target="supplierServiceForm"]')?.classList.remove("hidden");
+          form.elements.supplierSearch.focus();
+          return false;
+        }
+      }
+      if (step === 3 && !form.elements.name.value.trim()) {
+        alert("Informe o nome do serviço.");
+        form.elements.name.focus();
+        return false;
+      }
+      if (step === 4 && (form.elements.cost.value === "" || Number(form.elements.cost.value) < 0)) {
+        alert("Informe o valor cobrado pelo fornecedor.");
+        form.elements.cost.focus();
+        return false;
+      }
+      return true;
+    }
+  });
 
   function syncEntryServices(form, selected = "") {
     const supplierId = form.elements.supplierId.value;
@@ -755,6 +812,49 @@
           && item.date >= form.elements.startDate.value && item.date <= form.elements.endDate.value);
         if (!entries.length) {
           alert("Não há lançamentos livres neste período.");
+          return false;
+        }
+      }
+      return true;
+    }
+  });
+
+  function renderSupplierPaymentWizardSummary() {
+    const form = byId("supplierPaymentForm");
+    const target = byId("supplierPaymentWizardSummary");
+    if (!target) return;
+    const rows = [
+      ["Data", formatDate(form.elements.date.value)],
+      ["Valor pago", money.format(Number(form.elements.amount.value || 0))],
+      ["Forma", form.elements.method.value],
+      form.elements.note.value ? ["Observação", form.elements.note.value] : null
+    ].filter(Boolean);
+    target.innerHTML = rows
+      .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+      .join("");
+  }
+
+  const supplierPaymentWizard = createDialogWizard({
+    dialogId: "supplierPaymentDialog",
+    formId: "supplierPaymentForm",
+    navId: "supplierPaymentWizardNav",
+    progressFillId: "supplierPaymentWizardProgressFill",
+    progressLabelId: "supplierPaymentWizardProgressLabel",
+    stepCount: 5,
+    lastStepLabel: "Confirmar baixa",
+    onReachLastStep: renderSupplierPaymentWizardSummary,
+    validateStep: (step, form) => {
+      if (step === 2) {
+        const payable = state.supplierPayables.find((item) => item.id === form.elements.payableId.value);
+        const amount = Number(form.elements.amount.value);
+        if (!amount || amount <= 0) {
+          alert("Informe o valor pago.");
+          form.elements.amount.focus();
+          return false;
+        }
+        if (payable && amount > payableOpen(payable) + 0.001) {
+          alert(`O valor máximo é ${money.format(payableOpen(payable))}.`);
+          form.elements.amount.focus();
           return false;
         }
       }
@@ -1356,6 +1456,7 @@
         : preference?.amount ? Math.min(Number(preference.amount), payableOpen(payable)).toFixed(2) : "";
       if (preference?.method && [...form.elements.method.options].some((option) => option.value === preference.method)) form.elements.method.value = preference.method;
       if (preference) form.elements.note.value = [`Solicitado pelo fornecedor`, preference.holder && `Titular: ${preference.holder}`, preference.pixKey && `PIX: ${preference.pixKey}`, preference.note].filter(Boolean).join(" | ");
+      supplierPaymentWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
       byId("supplierPaymentDialog").showModal();
     }
     const report = event.target.closest("[data-supplier-report]"); if (report) openSupplierReport(state.supplierPayables.find((item) => item.id === report.dataset.supplierReport));
