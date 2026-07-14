@@ -63,6 +63,12 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .dashboard-inner-tabs button, .period-shortcuts button { padding: 10px 13px; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--brand); font-weight: 800; }
 .dashboard-inner-tabs button.active, .period-shortcuts button.active { border-color: var(--brand); background: var(--brand); color: white; }
 .dashboard-period-controls { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 20px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: #f9faf8; }
+#dashboard.active { display: flex; flex-direction: column; }
+#dashboard.active > .dashboard-heading { order: 1; }
+#dashboard.active > .dashboard-inner-tabs { order: 2; }
+#dashboard.active > .dashboard-period-controls { order: 3; }
+#dashboard.active > #dashboardServicesCards, #dashboard.active > #dashboardFinanceCards { order: 4; }
+#dashboard.active > #dashboardServicesCharts, #dashboard.active > #dashboardFinanceCharts { order: 5; }
 .period-shortcuts { display: flex; flex-wrap: wrap; gap: 7px; }
 .period-dates { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 8px; }
 .period-dates label { color: var(--muted); font-size: 11px; }
@@ -679,11 +685,18 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .mobile-nav-actions button { padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--brand); font-weight: 800; }
   .mobile-nav-actions button:last-child { color: var(--danger); }
   .mobile-nav-actions .hidden { display: none; }
-  .dashboard-heading { align-items: stretch; flex-direction: column; gap: 16px; }
+  .dashboard-heading { align-items: stretch; flex-direction: column; gap: 16px; border: 0; border-left: 4px solid var(--accent); border-radius: 12px; padding: 18px 16px; background: white; box-shadow: 0 8px 22px rgba(23,63,53,.08); }
+  .dashboard-heading .eyebrow { color: var(--accent); }
+  .dashboard-heading h2 { font-size: 25px; }
   .dashboard-heading .primary { width: 100%; }
   .dashboard-heading .dashboard-actions { display: none; }
   .dashboard-inner-tabs { grid-template-columns: 1fr 1fr; }
   .dashboard-period-controls { align-items: stretch; flex-direction: column; }
+  #dashboard.active > .dashboard-heading { order: 1; }
+  #dashboard.active > .dashboard-inner-tabs { order: 2; }
+  #dashboard.active > #dashboardServicesCards, #dashboard.active > #dashboardFinanceCards { order: 3; }
+  #dashboard.active > .dashboard-period-controls { order: 4; }
+  #dashboard.active > #dashboardServicesCharts, #dashboard.active > #dashboardFinanceCharts { order: 5; }
   .finance-period-bar { align-items: stretch; flex-direction: column; }
   .finance-period-info { text-align: left; }
   .period-shortcuts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px 48px; gap: 7px; }

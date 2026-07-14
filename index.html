@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=89">
+  <link rel="stylesheet" href="styles.css?v=90">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -83,6 +83,28 @@
         <button class="active" type="button" data-dashboard-tab="services">Serviços</button>
         <button type="button" data-dashboard-tab="finance">Financeiro</button>
       </div>
+
+      <section id="dashboardServicesCards" class="dashboard-tab-panel">
+        <div class="period-heading" data-dashboard-week-block>
+          <div><span class="eyebrow">Semana operacional</span><h3 id="serviceWeekLabel"></h3></div>
+        </div>
+        <div id="serviceWeekCards" class="dashboard-grid dashboard-status-cards" data-dashboard-week-block></div>
+        <div class="period-heading" data-dashboard-period-block>
+          <div><span class="eyebrow">Período selecionado</span><h3 id="servicePeriodLabel"></h3></div>
+        </div>
+        <div id="servicePeriodCards" class="dashboard-grid dashboard-status-cards" data-dashboard-period-block></div>
+      </section>
+      <section id="dashboardFinanceCards" class="dashboard-tab-panel hidden">
+        <div class="period-heading" data-dashboard-week-block>
+          <div><span class="eyebrow">Semana operacional</span><h3 id="financeWeekLabel"></h3></div>
+        </div>
+        <div id="financeWeekCards" class="dashboard-grid" data-dashboard-week-block></div>
+        <div class="period-heading" data-dashboard-period-block>
+          <div><span class="eyebrow">Período selecionado</span><h3 id="financePeriodLabel"></h3></div>
+        </div>
+        <div id="financePeriodCards" class="dashboard-grid" data-dashboard-period-block></div>
+      </section>
+
       <div class="dashboard-period-controls">
         <div class="period-shortcuts">
           <button class="active" type="button" data-dashboard-period="week">Semana atual</button>
@@ -96,15 +118,7 @@
         </div>
       </div>
 
-      <section id="dashboardServicesTab" class="dashboard-tab-panel">
-        <div class="period-heading" data-dashboard-week-block>
-          <div><span class="eyebrow">Semana operacional</span><h3 id="serviceWeekLabel"></h3></div>
-        </div>
-        <div id="serviceWeekCards" class="dashboard-grid dashboard-status-cards" data-dashboard-week-block></div>
-        <div class="period-heading" data-dashboard-period-block>
-          <div><span class="eyebrow">Período selecionado</span><h3 id="servicePeriodLabel"></h3></div>
-        </div>
-        <div id="servicePeriodCards" class="dashboard-grid dashboard-status-cards" data-dashboard-period-block></div>
+      <section id="dashboardServicesCharts" class="dashboard-tab-panel">
         <section class="dashboard-charts">
           <article class="panel chart-panel">
             <div class="panel-title"><div><span class="eyebrow">Distribuição</span><h2>Status dos serviços</h2></div></div>
@@ -125,15 +139,7 @@
         <section id="serviceAlertPanel" class="panel alert-panel"></section>
       </section>
 
-      <section id="dashboardFinanceTab" class="dashboard-tab-panel hidden">
-        <div class="period-heading" data-dashboard-week-block>
-          <div><span class="eyebrow">Semana operacional</span><h3 id="financeWeekLabel"></h3></div>
-        </div>
-        <div id="financeWeekCards" class="dashboard-grid" data-dashboard-week-block></div>
-        <div class="period-heading" data-dashboard-period-block>
-          <div><span class="eyebrow">Período selecionado</span><h3 id="financePeriodLabel"></h3></div>
-        </div>
-        <div id="financePeriodCards" class="dashboard-grid" data-dashboard-period-block></div>
+      <section id="dashboardFinanceCharts" class="dashboard-tab-panel hidden">
         <section class="dashboard-charts">
           <article class="panel chart-panel">
             <div class="panel-title">
@@ -1784,7 +1790,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=107"></script>
+  <script src="app.js?v=108"></script>
   <script src="supplier.js?v=51"></script>
 </body>
 </html>

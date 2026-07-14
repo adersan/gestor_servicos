@@ -1002,8 +1002,10 @@ function renderDashboardV2() {
   const isOperationalWeek = period.startDate === week.startDate && period.endDate === week.endDate;
   document.getElementById("dashboardStartDate").value = period.startDate;
   document.getElementById("dashboardEndDate").value = period.endDate;
-  document.getElementById("dashboardServicesTab").classList.toggle("hidden", activeDashboardTab !== "services");
-  document.getElementById("dashboardFinanceTab").classList.toggle("hidden", activeDashboardTab !== "finance");
+  document.getElementById("dashboardServicesCards").classList.toggle("hidden", activeDashboardTab !== "services");
+  document.getElementById("dashboardServicesCharts").classList.toggle("hidden", activeDashboardTab !== "services");
+  document.getElementById("dashboardFinanceCards").classList.toggle("hidden", activeDashboardTab !== "finance");
+  document.getElementById("dashboardFinanceCharts").classList.toggle("hidden", activeDashboardTab !== "finance");
   document.querySelectorAll("[data-dashboard-week-block]").forEach((element) => {
     element.classList.toggle("hidden", !isOperationalWeek);
   });
@@ -5510,7 +5512,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=111").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=112").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
