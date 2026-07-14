@@ -104,6 +104,7 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .attention-chip.attention-warning { border-color: #e6cf9a; background: #fdf1dc; color: #96650b; }
 .attention-chip.attention-info { border-color: #bdd8ef; background: #eef7ff; color: #155f9f; }
 .finance-summary-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.finance-summary-strip.hidden { display: none; }
 .finance-summary-strip button { display: grid; gap: 2px; padding: 10px 13px; border: 1px solid var(--line); border-radius: 12px; background: white; text-align: left; }
 .finance-summary-strip button span { color: var(--muted); font-size: 10px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
 .finance-summary-strip button strong { font-size: 16px; color: var(--ink); }

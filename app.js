@@ -1110,6 +1110,7 @@ function renderDashboardV2() {
   document.getElementById("dashboardServicesCharts").classList.toggle("hidden", activeDashboardTab !== "services");
   document.getElementById("dashboardFinanceCards").classList.toggle("hidden", activeDashboardTab !== "finance");
   document.getElementById("dashboardFinanceCharts").classList.toggle("hidden", activeDashboardTab !== "finance");
+  document.getElementById("dashboardFinanceSummary").classList.toggle("hidden", activeDashboardTab !== "finance");
   document.querySelectorAll("[data-dashboard-week-block]").forEach((element) => {
     element.classList.toggle("hidden", !isOperationalWeek);
   });
@@ -5774,7 +5775,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=125").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=126").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
