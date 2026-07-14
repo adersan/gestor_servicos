@@ -98,7 +98,8 @@
         city: client.city || "",
         state: client.state || "",
         notes: client.notes || "",
-        priceGroup: tableById[client.price_table_id] || ""
+        priceGroup: tableById[client.price_table_id] || "",
+        billingFrequency: client.billing_frequency || "semanal"
       })),
       catalog: catalogResult.data.map((service) => ({
         id: service.id,
@@ -315,13 +316,14 @@
           state: item.state || null,
           notes: item.notes || null,
           price_table_id: existingByName[item.priceGroup] || null,
+          billing_frequency: item.billingFrequency || "semanal",
           active: true
         }));
       let clientsResult = await client.from("clients").upsert(clientRows);
-      if (clientsResult.error && /document|email|contact_name|zip_code|address|neighborhood|city|state|notes|schema cache|Could not find/i.test(clientsResult.error.message || "")) {
+      if (clientsResult.error && /document|email|contact_name|zip_code|address|neighborhood|city|state|notes|billing_frequency|schema cache|Could not find/i.test(clientsResult.error.message || "")) {
         clientsResult = await client.from("clients").upsert(clientRows.map(({
           document, email, contact_name, zip_code, address, address_number,
-          address_complement, neighborhood, city, state, notes, ...row
+          address_complement, neighborhood, city, state, notes, billing_frequency, ...row
         }) => row));
       }
       if (clientsResult.error) throw clientsResult.error;

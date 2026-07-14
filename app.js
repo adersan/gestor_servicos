@@ -46,6 +46,7 @@ let activeDashboardTab = "services";
 let dashboardPeriod = null;
 let financePeriod = null;
 let financePeriodMode = "week";
+let billingOverdueOnly = false;
 let remoteRefreshInProgress = false;
 let remoteLoadInProgress = false;
 let localStateRevision = 0;
@@ -653,6 +654,22 @@ function billingAgeDays(billing) {
   return Math.max(0, Math.floor((Date.now() - new Date(billing.createdAt).getTime()) / 86400000));
 }
 
+const BILLING_FREQUENCY_OVERDUE_DAYS = { semanal: 7, quinzenal: 15, mensal: 30 };
+const BILLING_FREQUENCY_LABELS = { semanal: "Semanal", quinzenal: "Quinzenal", mensal: "Mensal" };
+
+function billingFrequencyLabel(frequency) {
+  return BILLING_FREQUENCY_LABELS[frequency] || BILLING_FREQUENCY_LABELS.semanal;
+}
+
+function billingOverdueThresholdDays(billing) {
+  const frequency = clientById(billing.clientId)?.billingFrequency;
+  return BILLING_FREQUENCY_OVERDUE_DAYS[frequency] || BILLING_FREQUENCY_OVERDUE_DAYS.semanal;
+}
+
+function isBillingOverdue(billing) {
+  return billingOpenAmount(billing) > 0 && billingAgeDays(billing) >= billingOverdueThresholdDays(billing);
+}
+
 function recentDateKeys(days) {
   return Array.from({ length: days }, (_, index) => {
     const date = new Date();
@@ -799,7 +816,7 @@ function dashboardNotifications() {
     .filter(isOverdueService)
     .sort((a, b) => serviceAgeHours(b) - serviceAgeHours(a));
   const overdueBillings = currentBillings()
-    .filter((billing) => billingOpenAmount(billing) > 0 && billingAgeDays(billing) >= 7)
+    .filter(isBillingOverdue)
     .sort((a, b) => billingAgeDays(b) - billingAgeDays(a));
   return { overdueServices, overdueBillings };
 }
@@ -1003,7 +1020,7 @@ function renderDashboard() {
     currentStatus: billingCurrentStatus(billing)
   }));
   const openBillings = billings.filter((billing) => billing.openAmount > 0);
-  const overdueBillings = openBillings.filter((billing) => billing.ageDays >= 7);
+  const overdueBillings = openBillings.filter(isBillingOverdue);
   const openTotal = openBillings.reduce((sum, billing) => sum + billing.openAmount, 0);
   const overdueTotal = overdueBillings.reduce((sum, billing) => sum + billing.openAmount, 0);
   const billingAlertPanel = document.getElementById("billingAlertPanel");
@@ -1015,12 +1032,12 @@ function renderDashboard() {
     </div>
     <div class="alert-summary finance-alert-summary">
       <article><span>Em aberto</span><strong>${money.format(openTotal)}</strong><small>${openBillings.length} cliente(s)</small></article>
-      <article class="${overdueBillings.length ? "alert-danger" : ""}"><span>Há 7 dias ou mais</span><strong>${money.format(overdueTotal)}</strong><small>${overdueBillings.length} cobrança(s)</small></article>
+      <article class="${overdueBillings.length ? "alert-danger" : ""}"><span>Em atraso</span><strong>${money.format(overdueTotal)}</strong><small>${overdueBillings.length} cobrança(s)</small></article>
     </div>
     ${overdueBillings.length ? `<div class="alert-list">${overdueBillings.slice(0, 5).map((billing) => `
       <div><strong>${escapeHtml(clientById(billing.clientId)?.name || "")}</strong><span>${money.format(billing.openAmount)} · ${billing.ageDays} dias em aberto</span></div>`).join("")}</div>
       <button class="table-action alert-link" data-payment-dashboard-filter="overdue">Ver todas as atrasadas</button>`
-    : `<p class="meta">Nenhuma cobrança está aberta há 7 dias ou mais.</p>`}`;
+    : `<p class="meta">Nenhuma cobrança está em atraso.</p>`}`;
 
   const dateKeys = recentDateKeys(7);
   const dailyPayments = dateKeys.map((date) => ({
@@ -1248,12 +1265,12 @@ function renderDashboardV2() {
 
   const openBillings = currentBillings().map((billing) => ({ ...billing, openAmount: billingOpenAmount(billing), ageDays: billingAgeDays(billing) }))
     .filter((billing) => billing.openAmount > 0);
-  const overdueBillings = openBillings.filter((billing) => billing.ageDays >= 7);
+  const overdueBillings = openBillings.filter(isBillingOverdue);
   const billingAlertPanel = document.getElementById("billingAlertPanel");
   billingAlertPanel.classList.toggle("has-alerts", overdueBillings.length > 0);
   billingAlertPanel.innerHTML = `
     <div class="panel-title"><div><span class="eyebrow">Alertas financeiros</span><h2>Cobranças em aberto</h2></div><button class="table-action" data-payment-dashboard-filter="open">Ver pagamentos</button></div>
-    <div class="alert-summary finance-alert-summary"><article><span>Em aberto</span><strong>${money.format(openBillings.reduce((sum, item) => sum + item.openAmount, 0))}</strong><small>${openBillings.length} cobrança(s)</small></article><article class="${overdueBillings.length ? "alert-danger" : ""}"><span>Há 7 dias ou mais</span><strong>${money.format(overdueBillings.reduce((sum, item) => sum + item.openAmount, 0))}</strong><small>${overdueBillings.length} cobrança(s)</small></article></div>`;
+    <div class="alert-summary finance-alert-summary"><article><span>Em aberto</span><strong>${money.format(openBillings.reduce((sum, item) => sum + item.openAmount, 0))}</strong><small>${openBillings.length} cobrança(s)</small></article><article class="${overdueBillings.length ? "alert-danger" : ""}"><span>Em atraso</span><strong>${money.format(overdueBillings.reduce((sum, item) => sum + item.openAmount, 0))}</strong><small>${overdueBillings.length} cobrança(s)</small></article></div>`;
 
   const periodAccounts = state.clients.map((client) => {
     const serviceAmount = periodServices.services.filter((item) => item.clientId === client.id)
@@ -1367,6 +1384,7 @@ function renderClients() {
       ${client.email ? `<p class="meta">${escapeHtml(client.email)}</p>` : ""}
       ${client.city || client.state ? `<p class="meta">${escapeHtml([client.city, client.state].filter(Boolean).join(" - "))}</p>` : ""}
       <span class="badge">${escapeHtml(client.priceGroup)}</span>
+      <span class="badge">${billingFrequencyLabel(client.billingFrequency)}</span>
       <div class="access-box">Saldo atual: ${money.format(balanceFor(client.id))}</div>
       <div class="card-actions">
         <button class="table-action" data-edit-client="${client.id}">Editar</button>
@@ -1532,7 +1550,7 @@ function renderPayments() {
     .filter((billing) => {
       if (!statusFilter) return true;
       if (statusFilter === "open") return billing.openAmount > 0 && billing.currentStatus !== "Cancelada";
-      if (statusFilter === "overdue") return billing.openAmount > 0 && billing.ageDays >= 7;
+      if (statusFilter === "overdue") return isBillingOverdue(billing);
       if (statusFilter === "paid") return billing.currentStatus === "Paga";
       return true;
     })
@@ -1560,7 +1578,7 @@ function renderPayments() {
     <article class="metric-card finance-received-card"><span>Recebido no periodo</span><strong>${money.format(receivedTotal)}</strong><small>${periodLabel(period)}</small></article>`;
 
   document.getElementById("openBillingList").innerHTML = billings.length ? billings.map((billing) => `
-    <article class="receivable-card ${billing.ageDays >= 7 && billing.openAmount > 0 ? "receivable-overdue" : ""}">
+    <article class="receivable-card ${isBillingOverdue(billing) ? "receivable-overdue" : ""}">
       <div class="receivable-heading">
         <div><span class="eyebrow">${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</span><h3>${escapeHtml(clientById(billing.clientId)?.name || "")}</h3></div>
         <span class="billing-status billing-${billing.currentStatus.toLowerCase()}">${billing.currentStatus}</span>
@@ -1580,7 +1598,7 @@ function renderPayments() {
           <button class="table-action" data-pay-billing="${billing.id}" data-payment-mode="partial">Baixa parcial</button>
           <button class="table-action success" data-pay-billing="${billing.id}" data-payment-mode="full">Quitar ${money.format(billing.openAmount)}</button>
         </div>` : ""}
-      ${billing.ageDays >= 7 && billing.openAmount > 0 ? `<p class="overdue-message">Cobrança aberta há ${billing.ageDays} dias.</p>` : ""}
+      ${isBillingOverdue(billing) ? `<p class="overdue-message">Cobrança aberta há ${billing.ageDays} dias.</p>` : ""}
       </div>
     </article>`).join("") : emptyMarkup();
 
@@ -1627,6 +1645,20 @@ function renderBillings() {
   const startFilter = document.getElementById("billingStartFilter").value;
   const endFilter = document.getElementById("billingEndFilter").value;
   const search = document.getElementById("billingSearch").value.trim();
+
+  const overdueCount = currentBillings().filter(isBillingOverdue).length;
+  document.getElementById("billingOverdueCount").textContent = overdueCount;
+  document.getElementById("billingOverdueTab").classList.toggle("active", billingOverdueOnly);
+  document.getElementById("billingOverdueTab").classList.toggle("has-overdue", overdueCount > 0);
+  document.querySelectorAll("#billing [data-finance-period]").forEach((button) => {
+    button.classList.toggle("active", !billingOverdueOnly && button.dataset.financePeriod === financePeriodMode);
+  });
+  document.getElementById("billingStartFilter").disabled = billingOverdueOnly;
+  document.getElementById("billingEndFilter").disabled = billingOverdueOnly;
+  document.getElementById("billingPeriodLabel").textContent = billingOverdueOnly
+    ? `${overdueCount} cobrança(s) em atraso`
+    : periodLabel(ensureFinancePeriod());
+
   const accessBillingByClient = new Map();
   state.billings
     .filter((billing) => billing.status !== "Cancelada")
@@ -1634,8 +1666,9 @@ function renderBillings() {
     .forEach((billing) => accessBillingByClient.set(billing.clientId, billing.id));
   const items = state.billings
     .filter((item) => !clientFilter || item.clientId === clientFilter)
-    .filter((item) => !startFilter || item.endDate >= startFilter)
-    .filter((item) => !endFilter || item.endDate <= endFilter)
+    .filter((item) => billingOverdueOnly ? isBillingOverdue(item) : true)
+    .filter((item) => billingOverdueOnly || !startFilter || item.endDate >= startFilter)
+    .filter((item) => billingOverdueOnly || !endFilter || item.endDate <= endFilter)
     .filter((item) => {
       const status = billingCurrentStatus(item);
       if (statusFilter === "paid") return status === "Paga";
@@ -2215,6 +2248,7 @@ function openClientForm(client = null) {
   form.elements.state.value = client?.state || "";
   form.elements.notes.value = client?.notes || "";
   form.elements.priceGroup.value = client?.priceGroup || "";
+  form.elements.billingFrequency.value = client?.billingFrequency || "semanal";
   setClientDialogTab("main");
   document.getElementById("clientDialogTitle").textContent = client ? "Editar cliente" : "Novo cliente";
   document.getElementById("clientDialog").showModal();
@@ -4420,7 +4454,8 @@ document.getElementById("clientForm").addEventListener("submit", (event) => {
     city: data.get("city").trim(),
     state: data.get("state").trim().toUpperCase(),
     notes: data.get("notes").trim(),
-    priceGroup: data.get("priceGroup")
+    priceGroup: data.get("priceGroup"),
+    billingFrequency: data.get("billingFrequency") || "semanal"
   };
   const index = state.clients.findIndex((item) => item.id === client.id);
   const isNewClient = index < 0;
@@ -5222,7 +5257,14 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
 document.addEventListener("click", (event) => {
   const periodButton = event.target.closest("[data-finance-period]");
   const shiftButton = event.target.closest("[data-finance-shift]");
-  if (!periodButton && !shiftButton) return;
+  const overdueToggle = event.target.closest("[data-billing-overdue-toggle]");
+  if (!periodButton && !shiftButton && !overdueToggle) return;
+  if (overdueToggle) {
+    billingOverdueOnly = !billingOverdueOnly;
+    renderBillings();
+    return;
+  }
+  billingOverdueOnly = false;
   if (periodButton) {
     const mode = periodButton.dataset.financePeriod;
     setFinancePeriod(mode === "month" ? monthPeriod() : currentOperationalWeek(), mode);
@@ -5628,7 +5670,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=117").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=118").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
