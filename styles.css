@@ -640,7 +640,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .notification-button #notificationCount { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 4px; font-size: 9px; }
   .topbar .eyebrow { display: none; }
   h1 { font-size: clamp(22px, 7vw, 30px); line-height: 1.05; }
-  main { padding: 20px 14px calc(112px + env(safe-area-inset-bottom)); }
+  main { padding: 20px 14px calc(122px + env(safe-area-inset-bottom)); }
   .mobile-bottom-nav {
     position: fixed;
     left: 0;
@@ -659,7 +659,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .mobile-bottom-nav::-webkit-scrollbar { display: none; }
   .mobile-bottom-nav-button {
     flex: 1 0 74px;
-    min-height: 74px;
+    min-height: 84px;
     display: grid;
     place-items: center;
     gap: 4px;
@@ -671,10 +671,10 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
     font: inherit;
     touch-action: manipulation;
   }
-  .mobile-bottom-nav-button span { font-size: 27px; line-height: 1; }
+  .mobile-bottom-nav-button span { font-size: 40px; line-height: 1; }
   .mobile-bottom-nav-button small { font-size: 13px; line-height: 1.1; font-weight: 800; white-space: nowrap; }
   .mobile-bottom-nav-button.active { background: #dff0f4; color: var(--brand); }
-  .new-entry-fab { right: 16px; bottom: calc(97px + env(safe-area-inset-bottom)); width: 36px; height: 36px; font-size: 18px; }
+  .new-entry-fab { right: 16px; bottom: calc(107px + env(safe-area-inset-bottom)); width: 36px; height: 36px; font-size: 18px; }
   body.mobile-menu-open .mobile-bottom-nav { display: none; }
   body.mobile-menu-open .new-entry-fab { display: none; }
   .tabs { display: none; position: relative; top: auto; z-index: 20; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px 12px 12px; overflow: visible; border-bottom: 1px solid var(--line); background: #f8f6ef; box-shadow: 0 14px 28px rgba(23,63,53,.12); scrollbar-width: none; }
