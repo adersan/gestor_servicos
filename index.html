@@ -1402,15 +1402,55 @@
   </dialog>
   <dialog id="supplierPayableDialog">
     <form id="supplierPayableForm" method="dialog">
-      <div class="dialog-heading"><h2>Gerar conta a pagar</h2><button class="icon-button" value="cancel">×</button></div>
+      <div class="dialog-heading"><h2>Gerar conta a pagar</h2><button class="icon-button" value="cancel" data-close-supplier-dialog>×</button></div>
       <input name="supplierId" type="hidden">
-      <label>Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
-      <div class="date-pair"><label>De<input name="startDate" type="date" required></label><label>Até<input name="endDate" type="date" required></label></div>
-      <p class="hint">Serão incluídos somente lançamentos ainda não fechados.</p>
-      <label class="checkbox-label"><input name="generatePortalLink" type="checkbox" checked> Gerar link semanal para o fornecedor</label>
-      <label class="checkbox-label"><input name="showEntries" type="checkbox" checked> Mostrar a lista detalhada de serviços no link</label>
+      <div id="supplierPayableWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="supplierPayableWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="supplierPayableWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Fornecedor</h3>
+        <div id="supplierPayablePicker" class="wizard-picker wizard-only hidden" data-picker="supplierPayable">
+          <div id="supplierPayablePickerGrid" class="wizard-picker-grid"></div>
+          <div class="wizard-picker-nav">
+            <button type="button" class="secondary" data-picker-prev="supplierPayable">Voltar</button>
+            <button type="button" class="secondary" data-picker-search="supplierPayable">Buscar</button>
+            <button type="button" class="secondary" data-picker-next="supplierPayable">Mais</button>
+          </div>
+        </div>
+        <label class="wizard-picker-search-field hidden" data-picker-search-target="supplierPayable">Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Período</h3>
+        <div class="date-pair"><label>De<input name="startDate" type="date" required></label><label>Até<input name="endDate" type="date" required></label></div>
+        <p class="hint">Serão incluídos somente lançamentos ainda não fechados.</p>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Link semanal</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="generatePortalLink">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native"><input name="generatePortalLink" type="checkbox" checked> Gerar link semanal para o fornecedor</label>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Lista detalhada</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="showEntries">
+          <button type="button" class="wizard-choice-btn" data-choice-value="1">Sim</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="0">Não</button>
+        </div>
+        <label class="checkbox-label wizard-hide-native"><input name="showEntries" type="checkbox" checked> Mostrar a lista detalhada de serviços no link</label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="supplierPayableWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
       <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Gerar pagamento</button></div>
     </form>
+    <div class="wizard-nav wizard-only hidden" id="supplierPayableWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
   <dialog id="supplierPaymentDialog">
     <form id="supplierPaymentForm" method="dialog">
@@ -1528,6 +1568,6 @@
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
   <script src="app.js?v=104"></script>
-  <script src="supplier.js?v=47"></script>
+  <script src="supplier.js?v=48"></script>
 </body>
 </html>

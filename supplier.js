@@ -703,8 +703,64 @@
     form.elements.supplierSearch.value = supplierOptionLabel(defaultSupplier());
     form.elements.startDate.value = week.startDate;
     form.elements.endDate.value = week.endDate;
+    supplierPayableWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
     byId("supplierPayableDialog").showModal();
   }
+
+  function renderSupplierPayableWizardSummary() {
+    const form = byId("supplierPayableForm");
+    const target = byId("supplierPayableWizardSummary");
+    if (!target) return;
+    const rows = [
+      ["Fornecedor", form.elements.supplierSearch.value || "-"],
+      ["Período", `${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)}`],
+      ["Link semanal", form.elements.generatePortalLink.checked ? "Sim" : "Não"],
+      ["Lista detalhada", form.elements.showEntries.checked ? "Sim" : "Não"]
+    ];
+    target.innerHTML = rows
+      .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+      .join("");
+  }
+
+  const supplierPayableWizard = createDialogWizard({
+    dialogId: "supplierPayableDialog",
+    formId: "supplierPayableForm",
+    navId: "supplierPayableWizardNav",
+    progressFillId: "supplierPayableWizardProgressFill",
+    progressLabelId: "supplierPayableWizardProgressLabel",
+    stepCount: 5,
+    lastStepLabel: "Gerar pagamento",
+    onReachLastStep: renderSupplierPayableWizardSummary,
+    pickers: {
+      supplierPayable: {
+        searchField: "supplierSearch",
+        idField: "supplierId",
+        items: () => pickerSuppliers(),
+        onApply: (form) => syncSupplierSearchField(form)
+      }
+    },
+    validateStep: (step, form) => {
+      if (step === 1) {
+        const supplier = syncSupplierSearchField(form);
+        if (!supplier) {
+          alert("Selecione um fornecedor válido da lista.");
+          document.querySelector('[data-picker-search-target="supplierPayable"]')?.classList.remove("hidden");
+          form.elements.supplierSearch.focus();
+          return false;
+        }
+      }
+      if (step === 2) {
+        const entries = state.supplierEntries.filter((item) =>
+          item.supplierId === form.elements.supplierId.value && !item.payableId && item.status !== "Cancelado"
+          && item.date >= form.elements.startDate.value && item.date <= form.elements.endDate.value);
+        if (!entries.length) {
+          alert("Não há lançamentos livres neste período.");
+          return false;
+        }
+      }
+      return true;
+    }
+  });
 
   function openAccess() {
     const form = byId("supplierAccessForm");
