@@ -1667,6 +1667,7 @@ function renderBillings() {
   document.getElementById("billingEndFilter").classList.toggle("hidden", billingOverdueOnly);
   document.getElementById("billingOverdueStartFilter").classList.toggle("hidden", !billingOverdueOnly);
   document.getElementById("billingOverdueEndFilter").classList.toggle("hidden", !billingOverdueOnly);
+  document.getElementById("billingStatusFilter").classList.toggle("hidden", billingOverdueOnly);
   const accessBillingByClient = new Map();
   state.billings
     .filter((billing) => billing.status !== "Cancelada")
@@ -1678,6 +1679,7 @@ function renderBillings() {
     .filter((item) => !startFilter || item.endDate >= startFilter)
     .filter((item) => !endFilter || item.endDate <= endFilter)
     .filter((item) => {
+      if (billingOverdueOnly) return true;
       const status = billingCurrentStatus(item);
       if (statusFilter === "paid") return status === "Paga";
       if (statusFilter === "open") return status === "Aberta" || status === "Parcial";
@@ -5687,7 +5689,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=121").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=122").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
