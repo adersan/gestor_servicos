@@ -39,6 +39,9 @@ button { cursor: pointer; }
 .notification-button.has-alerts { border-color: #f0b55f; background: rgba(216,155,69,.18); }
 .notification-button span { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #241b0d; font-size: 11px; }
 .app-toast { position: fixed; right: 24px; bottom: 24px; z-index: 50; max-width: min(420px, calc(100vw - 32px)); padding: 15px 18px; border-radius: 16px; background: #173f35; color: white; box-shadow: 0 18px 42px rgba(23,63,53,.26); font-weight: 800; }
+.new-entry-fab { position: fixed; right: 24px; bottom: 96px; z-index: 45; width: 56px; height: 56px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #241b0d; font-size: 30px; font-weight: 800; line-height: 1; box-shadow: 0 14px 32px rgba(23,63,53,.32); }
+.new-entry-fab:hover { filter: brightness(1.06); }
+.new-entry-fab:active { transform: scale(.96); }
 h1, h2, p { margin: 0; }
 h1 { font-family: Georgia, serif; font-size: clamp(26px, 4vw, 40px); }
 h2 { font-family: Georgia, serif; font-size: 28px; }
@@ -665,7 +668,9 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .mobile-bottom-nav-button span { font-size: 20px; line-height: 1; }
   .mobile-bottom-nav-button small { font-size: 10px; line-height: 1.1; font-weight: 800; white-space: nowrap; }
   .mobile-bottom-nav-button.active { background: #dff0f4; color: var(--brand); }
+  .new-entry-fab { right: 16px; bottom: calc(92px + 14px + env(safe-area-inset-bottom)); width: 52px; height: 52px; font-size: 26px; }
   body.mobile-menu-open .mobile-bottom-nav { display: none; }
+  body.mobile-menu-open .new-entry-fab { display: none; }
   .tabs { display: none; position: relative; top: auto; z-index: 20; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px 12px 12px; overflow: visible; border-bottom: 1px solid var(--line); background: #f8f6ef; box-shadow: 0 14px 28px rgba(23,63,53,.12); scrollbar-width: none; }
   body.mobile-menu-open .tabs { display: grid; }
   .tabs::-webkit-scrollbar { display: none; }
