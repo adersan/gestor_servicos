@@ -646,7 +646,7 @@ function renderRequestArea(data) {
     form.elements.serviceSearch.value = requestServiceOptionLabel(selected);
     form.elements.amount.value = !services.length ? "" : data.showAmounts === false ? "Valor sob consulta" : money.format(Number(selected?.amount || 0));
   }
-  form.querySelector('button[value="default"]').disabled = !services.length;
+  document.querySelector('.tracking-wizard-nav [data-wizard-next]').disabled = !services.length;
   document.getElementById("trackingRequesterOptions").innerHTML = (data.clientRequesters || [])
     .map((item) => `<option value="${escapeHtml(item.name)}"></option>`)
     .join("");
@@ -804,10 +804,78 @@ document.getElementById("trackingRequesterFilter")?.addEventListener("change", (
 document.getElementById("trackingServiceSort")?.addEventListener("change", () => {
   if (trackingData) render(trackingData);
 });
+const TRACKING_REQUEST_STEP_COUNT = 5;
+let trackingRequestStep = 1;
+
+function renderTrackingRequestWizardSummary() {
+  const form = document.getElementById("trackingRequestForm");
+  const target = document.getElementById("trackingRequestWizardSummary");
+  if (!target) return;
+  const referenceCount = form.elements.references.value.split("\n").map((line) => line.trim()).filter(Boolean).length;
+  const rows = [
+    ["Serviço", form.elements.serviceSearch.value || "-"],
+    ["Valor", form.elements.amount.value || "-"],
+    ["Placa/referência", referenceCount === 1 ? "1 referência" : `${referenceCount} referências`],
+    ["Quem solicitou", form.elements.requestedBy.value.trim() || "Não informado"],
+    form.elements.notes.value.trim() ? ["Observação", form.elements.notes.value.trim()] : null
+  ].filter(Boolean);
+  target.innerHTML = rows
+    .map(([label, value]) => `<div class="tracking-wizard-summary-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+function trackingRequestFirstField(step) {
+  if (step === 1) return document.querySelector('#trackingRequestForm input[name="serviceSearch"]');
+  if (step === 2) return document.querySelector('#trackingRequestForm textarea[name="references"]');
+  if (step === 3) return document.querySelector('#trackingRequestForm input[name="requestedBy"]');
+  if (step === 4) return document.querySelector('#trackingRequestForm textarea[name="notes"]');
+  return null;
+}
+
+function goToTrackingRequestStep(step) {
+  const form = document.getElementById("trackingRequestForm");
+  trackingRequestStep = Math.min(Math.max(step, 1), TRACKING_REQUEST_STEP_COUNT);
+  form.querySelectorAll(".tracking-wizard-step").forEach((el) => {
+    el.classList.toggle("hidden", Number(el.dataset.step) !== trackingRequestStep);
+  });
+  document.getElementById("trackingWizardProgressFill").style.width = `${(trackingRequestStep / TRACKING_REQUEST_STEP_COUNT) * 100}%`;
+  document.getElementById("trackingWizardProgressLabel").textContent = `Passo ${trackingRequestStep} de ${TRACKING_REQUEST_STEP_COUNT}`;
+  const nav = document.querySelector(".tracking-wizard-nav");
+  nav.querySelector("[data-wizard-back]").classList.toggle("hidden", trackingRequestStep === 1);
+  nav.querySelector("[data-wizard-next]").textContent = trackingRequestStep === TRACKING_REQUEST_STEP_COUNT ? "Enviar pedido" : "Continuar";
+  if (trackingRequestStep === TRACKING_REQUEST_STEP_COUNT) renderTrackingRequestWizardSummary();
+  const focusable = trackingRequestFirstField(trackingRequestStep);
+  setTimeout(() => {
+    if (focusable) focusable.focus();
+    else nav.querySelector("[data-wizard-next]")?.focus();
+  }, 0);
+}
+
+function validateTrackingRequestStep(step) {
+  const form = document.getElementById("trackingRequestForm");
+  const message = document.getElementById("trackingRequestMessage");
+  message.textContent = "";
+  if (step === 1) {
+    if (!syncRequestServiceSelection()) {
+      message.textContent = "Selecione um serviço válido da lista.";
+      form.elements.serviceSearch.focus();
+      return false;
+    }
+  }
+  if (step === 2) {
+    if (!form.elements.references.value.trim()) {
+      message.textContent = "Informe ao menos uma placa ou referência.";
+      form.elements.references.focus();
+      return false;
+    }
+  }
+  return true;
+}
+
 document.getElementById("openTrackingRequestDialog").addEventListener("click", () => {
   renderRequestArea(trackingData || {});
   document.getElementById("trackingRequestDialog").showModal();
-  setTimeout(() => document.querySelector('#trackingRequestForm input[name="serviceSearch"]').focus(), 0);
+  goToTrackingRequestStep(1);
 });
 document.querySelectorAll("[data-close-tracking-request]").forEach((button) => button.addEventListener("click", () => {
   const form = document.getElementById("trackingRequestForm");
@@ -850,21 +918,24 @@ document.getElementById("trackingRequestForm").addEventListener("click", async (
     button.disabled = false;
   }
 });
+document.querySelector(".tracking-wizard-nav").addEventListener("click", (event) => {
+  if (event.target.closest("[data-wizard-back]")) {
+    if (trackingRequestStep <= 1) return;
+    goToTrackingRequestStep(trackingRequestStep - 1);
+    return;
+  }
+  if (event.target.closest("[data-wizard-next]")) {
+    if (trackingRequestStep >= TRACKING_REQUEST_STEP_COUNT) {
+      document.getElementById("trackingRequestForm").requestSubmit();
+    } else if (validateTrackingRequestStep(trackingRequestStep)) {
+      goToTrackingRequestStep(trackingRequestStep + 1);
+    }
+  }
+});
 document.getElementById("trackingRequestForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
-  const form = event.currentTarget;
   event.preventDefault();
-  const fields = [
-    form.elements.requestedDate,
-    form.elements.serviceSearch,
-    form.elements.amount,
-    form.elements.references,
-    form.elements.requestedBy,
-    form.elements.notes
-  ];
-  const index = fields.indexOf(event.target);
-  if (index >= 0 && index < fields.length - 1) fields[index + 1].focus();
-  else form.requestSubmit();
+  document.querySelector('.tracking-wizard-nav [data-wizard-next]').click();
 });
 document.getElementById("trackingRequestForm").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -872,10 +943,10 @@ document.getElementById("trackingRequestForm").addEventListener("submit", async 
   const message = document.getElementById("trackingRequestMessage");
   if (!syncRequestServiceSelection()) {
     message.textContent = "Selecione um serviço válido da lista.";
-    form.elements.serviceSearch.focus();
+    goToTrackingRequestStep(1);
     return;
   }
-  const button = form.querySelector('button[value="default"]');
+  const button = document.querySelector('.tracking-wizard-nav [data-wizard-next]');
   const accessCode = sessionStorage.getItem(trackingTokenKey);
   button.disabled = true;
   message.textContent = "Enviando pedido...";

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Portal do fornecedor</title>
-  <link rel="stylesheet" href="fornecedor.css?v=20">
+  <link rel="stylesheet" href="fornecedor.css?v=21">
 </head>
 <body>
   <header class="portal-header">
@@ -75,17 +75,47 @@
         <div><span class="eyebrow">Autorizado pelo administrador</span><h2 id="editorTitle">Lançar serviço</h2></div>
         <button class="icon-button" value="cancel">×</button>
       </div>
+      <div id="entryWizardProgress" class="wizard-only hidden wizard-progress">
+        <div class="wizard-progress-track"><div id="entryWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="entryWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
       <input name="entryId" type="hidden">
       <input name="serviceId" type="hidden">
-      <label>Serviço<input name="serviceSearch" type="search" list="entryServiceOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
-      <datalist id="entryServiceOptions"></datalist>
-      <label>Data<input name="date" type="date" required></label>
-      <label>Placa ou referência<input name="reference" placeholder="Ex.: ABC1D23"></label>
-      <label>Valor<input name="amount" type="number" min="0" step="0.01" required></label>
-      <label>Status<select name="status"><option>A fazer</option><option>Feito</option></select></label>
-      <label>Observações<input name="notes"></label>
-      <div class="dialog-actions"><button type="button" id="cancelEdit">Cancelar</button><button class="primary" value="default">Salvar</button></div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-only hidden wizard-step-title">Qual serviço?</h3>
+        <label>Serviço<input name="serviceSearch" type="search" list="entryServiceOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
+        <datalist id="entryServiceOptions"></datalist>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-only hidden wizard-step-title">Data</h3>
+        <label>Data<input name="date" type="date" required></label>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-only hidden wizard-step-title">Placa ou referência</h3>
+        <label>Placa ou referência<input name="reference" placeholder="Ex.: ABC1D23"></label>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-only hidden wizard-step-title">Valor</h3>
+        <label>Valor<input name="amount" type="number" min="0" step="0.01" required></label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-only hidden wizard-step-title">Já foi feito?</h3>
+        <label>Status<select name="status"><option>A fazer</option><option>Feito</option></select></label>
+      </div>
+      <div class="wizard-step" data-step="6">
+        <h3 class="wizard-only hidden wizard-step-title">Observações</h3>
+        <label>Observações<input name="notes"></label>
+      </div>
+      <div class="wizard-step" data-step="7">
+        <h3 class="wizard-only hidden wizard-step-title">Confirmação</h3>
+        <div id="entryWizardSummary" class="wizard-only hidden wizard-summary"></div>
+      </div>
+      <div class="dialog-actions wizard-hide-native"><button type="button" id="cancelEdit">Cancelar</button><button class="primary" value="default">Salvar</button></div>
     </form>
+    <div id="entryWizardNav" class="wizard-only hidden wizard-nav">
+      <button type="button" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
 
   <dialog id="cancelDialog">
@@ -97,6 +127,6 @@
       <div class="dialog-actions"><button type="button" data-close-cancel>Cancelar</button><button class="danger-button" value="default">Confirmar cancelamento</button></div>
     </form>
   </dialog>
-  <script src="fornecedor.js?v=23"></script>
+  <script src="fornecedor.js?v=24"></script>
 </body>
 </html>

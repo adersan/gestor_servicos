@@ -267,6 +267,94 @@
     resetForm();
   }
 
+  const ENTRY_WIZARD_STEP_COUNT = 7;
+  let entryWizardStep = 1;
+
+  function entryWizardShouldSkip(step) {
+    if (step === 5) return !(data.permissions || {}).canMarkDone;
+    return false;
+  }
+
+  function entryWizardFirstField(step) {
+    const selector = {
+      1: 'input[name="serviceSearch"]', 2: 'input[name="date"]', 3: 'input[name="reference"]',
+      4: 'input[name="amount"]', 5: 'select[name="status"]', 6: 'input[name="notes"]'
+    }[step];
+    return selector ? document.querySelector(`#entryForm ${selector}`) : null;
+  }
+
+  function renderEntryWizardSummary() {
+    const form = document.getElementById("entryForm");
+    const target = document.getElementById("entryWizardSummary");
+    if (!target) return;
+    const rows = [
+      ["Serviço", form.elements.serviceSearch.value || "-"],
+      ["Data", date(form.elements.date.value)],
+      ["Placa/referência", form.elements.reference.value || "-"],
+      ["Valor", money.format(Number(form.elements.amount.value || 0))],
+      (data.permissions || {}).canMarkDone ? ["Status", form.elements.status.value] : null,
+      form.elements.notes.value ? ["Observações", form.elements.notes.value] : null
+    ].filter(Boolean);
+    target.innerHTML = rows
+      .map(([label, value]) => `<div class="wizard-summary-row"><span>${escape(label)}</span><strong>${escape(value)}</strong></div>`)
+      .join("");
+  }
+
+  function goToEntryStep(step) {
+    const form = document.getElementById("entryForm");
+    const direction = step >= entryWizardStep ? 1 : -1;
+    let target = Math.min(Math.max(step, 1), ENTRY_WIZARD_STEP_COUNT);
+    while (target > 1 && target < ENTRY_WIZARD_STEP_COUNT && entryWizardShouldSkip(target)) target += direction;
+    entryWizardStep = Math.min(Math.max(target, 1), ENTRY_WIZARD_STEP_COUNT);
+    form.querySelectorAll(".wizard-step").forEach((el) => {
+      el.classList.toggle("hidden", Number(el.dataset.step) !== entryWizardStep);
+    });
+    document.getElementById("entryWizardProgressFill").style.width = `${(entryWizardStep / ENTRY_WIZARD_STEP_COUNT) * 100}%`;
+    document.getElementById("entryWizardProgressLabel").textContent = `Passo ${entryWizardStep} de ${ENTRY_WIZARD_STEP_COUNT}`;
+    const nav = document.getElementById("entryWizardNav");
+    nav.querySelector("[data-wizard-back]").classList.toggle("hidden", entryWizardStep === 1);
+    nav.querySelector("[data-wizard-next]").textContent = entryWizardStep === ENTRY_WIZARD_STEP_COUNT ? "Salvar" : "Continuar";
+    if (entryWizardStep === ENTRY_WIZARD_STEP_COUNT) renderEntryWizardSummary();
+    const focusable = entryWizardFirstField(entryWizardStep);
+    setTimeout(() => {
+      if (focusable) focusable.focus();
+      else nav.querySelector("[data-wizard-next]")?.focus();
+    }, 0);
+  }
+
+  function validateEntryStep(step) {
+    const form = document.getElementById("entryForm");
+    if (step === 1 && !syncServiceSelection()) {
+      alert("Selecione um serviço válido da lista.");
+      form.elements.serviceSearch.focus();
+      return false;
+    }
+    if (step === 2 && !form.elements.date.value) {
+      alert("Informe a data.");
+      form.elements.date.focus();
+      return false;
+    }
+    if (step === 4 && !form.elements.amount.value) {
+      alert("Informe o valor.");
+      form.elements.amount.focus();
+      return false;
+    }
+    return true;
+  }
+
+  function activateEntryWizard(enabled) {
+    const form = document.getElementById("entryForm");
+    form.classList.toggle("wizard-mode", enabled);
+    document.querySelectorAll("#entryDialog .wizard-only").forEach((el) => el.classList.toggle("hidden", !enabled));
+    form.querySelectorAll(".wizard-hide-native").forEach((el) => el.classList.toggle("hidden", enabled));
+    if (enabled) goToEntryStep(1);
+    else {
+      form.querySelectorAll(".wizard-step").forEach((el) => {
+        el.classList.toggle("hidden", Number(el.dataset.step) === ENTRY_WIZARD_STEP_COUNT);
+      });
+    }
+  }
+
   document.getElementById("entrySearch").addEventListener("input", (event) => {
     search = event.target.value;
     render();
@@ -306,10 +394,11 @@
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();
     const form = event.currentTarget;
-    const button = event.submitter;
+    const button = event.submitter || document.querySelector("#entryWizardNav [data-wizard-next]");
     if (!syncServiceSelection()) {
       alert("Selecione um serviço válido da lista.");
-      form.elements.serviceSearch.focus();
+      if (form.classList.contains("wizard-mode")) goToEntryStep(1);
+      else form.elements.serviceSearch.focus();
       return;
     }
     button.disabled = true;
@@ -324,8 +413,26 @@
       button.disabled = false;
     }
   });
+  document.getElementById("entryForm").addEventListener("keydown", (event) => {
+    if (!document.getElementById("entryForm").classList.contains("wizard-mode")) return;
+    if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+    event.preventDefault();
+    document.querySelector("#entryWizardNav [data-wizard-next]").click();
+  });
+  document.getElementById("entryWizardNav").addEventListener("click", (event) => {
+    if (event.target.closest("[data-wizard-back]")) {
+      if (entryWizardStep <= 1) return;
+      goToEntryStep(entryWizardStep - 1);
+      return;
+    }
+    if (event.target.closest("[data-wizard-next]")) {
+      if (entryWizardStep >= ENTRY_WIZARD_STEP_COUNT) document.getElementById("entryForm").requestSubmit();
+      else if (validateEntryStep(entryWizardStep)) goToEntryStep(entryWizardStep + 1);
+    }
+  });
   document.getElementById("openEntryEditor").addEventListener("click", () => {
     resetForm();
+    activateEntryWizard(true);
     document.getElementById("entryDialog").showModal();
   });
   document.getElementById("cancelEdit").addEventListener("click", closeEntryDialog);
@@ -357,6 +464,7 @@
       form.elements.status.value = item.status;
       form.elements.notes.value = item.notes || "";
       document.getElementById("editorTitle").textContent = "Editar serviço";
+      activateEntryWizard(false);
       document.getElementById("entryDialog").showModal();
     }
     const doneButton = event.target.closest("[data-mark-done]");

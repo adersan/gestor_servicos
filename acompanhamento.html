@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=23">
+  <link rel="stylesheet" href="acompanhamento.css?v=24">
 </head>
 <body>
   <header class="tracking-header">
@@ -88,30 +88,46 @@
     </section>
   </main>
   <dialog id="trackingRequestDialog">
-    <form id="trackingRequestForm" class="tracking-request-form" method="dialog">
+    <form id="trackingRequestForm" class="tracking-request-form tracking-wizard-form" method="dialog">
       <div class="tracking-dialog-heading"><h2>Novo pedido</h2><button class="tracking-close-button" type="button" data-close-tracking-request aria-label="Fechar">×</button></div>
-      <p class="tracking-dialog-note">Envie placas ou referências para o administrador.</p>
-      <label>Data<input name="requestedDate" type="date" readonly></label>
+      <div class="tracking-wizard-progress"><div class="tracking-wizard-progress-track"><div id="trackingWizardProgressFill" class="tracking-wizard-progress-fill"></div></div><span id="trackingWizardProgressLabel" class="tracking-wizard-progress-label"></span></div>
+      <input name="requestedDate" type="hidden">
       <input name="serviceId" type="hidden">
-      <label>Serviço<input name="serviceSearch" type="search" list="trackingRequestServiceOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
-      <datalist id="trackingRequestServiceOptions"></datalist>
-      <label>Valor<input name="amount" type="text" readonly></label>
-      <label>Placa/referência<textarea name="references" rows="4" required placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea></label>
-      <label>Quem solicitou
-        <span class="tracking-requester-row">
-          <input name="requestedBy" list="trackingRequesterOptions" placeholder="Nome do solicitante">
-          <button class="tracking-secondary" type="button" data-add-tracking-requester>+</button>
-        </span>
-      </label>
-      <datalist id="trackingRequesterOptions"></datalist>
-      <label>Observação<textarea name="notes" rows="3" placeholder="Detalhes importantes"></textarea></label>
-      <p id="trackingRequestMessage" class="tracking-form-message"></p>
-      <div class="tracking-request-actions">
-        <button class="tracking-secondary" type="button" data-close-tracking-request>Cancelar</button>
-        <button class="tracking-primary" value="default">Salvar pedido</button>
+      <div class="tracking-wizard-step" data-step="1">
+        <h3 class="tracking-wizard-step-title">Qual serviço?</h3>
+        <label>Serviço<input name="serviceSearch" type="search" list="trackingRequestServiceOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
+        <datalist id="trackingRequestServiceOptions"></datalist>
+        <label>Valor<input name="amount" type="text" readonly></label>
       </div>
+      <div class="tracking-wizard-step hidden" data-step="2">
+        <h3 class="tracking-wizard-step-title">Placa ou referência</h3>
+        <label>Placa/referência<textarea name="references" rows="4" required placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea></label>
+      </div>
+      <div class="tracking-wizard-step hidden" data-step="3">
+        <h3 class="tracking-wizard-step-title">Quem solicitou?</h3>
+        <label>Quem solicitou
+          <span class="tracking-requester-row">
+            <input name="requestedBy" list="trackingRequesterOptions" placeholder="Nome do solicitante">
+            <button class="tracking-secondary" type="button" data-add-tracking-requester>+</button>
+          </span>
+        </label>
+        <datalist id="trackingRequesterOptions"></datalist>
+      </div>
+      <div class="tracking-wizard-step hidden" data-step="4">
+        <h3 class="tracking-wizard-step-title">Observação</h3>
+        <label>Observação<textarea name="notes" rows="3" placeholder="Detalhes importantes"></textarea></label>
+      </div>
+      <div class="tracking-wizard-step hidden" data-step="5">
+        <h3 class="tracking-wizard-step-title">Confirmação</h3>
+        <div id="trackingRequestWizardSummary" class="tracking-wizard-summary"></div>
+      </div>
+      <p id="trackingRequestMessage" class="tracking-form-message"></p>
     </form>
+    <div class="tracking-wizard-nav">
+      <button type="button" class="tracking-secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="tracking-primary" data-wizard-next>Continuar</button>
+    </div>
   </dialog>
-  <script src="acompanhamento.js?v=25"></script>
+  <script src="acompanhamento.js?v=26"></script>
 </body>
 </html>
