@@ -1648,8 +1648,12 @@ function renderBillings() {
   ensureFinancePeriod();
   const clientFilter = document.getElementById("billingClientFilter").value;
   const statusFilter = document.getElementById("billingStatusFilter").value;
-  const startFilter = document.getElementById("billingStartFilter").value;
-  const endFilter = document.getElementById("billingEndFilter").value;
+  const startFilter = billingOverdueOnly
+    ? document.getElementById("billingOverdueStartFilter").value
+    : document.getElementById("billingStartFilter").value;
+  const endFilter = billingOverdueOnly
+    ? document.getElementById("billingOverdueEndFilter").value
+    : document.getElementById("billingEndFilter").value;
   const search = document.getElementById("billingSearch").value.trim();
 
   const overdueCount = currentBillings().filter(isBillingOverdue).length;
@@ -1659,6 +1663,10 @@ function renderBillings() {
   document.querySelectorAll("#billing [data-finance-period]").forEach((button) => {
     button.classList.toggle("active", !billingOverdueOnly && button.dataset.financePeriod === financePeriodMode);
   });
+  document.getElementById("billingStartFilter").classList.toggle("hidden", billingOverdueOnly);
+  document.getElementById("billingEndFilter").classList.toggle("hidden", billingOverdueOnly);
+  document.getElementById("billingOverdueStartFilter").classList.toggle("hidden", !billingOverdueOnly);
+  document.getElementById("billingOverdueEndFilter").classList.toggle("hidden", !billingOverdueOnly);
   const accessBillingByClient = new Map();
   state.billings
     .filter((billing) => billing.status !== "Cancelada")
@@ -5249,6 +5257,8 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["billingStatusFilter", "change", renderBillings],
   ["billingStartFilter", "change", () => { setFinancePeriodFromInputs("billing"); refreshFinanceViews(); }],
   ["billingEndFilter", "change", () => { setFinancePeriodFromInputs("billing"); refreshFinanceViews(); }],
+  ["billingOverdueStartFilter", "change", renderBillings],
+  ["billingOverdueEndFilter", "change", renderBillings],
   ["billingSearch", "input", renderBillings],
   ["clientRequesterSearch", "input", () => {
     const form = document.querySelector("#clientRequesterDialog form");
@@ -5265,10 +5275,8 @@ document.addEventListener("click", (event) => {
   if (overdueToggle) {
     billingOverdueOnly = !billingOverdueOnly;
     if (billingOverdueOnly) {
-      document.getElementById("billingStartFilter").value = "";
-      document.getElementById("billingEndFilter").value = "";
-    } else {
-      syncFinancePeriodControls();
+      document.getElementById("billingOverdueStartFilter").value = "";
+      document.getElementById("billingOverdueEndFilter").value = "";
     }
     renderBillings();
     return;
@@ -5679,7 +5687,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=120").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=121").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
