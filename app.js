@@ -654,20 +654,21 @@ function billingAgeDays(billing) {
   return Math.max(0, Math.floor((Date.now() - new Date(billing.createdAt).getTime()) / 86400000));
 }
 
-const BILLING_FREQUENCY_OVERDUE_DAYS = { semanal: 7, quinzenal: 15, mensal: 30 };
 const BILLING_FREQUENCY_LABELS = { semanal: "Semanal", quinzenal: "Quinzenal", mensal: "Mensal" };
 
 function billingFrequencyLabel(frequency) {
   return BILLING_FREQUENCY_LABELS[frequency] || BILLING_FREQUENCY_LABELS.semanal;
 }
 
-function billingOverdueThresholdDays(billing) {
-  const frequency = clientById(billing.clientId)?.billingFrequency;
-  return BILLING_FREQUENCY_OVERDUE_DAYS[frequency] || BILLING_FREQUENCY_OVERDUE_DAYS.semanal;
+function daysPastBillingPeriod(billing) {
+  const end = new Date(`${billing.endDate}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.floor((today.getTime() - end.getTime()) / 86400000);
 }
 
 function isBillingOverdue(billing) {
-  return billingOpenAmount(billing) > 0 && billingAgeDays(billing) >= billingOverdueThresholdDays(billing);
+  return billingOpenAmount(billing) > 0 && daysPastBillingPeriod(billing) > 0;
 }
 
 function recentDateKeys(days) {
@@ -1017,6 +1018,7 @@ function renderDashboard() {
     ...billing,
     openAmount: billingOpenAmount(billing),
     ageDays: billingAgeDays(billing),
+    overdueDays: daysPastBillingPeriod(billing),
     currentStatus: billingCurrentStatus(billing)
   }));
   const openBillings = billings.filter((billing) => billing.openAmount > 0);
@@ -1035,7 +1037,7 @@ function renderDashboard() {
       <article class="${overdueBillings.length ? "alert-danger" : ""}"><span>Em atraso</span><strong>${money.format(overdueTotal)}</strong><small>${overdueBillings.length} cobrança(s)</small></article>
     </div>
     ${overdueBillings.length ? `<div class="alert-list">${overdueBillings.slice(0, 5).map((billing) => `
-      <div><strong>${escapeHtml(clientById(billing.clientId)?.name || "")}</strong><span>${money.format(billing.openAmount)} · ${billing.ageDays} dias em aberto</span></div>`).join("")}</div>
+      <div><strong>${escapeHtml(clientById(billing.clientId)?.name || "")}</strong><span>${money.format(billing.openAmount)} · ${billing.overdueDays} dia(s) de atraso</span></div>`).join("")}</div>
       <button class="table-action alert-link" data-payment-dashboard-filter="overdue">Ver todas as atrasadas</button>`
     : `<p class="meta">Nenhuma cobrança está em atraso.</p>`}`;
 
@@ -1301,7 +1303,7 @@ function activeAlertItems() {
       id: billing.id,
       type: "billing",
       title: `Cobranca de ${clientById(billing.clientId)?.name || "Cliente"}`,
-      detail: `${money.format(billingOpenAmount(billing))} - ${billingAgeDays(billing)} dias em aberto`
+      detail: `${money.format(billingOpenAmount(billing))} - ${daysPastBillingPeriod(billing)} dia(s) de atraso`
     })),
     ...pendingRequests.slice(0, 20).map((request) => ({
       id: request.id,
@@ -1598,7 +1600,7 @@ function renderPayments() {
           <button class="table-action" data-pay-billing="${billing.id}" data-payment-mode="partial">Baixa parcial</button>
           <button class="table-action success" data-pay-billing="${billing.id}" data-payment-mode="full">Quitar ${money.format(billing.openAmount)}</button>
         </div>` : ""}
-      ${isBillingOverdue(billing) ? `<p class="overdue-message">Cobrança aberta há ${billing.ageDays} dias.</p>` : ""}
+      ${isBillingOverdue(billing) ? `<p class="overdue-message">Cobrança em atraso há ${daysPastBillingPeriod(billing)} dia(s).</p>` : ""}
       </div>
     </article>`).join("") : emptyMarkup();
 
@@ -5670,7 +5672,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=118").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=119").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
