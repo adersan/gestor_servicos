@@ -671,6 +671,15 @@ function isBillingOverdue(billing) {
   return billingOpenAmount(billing) > 0 && daysPastBillingPeriod(billing) > 0;
 }
 
+function billingCardStatusClass(billing) {
+  const status = billingCurrentStatus(billing);
+  if (status === "Consolidada") return "billing-consolidated";
+  if (status === "Cancelada") return "";
+  if (status === "Paga") return "billing-paid";
+  if (isBillingOverdue(billing)) return "billing-overdue-card";
+  return "billing-pending";
+}
+
 function recentDateKeys(days) {
   return Array.from({ length: days }, (_, index) => {
     const date = new Date();
@@ -1584,7 +1593,7 @@ function renderPayments() {
     <article class="metric-card finance-received-card"><span>Recebido no periodo</span><strong>${money.format(receivedTotal)}</strong><small>${periodLabel(period)}</small></article>`;
 
   document.getElementById("openBillingList").innerHTML = billings.length ? billings.map((billing) => `
-    <article class="receivable-card ${isBillingOverdue(billing) ? "receivable-overdue" : ""}">
+    <article class="receivable-card ${billingCardStatusClass(billing)}">
       <div class="receivable-heading">
         <div><span class="eyebrow">${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</span><h3>${escapeHtml(clientById(billing.clientId)?.name || "")}</h3></div>
         <span class="billing-status billing-${billing.currentStatus.toLowerCase()}">${billing.currentStatus}</span>
@@ -1699,7 +1708,7 @@ function renderBillings() {
     ? `${items.length} cobrança(s) em atraso`
     : periodLabel(ensureFinancePeriod());
   document.getElementById("billingList").innerHTML = items.length ? items.map((item) => `
-    <article class="billing-card ${billingCurrentStatus(item) === "Paga" ? "billing-paid" : ""} ${billingCurrentStatus(item) === "Consolidada" ? "billing-consolidated" : ""}">
+    <article class="billing-card ${billingCardStatusClass(item)}">
       <span class="eyebrow">${item.startDate.split("-").reverse().join("/")} a ${item.endDate.split("-").reverse().join("/")}</span>
       <h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3>
       <p class="meta"><span class="billing-status billing-${billingCurrentStatus(item).toLowerCase()}">${billingStatusLabel(item)}</span> · Saldo em aberto</p>
@@ -5695,7 +5704,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=123").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=124").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

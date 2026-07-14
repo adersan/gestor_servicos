@@ -221,7 +221,9 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .timeline-item.payment-applied .payment-origin,
 .timeline-item.payment-applied .payment-allocation { color: #9b615c; }
 .applied-badge { display: inline-flex; align-items: center; padding: 7px 10px; border-radius: 999px; background: #e5b1ac; color: #6f2923; font-size: 11px; font-weight: 850; text-transform: uppercase; }
-.billing-card.billing-paid { border-color: #9bd0b5; background: #f2fbf6; }
+.billing-card.billing-paid, .receivable-card.billing-paid { border-color: #9bd0b5; background: #f2fbf6; box-shadow: inset 4px 0 0 #168151; }
+.billing-card.billing-overdue-card, .receivable-card.billing-overdue-card { border-color: #dca59f; background: #fff6f5; box-shadow: inset 4px 0 0 var(--danger); }
+.billing-card.billing-pending, .receivable-card.billing-pending { border-color: #e6cf9a; background: #fffdf4; box-shadow: inset 4px 0 0 #d89b45; }
 .billing-card.billing-consolidated { border-color: #c7bedb; background: #f7f5fb; opacity: .9; }
 .billing-rollover-note { margin: 10px 0; padding: 9px 11px; border-radius: 10px; color: #584b73; background: #eeeaf7; font-size: 12px; font-weight: 750; }
 .billing-consolidated [data-share-whatsapp],
