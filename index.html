@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=97">
+  <link rel="stylesheet" href="styles.css?v=98">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -389,6 +389,7 @@
         <input id="billingEndFilter" type="date" aria-label="Data final das cobrancas">
         <input id="billingOverdueStartFilter" class="hidden" type="date" aria-label="Data inicial das cobrancas atrasadas">
         <input id="billingOverdueEndFilter" class="hidden" type="date" aria-label="Data final das cobrancas atrasadas">
+        <button id="billingOverdueClearDates" class="secondary hidden" type="button">Limpar datas</button>
         <input id="billingSearch" type="search" placeholder="Buscar cliente, identificador ou situação">
       </div>
       <div id="billingList" class="card-grid"></div>
@@ -1834,7 +1835,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=43"></script>
-  <script src="app.js?v=114"></script>
+  <script src="app.js?v=115"></script>
   <script src="supplier.js?v=52"></script>
 </body>
 </html>

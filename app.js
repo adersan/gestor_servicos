@@ -1667,6 +1667,7 @@ function renderBillings() {
   document.getElementById("billingEndFilter").classList.toggle("hidden", billingOverdueOnly);
   document.getElementById("billingOverdueStartFilter").classList.toggle("hidden", !billingOverdueOnly);
   document.getElementById("billingOverdueEndFilter").classList.toggle("hidden", !billingOverdueOnly);
+  document.getElementById("billingOverdueClearDates").classList.toggle("hidden", !billingOverdueOnly);
   document.getElementById("billingStatusFilter").classList.toggle("hidden", billingOverdueOnly);
   const accessBillingByClient = new Map();
   state.billings
@@ -5259,8 +5260,13 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["billingStatusFilter", "change", renderBillings],
   ["billingStartFilter", "change", () => { setFinancePeriodFromInputs("billing"); refreshFinanceViews(); }],
   ["billingEndFilter", "change", () => { setFinancePeriodFromInputs("billing"); refreshFinanceViews(); }],
-  ["billingOverdueStartFilter", "change", renderBillings],
-  ["billingOverdueEndFilter", "change", renderBillings],
+  ["billingOverdueStartFilter", "input", renderBillings],
+  ["billingOverdueEndFilter", "input", renderBillings],
+  ["billingOverdueClearDates", "click", () => {
+    document.getElementById("billingOverdueStartFilter").value = "";
+    document.getElementById("billingOverdueEndFilter").value = "";
+    renderBillings();
+  }],
   ["billingSearch", "input", renderBillings],
   ["clientRequesterSearch", "input", () => {
     const form = document.querySelector("#clientRequesterDialog form");
@@ -5689,7 +5695,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=122").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=123").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
