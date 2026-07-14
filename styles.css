@@ -257,6 +257,8 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .delivered-label { background: #edf9f2; color: #117440; }
 .cancellation-reason { margin-top: 8px; padding: 9px 11px; border-radius: 10px; background: #fdecea; color: #8d3d35; font-size: 12px; line-height: 1.4; }
 .service-overdue { border-color: #dca59f; background: #fffafa; box-shadow: inset 4px 0 0 var(--danger); }
+.client-card.client-overdue { border-color: #dca59f; background: #fffafa; box-shadow: inset 4px 0 0 var(--danger); }
+.client-balance-due { color: #1768ad; font-weight: 900; }
 .service-actions { display: grid; gap: 8px; justify-items: end; }
 .status-actions { display: flex; gap: 8px; }
 .table-action.success { border-color: #b8dcc7; background: #edf9f2; color: #117440; }

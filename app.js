@@ -1378,8 +1378,11 @@ function renderClients() {
   const search = document.getElementById("clientSearch").value.trim();
   const items = state.clients.filter((client) =>
     matchesSearch(search, client.name, client.phone, client.priceGroup, client.document, client.email, client.city));
-  target.innerHTML = items.length ? items.map((client) => `
-    <article class="client-card">
+  target.innerHTML = items.length ? items.map((client) => {
+    const balance = balanceFor(client.id);
+    const clientOverdue = state.billings.some((billing) => billing.clientId === client.id && isBillingOverdue(billing));
+    return `
+    <article class="client-card ${clientOverdue ? "client-overdue" : ""}">
       <h3>${escapeHtml(client.name)}</h3>
       <p class="meta">${escapeHtml(client.phone)}</p>
       ${client.document ? `<p class="meta">${escapeHtml(client.document)}</p>` : ""}
@@ -1387,13 +1390,14 @@ function renderClients() {
       ${client.city || client.state ? `<p class="meta">${escapeHtml([client.city, client.state].filter(Boolean).join(" - "))}</p>` : ""}
       <span class="badge">${escapeHtml(client.priceGroup)}</span>
       <span class="badge">${billingFrequencyLabel(client.billingFrequency)}</span>
-      <div class="access-box">Saldo atual: ${money.format(balanceFor(client.id))}</div>
+      <div class="access-box">Saldo atual: <strong class="${balance > 0 ? "client-balance-due" : ""}">${money.format(balance)}</strong></div>
       <div class="card-actions">
         <button class="table-action" data-edit-client="${client.id}">Editar</button>
         <button class="table-action" data-manage-client-requesters="${client.id}">Gerenciar solicitantes</button>
         <button class="table-action danger" data-delete-client="${client.id}">Excluir</button>
       </div>
-    </article>`).join("") : emptyMarkup();
+    </article>`;
+  }).join("") : emptyMarkup();
 }
 
 function renderServices() {
@@ -1655,12 +1659,6 @@ function renderBillings() {
   document.querySelectorAll("#billing [data-finance-period]").forEach((button) => {
     button.classList.toggle("active", !billingOverdueOnly && button.dataset.financePeriod === financePeriodMode);
   });
-  document.getElementById("billingStartFilter").disabled = billingOverdueOnly;
-  document.getElementById("billingEndFilter").disabled = billingOverdueOnly;
-  document.getElementById("billingPeriodLabel").textContent = billingOverdueOnly
-    ? `${overdueCount} cobrança(s) em atraso`
-    : periodLabel(ensureFinancePeriod());
-
   const accessBillingByClient = new Map();
   state.billings
     .filter((billing) => billing.status !== "Cancelada")
@@ -1668,9 +1666,9 @@ function renderBillings() {
     .forEach((billing) => accessBillingByClient.set(billing.clientId, billing.id));
   const items = state.billings
     .filter((item) => !clientFilter || item.clientId === clientFilter)
-    .filter((item) => billingOverdueOnly ? isBillingOverdue(item) : true)
-    .filter((item) => billingOverdueOnly || !startFilter || item.endDate >= startFilter)
-    .filter((item) => billingOverdueOnly || !endFilter || item.endDate <= endFilter)
+    .filter((item) => !billingOverdueOnly || isBillingOverdue(item))
+    .filter((item) => !startFilter || item.endDate >= startFilter)
+    .filter((item) => !endFilter || item.endDate <= endFilter)
     .filter((item) => {
       const status = billingCurrentStatus(item);
       if (statusFilter === "paid") return status === "Paga";
@@ -1686,6 +1684,9 @@ function renderBillings() {
       item.endDate
     ))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  document.getElementById("billingPeriodLabel").textContent = billingOverdueOnly
+    ? `${items.length} cobrança(s) em atraso`
+    : periodLabel(ensureFinancePeriod());
   document.getElementById("billingList").innerHTML = items.length ? items.map((item) => `
     <article class="billing-card ${billingCurrentStatus(item) === "Paga" ? "billing-paid" : ""} ${billingCurrentStatus(item) === "Consolidada" ? "billing-consolidated" : ""}">
       <span class="eyebrow">${item.startDate.split("-").reverse().join("/")} a ${item.endDate.split("-").reverse().join("/")}</span>
@@ -5263,6 +5264,12 @@ document.addEventListener("click", (event) => {
   if (!periodButton && !shiftButton && !overdueToggle) return;
   if (overdueToggle) {
     billingOverdueOnly = !billingOverdueOnly;
+    if (billingOverdueOnly) {
+      document.getElementById("billingStartFilter").value = "";
+      document.getElementById("billingEndFilter").value = "";
+    } else {
+      syncFinancePeriodControls();
+    }
     renderBillings();
     return;
   }
@@ -5672,7 +5679,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=119").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=120").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
