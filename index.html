@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=99">
+  <link rel="stylesheet" href="styles.css?v=100">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -79,10 +79,12 @@
           <button data-open-view="payments"><strong>Financeiro</strong><span>Baixas</span></button>
         </div>
       </div>
+      <div id="dashboardAttention" class="attention-strip hidden"></div>
       <div class="dashboard-inner-tabs" role="tablist">
         <button class="active" type="button" data-dashboard-tab="services">Serviços</button>
         <button type="button" data-dashboard-tab="finance">Financeiro</button>
       </div>
+      <div id="dashboardFinanceSummary" class="finance-summary-strip"></div>
 
       <section id="dashboardServicesCards" class="dashboard-tab-panel">
         <div class="period-heading" data-dashboard-week-block>
@@ -1835,7 +1837,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=43"></script>
-  <script src="app.js?v=116"></script>
+  <script src="app.js?v=117"></script>
   <script src="supplier.js?v=52"></script>
 </body>
 </html>

@@ -1149,16 +1149,16 @@ function renderDashboardV2() {
     };
   };
   const serviceCards = (metrics) => {
-    const card = (label, items, className) => `
-      <article class="metric-card dashboard-status-card ${className}">
+    const card = (label, items, className, statusValue) => `
+      <article class="metric-card dashboard-status-card ${className}" data-service-status-shortcut="${statusValue}" role="button" tabindex="0" title="Ver estes lançamentos">
         <span>${label}</span><strong>${items.length}</strong>
         <small>${money.format(items.reduce((sum, item) => sum + Number(item.amount), 0))}</small>
       </article>`;
-    return `${card("A fazer", metrics.pending, "metric-pending")}
-      ${card("Feitos", metrics.done, "metric-done")}
-      ${card("Entregues", metrics.delivered, "metric-delivered")}
-      <article class="metric-card metric-complementary"><span>Serviços complementares</span><strong>${metrics.complementaryServices.length}</strong><small>${money.format(metrics.complementaryTotal)}</small></article>
-      <article class="metric-card metric-main"><span>Total de serviços</span><strong>${metrics.primaryServices.length}</strong><small>${money.format(metrics.primaryTotal)}</small></article>`;
+    return `${card("A fazer", metrics.pending, "metric-pending", "A fazer")}
+      ${card("Feitos", metrics.done, "metric-done", "Pronto")}
+      ${card("Entregues", metrics.delivered, "metric-delivered", "Entregue")}
+      <article class="metric-card metric-complementary" data-service-status-shortcut="" role="button" tabindex="0" title="Ver lançamentos"><span>Serviços complementares</span><strong>${metrics.complementaryServices.length}</strong><small>${money.format(metrics.complementaryTotal)}</small></article>
+      <article class="metric-card metric-main" data-service-status-shortcut="" role="button" tabindex="0" title="Ver lançamentos"><span>Total de serviços</span><strong>${metrics.primaryServices.length}</strong><small>${money.format(metrics.primaryTotal)}</small></article>`;
   };
 
   const weekServices = serviceMetrics(week);
@@ -1235,10 +1235,10 @@ function renderDashboardV2() {
     };
   };
   const financeCards = (metrics) => `
-    <article class="metric-card metric-main"><span>Saldo do período</span><strong>${money.format(metrics.balance)}</strong><small>Serviços menos baixas deste período</small></article>
-    <article class="metric-card"><span>Serviços lançados</span><strong>${money.format(metrics.servicesTotal)}</strong><small>Produção no período</small></article>
-    <article class="metric-card"><span>Pagamentos</span><strong>${money.format(metrics.paymentTotal)}</strong><small>Recebimentos no período</small></article>
-    <article class="metric-card"><span>Cobranças geradas</span><strong>${metrics.billings.length}</strong><small>Fechamentos no período</small></article>`;
+    <article class="metric-card metric-main" data-open-view="payments" role="button" tabindex="0" title="Abrir Pagamentos"><span>Saldo do período</span><strong>${money.format(metrics.balance)}</strong><small>Serviços menos baixas deste período</small></article>
+    <article class="metric-card" data-open-view="services" role="button" tabindex="0" title="Abrir Lançamentos"><span>Serviços lançados</span><strong>${money.format(metrics.servicesTotal)}</strong><small>Produção no período</small></article>
+    <article class="metric-card" data-open-view="payments" role="button" tabindex="0" title="Abrir Pagamentos"><span>Pagamentos</span><strong>${money.format(metrics.paymentTotal)}</strong><small>Recebimentos no período</small></article>
+    <article class="metric-card" data-open-view="billing" role="button" tabindex="0" title="Abrir Cobranças"><span>Cobranças geradas</span><strong>${metrics.billings.length}</strong><small>Fechamentos no período</small></article>`;
   document.getElementById("financeWeekLabel").textContent = periodLabel(week);
   document.getElementById("financePeriodLabel").textContent = periodLabel(period);
   document.getElementById("financeWeekCards").innerHTML = financeCards(financeMetrics(week));
@@ -1292,6 +1292,49 @@ function renderDashboardV2() {
   }).filter((item) => item.serviceAmount || item.paymentAmount).sort((a, b) => b.balance - a.balance);
   document.getElementById("accountList").innerHTML = periodAccounts.length ? periodAccounts.map((item) => `
     <div class="account-row"><div><strong>${escapeHtml(item.client.name)}</strong><span class="meta">${escapeHtml(item.client.priceGroup)}</span></div><span class="meta">${money.format(item.serviceAmount)} / abatido ${money.format(item.paymentAmount)}</span><strong class="amount ${item.balance < 0 ? "negative" : ""}">${money.format(item.balance)}</strong></div>`).join("") : emptyMarkup();
+
+  renderDashboardAttention();
+  renderDashboardFinanceSummary();
+}
+
+function renderDashboardAttention() {
+  const strip = document.getElementById("dashboardAttention");
+  if (!strip) return;
+  const overdueBillings = currentBillings().filter(isBillingOverdue);
+  const overdueTotal = overdueBillings.reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
+  const lateServices = state.services.filter(isOverdueService);
+  const newRequests = (state.serviceRequests || []).filter((item) => item.status === "Novo");
+  const chips = [];
+  if (overdueBillings.length) {
+    chips.push(`<button type="button" class="attention-chip attention-danger" data-attention="overdue-billings">
+      <strong>${overdueBillings.length}</strong> cobrança(s) atrasada(s) · ${money.format(overdueTotal)}</button>`);
+  }
+  if (lateServices.length) {
+    chips.push(`<button type="button" class="attention-chip attention-warning" data-attention="overdue-services">
+      <strong>${lateServices.length}</strong> serviço(s) há mais de 24h</button>`);
+  }
+  if (newRequests.length) {
+    chips.push(`<button type="button" class="attention-chip attention-info" data-attention="new-requests">
+      <strong>${newRequests.length}</strong> pedido(s) novo(s) de cliente</button>`);
+  }
+  strip.classList.toggle("hidden", !chips.length);
+  strip.innerHTML = chips.length ? `<span class="attention-strip-label">Precisa de atenção</span>${chips.join("")}` : "";
+}
+
+function renderDashboardFinanceSummary() {
+  const strip = document.getElementById("dashboardFinanceSummary");
+  if (!strip) return;
+  const openBillings = currentBillings().filter((billing) => billingOpenAmount(billing) > 0);
+  const openTotal = openBillings.reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
+  const overdueTotal = openBillings.filter(isBillingOverdue).reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
+  const today = localDateKey(new Date());
+  const receivedToday = state.payments
+    .filter((payment) => payment.date === today)
+    .reduce((sum, payment) => sum + Number(payment.amount), 0);
+  strip.innerHTML = `
+    <button type="button" data-payment-dashboard-filter="open" title="Abrir Pagamentos"><span>Em aberto</span><strong>${money.format(openTotal)}</strong></button>
+    <button type="button" class="${overdueTotal > 0 ? "summary-danger" : ""}" data-attention="overdue-billings" title="Ver cobranças atrasadas"><span>Atrasado</span><strong>${money.format(overdueTotal)}</strong></button>
+    <button type="button" class="summary-received" data-open-view="payments" title="Abrir Pagamentos"><span>Recebido hoje</span><strong>${money.format(receivedToday)}</strong></button>`;
 }
 
 function alertKey(item) {
@@ -4042,6 +4085,33 @@ document.addEventListener("click", async (event) => {
   }
   if (tab) showView(tab.dataset.view);
   if (opener) showView(opener.dataset.openView);
+  const serviceStatusShortcut = event.target.closest("[data-service-status-shortcut]");
+  if (serviceStatusShortcut) {
+    document.getElementById("serviceStatusFilter").value = serviceStatusShortcut.dataset.serviceStatusShortcut;
+    showView("services");
+    renderServices();
+    return;
+  }
+  const attentionChip = event.target.closest("[data-attention]");
+  if (attentionChip) {
+    const kind = attentionChip.dataset.attention;
+    if (kind === "overdue-billings") {
+      billingOverdueOnly = true;
+      document.getElementById("billingOverdueStartFilter").value = "";
+      document.getElementById("billingOverdueEndFilter").value = "";
+      showView("billing");
+      renderBillings();
+    } else if (kind === "overdue-services") {
+      document.getElementById("serviceStatusFilter").value = "A fazer";
+      showView("services");
+      renderServices();
+    } else if (kind === "new-requests") {
+      document.getElementById("requestStatusFilter").value = "Novo";
+      showView("requests");
+      renderServiceRequests();
+    }
+    return;
+  }
   const paymentDashboardFilter = event.target.closest("[data-payment-dashboard-filter]");
   const importRequestButton = event.target.closest("[data-import-client-request]");
   const cancelRequestButton = event.target.closest("[data-cancel-client-request]");
@@ -5704,7 +5774,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=124").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=125").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
