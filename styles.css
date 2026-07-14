@@ -39,6 +39,28 @@ button { cursor: pointer; }
 .notification-button.has-alerts { border-color: #f0b55f; background: rgba(216,155,69,.18); }
 .notification-button span { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #241b0d; font-size: 11px; }
 .app-toast { position: fixed; right: 24px; bottom: 24px; z-index: 50; max-width: min(420px, calc(100vw - 32px)); padding: 15px 18px; border-radius: 16px; background: #173f35; color: white; box-shadow: 0 18px 42px rgba(23,63,53,.26); font-weight: 800; }
+.app-confirm-dialog { width: min(92vw, 400px); }
+.app-alert-toast { position: fixed; left: 50%; bottom: 24px; z-index: 60; width: min(92vw, 400px); padding: 14px 18px; border-radius: 14px; box-shadow: 0 18px 42px rgba(0,0,0,.18); transform: translate(-50%, 16px); opacity: 0; pointer-events: none; transition: transform .25s ease, opacity .25s ease; cursor: pointer; }
+.app-alert-toast.hidden { display: none; }
+.app-alert-toast.visible { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+.app-alert-toast strong { display: block; margin-bottom: 2px; font-size: 14px; }
+.app-alert-toast p { margin: 0; font-size: 13px; line-height: 1.45; white-space: pre-line; }
+.app-alert-toast.app-alert-success { background: #e6f2eb; }
+.app-alert-toast.app-alert-success strong { color: var(--brand); }
+.app-alert-toast.app-alert-success p { color: #3c5f52; }
+.app-alert-toast.app-alert-error { background: #fde8e5; }
+.app-alert-toast.app-alert-error strong { color: var(--danger); }
+.app-alert-toast.app-alert-error p { color: #8a4038; }
+.app-alert-toast.app-alert-warning { background: #fdf1dc; }
+.app-alert-toast.app-alert-warning strong { color: #96650b; }
+.app-alert-toast.app-alert-warning p { color: #8a6a2c; }
+.app-alert-toast.app-alert-info { background: #e6eef8; }
+.app-alert-toast.app-alert-info strong { color: #2b5f91; }
+.app-alert-toast.app-alert-info p { color: #3f6a8f; }
+.app-confirm-content { display: grid; gap: 10px; padding: 22px; }
+.app-confirm-content strong { font-size: 16px; color: var(--ink); }
+.app-confirm-content p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; white-space: pre-line; }
+.app-confirm-content .dialog-actions { margin-top: 6px; }
 .new-entry-fab { position: fixed; right: 24px; bottom: 28px; z-index: 45; width: 39px; height: 39px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #241b0d; font-size: 21px; font-weight: 800; line-height: 1; box-shadow: 0 14px 32px rgba(23,63,53,.32); }
 .new-entry-fab:hover { filter: brightness(1.06); }
 .new-entry-fab:active { transform: scale(.96); }

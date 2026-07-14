@@ -14,6 +14,78 @@
   let search = "";
   let refreshInProgress = false;
 
+  const APP_ALERT_KIND = {
+    success: { title: "Sucesso" },
+    error: { title: "Erro" },
+    warning: { title: "Atenção" },
+    info: { title: "Aviso" }
+  };
+
+  function showAppAlert(message, opts = {}) {
+    return new Promise((resolve) => {
+      const toast = document.getElementById("appAlertDialog");
+      if (!toast) { window.alert(message); resolve(); return; }
+      const type = APP_ALERT_KIND[opts.type] ? opts.type : "success";
+      const kind = APP_ALERT_KIND[type];
+      clearTimeout(showAppAlert.hideTimer);
+      clearTimeout(showAppAlert.doneTimer);
+      toast.classList.remove("app-alert-success", "app-alert-error", "app-alert-warning", "app-alert-info");
+      toast.classList.add(`app-alert-${type}`);
+      document.getElementById("appAlertTitle").textContent = opts.title || kind.title;
+      document.getElementById("appAlertMessage").textContent = message;
+      toast.classList.remove("hidden");
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(showAppAlert.hideTimer);
+        clearTimeout(showAppAlert.doneTimer);
+        toast.removeEventListener("click", finish);
+        toast.classList.remove("visible");
+        showAppAlert.doneTimer = setTimeout(() => toast.classList.add("hidden"), 250);
+        resolve();
+      };
+      toast.addEventListener("click", finish);
+      requestAnimationFrame(() => toast.classList.add("visible"));
+      const duration = Math.min(8000, Math.max(2200, 2200 + String(message || "").length * 35));
+      showAppAlert.hideTimer = setTimeout(finish, duration);
+    });
+  }
+
+  function showAppConfirm(message, opts = {}) {
+    return new Promise((resolve) => {
+      const dialog = document.getElementById("appConfirmDialog");
+      if (!dialog) { resolve(window.confirm(message)); return; }
+      document.getElementById("appConfirmTitle").textContent = opts.title || "Confirmar ação";
+      document.getElementById("appConfirmMessage").textContent = message;
+      const okBtn = document.getElementById("appConfirmOkBtn");
+      const cancelBtn = document.getElementById("appConfirmCancelBtn");
+      okBtn.textContent = opts.confirmText || "Confirmar";
+      cancelBtn.textContent = opts.cancelText || "Cancelar";
+      okBtn.className = opts.danger ? "danger-button" : "primary";
+      let done = false;
+      const finish = (result) => {
+        if (done) return;
+        done = true;
+        okBtn.removeEventListener("click", onOk);
+        cancelBtn.removeEventListener("click", onCancel);
+        dialog.removeEventListener("close", onClose);
+        dialog.removeEventListener("click", onBackdropClick);
+        if (dialog.open) dialog.close();
+        resolve(result);
+      };
+      const onOk = () => finish(true);
+      const onCancel = () => finish(false);
+      const onClose = () => finish(false);
+      const onBackdropClick = (event) => { if (event.target === dialog) finish(false); };
+      okBtn.addEventListener("click", onOk);
+      cancelBtn.addEventListener("click", onCancel);
+      dialog.addEventListener("close", onClose);
+      dialog.addEventListener("click", onBackdropClick);
+      dialog.showModal();
+    });
+  }
+
   function todayForPeriod() {
     const today = new Date().toISOString().slice(0, 10);
     if (today < data.period.startDate) return data.period.startDate;
@@ -53,7 +125,7 @@
     try {
       await load();
     } catch (error) {
-      alert(error.message || "Não foi possível atualizar os dados.");
+      showAppAlert(error.message || "Não foi possível atualizar os dados.", { type: "error" });
     } finally {
       refreshInProgress = false;
       button.disabled = false;
@@ -325,17 +397,17 @@
   function validateEntryStep(step) {
     const form = document.getElementById("entryForm");
     if (step === 1 && !syncServiceSelection()) {
-      alert("Selecione um serviço válido da lista.");
+      showAppAlert("Selecione um serviço válido da lista.", { type: "warning" });
       form.elements.serviceSearch.focus();
       return false;
     }
     if (step === 2 && !form.elements.date.value) {
-      alert("Informe a data.");
+      showAppAlert("Informe a data.", { type: "warning" });
       form.elements.date.focus();
       return false;
     }
     if (step === 4 && !form.elements.amount.value) {
-      alert("Informe o valor.");
+      showAppAlert("Informe o valor.", { type: "warning" });
       form.elements.amount.focus();
       return false;
     }
@@ -396,19 +468,21 @@
     const form = event.currentTarget;
     const button = event.submitter || document.querySelector("#entryWizardNav [data-wizard-next]");
     if (!syncServiceSelection()) {
-      alert("Selecione um serviço válido da lista.");
+      showAppAlert("Selecione um serviço válido da lista.", { type: "warning" });
       if (form.classList.contains("wizard-mode")) goToEntryStep(1);
       else form.elements.serviceSearch.focus();
       return;
     }
+    const isNewEntry = !form.elements.entryId.value;
     button.disabled = true;
     try {
       await request({ action: "save", ...Object.fromEntries(new FormData(form)) });
       document.getElementById("entryDialog").close();
       resetForm();
       await load();
+      showAppAlert(isNewEntry ? "Serviço lançado com sucesso." : "Serviço atualizado com sucesso.", { type: "success" });
     } catch (error) {
-      alert(error.message);
+      showAppAlert(error.message, { type: "error" });
     } finally {
       button.disabled = false;
     }
@@ -445,8 +519,9 @@
       await request({ action: "cancel", ...Object.fromEntries(new FormData(form)) });
       form.closest("dialog").close();
       await load();
+      showAppAlert("Serviço cancelado com sucesso.", { type: "success" });
     } catch (error) {
-      alert(error.message);
+      showAppAlert(error.message, { type: "error" });
     }
   });
   document.addEventListener("click", async (event) => {
@@ -468,11 +543,12 @@
       document.getElementById("entryDialog").showModal();
     }
     const doneButton = event.target.closest("[data-mark-done]");
-    if (doneButton && confirm("Confirmar que este serviço foi feito?")) {
+    if (doneButton && await showAppConfirm("Confirmar que este serviço foi feito?")) {
       try {
         await request({ action: "mark_done", entryId: doneButton.dataset.markDone });
         await load();
-      } catch (error) { alert(error.message); }
+        showAppAlert("Serviço marcado como feito com sucesso.", { type: "success" });
+      } catch (error) { showAppAlert(error.message, { type: "error" }); }
     }
     const cancelButton = event.target.closest("[data-cancel]");
     if (cancelButton) {

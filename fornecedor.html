@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Portal do fornecedor</title>
-  <link rel="stylesheet" href="fornecedor.css?v=21">
+  <link rel="stylesheet" href="fornecedor.css?v=22">
 </head>
 <body>
   <header class="portal-header">
@@ -127,6 +127,22 @@
       <div class="dialog-actions"><button type="button" data-close-cancel>Cancelar</button><button class="danger-button" value="default">Confirmar cancelamento</button></div>
     </form>
   </dialog>
-  <script src="fornecedor.js?v=25"></script>
+  <div id="appAlertDialog" class="app-alert-toast hidden" aria-live="polite">
+    <strong id="appAlertTitle"></strong>
+    <p id="appAlertMessage"></p>
+  </div>
+
+  <dialog id="appConfirmDialog" class="app-confirm-dialog">
+    <div class="app-confirm-content">
+      <strong id="appConfirmTitle"></strong>
+      <p id="appConfirmMessage"></p>
+      <div class="dialog-actions">
+        <button type="button" id="appConfirmCancelBtn">Cancelar</button>
+        <button type="button" class="primary" id="appConfirmOkBtn">Confirmar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="fornecedor.js?v=26"></script>
 </body>
 </html>

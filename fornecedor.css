@@ -94,6 +94,28 @@ input, select, textarea { width: 100%; padding: 11px; border: 1px solid var(--li
 .supply-row { display: grid; grid-template-columns: minmax(150px,1fr) 90px 130px; gap: 12px; padding: 12px 14px; border-radius: 11px; background: #fff8ed; }
 .supply-row strong:last-child { text-align: right; }
 dialog { width: min(480px, calc(100% - 24px)); padding: 0; border: 0; border-radius: 18px; box-shadow: 0 24px 70px rgba(20,45,38,.28); }
+.app-confirm-dialog { width: min(92vw, 400px); }
+.app-alert-toast { position: fixed; left: 50%; bottom: 24px; z-index: 60; width: min(92vw, 400px); padding: 14px 18px; border-radius: 14px; box-shadow: 0 18px 42px rgba(0,0,0,.18); transform: translate(-50%, 16px); opacity: 0; pointer-events: none; transition: transform .25s ease, opacity .25s ease; cursor: pointer; }
+.app-alert-toast.hidden { display: none; }
+.app-alert-toast.visible { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+.app-alert-toast strong { display: block; margin-bottom: 2px; font-size: 14px; }
+.app-alert-toast p { margin: 0; font-size: 13px; line-height: 1.45; white-space: pre-line; }
+.app-alert-toast.app-alert-success { background: #e7f5ee; }
+.app-alert-toast.app-alert-success strong { color: var(--green); }
+.app-alert-toast.app-alert-success p { color: #2d6b4b; }
+.app-alert-toast.app-alert-error { background: #fdecea; }
+.app-alert-toast.app-alert-error strong { color: var(--red); }
+.app-alert-toast.app-alert-error p { color: #8a4038; }
+.app-alert-toast.app-alert-warning { background: #fdf1dc; }
+.app-alert-toast.app-alert-warning strong { color: var(--orange); }
+.app-alert-toast.app-alert-warning p { color: #8a6a2c; }
+.app-alert-toast.app-alert-info { background: #e6eef8; }
+.app-alert-toast.app-alert-info strong { color: var(--blue); }
+.app-alert-toast.app-alert-info p { color: #3f6a8f; }
+.app-confirm-content { display: grid; gap: 10px; padding: 22px; }
+.app-confirm-content strong { font-size: 16px; color: var(--brand); }
+.app-confirm-content p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; white-space: pre-line; }
+.app-confirm-content .dialog-actions { margin-top: 6px; }
 .entry-dialog { width: min(620px, calc(100% - 24px)); }
 .entry-dialog form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .entry-dialog .dialog-heading, .entry-dialog .dialog-actions { grid-column: 1 / -1; }

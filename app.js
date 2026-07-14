@@ -86,10 +86,12 @@ function loadSystemSettings() {
     const parsed = JSON.parse(localStorage.getItem(SYSTEM_SETTINGS_KEY)) || {};
     return {
       weekStartDay: Number.isInteger(Number(parsed.weekStartDay)) ? Number(parsed.weekStartDay) : 0,
-      weekEndDay: Number.isInteger(Number(parsed.weekEndDay)) ? Number(parsed.weekEndDay) : 5
+      weekEndDay: Number.isInteger(Number(parsed.weekEndDay)) ? Number(parsed.weekEndDay) : 5,
+      askEntryContinuation: parsed.askEntryContinuation !== false,
+      offerSupplierShare: parsed.offerSupplierShare !== false
     };
   } catch {
-    return { weekStartDay: 0, weekEndDay: 5 };
+    return { weekStartDay: 0, weekEndDay: 5, askEntryContinuation: true, offerSupplierShare: true };
   }
 }
 
@@ -105,7 +107,7 @@ function saveState() {
     window.dataStore.scheduleSave(state, (error) => {
       console.error("Falha ao salvar no Supabase:", error.code, error.message);
       const detail = error?.message ? `\n\nDetalhe: ${error.message}` : "";
-      alert(`Não foi possível sincronizar os dados com o banco.${detail}\n\nOs dados continuam salvos neste aparelho e o sistema tentará novamente na próxima alteração.`);
+      showAppAlert(`Não foi possível sincronizar os dados com o banco.${detail}\n\nOs dados continuam salvos neste aparelho e o sistema tentará novamente na próxima alteração.`, { type: "error" });
     });
   }
 }
@@ -270,6 +272,80 @@ function showToast(message) {
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => toast.classList.add("hidden"), 6000);
 }
+
+const APP_ALERT_KIND = {
+  success: { title: "Sucesso" },
+  error: { title: "Erro" },
+  warning: { title: "Atenção" },
+  info: { title: "Aviso" }
+};
+
+function showAppAlert(message, opts = {}) {
+  return new Promise((resolve) => {
+    const toast = document.getElementById("appAlertDialog");
+    if (!toast) { window.alert(message); resolve(); return; }
+    const type = APP_ALERT_KIND[opts.type] ? opts.type : "success";
+    const kind = APP_ALERT_KIND[type];
+    clearTimeout(showAppAlert.hideTimer);
+    clearTimeout(showAppAlert.doneTimer);
+    toast.classList.remove("app-alert-success", "app-alert-error", "app-alert-warning", "app-alert-info");
+    toast.classList.add(`app-alert-${type}`);
+    document.getElementById("appAlertTitle").textContent = opts.title || kind.title;
+    document.getElementById("appAlertMessage").textContent = message;
+    toast.classList.remove("hidden");
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(showAppAlert.hideTimer);
+      clearTimeout(showAppAlert.doneTimer);
+      toast.removeEventListener("click", finish);
+      toast.classList.remove("visible");
+      showAppAlert.doneTimer = setTimeout(() => toast.classList.add("hidden"), 250);
+      resolve();
+    };
+    toast.addEventListener("click", finish);
+    requestAnimationFrame(() => toast.classList.add("visible"));
+    const duration = Math.min(8000, Math.max(2200, 2200 + String(message || "").length * 35));
+    showAppAlert.hideTimer = setTimeout(finish, duration);
+  });
+}
+window.showAppAlert = showAppAlert;
+
+function showAppConfirm(message, opts = {}) {
+  return new Promise((resolve) => {
+    const dialog = document.getElementById("appConfirmDialog");
+    if (!dialog) { resolve(window.confirm(message)); return; }
+    document.getElementById("appConfirmTitle").textContent = opts.title || "Confirmar ação";
+    document.getElementById("appConfirmMessage").textContent = message;
+    const okBtn = document.getElementById("appConfirmOkBtn");
+    const cancelBtn = document.getElementById("appConfirmCancelBtn");
+    okBtn.textContent = opts.confirmText || "Confirmar";
+    cancelBtn.textContent = opts.cancelText || "Cancelar";
+    okBtn.className = opts.danger ? "danger-button" : "primary";
+    let done = false;
+    const finish = (result) => {
+      if (done) return;
+      done = true;
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      dialog.removeEventListener("close", onClose);
+      dialog.removeEventListener("click", onBackdropClick);
+      if (dialog.open) dialog.close();
+      resolve(result);
+    };
+    const onOk = () => finish(true);
+    const onCancel = () => finish(false);
+    const onClose = () => finish(false);
+    const onBackdropClick = (event) => { if (event.target === dialog) finish(false); };
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    dialog.addEventListener("close", onClose);
+    dialog.addEventListener("click", onBackdropClick);
+    dialog.showModal();
+  });
+}
+window.showAppConfirm = showAppConfirm;
 
 window.persistStateNow = persistStateNow;
 
@@ -1633,7 +1709,7 @@ async function copyText(value, label) {
     document.execCommand("copy");
     field.remove();
   }
-  alert(`${label} copiado.`);
+  showAppAlert(`${label} copiado.`, { type: "success" });
 }
 
 function render() {
@@ -1669,6 +1745,10 @@ function renderSystemSettings() {
   if (!startSelect || !endSelect) return;
   startSelect.value = String(systemSettings.weekStartDay ?? 0);
   endSelect.value = String(systemSettings.weekEndDay ?? 5);
+  const askEntryContinuationCheckbox = document.getElementById("settingsAskEntryContinuation");
+  if (askEntryContinuationCheckbox) askEntryContinuationCheckbox.checked = systemSettings.askEntryContinuation !== false;
+  const offerSupplierShareCheckbox = document.getElementById("settingsOfferSupplierShare");
+  if (offerSupplierShareCheckbox) offerSupplierShareCheckbox.checked = systemSettings.offerSupplierShare !== false;
 }
 
 function escapeHtml(value) {
@@ -1724,24 +1804,24 @@ const billingWizard = createDialogWizard({
     if (step === 1) {
       syncBillingClientSelection();
       if (!form.elements.clientId.value) {
-        alert("Selecione um cliente válido da lista.");
+        showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
         form.elements.clientSearch.focus();
         return false;
       }
     }
     if (step === 2) {
       if (!form.elements.startDate.value || !form.elements.endDate.value) {
-        alert("Informe o período (data inicial e final).");
+        showAppAlert("Informe o período (data inicial e final).", { type: "warning" });
         return false;
       }
       if (form.elements.endDate.value < form.elements.startDate.value) {
-        alert("A data final deve ser igual ou depois da data inicial.");
+        showAppAlert("A data final deve ser igual ou depois da data inicial.", { type: "warning" });
         return false;
       }
     }
     if (step === 3) {
       if (!form.querySelectorAll('input[name="paymentMethodId"]:checked').length) {
-        alert("Selecione pelo menos uma forma de pagamento.");
+        showAppAlert("Selecione pelo menos uma forma de pagamento.", { type: "warning" });
         return false;
       }
     }
@@ -1776,17 +1856,17 @@ const billingBatchWizard = createDialogWizard({
   validateStep: (step, form) => {
     if (step === 1) {
       if (!form.elements.startDate.value || !form.elements.endDate.value) {
-        alert("Informe o período (data inicial e final).");
+        showAppAlert("Informe o período (data inicial e final).", { type: "warning" });
         return false;
       }
       if (form.elements.endDate.value < form.elements.startDate.value) {
-        alert("A data final deve ser igual ou depois da data inicial.");
+        showAppAlert("A data final deve ser igual ou depois da data inicial.", { type: "warning" });
         return false;
       }
     }
     if (step === 2) {
       if (!form.querySelectorAll('input[name="paymentMethodId"]:checked').length) {
-        alert("Selecione pelo menos uma forma de pagamento.");
+        showAppAlert("Selecione pelo menos uma forma de pagamento.", { type: "warning" });
         return false;
       }
     }
@@ -1926,16 +2006,16 @@ function addAdditionalService() {
   const catalogId = form.elements.additionalCatalogId.value;
   const amount = Number(form.elements.additionalAmount.value);
   if (!catalogId) {
-    alert("Selecione um serviço complementar válido.");
+    showAppAlert("Selecione um serviço complementar válido.", { type: "warning" });
     form.elements.additionalCatalogSearch.focus();
     return false;
   }
   if (catalogId === form.elements.catalogId.value) {
-    alert("O serviço complementar deve ser diferente do serviço principal.");
+    showAppAlert("O serviço complementar deve ser diferente do serviço principal.", { type: "warning" });
     return false;
   }
   if (additionalServiceValues.some((item) => item.catalogId === catalogId)) {
-    alert("Este serviço complementar já foi adicionado.");
+    showAppAlert("Este serviço complementar já foi adicionado.", { type: "warning" });
     return false;
   }
   additionalServiceValues.push({ catalogId, amount });
@@ -2064,18 +2144,18 @@ const trackingWizard = createDialogWizard({
     if (step === 1) {
       syncTrackingClientSelection();
       if (!form.elements.clientId.value) {
-        alert("Selecione um cliente válido da lista.");
+        showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
         form.elements.clientSearch.focus();
         return false;
       }
     }
     if (step === 2) {
       if (!form.elements.startDate.value || !form.elements.endDate.value) {
-        alert("Informe o período (data inicial e final).");
+        showAppAlert("Informe o período (data inicial e final).", { type: "warning" });
         return false;
       }
       if (form.elements.endDate.value < form.elements.startDate.value) {
-        alert("A data final deve ser igual ou posterior à data inicial.");
+        showAppAlert("A data final deve ser igual ou posterior à data inicial.", { type: "warning" });
         return false;
       }
     }
@@ -2170,11 +2250,12 @@ function openClientRequesterManager(client) {
 function saveManagedRequester(clientId, name) {
   const result = addClientRequester(clientId, name);
   if (!result.ok) {
-    alert(result.message);
+    showAppAlert(result.message, { type: "warning" });
     return false;
   }
   saveState();
   renderClientRequesterManager(clientId);
+  showAppAlert("Solicitante cadastrado com sucesso.", { type: "success" });
   return true;
 }
 
@@ -2208,14 +2289,14 @@ const catalogWizard = createDialogWizard({
       const code = form.elements.code.value.trim();
       if (code && state.catalog.some((catalogItem) =>
         catalogItem.code === code && catalogItem.id !== form.elements.catalogId.value)) {
-        alert("Este código já está sendo usado por outro serviço.");
+        showAppAlert("Este código já está sendo usado por outro serviço.", { type: "warning" });
         form.elements.code.focus();
         return false;
       }
     }
     if (step === 2) {
       if (!form.elements.name.value.trim()) {
-        alert("Informe o nome do serviço.");
+        showAppAlert("Informe o nome do serviço.", { type: "warning" });
         form.elements.name.focus();
         return false;
       }
@@ -2224,7 +2305,7 @@ const catalogWizard = createDialogWizard({
       const priceFields = [...form.querySelectorAll("[data-price-table]")];
       const invalid = priceFields.find((field) => field.value === "" || Number(field.value) < 0);
       if (invalid) {
-        alert("Informe o preço para todas as tabelas.");
+        showAppAlert("Informe o preço para todas as tabelas.", { type: "warning" });
         invalid.focus();
         return false;
       }
@@ -2293,7 +2374,7 @@ function applyServiceStatus(entry, status, changedAt = new Date().toISOString())
 function openServiceCancellation(entry) {
   if (!entry) return;
   if (entry.billingId) {
-    alert("Este serviço já está em uma cobrança. Cancele a cobrança primeiro para alterar o lançamento.");
+    showAppAlert("Este serviço já está em uma cobrança. Cancele a cobrança primeiro para alterar o lançamento.", { type: "warning" });
     return;
   }
   const form = document.getElementById("cancelServiceForm");
@@ -2318,7 +2399,7 @@ function openServiceCancellation(entry) {
 function openServiceDeletion(entry) {
   if (!entry) return;
   if (entry.billingId) {
-    alert("Este serviço já está em uma cobrança. Exclua a cobrança primeiro para remover o lançamento.");
+    showAppAlert("Este serviço já está em uma cobrança. Exclua a cobrança primeiro para remover o lançamento.", { type: "warning" });
     return;
   }
   const form = document.getElementById("deleteServiceForm");
@@ -2507,7 +2588,7 @@ function validateServiceWizardStep(step) {
   if (step === 1) {
     syncServiceClientSelection();
     if (!form.elements.clientId.value) {
-      alert("Selecione um cliente válido da lista.");
+      showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
       form.elements.clientSearch.focus();
       return false;
     }
@@ -2525,7 +2606,7 @@ function validateServiceWizardStep(step) {
   if (step === 4) {
     if (form.elements.entryId.value) {
       if (!form.elements.reference.value.trim()) {
-        alert("Informe a placa ou referência.");
+        showAppAlert("Informe a placa ou referência.", { type: "warning" });
         form.elements.reference.focus();
         return false;
       }
@@ -2533,14 +2614,14 @@ function validateServiceWizardStep(step) {
     }
     if (form.elements.reference.value.trim()) addCurrentReference();
     if (!serviceReferenceValues.length) {
-      alert("Adicione pelo menos uma placa ou referência.");
+      showAppAlert("Adicione pelo menos uma placa ou referência.", { type: "warning" });
       form.elements.reference.focus();
       return false;
     }
   }
   if (step === 5) {
     if (form.elements.amount.value === "" || Number(form.elements.amount.value) < 0) {
-      alert("Informe o valor do serviço.");
+      showAppAlert("Informe o valor do serviço.", { type: "warning" });
       form.elements.amount.focus();
       return false;
     }
@@ -2553,7 +2634,7 @@ function validateServiceWizardStep(step) {
       }
     }
     if (!additionalServiceValues.length) {
-      alert('Adicione pelo menos um serviço complementar ou toque em "Não".');
+      showAppAlert('Adicione pelo menos um serviço complementar ou toque em "Não".', { type: "warning" });
       revealPickerSearchField("additionalCatalog");
       form.elements.additionalCatalogSearch.focus();
       return false;
@@ -2561,7 +2642,7 @@ function validateServiceWizardStep(step) {
   }
   if (step === 7 && form.elements.hasSupplierService.checked) {
     if (!form.elements.supplierId.value) {
-      alert("Selecione o fornecedor.");
+      showAppAlert("Selecione o fornecedor.", { type: "warning" });
       revealPickerSearchField("supplier");
       form.elements.supplierSearch.focus();
       return false;
@@ -2576,7 +2657,7 @@ function validateServiceWizardStep(step) {
     }
     const supplierSelection = window.supplierModule?.clientEntrySelection();
     if (supplierSelection?.error) {
-      alert(supplierSelection.error);
+      showAppAlert(supplierSelection.error, { type: "warning" });
       revealPickerSearchField("supplierService");
       supplierSelection.field?.focus();
       return false;
@@ -2684,11 +2765,11 @@ function renderSupplierServicePicker() {
   renderWizardPickerGrid("supplierService", items, [...addedIds, form.elements.supplierServiceId.value]);
 }
 
-function removeAdditionalServiceByCatalogId(catalogId) {
+async function removeAdditionalServiceByCatalogId(catalogId) {
   const index = additionalServiceValues.findIndex((service) => service.catalogId === catalogId);
   if (index < 0) return;
   const target = additionalServiceValues[index];
-  if (target.id && !confirm("Remover este serviço complementar já salvo? Ele será excluído ao salvar o lançamento.")) return;
+  if (target.id && !(await showAppConfirm("Remover este serviço complementar já salvo? Ele será excluído ao salvar o lançamento."))) return;
   additionalServiceValues.splice(index, 1);
   if (!additionalServiceValues.length) {
     document.getElementById("serviceForm").elements.hasAdditionalServices.checked = false;
@@ -2705,7 +2786,7 @@ const WIZARD_PICKER_RENDERERS = {
   supplierService: renderSupplierServicePicker
 };
 
-document.getElementById("serviceDialog").addEventListener("click", (event) => {
+document.getElementById("serviceDialog").addEventListener("click", async (event) => {
   if (!serviceWizardModeActive()) return;
   const yesnoButton = event.target.closest(".wizard-choice-btn[data-yesno-choice]");
   if (yesnoButton) {
@@ -2759,7 +2840,7 @@ document.getElementById("serviceDialog").addEventListener("click", (event) => {
     } else if (key === "additionalCatalog") {
       const existingAdditional = additionalServiceValues.find((service) => service.catalogId === itemId);
       if (existingAdditional) {
-        if (existingAdditional.locked) alert("Este serviço complementar já está em uma cobrança e não pode ser removido aqui.");
+        if (existingAdditional.locked) showAppAlert("Este serviço complementar já está em uma cobrança e não pode ser removido aqui.", { type: "warning" });
         else removeAdditionalServiceByCatalogId(itemId);
       } else {
         form.elements.additionalCatalogSearch.value = label;
@@ -2776,8 +2857,8 @@ document.getElementById("serviceDialog").addEventListener("click", (event) => {
       const existingSupplierService = (window.supplierModule?.currentClientSupplierServiceSelections() || [])
         .find((item) => item.supplierId === form.elements.supplierId.value && item.supplierServiceId === itemId);
       if (existingSupplierService) {
-        if (existingSupplierService.locked) alert("Este serviço do fornecedor já está em uma conta a pagar e não pode ser removido aqui.");
-        else window.supplierModule?.removeClientSupplierServiceById(itemId);
+        if (existingSupplierService.locked) showAppAlert("Este serviço do fornecedor já está em uma conta a pagar e não pode ser removido aqui.", { type: "warning" });
+        else await window.supplierModule?.removeClientSupplierServiceById(itemId);
       } else {
         form.elements.supplierServiceSearch.value = label;
         window.supplierModule?.addClientSupplierService();
@@ -2831,7 +2912,7 @@ document.getElementById("serviceForm").addEventListener("change", (event) => {
 function importClientRequest(requestId) {
   const request = (state.serviceRequests || []).find((item) => item.id === requestId);
   if (!request || request.status !== "Novo") {
-    alert("Este pedido não está mais disponível para importação.");
+    showAppAlert("Este pedido não está mais disponível para importação.", { type: "warning" });
     return;
   }
   showView("services");
@@ -2846,7 +2927,7 @@ function choosePendingRequestForForm() {
     item.status === "Novo" && (!clientId || item.clientId === clientId)
   );
   if (!requests.length) {
-    alert(clientId ? "Não há pedidos pendentes para este cliente." : "Não há pedidos pendentes.");
+    showAppAlert(clientId ? "Não há pedidos pendentes para este cliente." : "Não há pedidos pendentes.", { type: "warning" });
     return;
   }
   if (requests.length === 1) {
@@ -3147,14 +3228,14 @@ const paymentWizard = createDialogWizard({
     if (step === 1) {
       syncPaymentClientSelection();
       if (!form.elements.clientId.value) {
-        alert("Selecione um cliente válido da lista.");
+        showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
         form.elements.clientSearch.focus();
         return false;
       }
     }
     if (step === 3) {
       if (form.elements.amount.value === "" || Number(form.elements.amount.value) <= 0) {
-        alert("Informe o valor recebido.");
+        showAppAlert("Informe o valor recebido.", { type: "warning" });
         form.elements.amount.focus();
         return false;
       }
@@ -3204,7 +3285,7 @@ const paymentMethodWizard = createDialogWizard({
   onReachLastStep: renderPaymentMethodWizardSummary,
   validateStep: (step, form) => {
     if (step === 2 && !form.elements.name.value.trim()) {
-      alert("Informe o nome para exibição.");
+      showAppAlert("Informe o nome para exibição.", { type: "warning" });
       form.elements.name.focus();
       return false;
     }
@@ -3486,9 +3567,10 @@ async function shareBillingReport(billing) {
   }
 
   downloadBillingReport(billing, blob);
-  alert(
+  showAppAlert(
     "Este navegador não permite anexar o PDF automaticamente.\n\n"
-    + "O relatório foi baixado. Abra o WhatsApp e anexe o arquivo PDF salvo."
+    + "O relatório foi baixado. Abra o WhatsApp e anexe o arquivo PDF salvo.",
+    { type: "info" }
   );
   return "PDF salvo";
 }
@@ -3788,7 +3870,7 @@ document.addEventListener("click", async (event) => {
     const form = document.getElementById("serviceForm");
     syncServiceClientSelection();
     const result = addClientRequester(form.elements.clientId.value, form.elements.requestedBy.value);
-    alert(result.ok ? "Solicitante cadastrado." : result.message);
+    showAppAlert(result.ok ? "Solicitante cadastrado." : result.message, { type: result.ok ? "success" : "warning" });
     updateServiceRequesterOptions();
     if (result.ok) saveState();
     return;
@@ -3810,7 +3892,7 @@ document.addEventListener("click", async (event) => {
     const requesterId = form?.elements.selectedRequesterId.value;
     const requester = (state.clientRequesters || []).find((item) => item.id === requesterId);
     if (!requester) {
-      alert("Selecione um solicitante para editar.");
+      showAppAlert("Selecione um solicitante para editar.", { type: "warning" });
       return;
     }
     const name = prompt("Nome do solicitante:", requester.name);
@@ -3818,7 +3900,7 @@ document.addEventListener("click", async (event) => {
     const cleanName = name.trim().replace(/\s+/g, " ");
     const normalizedName = normalizeRequesterName(cleanName);
     if (!normalizedName) {
-      alert("Informe o solicitante.");
+      showAppAlert("Informe o solicitante.", { type: "warning" });
       return;
     }
     if ((state.clientRequesters || []).some((item) =>
@@ -3826,7 +3908,7 @@ document.addEventListener("click", async (event) => {
       && item.clientId === requester.clientId
       && item.active !== false
       && item.normalizedName === normalizedName)) {
-      alert("Este solicitante ja esta cadastrado para este cliente.");
+      showAppAlert("Este solicitante ja esta cadastrado para este cliente.", { type: "warning" });
       return;
     }
     requester.name = cleanName;
@@ -3834,6 +3916,7 @@ document.addEventListener("click", async (event) => {
     requester.active = true;
     saveState();
     renderClientRequesterManager(requester.clientId);
+    showAppAlert("Solicitante atualizado com sucesso.", { type: "success" });
     return;
   }
   if (deleteManagedRequesterButton) {
@@ -3841,14 +3924,15 @@ document.addEventListener("click", async (event) => {
     const requesterId = form?.elements.selectedRequesterId.value;
     const requester = (state.clientRequesters || []).find((item) => item.id === requesterId);
     if (!requester) {
-      alert("Selecione um solicitante para excluir.");
+      showAppAlert("Selecione um solicitante para excluir.", { type: "warning" });
       return;
     }
-    if (!confirm(`Excluir o solicitante "${requester.name}"?`)) return;
+    if (!(await showAppConfirm(`Excluir o solicitante "${requester.name}"?`))) return;
     requester.active = false;
     form.elements.selectedRequesterId.value = "";
     saveState();
     renderClientRequesterManager(requester.clientId);
+    showAppAlert("Solicitante excluído com sucesso.", { type: "success" });
     return;
   }
   if (soundAlertButton) {
@@ -3912,14 +3996,15 @@ document.addEventListener("click", async (event) => {
   }
   if (deleteRequestButton) {
     const requestId = deleteRequestButton.dataset.deleteClientRequest;
-    if (confirm("Excluir este pedido do historico?")) {
+    if (await showAppConfirm("Excluir este pedido do historico?")) {
       state.serviceRequests = (state.serviceRequests || []).filter((item) => item.id !== requestId);
       try {
         const result = await window.dataStore?.deleteClientServiceRequest?.(requestId);
         if (result?.error) throw result.error;
+        showAppAlert("Pedido excluído com sucesso.", { type: "success" });
       } catch (error) {
         console.error(error);
-        alert("O pedido saiu desta tela, mas nao foi possivel excluir no banco agora.");
+        showAppAlert("O pedido saiu desta tela, mas nao foi possivel excluir no banco agora.", { type: "error" });
       }
       saveState();
     }
@@ -3927,7 +4012,7 @@ document.addEventListener("click", async (event) => {
   }
   if (cancelRequestButton) {
     const request = (state.serviceRequests || []).find((item) => item.id === cancelRequestButton.dataset.cancelClientRequest);
-    if (request && confirm("Cancelar este pedido recebido do cliente?")) {
+    if (request && await showAppConfirm("Cancelar este pedido recebido do cliente?")) {
       request.status = "Cancelado";
       request.updatedAt = new Date().toISOString();
       try {
@@ -3935,9 +4020,10 @@ document.addEventListener("click", async (event) => {
           status: "Cancelado",
           updated_at: request.updatedAt
         });
+        showAppAlert("Pedido cancelado com sucesso.", { type: "success" });
       } catch (error) {
         console.error(error);
-        alert("O pedido foi cancelado nesta tela, mas nao foi possivel atualizar no banco agora.");
+        showAppAlert("O pedido foi cancelado nesta tela, mas nao foi possivel atualizar no banco agora.", { type: "error" });
       }
       saveState();
     }
@@ -4035,7 +4121,7 @@ document.addEventListener("click", async (event) => {
   if (removeAdditionalServiceButton) {
     const removeIndex = Number(removeAdditionalServiceButton.dataset.removeAdditionalService);
     const target = additionalServiceValues[removeIndex];
-    if (!target?.id || confirm("Remover este serviço complementar já salvo? Ele será excluído ao salvar o lançamento.")) {
+    if (!target?.id || await showAppConfirm("Remover este serviço complementar já salvo? Ele será excluído ao salvar o lançamento.")) {
       additionalServiceValues.splice(removeIndex, 1);
       if (!additionalServiceValues.length) {
         document.getElementById("serviceForm").elements.hasAdditionalServices.checked = false;
@@ -4062,10 +4148,11 @@ document.addEventListener("click", async (event) => {
     const linked = state.services.some((item) => item.clientId === id)
       || state.payments.some((item) => item.clientId === id)
       || state.billings.some((item) => item.clientId === id);
-    if (linked) alert("Este cliente possui movimentações e não pode ser excluído.");
-    else if (confirm("Excluir este cliente?")) {
+    if (linked) showAppAlert("Este cliente possui movimentações e não pode ser excluído.", { type: "warning" });
+    else if (await showAppConfirm("Excluir este cliente?")) {
       state.clients = state.clients.filter((client) => client.id !== id);
       saveState();
+      showAppAlert("Cliente excluído com sucesso.", { type: "success" });
     }
   }
 
@@ -4082,11 +4169,12 @@ document.addEventListener("click", async (event) => {
   if (deleteTable) {
     const name = deleteTable.dataset.deleteTable;
     if (state.clients.some((client) => client.priceGroup === name)) {
-      alert("Esta tabela está vinculada a clientes e não pode ser excluída.");
-    } else if (confirm(`Excluir a ${name}?`)) {
+      showAppAlert("Esta tabela está vinculada a clientes e não pode ser excluída.", { type: "warning" });
+    } else if (await showAppConfirm(`Excluir a ${name}?`)) {
       state.priceTables = state.priceTables.filter((table) => table !== name);
       state.catalog.forEach((item) => delete item.prices[name]);
       saveState();
+      showAppAlert("Tabela excluída com sucesso.", { type: "success" });
     }
   }
 
@@ -4096,10 +4184,11 @@ document.addEventListener("click", async (event) => {
   if (deleteCatalog) {
     const id = deleteCatalog.dataset.deleteCatalog;
     if (state.services.some((item) => item.catalogId === id)) {
-      alert("Este serviço já possui lançamentos e não pode ser excluído.");
-    } else if (confirm("Excluir este serviço?")) {
+      showAppAlert("Este serviço já possui lançamentos e não pode ser excluído.", { type: "warning" });
+    } else if (await showAppConfirm("Excluir este serviço?")) {
       state.catalog = state.catalog.filter((item) => item.id !== id);
       saveState();
+      showAppAlert("Serviço excluído com sucesso.", { type: "success" });
     }
   }
 
@@ -4124,9 +4213,9 @@ document.addEventListener("click", async (event) => {
       entry.updatedAt = entry.confirmationRequestedAt;
       try {
         await navigator.clipboard.writeText(deliveryConfirmationMessage(entry));
-        alert("Mensagem de confirmação copiada para enviar no WhatsApp.");
+        showAppAlert("Mensagem de confirmação copiada para enviar no WhatsApp.", { type: "success" });
       } catch {
-        alert(deliveryConfirmationMessage(entry));
+        showAppAlert(deliveryConfirmationMessage(entry), { type: "info" });
       }
       saveState();
     }
@@ -4137,7 +4226,7 @@ document.addEventListener("click", async (event) => {
   const editPayment = event.target.closest("[data-edit-payment]");
   if (editPayment) {
     const payment = state.payments.find((item) => item.id === editPayment.dataset.editPayment);
-    if (payment?.billingId) alert("Este pagamento ja foi abatido em uma cobranca e nao pode mais ser editado.");
+    if (payment?.billingId) showAppAlert("Este pagamento ja foi abatido em uma cobranca e nao pode mais ser editado.", { type: "warning" });
     else if (payment) openPaymentForm(payment);
   }
   const payBillingButton = event.target.closest("[data-pay-billing]");
@@ -4146,18 +4235,20 @@ document.addEventListener("click", async (event) => {
     if (billing) openPaymentForm(null, billing, payBillingButton.dataset.paymentMode);
   }
   const deletePayment = event.target.closest("[data-delete-payment]");
-  if (deletePayment && confirm("Excluir este pagamento?")) {
+  if (deletePayment && await showAppConfirm("Excluir este pagamento?")) {
     state.payments = state.payments.filter((item) => item.id !== deletePayment.dataset.deletePayment);
     updateBillingStatuses();
     saveState();
+    showAppAlert("Pagamento excluído com sucesso.", { type: "success" });
   }
 
   const editMethod = event.target.closest("[data-edit-method]");
   if (editMethod) openPaymentMethodForm(state.paymentMethods.find((method) => method.id === editMethod.dataset.editMethod));
   const deleteMethod = event.target.closest("[data-delete-method]");
-  if (deleteMethod && confirm("Excluir esta forma de pagamento?")) {
+  if (deleteMethod && await showAppConfirm("Excluir esta forma de pagamento?")) {
     state.paymentMethods = state.paymentMethods.filter((method) => method.id !== deleteMethod.dataset.deleteMethod);
     saveState();
+    showAppAlert("Forma de pagamento excluída com sucesso.", { type: "success" });
   }
 
   const reportButton = event.target.closest("[data-view-report]");
@@ -4180,10 +4271,10 @@ document.addEventListener("click", async (event) => {
       billing.password = credentials.password;
       await window.dataStore.upsertState(state);
       render();
-      alert(`Novo acesso gerado.\n\nIdentificador: ${billing.identifier}\nSenha: ${billing.password}\n\nO acesso anterior foi invalidado.`);
+      showAppAlert(`Novo acesso gerado.\n\nIdentificador: ${billing.identifier}\nSenha: ${billing.password}\n\nO acesso anterior foi invalidado.`, { type: "success" });
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      showAppAlert(error.message, { type: "error" });
       renewAccessButton.disabled = false;
       renewAccessButton.textContent = "Gerar novo acesso";
     }
@@ -4199,12 +4290,12 @@ document.addEventListener("click", async (event) => {
         billing.historyEnabled = enabled;
         await window.dataStore.upsertState(state);
         render();
-        alert(enabled
+        showAppAlert(enabled
           ? "Histórico liberado para este acesso."
-          : "Histórico bloqueado imediatamente.");
+          : "Histórico bloqueado imediatamente.", { type: "success" });
       } catch (error) {
         console.error(error);
-        alert(error.message);
+        showAppAlert(error.message, { type: "error" });
         toggleHistoryButton.disabled = false;
       }
     }
@@ -4213,8 +4304,8 @@ document.addEventListener("click", async (event) => {
   if (cancelBillingButton) {
     const billing = state.billings.find((item) => item.id === cancelBillingButton.dataset.cancelBilling);
     if (billing && billingPaidAmount(billing) > 0) {
-      alert("Esta cobrança possui pagamento posterior e não pode ser cancelada.");
-    } else if (billing && confirm("Cancelar esta cobrança e liberar os lançamentos para um novo fechamento?")) {
+      showAppAlert("Esta cobrança possui pagamento posterior e não pode ser cancelada.", { type: "warning" });
+    } else if (billing && await showAppConfirm("Cancelar esta cobrança e liberar os lançamentos para um novo fechamento?")) {
       try {
         await cancelClientAccess(billing);
         releaseRolledBillings(billing);
@@ -4227,9 +4318,10 @@ document.addEventListener("click", async (event) => {
           if (item.billingId === billing.id && !paymentWasAfterBilling(item, billing)) item.billingId = null;
         });
         saveState();
+        showAppAlert("Cobrança cancelada com sucesso.", { type: "success" });
       } catch (error) {
         console.error(error);
-        alert(error.message);
+        showAppAlert(error.message, { type: "error" });
       }
     }
   }
@@ -4242,8 +4334,8 @@ document.addEventListener("click", async (event) => {
       && item.createdAt > billing.createdAt
     );
     if (hasLaterBilling) {
-      alert("Esta cobrança não pode ser excluída porque já existe uma cobrança mais recente para o cliente.");
-    } else if (billing && confirm(
+      showAppAlert("Esta cobrança não pode ser excluída porque já existe uma cobrança mais recente para o cliente.", { type: "warning" });
+    } else if (billing && await showAppConfirm(
       "Excluir definitivamente esta cobrança?\n\n"
       + "Os serviços e pagamentos continuarão registrados e ficarão disponíveis para um novo fechamento."
     )) {
@@ -4261,10 +4353,10 @@ document.addEventListener("click", async (event) => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         if (remoteReady && window.dataStore) await window.dataStore.upsertState(state);
         render();
-        alert("Cobrança excluída. Os lançamentos foram liberados para um novo fechamento.");
+        showAppAlert("Cobrança excluída. Os lançamentos foram liberados para um novo fechamento.", { type: "success" });
       } catch (error) {
         console.error(error);
-        alert(error.message || "Não foi possível excluir a cobrança.");
+        showAppAlert(error.message || "Não foi possível excluir a cobrança.", { type: "error" });
         deleteBillingButton.disabled = false;
       }
     }
@@ -4284,7 +4376,7 @@ document.addEventListener("click", async (event) => {
         saveState();
       } catch (error) {
         console.error(error);
-        alert(error.message || "Não foi possível abrir o WhatsApp.");
+        showAppAlert(error.message || "Não foi possível abrir o WhatsApp.", { type: "error" });
       } finally {
         whatsappButton.disabled = false;
         whatsappButton.textContent = "WhatsApp";
@@ -4303,7 +4395,7 @@ document.addEventListener("click", async (event) => {
         saveState();
       } catch (error) {
         console.error(error);
-        alert("Não foi possível compartilhar o relatório.");
+        showAppAlert("Não foi possível compartilhar o relatório.", { type: "error" });
       }
     }
   }
@@ -4331,11 +4423,13 @@ document.getElementById("clientForm").addEventListener("submit", (event) => {
     priceGroup: data.get("priceGroup")
   };
   const index = state.clients.findIndex((item) => item.id === client.id);
+  const isNewClient = index < 0;
   if (index >= 0) state.clients[index] = client;
   else state.clients.push(client);
   event.currentTarget.reset();
   event.currentTarget.closest("dialog").close();
   saveState();
+  showAppAlert(isNewClient ? "Cliente cadastrado com sucesso." : "Cliente atualizado com sucesso.", { type: "success" });
 });
 
 document.getElementById("priceTableForm").addEventListener("submit", (event) => {
@@ -4345,7 +4439,7 @@ document.getElementById("priceTableForm").addEventListener("submit", (event) => 
   const originalName = data.get("originalName");
   const name = data.get("name").trim();
   if (state.priceTables.some((table) => table === name && table !== originalName)) {
-    alert("Já existe uma tabela com este nome.");
+    showAppAlert("Já existe uma tabela com este nome.", { type: "warning" });
     return;
   }
   if (originalName) {
@@ -4363,6 +4457,7 @@ document.getElementById("priceTableForm").addEventListener("submit", (event) => 
   event.currentTarget.reset();
   event.currentTarget.closest("dialog").close();
   saveState();
+  showAppAlert(originalName ? "Tabela atualizada com sucesso." : "Tabela cadastrada com sucesso.", { type: "success" });
 });
 
 document.getElementById("catalogForm").addEventListener("submit", (event) => {
@@ -4372,7 +4467,7 @@ document.getElementById("catalogForm").addEventListener("submit", (event) => {
   const code = String(data.get("code") || "").trim();
   if (code && state.catalog.some((catalogItem) =>
     catalogItem.code === code && catalogItem.id !== data.get("catalogId"))) {
-    alert("Este código já está sendo usado por outro serviço.");
+    showAppAlert("Este código já está sendo usado por outro serviço.", { type: "warning" });
     return;
   }
   const item = {
@@ -4383,11 +4478,13 @@ document.getElementById("catalogForm").addEventListener("submit", (event) => {
       .map((input) => [input.dataset.priceTable, Number(input.value)]))
   };
   const existingIndex = state.catalog.findIndex((catalogItem) => catalogItem.id === item.id);
+  const isNewCatalogItem = existingIndex < 0;
   if (existingIndex >= 0) state.catalog[existingIndex] = item;
   else state.catalog.push(item);
   event.currentTarget.reset();
   event.currentTarget.closest("dialog").close();
   saveState();
+  showAppAlert(isNewCatalogItem ? "Serviço cadastrado com sucesso." : "Serviço atualizado com sucesso.", { type: "success" });
 });
 
 function askEntryContinuation() {
@@ -4404,7 +4501,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   syncServiceClientSelection();
   syncServiceCatalogSelection();
   if (!form.elements.clientId.value) {
-    alert("Selecione um cliente válido da lista.");
+    showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
     form.elements.clientSearch.focus();
     return;
   }
@@ -4429,17 +4526,17 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
   const entryReferences = references.length ? references : [""];
   const supplierSelection = window.supplierModule?.clientEntrySelection();
   if (supplierSelection?.error) {
-    alert(supplierSelection.error);
+    showAppAlert(supplierSelection.error, { type: "warning" });
     supplierSelection.field?.focus();
     return;
   }
   if (form.elements.hasAdditionalServices.checked && !additionalServiceValues.length) {
-    alert("Adicione pelo menos um serviço complementar ou desmarque a opção.");
+    showAppAlert("Adicione pelo menos um serviço complementar ou desmarque a opção.", { type: "warning" });
     form.elements.additionalCatalogSearch.focus();
     return;
   }
   if (additionalServiceValues.some((service) => service.catalogId === data.get("catalogId"))) {
-    alert("O serviço principal também está na lista de complementares. Remova-o ou escolha outro serviço.");
+    showAppAlert("O serviço principal também está na lista de complementares. Remova-o ou escolha outro serviço.", { type: "warning" });
     return;
   }
   const newAdditionalServiceValues = additionalServiceValues.filter((service) => !service.id);
@@ -4570,14 +4667,18 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     }
     await persistStateNow();
     render();
+    showAppAlert(existingEntry ? "Lançamento atualizado com sucesso." : "Lançamento salvo com sucesso.", { type: "success" });
   } catch (error) {
     console.error("Falha ao sincronizar o lançamento:", error);
-    alert("O lançamento ficou salvo neste aparelho, mas a sincronização online falhou. O sistema tentará novamente.");
+    showAppAlert("O lançamento ficou salvo neste aparelho, mas a sincronização online falhou. O sistema tentará novamente.", { type: "error" });
     saveState();
   }
   if (existingEntry) return;
 
-  await window.supplierModule?.offerSupplierRequestShare(createdSupplierEntries);
+  if (systemSettings.offerSupplierShare !== false) {
+    await window.supplierModule?.offerSupplierRequestShare(createdSupplierEntries);
+  }
+  if (systemSettings.askEntryContinuation === false) return;
   const next = await askEntryContinuation();
   if (next === "same") openEntryForm(null, savedClientId);
   if (next === "other") openEntryForm();
@@ -4641,6 +4742,7 @@ document.getElementById("cancelServiceForm").addEventListener("submit", (event) 
   }
   event.currentTarget.closest("dialog").close();
   saveState();
+  showAppAlert("Serviço cancelado com sucesso.", { type: "success" });
 });
 
 document.getElementById("deleteServiceForm").addEventListener("submit", (event) => {
@@ -4673,6 +4775,7 @@ document.getElementById("deleteServiceForm").addEventListener("submit", (event) 
   state.services = state.services.filter((item) => !targetIds.has(item.id));
   event.currentTarget.closest("dialog").close();
   saveState();
+  showAppAlert("Lançamento excluído com sucesso.", { type: "success" });
 });
 
 document.getElementById("paymentForm").addEventListener("submit", (event) => {
@@ -4681,7 +4784,7 @@ document.getElementById("paymentForm").addEventListener("submit", (event) => {
   const form = event.currentTarget;
   syncPaymentClientSelection();
   if (!form.elements.clientId.value) {
-    alert("Selecione um cliente válido da lista.");
+    showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
     form.elements.clientSearch.focus();
     return;
   }
@@ -4693,12 +4796,12 @@ document.getElementById("paymentForm").addEventListener("submit", (event) => {
   const linkedBilling = state.billings.find((item) => item.id === billingId);
   if (linkedBilling) {
     if (data.get("clientId") !== linkedBilling.clientId) {
-      alert("O cliente do pagamento deve ser o mesmo da cobrança.");
+      showAppAlert("O cliente do pagamento deve ser o mesmo da cobrança.", { type: "warning" });
       return;
     }
     const available = billingOpenAmount(linkedBilling) + Number(existingPayment?.amount || 0);
     if (amount > available + 0.001) {
-      alert(`O valor máximo para esta cobrança é ${money.format(available)}.`);
+      showAppAlert(`O valor máximo para esta cobrança é ${money.format(available)}.`, { type: "warning" });
       return;
     }
   }
@@ -4716,12 +4819,14 @@ document.getElementById("paymentForm").addEventListener("submit", (event) => {
     updatedAt: now
   };
   const index = state.payments.findIndex((item) => item.id === payment.id);
+  const isNewPayment = index < 0;
   if (index >= 0) state.payments[index] = payment;
   else state.payments.push(payment);
   updateBillingStatuses();
   event.currentTarget.reset();
   event.currentTarget.closest("dialog").close();
   saveState();
+  showAppAlert(isNewPayment ? "Pagamento cadastrado com sucesso." : "Pagamento atualizado com sucesso.", { type: "success" });
 });
 
 document.getElementById("paymentMethodForm").addEventListener("submit", (event) => {
@@ -4737,11 +4842,13 @@ document.getElementById("paymentMethodForm").addEventListener("submit", (event) 
     active: data.get("active") === "on"
   };
   const index = state.paymentMethods.findIndex((item) => item.id === method.id);
+  const isNewMethod = index < 0;
   if (index >= 0) state.paymentMethods[index] = method;
   else state.paymentMethods.push(method);
   event.currentTarget.reset();
   event.currentTarget.closest("dialog").close();
   saveState();
+  showAppAlert(isNewMethod ? "Forma de pagamento cadastrada com sucesso." : "Forma de pagamento atualizada com sucesso.", { type: "success" });
 });
 
 document.getElementById("trackingForm").addEventListener("submit", async (event) => {
@@ -4750,12 +4857,12 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
   const form = event.currentTarget;
   syncTrackingClientSelection();
   if (!form.elements.clientId.value) {
-    alert("Selecione um cliente válido da lista.");
+    showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
     form.elements.clientSearch.focus();
     return;
   }
   if (form.elements.endDate.value < form.elements.startDate.value) {
-    alert("A data final deve ser igual ou posterior à data inicial.");
+    showAppAlert("A data final deve ser igual ou posterior à data inicial.", { type: "warning" });
     return;
   }
 
@@ -4819,7 +4926,7 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
     }
   } catch (error) {
     console.error(error);
-    alert(error.message);
+    showAppAlert(error.message, { type: "error" });
   } finally {
     button.disabled = false;
     button.textContent = "Gerar e compartilhar";
@@ -4832,7 +4939,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   const form = event.currentTarget;
   syncBillingClientSelection();
   if (!form.elements.clientId.value) {
-    alert("Selecione um cliente válido da lista.");
+    showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
     form.elements.clientSearch.focus();
     return;
   }
@@ -4845,7 +4952,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   const billingId = crypto.randomUUID();
   const paymentMethodIds = data.getAll("paymentMethodId");
   if (!paymentMethodIds.length) {
-    alert("Selecione pelo menos uma forma de pagamento.");
+    showAppAlert("Selecione pelo menos uma forma de pagamento.", { type: "warning" });
     return;
   }
   const services = state.services.filter((item) =>
@@ -4867,7 +4974,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     const names = pendingServices.slice(0, 5)
       .map((item) => `• ${item.description}${item.reference ? ` (${item.reference})` : ""}`)
       .join("\n");
-    const confirmed = confirm(
+    const confirmed = await showAppConfirm(
       `Existem ${pendingServices.length} serviço(s) ainda marcados como "A fazer":\n\n${names}\n\nOK: gerar a cobrança mesmo assim.\nCancelar: voltar e atualizar os status.`
     );
     if (!confirmed) return;
@@ -4917,7 +5024,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     form.reset();
     dialog.close();
     render();
-    alert(`Cobrança criada.\n\nIdentificador: ${billing.identifier}\nSenha: ${billing.password}\n\nA senha será exibida somente agora. O relatório compartilhado não inclui esses dados.`);
+    showAppAlert(`Cobrança criada.\n\nIdentificador: ${billing.identifier}\nSenha: ${billing.password}\n\nA senha será exibida somente agora. O relatório compartilhado não inclui esses dados.`, { type: "success" });
   } catch (error) {
     console.error(error);
     if (!persisted) {
@@ -4931,7 +5038,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
         console.error("Falha ao desfazer a cobrança incompleta:", rollbackError);
       }
     }
-    alert(error.message);
+    showAppAlert(error.message, { type: "error" });
     render();
   } finally {
     submitButton.disabled = false;
@@ -4950,7 +5057,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
   const endDate = data.get("endDate");
   const paymentMethodIds = data.getAll("paymentMethodId");
   if (!paymentMethodIds.length) {
-    alert("Selecione pelo menos uma forma de pagamento.");
+    showAppAlert("Selecione pelo menos uma forma de pagamento.", { type: "warning" });
     return;
   }
 
@@ -4960,12 +5067,12 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
   );
   const clientIds = [...new Set(eligibleServices.map((item) => item.clientId))];
   if (!clientIds.length) {
-    alert("Nenhum cliente possui servicos pendentes de cobranca neste periodo.");
+    showAppAlert("Nenhum cliente possui servicos pendentes de cobranca neste periodo.", { type: "warning" });
     return;
   }
   const pendingCount = eligibleServices.filter((item) => item.status === "A fazer").length;
   const warning = pendingCount ? `\n\nAtencao: ${pendingCount} servico(s) ainda estao marcados como A fazer.` : "";
-  if (!confirm(`Gerar ${clientIds.length} cobranca(s), uma para cada cliente com servicos no periodo?${warning}`)) return;
+  if (!(await showAppConfirm(`Gerar ${clientIds.length} cobranca(s), uma para cada cliente com servicos no periodo?${warning}`))) return;
 
   const stateBeforeBatch = typeof structuredClone === "function"
     ? structuredClone(state)
@@ -5021,7 +5128,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
     dialog.close();
     render();
     const successCount = drafts.length - failures.length;
-    alert(`${successCount} cobranca(s) gerada(s) com sucesso.${failures.length ? `\n\nFalhas:\n${failures.join("\n")}` : ""}`);
+    showAppAlert(`${successCount} cobranca(s) gerada(s) com sucesso.${failures.length ? `\n\nFalhas:\n${failures.join("\n")}` : ""}`, { type: "success" });
   } catch (error) {
     console.error(error);
     state = stateBeforeBatch;
@@ -5031,7 +5138,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
       console.error("Falha ao desfazer o fechamento em lote:", rollbackError);
     }
     render();
-    alert(`Nao foi possivel concluir o fechamento em lote. ${error.message}`);
+    showAppAlert(`Nao foi possivel concluir o fechamento em lote. ${error.message}`, { type: "error" });
   } finally {
     submitButton.disabled = false;
     submitButton.textContent = "Gerar para todos";
@@ -5221,6 +5328,7 @@ document.querySelector('#billingForm input[name="clientSearch"]').addEventListen
 ["weekStartDay", "weekEndDay"].forEach((id) => {
   document.getElementById(id)?.addEventListener("change", () => {
     systemSettings = {
+      ...systemSettings,
       weekStartDay: Number(document.getElementById("weekStartDay").value),
       weekEndDay: Number(document.getElementById("weekEndDay").value)
     };
@@ -5232,6 +5340,14 @@ document.querySelector('#billingForm input[name="clientSearch"]').addEventListen
     renderDashboardV2();
     showToast("Periodo padrao atualizado.");
   });
+});
+document.getElementById("settingsAskEntryContinuation")?.addEventListener("change", (event) => {
+  systemSettings = { ...systemSettings, askEntryContinuation: event.currentTarget.checked };
+  saveSystemSettings();
+});
+document.getElementById("settingsOfferSupplierShare")?.addEventListener("change", (event) => {
+  systemSettings = { ...systemSettings, offerSupplierShare: event.currentTarget.checked };
+  saveSystemSettings();
 });
 document.getElementById("addReferenceButton").addEventListener("click", addCurrentReference);
 document.querySelector('#serviceForm input[name="hasAdditionalServices"]').addEventListener("change", toggleAdditionalServices);
@@ -5512,7 +5628,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=116").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=117").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

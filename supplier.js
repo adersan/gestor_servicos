@@ -330,7 +330,7 @@
     onReachLastStep: renderSupplierWizardSummary,
     validateStep: (step, form) => {
       if (step === 1 && !form.elements.name.value.trim()) {
-        alert("Informe o nome do fornecedor.");
+        showAppAlert("Informe o nome do fornecedor.", { type: "warning" });
         form.elements.name.focus();
         return false;
       }
@@ -389,19 +389,19 @@
       if (step === 1) {
         const supplier = syncSupplierSearchField(form);
         if (!supplier) {
-          alert("Selecione um fornecedor válido da lista.");
+          showAppAlert("Selecione um fornecedor válido da lista.", { type: "warning" });
           document.querySelector('[data-picker-search-target="supplierServiceForm"]')?.classList.remove("hidden");
           form.elements.supplierSearch.focus();
           return false;
         }
       }
       if (step === 3 && !form.elements.name.value.trim()) {
-        alert("Informe o nome do serviço.");
+        showAppAlert("Informe o nome do serviço.", { type: "warning" });
         form.elements.name.focus();
         return false;
       }
       if (step === 4 && (form.elements.cost.value === "" || Number(form.elements.cost.value) < 0)) {
-        alert("Informe o valor cobrado pelo fornecedor.");
+        showAppAlert("Informe o valor cobrado pelo fornecedor.", { type: "warning" });
         form.elements.cost.focus();
         return false;
       }
@@ -475,7 +475,7 @@
     const supplierServiceId = form.elements.supplierServiceId.value;
     const amount = Number(form.elements.supplierAmount.value);
     if (!supplierId) {
-      alert("Selecione o fornecedor.");
+      showAppAlert("Selecione o fornecedor.", { type: "warning" });
       form.elements.supplierSearch.focus();
       return false;
     }
@@ -484,13 +484,13 @@
       return false;
     }
     if (!Number.isFinite(amount) || amount < 0) {
-      alert("Informe um custo válido para o fornecedor.");
+      showAppAlert("Informe um custo válido para o fornecedor.", { type: "warning" });
       form.elements.supplierAmount.focus();
       return false;
     }
     if (clientSupplierServiceValues.some((item) =>
       item.supplierId === supplierId && item.supplierServiceId === supplierServiceId)) {
-      alert("Este serviço do fornecedor já foi adicionado.");
+      showAppAlert("Este serviço do fornecedor já foi adicionado.", { type: "warning" });
       form.elements.supplierServiceSearch.focus();
       return false;
     }
@@ -598,7 +598,7 @@
     const selectedIds = [...document.querySelectorAll(`[data-supplier-share-entry="${supplierId}"]:checked`)]
       .map((field) => field.value);
     const entries = state.supplierEntries.filter((item) => selectedIds.includes(item.id));
-    if (!supplier || !entries.length) return alert("Selecione pelo menos um serviço.");
+    if (!supplier || !entries.length) return showAppAlert("Selecione pelo menos um serviço.", { type: "warning" });
     const includeGreeting = document.querySelector(`[data-supplier-share-greeting="${supplierId}"]`)?.checked;
     const text = supplierRequestMessage(supplier, entries, includeGreeting);
     if (supplier.whatsappDestination === "group") {
@@ -608,13 +608,13 @@
       } else {
         await navigator.clipboard.writeText(text);
         openWhatsApp("https://web.whatsapp.com/");
-        alert(`Mensagem copiada. Escolha o grupo "${supplier.whatsappGroupName || supplier.name}" e cole a mensagem.`);
+        showAppAlert(`Mensagem copiada. Escolha o grupo "${supplier.whatsappGroupName || supplier.name}" e cole a mensagem.`, { type: "success" });
       }
       return;
     }
     const digits = String(supplier.phone || "").replace(/\D/g, "");
     const phone = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
-    if (!phone) return alert("Cadastre o WhatsApp deste fornecedor.");
+    if (!phone) return showAppAlert("Cadastre o WhatsApp deste fornecedor.", { type: "warning" });
     const baseUrl = window.matchMedia("(pointer: coarse)").matches
       ? "https://api.whatsapp.com/send"
       : "https://web.whatsapp.com/send";
@@ -725,7 +725,7 @@
       if (step === 1) {
         const supplier = syncSupplierSearchField(form);
         if (!supplier) {
-          alert("Selecione um fornecedor válido da lista.");
+          showAppAlert("Selecione um fornecedor válido da lista.", { type: "warning" });
           document.querySelector('[data-picker-search-target="supplierEntrySupplier"]')?.classList.remove("hidden");
           form.elements.supplierSearch.focus();
           return false;
@@ -734,7 +734,7 @@
       if (step === 2) {
         syncSupplierEntryServiceSelection(form);
         if (!form.elements.supplierServiceId.value) {
-          alert("Selecione um serviço válido da lista.");
+          showAppAlert("Selecione um serviço válido da lista.", { type: "warning" });
           document.querySelector('[data-picker-search-target="supplierEntryService"]')?.classList.remove("hidden");
           form.elements.supplierServiceSearch.focus();
           return false;
@@ -742,7 +742,7 @@
       }
       if (step === 5) {
         if (form.elements.amount.value === "" || Number(form.elements.amount.value) < 0) {
-          alert("Informe o valor do fornecedor.");
+          showAppAlert("Informe o valor do fornecedor.", { type: "warning" });
           form.elements.amount.focus();
           return false;
         }
@@ -800,7 +800,7 @@
       if (step === 1) {
         const supplier = syncSupplierSearchField(form);
         if (!supplier) {
-          alert("Selecione um fornecedor válido da lista.");
+          showAppAlert("Selecione um fornecedor válido da lista.", { type: "warning" });
           document.querySelector('[data-picker-search-target="supplierPayable"]')?.classList.remove("hidden");
           form.elements.supplierSearch.focus();
           return false;
@@ -811,7 +811,7 @@
           item.supplierId === form.elements.supplierId.value && !item.payableId && item.status !== "Cancelado"
           && item.date >= form.elements.startDate.value && item.date <= form.elements.endDate.value);
         if (!entries.length) {
-          alert("Não há lançamentos livres neste período.");
+          showAppAlert("Não há lançamentos livres neste período.", { type: "warning" });
           return false;
         }
       }
@@ -848,12 +848,12 @@
         const payable = state.supplierPayables.find((item) => item.id === form.elements.payableId.value);
         const amount = Number(form.elements.amount.value);
         if (!amount || amount <= 0) {
-          alert("Informe o valor pago.");
+          showAppAlert("Informe o valor pago.", { type: "warning" });
           form.elements.amount.focus();
           return false;
         }
         if (payable && amount > payableOpen(payable) + 0.001) {
-          alert(`O valor máximo é ${money.format(payableOpen(payable))}.`);
+          showAppAlert(`O valor máximo é ${money.format(payableOpen(payable))}.`, { type: "warning" });
           form.elements.amount.focus();
           return false;
         }
@@ -901,18 +901,18 @@
     validateStep: (step, form) => {
       if (step === 1) {
         if (!syncSupplierSearchField(form)) {
-          alert("Selecione um fornecedor válido da lista.");
+          showAppAlert("Selecione um fornecedor válido da lista.", { type: "warning" });
           form.elements.supplierSearch.focus();
           return false;
         }
       }
       if (step === 2) {
         if (!form.elements.startDate.value || !form.elements.endDate.value) {
-          alert("Informe o período (data inicial e final).");
+          showAppAlert("Informe o período (data inicial e final).", { type: "warning" });
           return false;
         }
         if (form.elements.endDate.value < form.elements.startDate.value) {
-          alert("A data final deve ser igual ou depois da data inicial.");
+          showAppAlert("A data final deve ser igual ou depois da data inicial.", { type: "warning" });
           return false;
         }
       }
@@ -1132,7 +1132,7 @@
       return;
     }
     downloadReport(payable);
-    alert("O PDF foi salvo. Anexe o arquivo na conversa do fornecedor.");
+    showAppAlert("O PDF foi salvo. Anexe o arquivo na conversa do fornecedor.", { type: "success" });
   }
 
   byId("supplierForm").addEventListener("submit", (event) => {
@@ -1152,8 +1152,10 @@
     };
     if (item.isDefault) state.suppliers.forEach((supplier) => { supplier.isDefault = false; });
     const index = state.suppliers.findIndex((supplier) => supplier.id === item.id);
+    const isNewSupplier = index < 0;
     if (index >= 0) state.suppliers[index] = item; else state.suppliers.push(item);
     event.currentTarget.closest("dialog").close(); saveState();
+    showAppAlert(isNewSupplier ? "Fornecedor cadastrado com sucesso." : "Fornecedor atualizado com sucesso.", { type: "success" });
   });
 
   byId("supplierServiceForm").addEventListener("submit", (event) => {
@@ -1161,15 +1163,17 @@
     event.preventDefault();
     const form = event.currentTarget;
     if (!syncSupplierSearchField(form)) {
-      alert("Selecione um fornecedor válido da lista.");
+      showAppAlert("Selecione um fornecedor válido da lista.", { type: "warning" });
       form.elements.supplierSearch.focus();
       return;
     }
     const data = new FormData(form);
     const item = { id: data.get("id") || crypto.randomUUID(), supplierId: data.get("supplierId"), code: data.get("code").trim(), name: data.get("name").trim(), cost: Number(data.get("cost")), active: true };
     const index = state.supplierServices.findIndex((service) => service.id === item.id);
+    const isNewSupplierService = index < 0;
     if (index >= 0) state.supplierServices[index] = item; else state.supplierServices.push(item);
     event.currentTarget.closest("dialog").close(); saveState();
+    showAppAlert(isNewSupplierService ? "Serviço do fornecedor cadastrado com sucesso." : "Serviço do fornecedor atualizado com sucesso.", { type: "success" });
   });
 
   byId("supplierEntryForm").addEventListener("submit", async (event) => {
@@ -1177,13 +1181,13 @@
     event.preventDefault();
     const form = event.currentTarget;
     if (!syncSupplierSearchField(form)) {
-      alert("Selecione um fornecedor válido da lista.");
+      showAppAlert("Selecione um fornecedor válido da lista.", { type: "warning" });
       form.elements.supplierSearch.focus();
       return;
     }
     syncSupplierEntryServiceSelection(form);
     if (!form.elements.supplierServiceId.value) {
-      alert("Selecione um serviço válido da lista.");
+      showAppAlert("Selecione um serviço válido da lista.", { type: "warning" });
       form.elements.supplierServiceSearch.focus();
       return;
     }
@@ -1194,13 +1198,15 @@
     const status = data.get("status");
     const item = { id: data.get("id") || crypto.randomUUID(), supplierId: data.get("supplierId"), supplierServiceId: data.get("supplierServiceId"), clientId: data.get("clientId") || null, clientServiceEntryId: data.get("clientServiceEntryId") || null, payableId: existing?.payableId || null, date: data.get("date"), description: service?.name || "", reference: data.get("reference").trim(), amount: Number(data.get("amount")), status, source: existing?.source || (data.get("clientId") ? "Cliente" : "Direto"), notes: data.get("notes").trim(), lastChangedBy: "Administrador", doneAt: ["Feito", "Entregue"].includes(status) ? existing?.doneAt || now : null, deliveredAt: status === "Entregue" ? existing?.deliveredAt || now : null, createdAt: existing?.createdAt || now, updatedAt: now };
     const index = state.supplierEntries.findIndex((entry) => entry.id === item.id);
+    const isNewSupplierEntry = index < 0;
     if (index >= 0) state.supplierEntries[index] = item; else state.supplierEntries.push(item);
     event.currentTarget.closest("dialog").close();
     try {
       await window.persistStateNow();
+      showAppAlert(isNewSupplierEntry ? "Lançamento do fornecedor salvo com sucesso." : "Lançamento do fornecedor atualizado com sucesso.", { type: "success" });
     } catch (error) {
       console.error("Falha ao sincronizar o lançamento do fornecedor:", error);
-      alert("O lançamento ficou salvo neste aparelho, mas a sincronização online falhou. O sistema tentará novamente.");
+      showAppAlert("O lançamento ficou salvo neste aparelho, mas a sincronização online falhou. O sistema tentará novamente.", { type: "error" });
       saveState();
     }
   });
@@ -1239,6 +1245,7 @@
     entry.updatedAt = new Date().toISOString();
     event.currentTarget.closest("dialog").close();
     saveState();
+    showAppAlert("Lançamento do fornecedor cancelado com sucesso.", { type: "success" });
   });
 
   byId("supplierPayableForm").addEventListener("submit", async (event) => {
@@ -1246,13 +1253,13 @@
     event.preventDefault();
     const form = event.currentTarget;
     if (!syncSupplierSearchField(form)) {
-      alert("Selecione um fornecedor válido da lista.");
+      showAppAlert("Selecione um fornecedor válido da lista.", { type: "warning" });
       form.elements.supplierSearch.focus();
       return;
     }
     const data = new FormData(form);
     const entries = state.supplierEntries.filter((item) => item.supplierId === data.get("supplierId") && !item.payableId && item.status !== "Cancelado" && item.date >= data.get("startDate") && item.date <= data.get("endDate"));
-    if (!entries.length) return alert("Não há lançamentos livres neste período.");
+    if (!entries.length) return showAppAlert("Não há lançamentos livres neste período.", { type: "warning" });
     const payableId = crypto.randomUUID();
     const amount = entries.reduce((sum, item) => sum + Number(item.amount), 0);
     const payable = { id: payableId, supplierId: data.get("supplierId"), startDate: data.get("startDate"), endDate: data.get("endDate"), amount, status: "Aberta", snapshot: { entryCount: entries.length }, createdAt: new Date().toISOString() };
@@ -1260,6 +1267,7 @@
     entries.forEach((item) => { item.payableId = payableId; });
     event.currentTarget.closest("dialog").close();
     await window.persistStateNow();
+    showAppAlert("Conta do fornecedor gerada com sucesso.", { type: "success" });
     if (data.get("generatePortalLink") === "on") {
       try {
         const issued = await issueSupplierPortalLink({
@@ -1280,7 +1288,7 @@
         await window.persistStateNow();
       } catch (error) {
         console.error(error);
-        alert(`A conta foi gerada, mas o link do fornecedor não pôde ser criado. ${error.message}`);
+        showAppAlert(`A conta foi gerada, mas o link do fornecedor não pôde ser criado. ${error.message}`, { type: "error" });
       }
     }
     showSupplierTab("payables"); openSupplierReport(payable);
@@ -1292,10 +1300,11 @@
     const data = new FormData(event.currentTarget);
     const payable = state.supplierPayables.find((item) => item.id === data.get("payableId"));
     const amount = Number(data.get("amount"));
-    if (amount > payableOpen(payable) + 0.001) return alert(`O valor máximo é ${money.format(payableOpen(payable))}.`);
+    if (amount > payableOpen(payable) + 0.001) return showAppAlert(`O valor máximo é ${money.format(payableOpen(payable))}.`, { type: "warning" });
     state.supplierPayments.push({ id: crypto.randomUUID(), supplierId: data.get("supplierId"), payableId: payable.id, date: data.get("date"), amount, method: data.get("method"), note: data.get("note").trim(), createdAt: new Date().toISOString() });
     payable.status = payableOpen(payable) <= 0.001 ? "Paga" : "Parcial";
     event.currentTarget.closest("dialog").close(); saveState(); openSupplierReport(payable);
+    showAppAlert("Pagamento ao fornecedor registrado com sucesso.", { type: "success" });
   });
 
   byId("supplierAccessForm").addEventListener("submit", async (event) => {
@@ -1303,7 +1312,7 @@
     event.preventDefault();
     const form = event.currentTarget;
     if (!syncSupplierSearchField(form)) {
-      alert("Selecione um fornecedor válido da lista.");
+      showAppAlert("Selecione um fornecedor válido da lista.", { type: "warning" });
       form.elements.supplierSearch.focus();
       return;
     }
@@ -1410,7 +1419,7 @@
         await shareSupplierRequests(shareNewEntries.dataset.shareNewSupplierEntries);
         shareNewEntries.textContent = "Compartilhado";
       } catch (error) {
-        if (error?.name !== "AbortError") alert("Não foi possível abrir o compartilhamento do WhatsApp.");
+        if (error?.name !== "AbortError") showAppAlert("Não foi possível abrir o compartilhamento do WhatsApp.", { type: "error" });
       }
     }
     const currentWeekButton = event.target.closest("[data-supplier-current-week]");
@@ -1455,7 +1464,7 @@
     if (removeClientSupplierServiceButton) {
       const removeIndex = Number(removeClientSupplierServiceButton.dataset.removeClientSupplierService);
       const target = clientSupplierServiceValues[removeIndex];
-      if (!target?.id || confirm("Remover este serviço de fornecedor já salvo? Ele será excluído ao salvar o lançamento.")) {
+      if (!target?.id || await showAppConfirm("Remover este serviço de fornecedor já salvo? Ele será excluído ao salvar o lançamento.")) {
         clientSupplierServiceValues.splice(removeIndex, 1);
         if (!clientSupplierServiceValues.length) {
           byId("serviceForm").elements.hasSupplierService.checked = false;
@@ -1470,7 +1479,7 @@
     const entryStatus = event.target.closest("[data-supplier-entry-status]");
     if (entryStatus) {
       const entry = state.supplierEntries.find((item) => item.id === entryStatus.dataset.entryId);
-      if (entry?.payableId) alert("Este serviço já está em uma conta a pagar e não pode ter o status alterado.");
+      if (entry?.payableId) showAppAlert("Este serviço já está em uma conta a pagar e não pode ter o status alterado.", { type: "warning" });
       else if (entry && entry.status !== "Cancelado") {
         const nextStatus = entryStatus.dataset.supplierEntryStatus;
         const changedAt = new Date().toISOString();
@@ -1487,7 +1496,7 @@
     const cancelEntry = event.target.closest("[data-cancel-supplier-entry]");
     if (cancelEntry) {
       const entry = state.supplierEntries.find((item) => item.id === cancelEntry.dataset.cancelSupplierEntry);
-      if (entry?.payableId) alert("Este serviço já está em uma conta a pagar e não pode ser cancelado.");
+      if (entry?.payableId) showAppAlert("Este serviço já está em uma conta a pagar e não pode ser cancelado.", { type: "warning" });
       else if (entry) {
         const form = byId("supplierCancelForm");
         form.reset();
@@ -1498,13 +1507,13 @@
       }
     }
     const deleteSupplier = event.target.closest("[data-delete-supplier]");
-    if (deleteSupplier && !state.supplierEntries.some((item) => item.supplierId === deleteSupplier.dataset.deleteSupplier) && confirm("Excluir este fornecedor?")) { state.suppliers = state.suppliers.filter((item) => item.id !== deleteSupplier.dataset.deleteSupplier); saveState(); }
-    else if (deleteSupplier && state.supplierEntries.some((item) => item.supplierId === deleteSupplier.dataset.deleteSupplier)) alert("Este fornecedor possui movimentações e não pode ser excluído.");
+    if (deleteSupplier && !state.supplierEntries.some((item) => item.supplierId === deleteSupplier.dataset.deleteSupplier) && await showAppConfirm("Excluir este fornecedor?")) { state.suppliers = state.suppliers.filter((item) => item.id !== deleteSupplier.dataset.deleteSupplier); saveState(); showAppAlert("Fornecedor excluído com sucesso.", { type: "success" }); }
+    else if (deleteSupplier && state.supplierEntries.some((item) => item.supplierId === deleteSupplier.dataset.deleteSupplier)) showAppAlert("Este fornecedor possui movimentações e não pode ser excluído.", { type: "warning" });
     const deleteService = event.target.closest("[data-delete-supplier-service]");
-    if (deleteService && !state.supplierEntries.some((item) => item.supplierServiceId === deleteService.dataset.deleteSupplierService) && confirm("Excluir este serviço?")) { state.supplierServices = state.supplierServices.filter((item) => item.id !== deleteService.dataset.deleteSupplierService); saveState(); }
-    else if (deleteService && state.supplierEntries.some((item) => item.supplierServiceId === deleteService.dataset.deleteSupplierService)) alert("Este serviço já possui lançamentos.");
+    if (deleteService && !state.supplierEntries.some((item) => item.supplierServiceId === deleteService.dataset.deleteSupplierService) && await showAppConfirm("Excluir este serviço?")) { state.supplierServices = state.supplierServices.filter((item) => item.id !== deleteService.dataset.deleteSupplierService); saveState(); showAppAlert("Serviço do fornecedor excluído com sucesso.", { type: "success" }); }
+    else if (deleteService && state.supplierEntries.some((item) => item.supplierServiceId === deleteService.dataset.deleteSupplierService)) showAppAlert("Este serviço já possui lançamentos.", { type: "warning" });
     const deleteEntry = event.target.closest("[data-delete-supplier-entry]");
-    if (deleteEntry && confirm("Excluir este lançamento?")) { state.supplierEntries = state.supplierEntries.filter((item) => item.id !== deleteEntry.dataset.deleteSupplierEntry); saveState(); }
+    if (deleteEntry && await showAppConfirm("Excluir este lançamento?")) { state.supplierEntries = state.supplierEntries.filter((item) => item.id !== deleteEntry.dataset.deleteSupplierEntry); saveState(); showAppAlert("Lançamento do fornecedor excluído com sucesso.", { type: "success" }); }
     const pay = event.target.closest("[data-pay-supplier]");
     if (pay) {
       const payable = state.supplierPayables.find((item) => item.id === pay.dataset.paySupplier);
@@ -1525,16 +1534,18 @@
     const shareOpenReport = event.target.closest("[data-share-open-supplier-report]");
     if (shareOpenReport) await shareReport(state.supplierPayables.find((item) => item.id === activeSupplierReportId));
     const cancelPayable = event.target.closest("[data-cancel-supplier-payable]");
-    if (cancelPayable && confirm("Cancelar esta conta e liberar os lançamentos para outro fechamento?")) {
+    if (cancelPayable && await showAppConfirm("Cancelar esta conta e liberar os lançamentos para outro fechamento?")) {
       const payable = state.supplierPayables.find((item) => item.id === cancelPayable.dataset.cancelSupplierPayable);
       payable.status = "Cancelada";
       state.supplierEntries.forEach((item) => { if (item.payableId === payable.id) item.payableId = null; });
       saveState();
+      showAppAlert("Conta do fornecedor cancelada com sucesso.", { type: "success" });
     }
     const deletePayment = event.target.closest("[data-delete-supplier-payment]");
-    if (deletePayment && confirm("Excluir esta baixa?")) {
+    if (deletePayment && await showAppConfirm("Excluir esta baixa?")) {
       state.supplierPayments = state.supplierPayments.filter((item) => item.id !== deletePayment.dataset.deleteSupplierPayment);
       saveState();
+      showAppAlert("Baixa excluída com sucesso.", { type: "success" });
     }
   });
 
@@ -1547,11 +1558,11 @@
   byId("supplierDashboardEnd").value = week.endDate;
   byId("supplierEntryStart").value = week.startDate;
   byId("supplierEntryEnd").value = week.endDate;
-  function removeClientSupplierServiceById(supplierServiceId) {
+  async function removeClientSupplierServiceById(supplierServiceId) {
     const index = clientSupplierServiceValues.findIndex((item) => item.supplierServiceId === supplierServiceId);
     if (index < 0) return;
     const target = clientSupplierServiceValues[index];
-    if (target.id && !confirm("Remover este serviço de fornecedor já salvo? Ele será excluído ao salvar o lançamento.")) return;
+    if (target.id && !(await showAppConfirm("Remover este serviço de fornecedor já salvo? Ele será excluído ao salvar o lançamento."))) return;
     clientSupplierServiceValues.splice(index, 1);
     if (!clientSupplierServiceValues.length) {
       byId("serviceForm").elements.hasSupplierService.checked = false;
