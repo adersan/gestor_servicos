@@ -762,11 +762,11 @@
         <label>Placa ou referência
           <span class="reference-entry-row">
             <textarea name="reference" rows="4" placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea>
-            <button id="addReferenceButton" class="secondary" type="button" aria-label="Adicionar referência">+</button>
+            <button id="addReferenceButton" class="secondary edit-hide-native" type="button" aria-label="Adicionar referência">+</button>
           </span>
-          <span class="field-hint">Ao clicar em +, cada linha vira um serviço. Textos na mesma linha permanecem juntos.</span>
+          <span id="referenceHint" class="field-hint edit-hide-native">Ao clicar em +, cada linha vira um serviço. Textos na mesma linha permanecem juntos.</span>
         </label>
-        <div id="referenceList" class="reference-list"></div>
+        <div id="referenceList" class="reference-list edit-hide-native"></div>
       </div>
 
       <div class="wizard-step" data-step="5">
@@ -1784,7 +1784,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=42"></script>
-  <script src="app.js?v=106"></script>
-  <script src="supplier.js?v=50"></script>
+  <script src="app.js?v=107"></script>
+  <script src="supplier.js?v=51"></script>
 </body>
 </html>

@@ -2239,7 +2239,7 @@ function openCatalogForm(item = null) {
   form.elements.name.value = item?.name || "";
   renderCatalogPriceFields(item);
   document.getElementById("catalogDialogTitle").textContent = item ? "Editar serviço" : "Novo serviço";
-  catalogWizard.activate(!item && window.matchMedia("(max-width: 1024px)").matches);
+  catalogWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
   document.getElementById("catalogDialog").showModal();
   if (!catalogWizard.isActive()) setTimeout(() => form.elements.code.focus(), 0);
 }
@@ -2395,7 +2395,8 @@ function openEntryForm(item = null, preferredClientId = "", request = null) {
     : request ? "Valor sugerido pelo pedido. Você pode ajustar antes de salvar." : "Selecione o cliente e o serviço para preencher o valor.";
   renderReferenceList();
   renderAdditionalServiceList();
-  setServiceWizardMode(!item && window.matchMedia("(max-width: 1024px)").matches);
+  document.querySelectorAll("#serviceDialog .edit-hide-native").forEach((el) => el.classList.toggle("hidden", Boolean(item)));
+  setServiceWizardMode(window.matchMedia("(max-width: 1024px)").matches);
   document.getElementById("serviceDialog").showModal();
   if (!serviceWizardModeActive()) setTimeout(() => form.elements.clientSearch.focus(), 0);
 }
@@ -2451,11 +2452,18 @@ function syncServiceWizardChoiceSelection(stepElement) {
   }
 }
 
+function shouldSkipServiceWizardStep(target, form) {
+  if (target === 6) return form.elements.hasAdditionalServices.disabled;
+  if (target === 7) return form.elements.hasSupplierService.disabled;
+  if (target === 8) return form.elements.hasSupplierService.disabled || !form.elements.hasSupplierService.checked;
+  return false;
+}
+
 function goToServiceWizardStep(step) {
   const form = document.getElementById("serviceForm");
   const direction = step >= serviceWizardStep ? 1 : -1;
   let target = Math.min(Math.max(step, 1), SERVICE_WIZARD_STEP_COUNT);
-  while (target > 1 && target < SERVICE_WIZARD_STEP_COUNT && target === 8 && !form.elements.hasSupplierService.checked) {
+  while (target > 1 && target < SERVICE_WIZARD_STEP_COUNT && shouldSkipServiceWizardStep(target, form)) {
     target += direction;
   }
   serviceWizardStep = Math.min(Math.max(target, 1), SERVICE_WIZARD_STEP_COUNT);
@@ -2513,6 +2521,14 @@ function validateServiceWizardStep(step) {
     setServiceCatalogError();
   }
   if (step === 4) {
+    if (form.elements.entryId.value) {
+      if (!form.elements.reference.value.trim()) {
+        alert("Informe a placa ou referência.");
+        form.elements.reference.focus();
+        return false;
+      }
+      return true;
+    }
     if (form.elements.reference.value.trim()) addCurrentReference();
     if (!serviceReferenceValues.length) {
       alert("Adicione pelo menos uma placa ou referência.");
@@ -2739,8 +2755,10 @@ document.getElementById("serviceDialog").addEventListener("click", (event) => {
       syncServiceCatalogSelection();
       renderServiceCatalogPicker();
     } else if (key === "additionalCatalog") {
-      if (additionalServiceValues.some((service) => service.catalogId === itemId)) {
-        removeAdditionalServiceByCatalogId(itemId);
+      const existingAdditional = additionalServiceValues.find((service) => service.catalogId === itemId);
+      if (existingAdditional) {
+        if (existingAdditional.locked) alert("Este serviço complementar já está em uma cobrança e não pode ser removido aqui.");
+        else removeAdditionalServiceByCatalogId(itemId);
       } else {
         form.elements.additionalCatalogSearch.value = label;
         addAdditionalService();
@@ -2753,10 +2771,11 @@ document.getElementById("serviceDialog").addEventListener("click", (event) => {
       renderSupplierPicker();
       renderSupplierServicePicker();
     } else if (key === "supplierService") {
-      const alreadyAdded = (window.supplierModule?.currentClientSupplierServiceSelections() || [])
-        .some((item) => item.supplierId === form.elements.supplierId.value && item.supplierServiceId === itemId);
-      if (alreadyAdded) {
-        window.supplierModule?.removeClientSupplierServiceById(itemId);
+      const existingSupplierService = (window.supplierModule?.currentClientSupplierServiceSelections() || [])
+        .find((item) => item.supplierId === form.elements.supplierId.value && item.supplierServiceId === itemId);
+      if (existingSupplierService) {
+        if (existingSupplierService.locked) alert("Este serviço do fornecedor já está em uma conta a pagar e não pode ser removido aqui.");
+        else window.supplierModule?.removeClientSupplierServiceById(itemId);
       } else {
         form.elements.supplierServiceSearch.value = label;
         window.supplierModule?.addClientSupplierService();
@@ -3078,7 +3097,7 @@ function openPaymentForm(item = null, billing = null, mode = "partial") {
     hint.classList.add("hidden");
   }
   document.getElementById("paymentDialogTitle").textContent = item ? "Editar pagamento" : "Registrar pagamento";
-  paymentWizard.activate(!item && window.matchMedia("(max-width: 1024px)").matches);
+  paymentWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
   document.getElementById("paymentDialog").showModal();
   if (!paymentWizard.isActive()) setTimeout(() => form.elements.clientSearch.focus(), 0);
 }
@@ -3152,7 +3171,7 @@ function openPaymentMethodForm(method = null) {
   form.elements.link.value = method?.link || "";
   form.elements.active.checked = method?.active ?? true;
   document.getElementById("paymentMethodDialogTitle").textContent = method ? "Editar forma de pagamento" : "Nova forma de pagamento";
-  paymentMethodWizard.activate(!method && window.matchMedia("(max-width: 1024px)").matches);
+  paymentMethodWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
   document.getElementById("paymentMethodDialog").showModal();
   if (!paymentMethodWizard.isActive()) setTimeout(() => form.elements.name.focus(), 0);
 }
@@ -5491,7 +5510,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=109").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=110").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

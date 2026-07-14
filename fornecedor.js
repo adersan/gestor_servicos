@@ -464,7 +464,7 @@
       form.elements.status.value = item.status;
       form.elements.notes.value = item.notes || "";
       document.getElementById("editorTitle").textContent = "Editar serviço";
-      activateEntryWizard(false);
+      activateEntryWizard(true);
       document.getElementById("entryDialog").showModal();
     }
     const doneButton = event.target.closest("[data-mark-done]");

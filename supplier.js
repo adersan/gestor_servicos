@@ -297,7 +297,7 @@
     form.elements.notes.value = item?.notes || "";
     form.elements.isDefault.checked = Boolean(item?.isDefault);
     byId("supplierDialogTitle").textContent = item ? "Editar fornecedor" : "Novo fornecedor";
-    supplierWizard.activate(!item && window.matchMedia("(max-width: 1024px)").matches);
+    supplierWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
     byId("supplierDialog").showModal();
     if (!supplierWizard.isActive()) setTimeout(() => form.elements.name.focus(), 0);
   }
@@ -349,7 +349,7 @@
     form.elements.name.value = item?.name || "";
     form.elements.cost.value = item ? Number(item.cost).toFixed(2) : "";
     byId("supplierServiceDialogTitle").textContent = item ? "Editar serviço do fornecedor" : "Novo serviço do fornecedor";
-    supplierServiceWizard.activate(!item && window.matchMedia("(max-width: 1024px)").matches);
+    supplierServiceWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
     byId("supplierServiceDialog").showModal();
     if (!supplierServiceWizard.isActive()) setTimeout(() => form.elements.supplierSearch.focus(), 0);
   }
@@ -675,7 +675,7 @@
     form.elements.status.value = item?.status || "A fazer";
     form.elements.notes.value = item?.notes || "";
     byId("supplierEntryDialogTitle").textContent = item ? "Editar lançamento do fornecedor" : "Lançamento direto";
-    supplierEntryWizard.activate(!item && window.matchMedia("(max-width: 1024px)").matches);
+    supplierEntryWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
     byId("supplierEntryDialog").showModal();
     if (!supplierEntryWizard.isActive()) setTimeout(() => form.elements.supplierSearch.focus(), 0);
   }
