@@ -2,6 +2,7 @@ const STORAGE_KEY = "gestor-servicos-v1";
 const ALERT_MESSAGES_KEY = "gestor-servicos-alert-messages-v1";
 const SOUND_ALERTS_KEY = "gestor-servicos-sound-alerts-v1";
 const SYSTEM_SETTINGS_KEY = "gestor-servicos-system-settings-v1";
+const APP_THEMES = ["verde", "azul", "grafite", "dark", "bluedark"];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 
@@ -89,15 +90,25 @@ function loadSystemSettings() {
       weekStartDay: Number.isInteger(Number(parsed.weekStartDay)) ? Number(parsed.weekStartDay) : 0,
       weekEndDay: Number.isInteger(Number(parsed.weekEndDay)) ? Number(parsed.weekEndDay) : 5,
       askEntryContinuation: parsed.askEntryContinuation !== false,
-      offerSupplierShare: parsed.offerSupplierShare !== false
+      offerSupplierShare: parsed.offerSupplierShare !== false,
+      theme: APP_THEMES.includes(parsed.theme) ? parsed.theme : "verde"
     };
   } catch {
-    return { weekStartDay: 0, weekEndDay: 5, askEntryContinuation: true, offerSupplierShare: true };
+    return { weekStartDay: 0, weekEndDay: 5, askEntryContinuation: true, offerSupplierShare: true, theme: "verde" };
   }
 }
 
 function saveSystemSettings() {
   localStorage.setItem(SYSTEM_SETTINGS_KEY, JSON.stringify(systemSettings));
+}
+
+function applyTheme() {
+  const theme = systemSettings.theme || "verde";
+  if (theme === "verde") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  document.querySelectorAll("[data-theme-option]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.themeOption === theme);
+  });
 }
 
 function saveState() {
@@ -1849,6 +1860,7 @@ function renderSystemSettings() {
   if (askEntryContinuationCheckbox) askEntryContinuationCheckbox.checked = systemSettings.askEntryContinuation !== false;
   const offerSupplierShareCheckbox = document.getElementById("settingsOfferSupplierShare");
   if (offerSupplierShareCheckbox) offerSupplierShareCheckbox.checked = systemSettings.offerSupplierShare !== false;
+  applyTheme();
 }
 
 function escapeHtml(value) {
@@ -5496,6 +5508,13 @@ document.getElementById("settingsOfferSupplierShare")?.addEventListener("change"
   systemSettings = { ...systemSettings, offerSupplierShare: event.currentTarget.checked };
   saveSystemSettings();
 });
+document.addEventListener("click", (event) => {
+  const themeButton = event.target.closest("[data-theme-option]");
+  if (!themeButton) return;
+  systemSettings = { ...systemSettings, theme: themeButton.dataset.themeOption };
+  saveSystemSettings();
+  applyTheme();
+});
 document.getElementById("addReferenceButton").addEventListener("click", addCurrentReference);
 document.querySelector('#serviceForm input[name="hasAdditionalServices"]').addEventListener("change", toggleAdditionalServices);
 document.querySelector('#serviceForm input[name="additionalCatalogSearch"]').addEventListener("input", syncAdditionalCatalogSelection);
@@ -5775,7 +5794,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=126").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=127").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

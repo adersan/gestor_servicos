@@ -6,7 +6,13 @@
   <meta name="theme-color" content="#173f35">
   <title>Gestor de Serviços</title>
   <link rel="manifest" href="manifest.webmanifest?v=2">
-  <link rel="stylesheet" href="styles.css?v=101">
+  <script>
+    try {
+      var savedTheme = JSON.parse(localStorage.getItem("gestor-servicos-system-settings-v1") || "{}").theme;
+      if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="styles.css?v=102">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -533,6 +539,18 @@
             <input type="checkbox" id="settingsOfferSupplierShare" checked>
             Perguntar apos cada lancamento com fornecedor
           </label>
+        </article>
+        <article class="panel settings-card">
+          <span class="eyebrow">Aparencia</span>
+          <h3>Tema de cores</h3>
+          <p class="meta">Escolha o tema deste aparelho. Os portais de cliente e fornecedor seguirao o tema em breve.</p>
+          <div class="theme-options">
+            <button type="button" data-theme-option="verde"><i style="background:#173f35"></i>Verde</button>
+            <button type="button" data-theme-option="azul"><i style="background:#1b3f66"></i>Azul</button>
+            <button type="button" data-theme-option="grafite"><i style="background:#3a464d"></i>Grafite</button>
+            <button type="button" data-theme-option="dark"><i style="background:#0f1613"></i>Dark</button>
+            <button type="button" data-theme-option="bluedark"><i style="background:#0d1420"></i>Blue Dark</button>
+          </div>
         </article>
         <article class="panel settings-card">
           <span class="eyebrow">Sistema</span>
@@ -1837,7 +1855,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=43"></script>
-  <script src="app.js?v=118"></script>
+  <script src="app.js?v=119"></script>
   <script src="supplier.js?v=52"></script>
 </body>
 </html>
