@@ -588,9 +588,19 @@
     return `${greeting}${lines}`;
   }
 
-  function openWhatsApp(url) {
-    const whatsappWindow = window.open(url, "gestor_servicos_whatsapp");
-    whatsappWindow?.focus?.();
+  function openWhatsApp(url, fallbackUrl) {
+    if (!fallbackUrl) {
+      window.location.href = url;
+      return;
+    }
+    let handled = false;
+    const markHandled = () => { handled = true; };
+    window.addEventListener("blur", markHandled, { once: true });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) markHandled();
+    }, { once: true });
+    window.location.href = url;
+    setTimeout(() => { if (!handled) window.location.href = fallbackUrl; }, 1500);
   }
 
   async function shareSupplierRequests(supplierId) {
@@ -607,18 +617,18 @@
         await navigator.share({ title: supplier.whatsappGroupName || supplier.name, text });
       } else {
         await navigator.clipboard.writeText(text);
-        openWhatsApp("https://web.whatsapp.com/");
-        showAppAlert(`Mensagem copiada. Escolha o grupo "${supplier.whatsappGroupName || supplier.name}" e cole a mensagem.`, { type: "success" });
+        openWhatsApp("whatsapp://send", "https://web.whatsapp.com/");
+        showAppAlert(`Mensagem copiada. Escolha o grupo "${supplier.whatsappGroupName || supplier.name}" no aplicativo do WhatsApp e cole a mensagem.`, { type: "success" });
       }
       return;
     }
     const digits = String(supplier.phone || "").replace(/\D/g, "");
     const phone = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
     if (!phone) return showAppAlert("Cadastre o WhatsApp deste fornecedor.", { type: "warning" });
-    const baseUrl = window.matchMedia("(pointer: coarse)").matches
-      ? "https://api.whatsapp.com/send"
-      : "https://web.whatsapp.com/send";
-    openWhatsApp(`${baseUrl}?phone=${phone}&text=${encodeURIComponent(text)}`);
+    const webFallback = window.matchMedia("(pointer: coarse)").matches
+      ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`
+      : `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
+    openWhatsApp(`whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}`, webFallback);
   }
 
   function offerSupplierRequestShare(entries) {
