@@ -47,9 +47,10 @@ export default async (request) => {
     const accessCode = randomAccessCode();
     const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
 
-    // Todo link novo ja nasce com acesso completo embutido (sem tela de senha)
-    // e tambem com identificador/senha, caso precise ser digitado manualmente.
-    // Financeiro e Relatorio de cobranca ficam sempre fora desse acesso completo.
+    // Todo link novo ja nasce com acesso completo (senha embutida no link) e
+    // tambem com identificador/senha, caso precise ser digitado manualmente.
+    // A tela de entrada sempre pergunta sem senha (restrito, sem Financeiro)
+    // ou com senha (acesso irrestrito, incluindo Financeiro e Relatorio).
     const fullAccessCode = randomAccessCode();
     const identifier = randomIdentifier();
     const password = randomPassword();
@@ -65,8 +66,8 @@ export default async (request) => {
       identifier_hash: identifierHash(identifier),
       password_hash: passwordHash(password),
       full_token_hash: accessCodeHash(fullAccessCode),
-      full_show_financial: false,
-      full_show_billing: false,
+      full_show_financial: true,
+      full_show_billing: true,
       visible_service_ids: Array.isArray(visibleServiceIds) ? visibleServiceIds : [],
       plain_access_code: accessCode,
       plain_full_token: fullAccessCode,

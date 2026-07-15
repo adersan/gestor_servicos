@@ -2286,7 +2286,6 @@ function trackingLinkUrl(accessCode, fullAccessCode) {
 }
 
 let activeRequestsTab = "requests";
-let trackingLinksLoaded = false;
 
 async function renderTrackingLinksPanel() {
   const list = document.getElementById("trackingLinksList");
@@ -2301,7 +2300,6 @@ async function renderTrackingLinksPanel() {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Não foi possível carregar os links gerados.");
-    trackingLinksLoaded = true;
     const links = result.links || [];
     list.innerHTML = links.length ? links.map((item) => {
       const url = trackingLinkUrl(item.accessCode, item.fullAccessCode);
@@ -3775,14 +3773,10 @@ async function shareBillingByWhatsApp(billing) {
   const phone = whatsappPhone(client);
   const automaticAccessUrl = await issueClientMagicLink(billing);
   const text = whatsappBillingMessage(billing, automaticAccessUrl);
-  const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
-  const link = document.createElement("a");
-  link.href = `https://api.whatsapp.com/send?${query}`;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  openWhatsApp(
+    `whatsapp://send?${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`,
+    whatsappWebFallback(phone, text)
+  );
   return "WhatsApp";
 }
 
@@ -3863,6 +3857,28 @@ function whatsappPhone(client) {
   const digits = String(client?.phone || "").replace(/\D/g, "");
   if (!digits) return "";
   return digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
+}
+
+function openWhatsApp(url, fallbackUrl) {
+  if (!fallbackUrl) {
+    window.location.href = url;
+    return;
+  }
+  let handled = false;
+  const markHandled = () => { handled = true; };
+  window.addEventListener("blur", markHandled, { once: true });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) markHandled();
+  }, { once: true });
+  window.location.href = url;
+  setTimeout(() => { if (!handled) window.open(fallbackUrl, "_blank", "noopener"); }, 1500);
+}
+
+function whatsappWebFallback(phone, text) {
+  const base = window.matchMedia("(pointer: coarse)").matches
+    ? "https://api.whatsapp.com/send"
+    : "https://web.whatsapp.com/send";
+  return `${base}?${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
 }
 
 async function issueClientAccess(billing) {
@@ -4131,7 +4147,12 @@ document.addEventListener("click", async (event) => {
     });
     document.getElementById("requestsTabPanel").classList.toggle("hidden", activeRequestsTab !== "requests");
     document.getElementById("trackingLinksTabPanel").classList.toggle("hidden", activeRequestsTab !== "links");
-    if (activeRequestsTab === "links" && !trackingLinksLoaded) renderTrackingLinksPanel();
+    if (activeRequestsTab === "links") renderTrackingLinksPanel();
+    return;
+  }
+  const refreshTrackingLinksButton = event.target.closest("[data-refresh-tracking-links]");
+  if (refreshTrackingLinksButton) {
+    renderTrackingLinksPanel();
     return;
   }
   const copyTrackingLink = event.target.closest("[data-copy-tracking-link]");
@@ -5163,14 +5184,10 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
       : "";
     const text = `Ol\u00E1, ${client?.name || ""}!\n\nAcompanhe seus servi\u00E7os de ${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)} pelo link abaixo:\n\n${url}${requestText}`;
     const phone = whatsappPhone(client);
-    const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
-    const link = document.createElement("a");
-    link.href = `https://api.whatsapp.com/send?${query}`;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    openWhatsApp(
+      `whatsapp://send?${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`,
+      whatsappWebFallback(phone, text)
+    );
     document.getElementById("trackingAccessLink").textContent = url;
     document.getElementById("trackingAccessIdentifier").textContent = result.identifier;
     document.getElementById("trackingAccessPassword").textContent = result.password;
@@ -5925,7 +5942,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=134").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=135").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

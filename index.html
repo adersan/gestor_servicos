@@ -299,7 +299,13 @@
         <div id="requestList" class="request-grid"></div>
       </section>
       <section id="trackingLinksTabPanel" class="hidden">
-        <p class="meta">Um link por cliente. Gerar um novo em "Link de acompanhamento" (tela de Lançamentos) substitui o anterior.</p>
+        <div class="section-heading compact-heading">
+          <p class="meta">Um link por cliente. Gerar um novo substitui o anterior (link, identificador e senha).</p>
+          <div class="heading-actions">
+            <button class="secondary" type="button" data-refresh-tracking-links>Atualizar</button>
+            <button class="primary" type="button" data-dialog="trackingDialog">Gerar novo link</button>
+          </div>
+        </div>
         <div id="trackingLinksList" class="request-grid"></div>
       </section>
     </section>
@@ -1047,7 +1053,7 @@
   <dialog id="trackingDialog">
     <form id="trackingForm" method="dialog">
       <div class="dialog-heading"><h2>Acompanhamento do cliente</h2><button class="icon-button" value="cancel" data-close-dialog>×</button></div>
-      <p class="meta wizard-hide-native">Cria um link de acompanhamento com acesso completo aos serviços escolhidos abaixo (sem Financeiro nem valores). O link já abre com o acesso liberado, e o identificador/senha ficam guardados para reenviar depois.</p>
+      <p class="meta wizard-hide-native">Cria um link de acompanhamento. Quem abrir escolhe entrar sem senha (só Serviços, sem valores) ou com senha (acesso irrestrito, incluindo Financeiro). O identificador/senha ficam guardados para reenviar depois.</p>
       <input name="clientId" type="hidden">
       <div id="trackingWizardProgress" class="wizard-progress wizard-only hidden">
         <div class="wizard-progress-track"><div id="trackingWizardProgressFill" class="wizard-progress-fill"></div></div>
@@ -1867,7 +1873,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=43"></script>
-  <script src="app.js?v=122"></script>
+  <script src="app.js?v=123"></script>
   <script src="supplier.js?v=54"></script>
 </body>
 </html>

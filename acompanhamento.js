@@ -701,9 +701,11 @@ async function loadTracking() {
   if (!accessCode) throw new Error("Este link de acompanhamento e invalido.");
   document.getElementById("loadingPanel").classList.remove("hidden");
   document.getElementById("errorPanel").classList.add("hidden");
-  const data = await requestData(accessCode, storedTrackingCredentials());
   const storedChoice = sessionStorage.getItem(trackingChoiceKey);
-  if (data.linkMode === "gated" && data.tier === "restricted" && !storedChoice) {
+  // Na primeira visita (sem escolha guardada) nao aplica a senha embutida ainda,
+  // para sempre perguntar "Entrar sem senha / Entrar com senha" antes de liberar o acesso completo.
+  const data = await requestData(accessCode, storedChoice ? storedTrackingCredentials() : {});
+  if (data.linkMode === "gated" && !storedChoice) {
     pendingRestrictedData = data;
     showAccessChoice();
     return;
@@ -738,9 +740,33 @@ function showError(error) {
   target.classList.remove("hidden");
 }
 
+async function enterFullAccess(credentials) {
+  const accessCode = sessionStorage.getItem(trackingTokenKey);
+  const data = await requestData(accessCode, { ...storedTrackingCredentials(), ...credentials });
+  if (data.tier !== "full") throw new Error("Identificador ou senha inválidos.");
+  if (credentials.identifier) sessionStorage.setItem(trackingIdentifierKey, credentials.identifier);
+  if (credentials.password) sessionStorage.setItem(trackingPasswordKey, credentials.password);
+  sessionStorage.setItem(trackingChoiceKey, "full");
+  pendingRestrictedData = null;
+  document.getElementById("trackingAccessChoice").classList.add("hidden");
+  render(data);
+}
+
 document.getElementById("refreshButton").addEventListener("click", refreshTracking);
 document.getElementById("enterWithoutPasswordButton").addEventListener("click", enterRestricted);
-document.getElementById("showPasswordFormButton").addEventListener("click", () => {
+document.getElementById("showPasswordFormButton").addEventListener("click", async (event) => {
+  if (sessionStorage.getItem(trackingFullKey)) {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      await enterFullAccess({});
+      return;
+    } catch (error) {
+      // Token embutido invalido/expirado: cai para o formulario manual abaixo.
+    } finally {
+      button.disabled = false;
+    }
+  }
   document.getElementById("trackingAccessButtons").classList.add("hidden");
   document.getElementById("trackingPasswordForm").classList.remove("hidden");
 });
@@ -763,18 +789,7 @@ document.getElementById("trackingPasswordForm").addEventListener("submit", async
   button.disabled = true;
   button.textContent = "Entrando...";
   try {
-    const accessCode = sessionStorage.getItem(trackingTokenKey);
-    const data = await requestData(accessCode, { ...storedTrackingCredentials(), identifier, password });
-    if (data.tier !== "full") {
-      errorBox.textContent = "Identificador ou senha inválidos.";
-      return;
-    }
-    sessionStorage.setItem(trackingIdentifierKey, identifier);
-    sessionStorage.setItem(trackingPasswordKey, password);
-    sessionStorage.setItem(trackingChoiceKey, "full");
-    pendingRestrictedData = null;
-    document.getElementById("trackingAccessChoice").classList.add("hidden");
-    render(data);
+    await enterFullAccess({ identifier, password });
   } catch (error) {
     errorBox.textContent = error.message;
   } finally {
