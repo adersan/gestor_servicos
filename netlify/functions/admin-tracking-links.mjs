@@ -1,6 +1,29 @@
 import { json, requireAdmin, supabase } from "./_shared/server.mjs";
 
 export default async (request) => {
+  if (request.method === "DELETE") {
+    try {
+      await requireAdmin(request);
+      const { id } = await request.json();
+      if (!id) return json(400, { error: "Link não informado." });
+      await supabase(`/rest/v1/service_tracking_links?id=eq.${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        prefer: "return=minimal",
+        body: JSON.stringify({
+          active: false,
+          plain_access_code: null,
+          plain_full_token: null,
+          plain_identifier: null,
+          plain_password: null
+        })
+      });
+      return json(200, { ok: true });
+    } catch (error) {
+      console.error(error);
+      return json(401, { error: error.message || "Não foi possível excluir o link." });
+    }
+  }
+
   if (request.method !== "GET") return json(405, { error: "Método não permitido." });
 
   try {

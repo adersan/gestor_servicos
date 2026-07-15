@@ -2305,15 +2305,17 @@ async function renderTrackingLinksPanel() {
       const url = trackingLinkUrl(item.accessCode, item.fullAccessCode);
       return `<article class="request-card tracking-link-card">
         <div class="request-card-head"><h3>${escapeHtml(item.clientName)}</h3></div>
-        <p class="meta">Período: ${formatDate(item.periodStart)} a ${formatDate(item.periodEnd)}</p>
-        <p class="meta">Gerado em ${new Date(item.createdAt).toLocaleString("pt-BR")}</p>
-        <div class="tracking-link-field"><span>Link</span><strong>${escapeHtml(url)}</strong></div>
-        <div class="tracking-link-field"><span>Identificador</span><strong>${escapeHtml(item.identifier || "")}</strong></div>
-        <div class="tracking-link-field"><span>Senha</span><strong>${escapeHtml(item.password || "")}</strong></div>
+        <p class="tracking-link-meta">Período ${formatDate(item.periodStart)} a ${formatDate(item.periodEnd)} · Gerado em ${new Date(item.createdAt).toLocaleString("pt-BR")}</p>
+        <div class="tracking-link-fields">
+          <div class="tracking-link-field"><span>Link</span><strong>${escapeHtml(url)}</strong></div>
+          <div class="tracking-link-field"><span>Identificador</span><strong>${escapeHtml(item.identifier || "")}</strong></div>
+          <div class="tracking-link-field"><span>Senha</span><strong>${escapeHtml(item.password || "")}</strong></div>
+        </div>
         <div class="card-actions">
           <button class="table-action" type="button" data-copy-tracking-link="${escapeHtml(url)}">Copiar link</button>
           <button class="table-action" type="button" data-copy-tracking-identifier="${escapeHtml(item.identifier || "")}">Copiar ID</button>
           <button class="table-action" type="button" data-copy-tracking-password="${escapeHtml(item.password || "")}">Copiar senha</button>
+          <button class="table-action danger" type="button" data-delete-tracking-link="${item.id}">Excluir</button>
         </div>
       </article>`;
     }).join("") : emptyMarkup();
@@ -4170,6 +4172,34 @@ document.addEventListener("click", async (event) => {
     await copyText(copyTrackingPassword.dataset.copyTrackingPassword, "Senha");
     return;
   }
+  const deleteTrackingLinkButton = event.target.closest("[data-delete-tracking-link]");
+  if (deleteTrackingLinkButton) {
+    if (await showAppConfirm("Excluir este link? O acesso e a senha deixam de funcionar imediatamente.")) {
+      deleteTrackingLinkButton.disabled = true;
+      try {
+        const { data } = await window.supabaseClient.auth.getSession();
+        const accessToken = data.session?.access_token;
+        if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+        const response = await fetch("/.netlify/functions/admin-tracking-links", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({ id: deleteTrackingLinkButton.dataset.deleteTrackingLink })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Não foi possível excluir o link.");
+        showAppAlert("Link excluído.", { type: "success" });
+        renderTrackingLinksPanel();
+      } catch (error) {
+        console.error(error);
+        showAppAlert(error.message, { type: "error" });
+        deleteTrackingLinkButton.disabled = false;
+      }
+    }
+    return;
+  }
   if (clientTab) {
     showView(clientTab.dataset.clientView);
     return;
@@ -5942,7 +5972,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=135").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=136").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

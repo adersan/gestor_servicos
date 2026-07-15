@@ -742,10 +742,10 @@ function showError(error) {
 
 async function enterFullAccess(credentials) {
   const accessCode = sessionStorage.getItem(trackingTokenKey);
-  const data = await requestData(accessCode, { ...storedTrackingCredentials(), ...credentials });
+  const data = await requestData(accessCode, { identifier: credentials.identifier, password: credentials.password });
   if (data.tier !== "full") throw new Error("Identificador ou senha inválidos.");
-  if (credentials.identifier) sessionStorage.setItem(trackingIdentifierKey, credentials.identifier);
-  if (credentials.password) sessionStorage.setItem(trackingPasswordKey, credentials.password);
+  sessionStorage.setItem(trackingIdentifierKey, credentials.identifier);
+  sessionStorage.setItem(trackingPasswordKey, credentials.password);
   sessionStorage.setItem(trackingChoiceKey, "full");
   pendingRestrictedData = null;
   document.getElementById("trackingAccessChoice").classList.add("hidden");
@@ -754,19 +754,7 @@ async function enterFullAccess(credentials) {
 
 document.getElementById("refreshButton").addEventListener("click", refreshTracking);
 document.getElementById("enterWithoutPasswordButton").addEventListener("click", enterRestricted);
-document.getElementById("showPasswordFormButton").addEventListener("click", async (event) => {
-  if (sessionStorage.getItem(trackingFullKey)) {
-    const button = event.currentTarget;
-    button.disabled = true;
-    try {
-      await enterFullAccess({});
-      return;
-    } catch (error) {
-      // Token embutido invalido/expirado: cai para o formulario manual abaixo.
-    } finally {
-      button.disabled = false;
-    }
-  }
+document.getElementById("showPasswordFormButton").addEventListener("click", () => {
   document.getElementById("trackingAccessButtons").classList.add("hidden");
   document.getElementById("trackingPasswordForm").classList.remove("hidden");
 });

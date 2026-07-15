@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=106">
+  <link rel="stylesheet" href="styles.css?v=107">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -1108,15 +1108,16 @@
         <div id="trackingAccessResult" class="tracking-access-result hidden" aria-live="polite">
           <strong id="trackingAccessStatus">Link gerado</strong>
           <div class="tracking-access-credentials">
-            <span>Link: <strong id="trackingAccessLink"></strong></span>
-            <span>Identificador: <strong id="trackingAccessIdentifier"></strong></span>
-            <span>Senha: <strong id="trackingAccessPassword"></strong></span>
+            <span><small>Link</small><strong id="trackingAccessLink"></strong></span>
+            <span><small>Identificador</small><strong id="trackingAccessIdentifier"></strong></span>
+            <span><small>Senha</small><strong id="trackingAccessPassword"></strong></span>
           </div>
           <div class="tracking-access-actions">
             <button class="secondary" type="button" data-copy-tracking="link">Copiar link</button>
             <button class="secondary" type="button" data-copy-tracking="identifier">Copiar identificador</button>
             <button class="secondary" type="button" data-copy-tracking="password">Copiar senha</button>
           </div>
+          <button class="primary full" type="button" data-close-dialog>Fechar</button>
         </div>
         <p class="hint">Um novo link para o mesmo cliente invalidará o anterior (link, identificador e senha). Este link também fica salvo na aba "Links gerados" em Pedido on-line.</p>
       </div>
@@ -1873,7 +1874,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=43"></script>
-  <script src="app.js?v=123"></script>
+  <script src="app.js?v=124"></script>
   <script src="supplier.js?v=54"></script>
 </body>
 </html>
