@@ -1144,19 +1144,21 @@ function renderDashboardV2() {
   const paymentsReceivedFor = (range) => state.payments.filter((item) => inPeriod(item.date, range));
   const billingsFor = (range) => state.billings.filter((item) =>
     item.status !== "Cancelada" && inPeriod(item.endDate, range));
+  const supplierEntriesFor = (range) => state.supplierEntries.filter((item) =>
+    item.status !== "Cancelado" && inPeriod(item.date, range));
   const serviceMetrics = (range) => {
     const services = servicesFor(range);
     const primaryServices = services.filter((item) => !item.isSecondary);
-    const complementaryServices = services.filter((item) => item.isSecondary);
+    const supplierEntries = supplierEntriesFor(range);
     return {
       services,
       primaryServices,
-      complementaryServices,
+      supplierEntries,
       pending: primaryServices.filter((item) => item.status === "A fazer"),
       done: primaryServices.filter((item) => item.status === "Pronto"),
       delivered: primaryServices.filter((item) => item.status === "Entregue"),
       primaryTotal: primaryServices.reduce((sum, item) => sum + Number(item.amount), 0),
-      complementaryTotal: complementaryServices.reduce((sum, item) => sum + Number(item.amount), 0),
+      supplierTotal: supplierEntries.reduce((sum, item) => sum + Number(item.amount), 0),
       total: services.reduce((sum, item) => sum + Number(item.amount), 0)
     };
   };
@@ -1169,7 +1171,7 @@ function renderDashboardV2() {
     return `${card("A fazer", metrics.pending, "metric-pending", "A fazer")}
       ${card("Feitos", metrics.done, "metric-done", "Pronto")}
       ${card("Entregues", metrics.delivered, "metric-delivered", "Entregue")}
-      <article class="metric-card metric-complementary" data-service-status-shortcut="" role="button" tabindex="0" title="Ver lançamentos"><span>Serviços complementares</span><strong>${metrics.complementaryServices.length}</strong><small>${money.format(metrics.complementaryTotal)}</small></article>
+      <article class="metric-card metric-supplier" data-open-view="suppliers" role="button" tabindex="0" title="Ver fornecedores"><span>Serviços Fornecedores</span><strong>${metrics.supplierEntries.length}</strong><small>${money.format(metrics.supplierTotal)}</small></article>
       <article class="metric-card metric-main" data-service-status-shortcut="" role="button" tabindex="0" title="Ver lançamentos"><span>Total de serviços</span><strong>${metrics.primaryServices.length}</strong><small>${money.format(metrics.primaryTotal)}</small></article>`;
   };
 
@@ -2239,8 +2241,6 @@ function renderTrackingWizardSummary() {
     ["Período", `${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)}`],
     ["Validade", `${form.elements.validDays.value} dias`],
     ["Pedidos on-line", form.elements.allowRequests.checked ? "Sim" : "Não"],
-    ["Acesso completo", form.elements.passwordMode.value === "typed" ? "Identificador e senha" : "Link com senha embutida"],
-    ["Abas visíveis", [form.elements.showFinancial.checked ? "Financeiro" : null, form.elements.showBilling.checked ? "Relatório de cobrança" : null].filter(Boolean).join(", ") || "Nenhuma"],
     ["Serviços visíveis", `${visibleCount} de ${totalCount}`]
   ];
   target.innerHTML = rows
@@ -2254,7 +2254,7 @@ const trackingWizard = createDialogWizard({
   navId: "trackingWizardNav",
   progressFillId: "trackingWizardProgressFill",
   progressLabelId: "trackingWizardProgressLabel",
-  stepCount: 8,
+  stepCount: 6,
   lastStepLabel: "Gerar e compartilhar",
   onReachLastStep: renderTrackingWizardSummary,
   validateStep: (step, form) => {
@@ -2279,6 +2279,51 @@ const trackingWizard = createDialogWizard({
     return true;
   }
 });
+
+function trackingLinkUrl(accessCode, fullAccessCode) {
+  const base = `${location.origin}/acompanhamento.html?access=${encodeURIComponent(accessCode)}`;
+  return fullAccessCode ? `${base}&full=${encodeURIComponent(fullAccessCode)}` : base;
+}
+
+let activeRequestsTab = "requests";
+let trackingLinksLoaded = false;
+
+async function renderTrackingLinksPanel() {
+  const list = document.getElementById("trackingLinksList");
+  if (!list) return;
+  list.innerHTML = `<p class="meta">Carregando...</p>`;
+  try {
+    const { data } = await window.supabaseClient.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+    const response = await fetch("/.netlify/functions/admin-tracking-links", {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Não foi possível carregar os links gerados.");
+    trackingLinksLoaded = true;
+    const links = result.links || [];
+    list.innerHTML = links.length ? links.map((item) => {
+      const url = trackingLinkUrl(item.accessCode, item.fullAccessCode);
+      return `<article class="request-card tracking-link-card">
+        <div class="request-card-head"><h3>${escapeHtml(item.clientName)}</h3></div>
+        <p class="meta">Período: ${formatDate(item.periodStart)} a ${formatDate(item.periodEnd)}</p>
+        <p class="meta">Gerado em ${new Date(item.createdAt).toLocaleString("pt-BR")}</p>
+        <div class="tracking-link-field"><span>Link</span><strong>${escapeHtml(url)}</strong></div>
+        <div class="tracking-link-field"><span>Identificador</span><strong>${escapeHtml(item.identifier || "")}</strong></div>
+        <div class="tracking-link-field"><span>Senha</span><strong>${escapeHtml(item.password || "")}</strong></div>
+        <div class="card-actions">
+          <button class="table-action" type="button" data-copy-tracking-link="${escapeHtml(url)}">Copiar link</button>
+          <button class="table-action" type="button" data-copy-tracking-identifier="${escapeHtml(item.identifier || "")}">Copiar ID</button>
+          <button class="table-action" type="button" data-copy-tracking-password="${escapeHtml(item.password || "")}">Copiar senha</button>
+        </div>
+      </article>`;
+    }).join("") : emptyMarkup();
+  } catch (error) {
+    console.error(error);
+    list.innerHTML = `<p class="meta">${escapeHtml(error.message)}</p>`;
+  }
+}
 
 function openTrackingForm() {
   const form = document.getElementById("trackingForm");
@@ -4078,6 +4123,32 @@ document.addEventListener("click", async (event) => {
     activeDashboardTab = dashboardTab.dataset.dashboardTab;
     renderDashboardV2();
   }
+  const requestTabButton = event.target.closest("[data-request-tab]");
+  if (requestTabButton) {
+    activeRequestsTab = requestTabButton.dataset.requestTab;
+    document.querySelectorAll("[data-request-tab]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.requestTab === activeRequestsTab);
+    });
+    document.getElementById("requestsTabPanel").classList.toggle("hidden", activeRequestsTab !== "requests");
+    document.getElementById("trackingLinksTabPanel").classList.toggle("hidden", activeRequestsTab !== "links");
+    if (activeRequestsTab === "links" && !trackingLinksLoaded) renderTrackingLinksPanel();
+    return;
+  }
+  const copyTrackingLink = event.target.closest("[data-copy-tracking-link]");
+  if (copyTrackingLink) {
+    await copyText(copyTrackingLink.dataset.copyTrackingLink, "Link");
+    return;
+  }
+  const copyTrackingIdentifier = event.target.closest("[data-copy-tracking-identifier]");
+  if (copyTrackingIdentifier) {
+    await copyText(copyTrackingIdentifier.dataset.copyTrackingIdentifier, "Identificador");
+    return;
+  }
+  const copyTrackingPassword = event.target.closest("[data-copy-tracking-password]");
+  if (copyTrackingPassword) {
+    await copyText(copyTrackingPassword.dataset.copyTrackingPassword, "Senha");
+    return;
+  }
   if (clientTab) {
     showView(clientTab.dataset.clientView);
     return;
@@ -4922,6 +4993,16 @@ document.getElementById("cancelServiceForm").addEventListener("submit", (event) 
         item.status = "Cancelado";
         item.updatedAt = now;
       });
+  } else {
+    state.supplierEntries
+      .filter((item) => targetIds.has(item.clientServiceEntryId) && item.status !== "Cancelado" && item.status !== "Entregue")
+      .forEach((item) => {
+        item.status = "Entregue";
+        item.doneAt ||= now;
+        item.deliveredAt = now;
+        item.lastChangedBy = adminDisplayName();
+        item.updatedAt = now;
+      });
   }
   event.currentTarget.closest("dialog").close();
   saveState();
@@ -5053,7 +5134,6 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
   button.disabled = true;
   button.textContent = "Gerando link...";
   const formData = new FormData(form);
-  const passwordMode = formData.get("passwordMode") || "embedded";
   const visibleServiceIds = formData.getAll("visibleServiceId");
   try {
     const { data } = await window.supabaseClient.auth.getSession();
@@ -5071,26 +5151,17 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
         endDate: form.elements.endDate.value,
         validDays: Number(form.elements.validDays.value),
         allowRequests: form.elements.allowRequests.checked,
-        passwordMode,
-        showFinancial: form.elements.showFinancial.checked,
-        showBilling: form.elements.showBilling.checked,
         visibleServiceIds
       })
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Não foi possível gerar o link.");
     const client = clientById(form.elements.clientId.value);
-    const baseUrl = `${location.origin}/acompanhamento.html?access=${encodeURIComponent(result.accessCode)}`;
-    const url = passwordMode === "embedded" && result.fullAccessCode
-      ? `${baseUrl}&full=${encodeURIComponent(result.fullAccessCode)}`
-      : baseUrl;
+    const url = trackingLinkUrl(result.accessCode, result.fullAccessCode);
     const requestText = form.elements.allowRequests.checked
       ? "\n\nNeste link voc\u00EA tamb\u00E9m pode enviar novos pedidos."
       : "";
-    const passwordText = passwordMode === "typed" && result.identifier
-      ? `\n\nPara acesso completo, use:\nIdentificador: ${result.identifier}\nSenha: ${result.password}`
-      : "";
-    const text = `Ol\u00E1, ${client?.name || ""}!\n\nAcompanhe seus servi\u00E7os de ${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)} pelo link abaixo:\n\n${url}${requestText}${passwordText}\n\nVoc\u00EA pode entrar sem senha s\u00F3 para acompanhar, ou usar a senha para acesso completo.`;
+    const text = `Ol\u00E1, ${client?.name || ""}!\n\nAcompanhe seus servi\u00E7os de ${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)} pelo link abaixo:\n\n${url}${requestText}`;
     const phone = whatsappPhone(client);
     const query = `${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`;
     const link = document.createElement("a");
@@ -5100,13 +5171,11 @@ document.getElementById("trackingForm").addEventListener("submit", async (event)
     document.body.appendChild(link);
     link.click();
     link.remove();
-    if (passwordMode === "typed" && result.identifier) {
-      document.getElementById("trackingAccessIdentifier").textContent = result.identifier;
-      document.getElementById("trackingAccessPassword").textContent = result.password;
-      document.getElementById("trackingAccessResult").classList.remove("hidden");
-    } else {
-      form.closest("dialog").close();
-    }
+    document.getElementById("trackingAccessLink").textContent = url;
+    document.getElementById("trackingAccessIdentifier").textContent = result.identifier;
+    document.getElementById("trackingAccessPassword").textContent = result.password;
+    document.getElementById("trackingAccessResult").classList.remove("hidden");
+    if (activeRequestsTab === "links") renderTrackingLinksPanel();
   } catch (error) {
     console.error(error);
     showAppAlert(error.message, { type: "error" });
@@ -5530,9 +5599,10 @@ document.querySelector('#trackingForm [data-tracking-services-none]').addEventLi
 document.getElementById("trackingAccessResult").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-copy-tracking]");
   if (!button) return;
-  const isPassword = button.dataset.copyTracking === "password";
-  const field = document.getElementById(isPassword ? "trackingAccessPassword" : "trackingAccessIdentifier");
-  await copyText(field.textContent, isPassword ? "Senha" : "Identificador");
+  const fieldId = { link: "trackingAccessLink", identifier: "trackingAccessIdentifier", password: "trackingAccessPassword" }[button.dataset.copyTracking];
+  const label = { link: "Link", identifier: "Identificador", password: "Senha" }[button.dataset.copyTracking];
+  const field = document.getElementById(fieldId);
+  await copyText(field.textContent, label);
 });
 document.querySelector('#paymentForm input[name="clientSearch"]').addEventListener("input", syncPaymentClientSelection);
 document.querySelector('#paymentForm input[name="clientSearch"]').addEventListener("change", syncPaymentClientSelection);
@@ -5855,7 +5925,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=133").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=134").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();

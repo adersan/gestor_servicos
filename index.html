@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=105">
+  <link rel="stylesheet" href="styles.css?v=106">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -281,17 +281,27 @@
         <div><span class="eyebrow">Entrada do cliente</span><h2>Pedidos recebidos</h2></div>
         <button class="secondary" data-open-view="services">Ir para lançamentos</button>
       </div>
-      <div id="requestSummary" class="dashboard-grid request-summary"></div>
-      <div class="filters">
-        <input id="requestSearch" type="search" placeholder="Buscar cliente, placa, serviço ou solicitante">
-        <select id="requestStatusFilter">
-          <option value="Novo">Novos</option>
-          <option value="">Todos</option>
-          <option value="Importado">Importados</option>
-          <option value="Cancelado">Cancelados</option>
-        </select>
+      <div class="dashboard-inner-tabs request-inner-tabs" role="tablist">
+        <button class="active" type="button" data-request-tab="requests">Pedidos</button>
+        <button type="button" data-request-tab="links">Links gerados</button>
       </div>
-      <div id="requestList" class="request-grid"></div>
+      <section id="requestsTabPanel">
+        <div id="requestSummary" class="dashboard-grid request-summary"></div>
+        <div class="filters">
+          <input id="requestSearch" type="search" placeholder="Buscar cliente, placa, serviço ou solicitante">
+          <select id="requestStatusFilter">
+            <option value="Novo">Novos</option>
+            <option value="">Todos</option>
+            <option value="Importado">Importados</option>
+            <option value="Cancelado">Cancelados</option>
+          </select>
+        </div>
+        <div id="requestList" class="request-grid"></div>
+      </section>
+      <section id="trackingLinksTabPanel" class="hidden">
+        <p class="meta">Um link por cliente. Gerar um novo em "Link de acompanhamento" (tela de Lançamentos) substitui o anterior.</p>
+        <div id="trackingLinksList" class="request-grid"></div>
+      </section>
     </section>
 
     <section id="payments" class="view">
@@ -1037,7 +1047,7 @@
   <dialog id="trackingDialog">
     <form id="trackingForm" method="dialog">
       <div class="dialog-heading"><h2>Acompanhamento do cliente</h2><button class="icon-button" value="cancel" data-close-dialog>×</button></div>
-      <p class="meta wizard-hide-native">Cria um link com dois niveis de acesso: sem senha (so a aba Servicos, sem valores) e com senha (acesso completo aos itens escolhidos abaixo).</p>
+      <p class="meta wizard-hide-native">Cria um link de acompanhamento com acesso completo aos serviços escolhidos abaixo (sem Financeiro nem valores). O link já abre com o acesso liberado, e o identificador/senha ficam guardados para reenviar depois.</p>
       <input name="clientId" type="hidden">
       <div id="trackingWizardProgress" class="wizard-progress wizard-only hidden">
         <div class="wizard-progress-track"><div id="trackingWizardProgressFill" class="wizard-progress-fill"></div></div>
@@ -1076,23 +1086,6 @@
         </label>
       </div>
       <div class="wizard-step" data-step="5">
-        <h3 class="wizard-step-title wizard-only hidden">Acesso completo (com senha)</h3>
-        <fieldset class="tracking-access-fieldset">
-          <legend>Acesso completo (com senha)</legend>
-          <label class="checkbox-label"><input type="radio" name="passwordMode" value="embedded" checked> Link com senha embutida (o cliente abre e já entra)</label>
-          <label class="checkbox-label"><input type="radio" name="passwordMode" value="typed"> Gerar identificador e senha para eu enviar ao cliente</label>
-        </fieldset>
-      </div>
-      <div class="wizard-step" data-step="6">
-        <h3 class="wizard-step-title wizard-only hidden">Abas do acesso completo</h3>
-        <fieldset class="tracking-access-fieldset">
-          <legend>Abas do acesso completo</legend>
-          <label class="checkbox-label"><input name="showFinancial" type="checkbox" checked> Financeiro</label>
-          <label class="checkbox-label"><input name="showBilling" type="checkbox" checked> Relatório de cobrança</label>
-          <p class="hint">O acesso sem senha mostra sempre só a aba Serviços, sem valores.</p>
-        </fieldset>
-      </div>
-      <div class="wizard-step" data-step="7">
         <h3 class="wizard-step-title wizard-only hidden">Serviços visíveis para o cliente</h3>
         <fieldset class="tracking-access-fieldset">
           <legend>Serviços visíveis para o cliente</legend>
@@ -1103,21 +1096,23 @@
           <div id="trackingServiceOptions" class="tracking-service-checklist"></div>
         </fieldset>
       </div>
-      <div class="wizard-step" data-step="8">
+      <div class="wizard-step" data-step="6">
         <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
         <div id="trackingWizardSummary" class="wizard-summary wizard-only hidden"></div>
         <div id="trackingAccessResult" class="tracking-access-result hidden" aria-live="polite">
-          <strong id="trackingAccessStatus">Acesso completo gerado</strong>
+          <strong id="trackingAccessStatus">Link gerado</strong>
           <div class="tracking-access-credentials">
+            <span>Link: <strong id="trackingAccessLink"></strong></span>
             <span>Identificador: <strong id="trackingAccessIdentifier"></strong></span>
             <span>Senha: <strong id="trackingAccessPassword"></strong></span>
           </div>
           <div class="tracking-access-actions">
+            <button class="secondary" type="button" data-copy-tracking="link">Copiar link</button>
             <button class="secondary" type="button" data-copy-tracking="identifier">Copiar identificador</button>
             <button class="secondary" type="button" data-copy-tracking="password">Copiar senha</button>
           </div>
         </div>
-        <p class="hint">Um novo link para o mesmo cliente e período invalidará o anterior.</p>
+        <p class="hint">Um novo link para o mesmo cliente invalidará o anterior (link, identificador e senha). Este link também fica salvo na aba "Links gerados" em Pedido on-line.</p>
       </div>
       <div class="dialog-form-actions">
         <button class="secondary" type="button" data-close-dialog>Cancelar</button>
@@ -1872,7 +1867,7 @@
   <script src="config.js?v=30"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=43"></script>
-  <script src="app.js?v=121"></script>
+  <script src="app.js?v=122"></script>
   <script src="supplier.js?v=54"></script>
 </body>
 </html>

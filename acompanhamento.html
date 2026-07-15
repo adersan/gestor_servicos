@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=24">
+  <link rel="stylesheet" href="acompanhamento.css?v=25">
 </head>
 <body>
   <header class="tracking-header">
@@ -62,6 +62,8 @@
           <div class="section-title"><h3>Serviços do período</h3><span id="serviceCount"></span></div>
           <div class="tracking-search">
             <input id="trackingServiceSearch" type="search" placeholder="Buscar placa, servico, status ou solicitante">
+            <input id="trackingServiceStartFilter" type="date" aria-label="Data inicial">
+            <input id="trackingServiceEndFilter" type="date" aria-label="Data final">
             <select id="trackingRequesterFilter" aria-label="Filtrar por solicitante"></select>
             <select id="trackingServiceSort" aria-label="Ordenar servicos">
               <option value="date">Data</option>
@@ -71,6 +73,10 @@
             </select>
           </div>
           <div id="serviceList" class="tracking-list"></div>
+        </section>
+        <section class="tracking-card tracking-cancelled-section">
+          <div class="section-title"><h3>Serviços cancelados</h3><span id="cancelledServiceCount"></span></div>
+          <div id="cancelledServiceList" class="tracking-list"></div>
         </section>
       </div>
       <div id="trackingViewFinancial" class="tracking-view hidden">
@@ -128,6 +134,6 @@
       <button type="button" class="tracking-primary" data-wizard-next>Continuar</button>
     </div>
   </dialog>
-  <script src="acompanhamento.js?v=26"></script>
+  <script src="acompanhamento.js?v=27"></script>
 </body>
 </html>

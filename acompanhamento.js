@@ -22,6 +22,7 @@ function formatDate(value) {
 function statusData(status) {
   if (status === "Pronto") return { label: "Feito", className: "done" };
   if (status === "Entregue") return { label: "Entregue", className: "delivered" };
+  if (status === "Cancelado") return { label: "Cancelado", className: "cancelled" };
   return { label: "A fazer", className: "pending" };
 }
 
@@ -452,10 +453,12 @@ function renderFinancialView(data) {
   const unbilled = data.currentServices || [];
   const unbilledTotal = unbilled.reduce((sum, item) => sum + Number(item.amount), 0);
   const billing = data.billing;
+  const openAmount = billing ? Number(billing.open_amount) : 0;
   document.getElementById("trackingFinancialSummary").innerHTML = `
     <article class="summary-item summary-pending"><span>Consumo não faturado</span><strong>${amountText(unbilledTotal)}</strong><small>${unbilled.length} servico(s)</small></article>
     <article class="summary-item summary-done"><span>Cobrança atual</span><strong>${billing ? amountText(billing.total_due) : "-"}</strong><small>${billing ? `${formatDate(billing.period_start)} a ${formatDate(billing.period_end)}` : "Nenhuma cobrança em aberto"}</small></article>
-    <article class="summary-item summary-total"><span>Saldo em aberto</span><strong>${billing ? amountText(billing.open_amount) : amountText(0)}</strong><small>${billing ? escapeHtml(billing.status) : "Sem cobrança"}</small></article>`;
+    <article class="summary-item summary-total"><span>Saldo em aberto</span><strong>${billing ? amountText(openAmount) : amountText(0)}</strong><small>${billing ? escapeHtml(billing.status) : "Sem cobrança"}</small></article>
+    <article class="summary-item summary-grand-total"><span>Total em aberto + não faturado</span><strong>${amountText(openAmount + unbilledTotal)}</strong><small>Saldo em aberto somado ao consumo não faturado</small></article>`;
   const groups = groupedServices(unbilled);
   document.getElementById("trackingUnbilledCount").textContent = `${unbilled.length} servico(s)`;
   document.getElementById("trackingUnbilledList").innerHTML = groups.length
@@ -523,6 +526,7 @@ function renderBillingView(data) {
 
   container.innerHTML = `
     <p class="meta">Período: ${formatDate(billing.period_start)} a ${formatDate(billing.period_end)} · ${billingHeaderStatusChip(billing.status)}</p>
+    <p class="tracking-billing-note">Esta cobrança se refere ao período de ${formatDate(billing.period_start)} a ${formatDate(billing.period_end)} e não inclui os serviços ainda em aberto (não faturados).</p>
     <section class="tracking-billing-section">
       <h3>Formas de pagamento</h3>
       <div class="tracking-billing-methods">${methods}</div>
@@ -568,8 +572,16 @@ function render(data) {
   trackingData = data;
   const requesterFilter = document.getElementById("trackingRequesterFilter")?.value || "";
   const sortBy = document.getElementById("trackingServiceSort")?.value || "date";
-  const services = sortTrackingServices([...(data.services || [])], sortBy)
-    .filter((item) => !requesterFilter || requesterName(item) === requesterFilter);
+  const startFilter = document.getElementById("trackingServiceStartFilter")?.value || "";
+  const endFilter = document.getElementById("trackingServiceEndFilter")?.value || "";
+  const matchesTrackingFilters = (item) =>
+    (!requesterFilter || requesterName(item) === requesterFilter)
+    && (!startFilter || item.service_date >= startFilter)
+    && (!endFilter || item.service_date <= endFilter);
+  const services = sortTrackingServices([...(data.services || [])].filter((item) => item.status !== "Cancelado"), sortBy)
+    .filter(matchesTrackingFilters);
+  const cancelledServices = sortTrackingServices([...(data.services || [])].filter((item) => item.status === "Cancelado"), sortBy)
+    .filter(matchesTrackingFilters);
   const counts = {
     pending: services.filter((item) => item.status === "A fazer").length,
     done: services.filter((item) => item.status === "Pronto").length,
@@ -594,7 +606,8 @@ function render(data) {
     <article class="summary-item summary-pending"><span>A fazer</span><strong>${counts.pending}</strong><small>${amountText(values.pending)}</small></article>
     <article class="summary-item summary-done"><span>Feitos</span><strong>${counts.done}</strong><small>${amountText(values.done)}</small></article>
     <article class="summary-item summary-delivered"><span>Entregues</span><strong>${counts.delivered}</strong><small>${amountText(values.delivered)}</small></article>
-    <article class="summary-item summary-total"><span>Total do periodo</span><strong>${trackingData?.showAmounts === false ? services.length : amountText(total)}</strong><small>${services.length} servico(s)</small></article>`;
+    <article class="summary-item summary-total"><span>Total do periodo</span><strong>${trackingData?.showAmounts === false ? services.length : amountText(total)}</strong><small>${services.length} servico(s)</small></article>
+    <article class="summary-item summary-cancelled"><span>Cancelados</span><strong>${cancelledServices.length}</strong><small>servico(s) cancelado(s)</small></article>`;
   renderCharts(services, counts);
   const serviceGroups = groupedServices(services).filter(({ primary, secondaries }) => {
     if (!search) return true;
@@ -614,6 +627,22 @@ function render(data) {
   document.getElementById("serviceList").innerHTML = serviceGroups.length
     ? serviceGroups.map(renderServiceItemCard).join("")
     : `<p class="tracking-message">Nenhum servico encontrado neste periodo.</p>`;
+  const cancelledGroups = groupedServices(cancelledServices).filter(({ primary, secondaries }) => {
+    if (!search) return true;
+    const status = statusData(primary.status);
+    return searchableText(
+      primary.service_name,
+      primary.reference,
+      primary.status,
+      primary.requested_by,
+      status.label,
+      ...secondaries.flatMap((item) => [item.service_name, item.reference, item.status, item.requested_by])
+    ).includes(search);
+  });
+  document.getElementById("cancelledServiceCount").textContent = `${cancelledServices.length} servico(s)`;
+  document.getElementById("cancelledServiceList").innerHTML = cancelledGroups.length
+    ? cancelledGroups.map(renderServiceItemCard).join("")
+    : `<p class="tracking-message">Nenhum servico cancelado neste periodo.</p>`;
   renderRequestArea(data);
   document.getElementById("trackingFinancialTab").classList.toggle("hidden", data.showAmounts === false);
   document.getElementById("trackingBillingTab").classList.toggle("hidden", !data.billing);
@@ -799,6 +828,12 @@ document.getElementById("trackingServiceSearch")?.addEventListener("input", () =
   if (trackingData) render(trackingData);
 });
 document.getElementById("trackingRequesterFilter")?.addEventListener("change", () => {
+  if (trackingData) render(trackingData);
+});
+document.getElementById("trackingServiceStartFilter")?.addEventListener("change", () => {
+  if (trackingData) render(trackingData);
+});
+document.getElementById("trackingServiceEndFilter")?.addEventListener("change", () => {
   if (trackingData) render(trackingData);
 });
 document.getElementById("trackingServiceSort")?.addEventListener("change", () => {
