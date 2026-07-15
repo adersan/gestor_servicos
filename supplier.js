@@ -600,7 +600,7 @@
       if (document.hidden) markHandled();
     }, { once: true });
     window.location.href = url;
-    setTimeout(() => { if (!handled) window.location.href = fallbackUrl; }, 1500);
+    setTimeout(() => { if (!handled) window.open(fallbackUrl, "_blank", "noopener"); }, 1500);
   }
 
   async function shareSupplierRequests(supplierId) {
@@ -616,7 +616,7 @@
       if (mobileShare) {
         await navigator.share({ title: supplier.whatsappGroupName || supplier.name, text });
       } else {
-        await navigator.clipboard.writeText(text);
+        navigator.clipboard.writeText(text).catch(() => {});
         openWhatsApp("whatsapp://send", "https://web.whatsapp.com/");
         showAppAlert(`Mensagem copiada. Escolha o grupo "${supplier.whatsappGroupName || supplier.name}" no aplicativo do WhatsApp e cole a mensagem.`, { type: "success" });
       }
@@ -1428,6 +1428,9 @@
       try {
         await shareSupplierRequests(shareNewEntries.dataset.shareNewSupplierEntries);
         shareNewEntries.textContent = "Compartilhado";
+        shareNewEntries.disabled = true;
+        const pending = document.querySelectorAll("#supplierRequestShareList [data-share-new-supplier-entries]:not(:disabled)");
+        if (!pending.length) closeSupplierRequestShare();
       } catch (error) {
         if (error?.name !== "AbortError") showAppAlert("Não foi possível abrir o compartilhamento do WhatsApp.", { type: "error" });
       }
