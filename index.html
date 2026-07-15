@@ -28,6 +28,9 @@
   </section>
   <header class="topbar">
     <div class="brand-lockup">
+      <button id="mobileMenuButton" class="mobile-menu-button" type="button" aria-controls="mainNavigation" aria-expanded="false" aria-label="Abrir menu">
+        <span aria-hidden="true">☰</span>
+      </button>
       <img src="logo.svg" alt="" aria-hidden="true">
       <div>
         <span class="eyebrow">Painel administrativo</span>
@@ -38,9 +41,6 @@
       <button id="soundAlertButton" class="sound-alert-button" type="button" aria-pressed="false" aria-label="Ativar som dos alertas"></button>
       <button id="notificationButton" class="notification-button" aria-label="Abrir mensagens e alertas" title="Mensagens e alertas">
         <i class="message-icon" aria-hidden="true"></i><span id="notificationCount">0</span>
-      </button>
-      <button id="mobileMenuButton" class="mobile-menu-button" type="button" aria-controls="mainNavigation" aria-expanded="false" aria-label="Abrir menu">
-        <span aria-hidden="true">☰</span><strong>Menu</strong>
       </button>
       <button id="installButton" class="secondary hidden">Instalar aplicativo</button>
       <button id="logoutButton" class="secondary hidden">Sair</button>
@@ -56,7 +56,6 @@
     <button class="tab" data-view="help">Ajuda</button>
     <div class="mobile-nav-actions">
       <button id="mobileInstallButton" class="hidden" type="button">Instalar aplicativo</button>
-      <button id="mobileLogoutButton" type="button">Sair</button>
     </div>
   </nav>
 
@@ -177,10 +176,10 @@
 
     <section id="clients" class="view">
       <div class="client-area-tabs" role="tablist">
-        <button class="" type="button" data-client-view="services">Lancamento</button>
-        <button class="" type="button" data-client-view="requests">Pedido on-line</button>
-        <button class="active" type="button" data-client-view="clients">Cadastro</button>
-        <button class="" type="button" data-client-view="catalog">Servicos</button>
+        <button class="" type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true">✎</span><small>Lancamento</small></button>
+        <button class="" type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true">✉</span><small>Pedido on-line</small></button>
+        <button class="active" type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
+        <button class="" type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Servicos</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Cadastro</span><h2>Clientes</h2></div>
@@ -194,10 +193,10 @@
 
     <section id="catalog" class="view">
       <div class="client-area-tabs" role="tablist">
-        <button type="button" data-client-view="services">Lancamento</button>
-        <button type="button" data-client-view="requests">Pedido on-line</button>
-        <button type="button" data-client-view="clients">Cadastro</button>
-        <button class="active" type="button" data-client-view="catalog">Servicos</button>
+        <button type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true">✎</span><small>Lancamento</small></button>
+        <button type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true">✉</span><small>Pedido on-line</small></button>
+        <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
+        <button class="active" type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Servicos</small></button>
       </div>
       <div class="client-service-switch" aria-label="Alternar serviços e tabelas">
         <button class="active" type="button" data-scroll-client-services="catalogPanel">Ver serviços</button>
@@ -234,10 +233,10 @@
 
     <section id="services" class="view">
       <div class="client-area-tabs" role="tablist">
-        <button class="active" type="button" data-client-view="services">Lancamento</button>
-        <button type="button" data-client-view="requests">Pedido on-line</button>
-        <button type="button" data-client-view="clients">Cadastro</button>
-        <button type="button" data-client-view="catalog">Servicos</button>
+        <button class="active" type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true">✎</span><small>Lancamento</small></button>
+        <button type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true">✉</span><small>Pedido on-line</small></button>
+        <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
+        <button type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Servicos</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Movimento diário</span><h2>Lançamentos</h2></div>
@@ -273,10 +272,10 @@
 
     <section id="requests" class="view">
       <div class="client-area-tabs" role="tablist">
-        <button type="button" data-client-view="services">Lancamento</button>
-        <button class="active" type="button" data-client-view="requests">Pedido on-line</button>
-        <button type="button" data-client-view="clients">Cadastro</button>
-        <button type="button" data-client-view="catalog">Servicos</button>
+        <button type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true">✎</span><small>Lancamento</small></button>
+        <button class="active" type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true">✉</span><small>Pedido on-line</small></button>
+        <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
+        <button type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Servicos</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Entrada do cliente</span><h2>Pedidos recebidos</h2></div>
@@ -297,9 +296,9 @@
 
     <section id="payments" class="view">
       <div class="finance-area-tabs" role="tablist">
-        <button class="active" type="button" data-client-view="payments">Pagamentos</button>
-        <button type="button" data-client-view="paymentMethods">Formas de pagamento</button>
-        <button type="button" data-client-view="billing">Cobrancas</button>
+        <button class="active" type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
+        <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
+        <button type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobrancas</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Baixas</span><h2>Pagamentos</h2></div>
@@ -340,9 +339,9 @@
 
     <section id="paymentMethods" class="view">
       <div class="finance-area-tabs" role="tablist">
-        <button class="" type="button" data-client-view="payments">Pagamentos</button>
-        <button class="active" type="button" data-client-view="paymentMethods">Formas de pagamento</button>
-        <button class="" type="button" data-client-view="billing">Cobrancas</button>
+        <button class="" type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
+        <button class="active" type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
+        <button class="" type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobrancas</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Recebimento</span><h2>Formas de pagamento</h2></div>
@@ -362,9 +361,9 @@
 
     <section id="billing" class="view">
       <div class="finance-area-tabs" role="tablist">
-        <button type="button" data-client-view="payments">Pagamentos</button>
-        <button type="button" data-client-view="paymentMethods">Formas de pagamento</button>
-        <button class="active" type="button" data-client-view="billing">Cobrancas</button>
+        <button type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
+        <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
+        <button class="active" type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobrancas</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Fechamento flexível</span><h2>Cobranças</h2></div>
@@ -404,16 +403,16 @@
     </section>
 
     <section id="suppliers" class="view">
+      <div class="supplier-tabs" role="tablist">
+        <button class="active" type="button" data-supplier-tab="dashboard"><span class="tab-icon" aria-hidden="true">▦</span><small>Painel</small></button>
+        <button type="button" data-supplier-tab="records"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
+        <button type="button" data-supplier-tab="entries"><span class="tab-icon" aria-hidden="true">✎</span><small>Lançamentos</small></button>
+        <button type="button" data-supplier-tab="payables"><span class="tab-icon" aria-hidden="true">$</span><small>Contas a pagar</small></button>
+        <button type="button" data-supplier-tab="access"><span class="tab-icon" aria-hidden="true">⇄</span><small>Acessos</small></button>
+      </div>
       <div class="section-heading">
         <div><span class="eyebrow">Contas a pagar</span><h2>Fornecedores</h2></div>
         <button class="primary" type="button" data-supplier-action="entry">Lançamento direto</button>
-      </div>
-      <div class="supplier-tabs" role="tablist">
-        <button class="active" type="button" data-supplier-tab="dashboard">Painel</button>
-        <button type="button" data-supplier-tab="records">Cadastros</button>
-        <button type="button" data-supplier-tab="entries">Lançamentos</button>
-        <button type="button" data-supplier-tab="payables">Contas a pagar</button>
-        <button type="button" data-supplier-tab="access">Acessos</button>
       </div>
       <div id="supplierDashboardPanel" class="supplier-panel">
         <div class="filters">
@@ -556,6 +555,23 @@
           <span class="eyebrow">Sistema</span>
           <h3>Outras configuracoes</h3>
           <p class="meta">Reservado para WhatsApp oficial, mensagens, automacoes e prefer?ncias futuras.</p>
+        </article>
+        <article class="panel settings-card">
+          <span class="eyebrow">Sobre</span>
+          <h3>Sobre o aplicativo</h3>
+          <div class="about-brand">
+            <img src="logo.svg" alt="" aria-hidden="true">
+            <div>
+              <strong>AS TECH SOLUTIONS LTDA.</strong>
+              <span>Todos os direitos reservados.</span>
+              <a class="about-brand-github" href="https://github.com/adersan" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 .5A11.5 11.5 0 0 0 8.36 22.9c.58.1.79-.25.79-.56v-2.01c-3.22.7-3.9-1.38-3.9-1.38-.53-1.35-1.3-1.71-1.3-1.71-1.06-.72.08-.71.08-.71 1.18.08 1.8 1.21 1.8 1.21 1.04 1.79 2.73 1.27 3.4.97.1-.76.41-1.27.74-1.56-2.57-.29-5.27-1.28-5.27-5.72 0-1.26.45-2.29 1.2-3.1-.12-.29-.52-1.47.11-3.06 0 0 .98-.31 3.17 1.18a10.98 10.98 0 0 1 5.78 0c2.19-1.49 3.16-1.18 3.16-1.18.64 1.59.24 2.77.12 3.06.75.81 1.2 1.84 1.2 3.1 0 4.45-2.71 5.43-5.29 5.72.42.36.79 1.08.79 2.17v3.02c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/>
+                </svg>
+                <span>GitHub</span>
+              </a>
+            </div>
+          </div>
         </article>
       </div>
     </section>

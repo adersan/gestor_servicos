@@ -5783,9 +5783,6 @@ document.getElementById("installButton").addEventListener("click", async () => {
 document.getElementById("mobileMenuButton")?.addEventListener("click", () => {
   setMobileMenuOpen(!document.body.classList.contains("mobile-menu-open"));
 });
-document.getElementById("mobileLogoutButton")?.addEventListener("click", () => {
-  document.getElementById("logoutButton")?.click();
-});
 document.getElementById("mobileInstallButton")?.addEventListener("click", () => {
   document.getElementById("installButton")?.click();
 });
