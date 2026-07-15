@@ -1733,6 +1733,11 @@ function renderBillings() {
   document.getElementById("billingOverdueEndFilter").classList.toggle("hidden", !billingOverdueOnly);
   document.getElementById("billingOverdueClearDates").classList.toggle("hidden", !billingOverdueOnly);
   document.getElementById("billingStatusFilter").classList.toggle("hidden", billingOverdueOnly);
+  const deleteClientButton = document.getElementById("billingDeleteClientButton");
+  const clientBillingCount = clientFilter ? state.billings.filter((item) => item.clientId === clientFilter).length : 0;
+  deleteClientButton.classList.toggle("hidden", !clientFilter || !clientBillingCount);
+  deleteClientButton.textContent = `Excluir ${clientBillingCount} cobrança(s) deste cliente`;
+  deleteClientButton.dataset.clientId = clientFilter || "";
   const accessBillingByClient = new Map();
   state.billings
     .filter((billing) => billing.status !== "Cancelada")
@@ -4501,6 +4506,43 @@ document.addEventListener("click", async (event) => {
       }
     }
   }
+  const deleteClientBillingsButton = event.target.closest("#billingDeleteClientButton");
+  if (deleteClientBillingsButton) {
+    const targetClientId = deleteClientBillingsButton.dataset.clientId;
+    const targetBillings = state.billings.filter((item) => item.clientId === targetClientId);
+    if (targetClientId && targetBillings.length && await showAppConfirm(
+      `Excluir definitivamente TODAS as ${targetBillings.length} cobrança(s) de ${escapeHtml(clientById(targetClientId)?.name || "este cliente")}?\n\n`
+      + "Os serviços e pagamentos vinculados continuarão registrados e ficarão disponíveis para um novo fechamento. Esta ação não pode ser desfeita."
+    )) {
+      deleteClientBillingsButton.disabled = true;
+      try {
+        for (const billing of targetBillings) {
+          try {
+            await cancelClientAccess(billing);
+          } catch (error) {
+            console.error(`Falha ao cancelar acesso da cobrança ${billing.id}:`, error);
+          }
+          state.services.forEach((item) => {
+            if (item.billingId === billing.id) item.billingId = null;
+          });
+          state.payments.forEach((item) => {
+            if (item.billingId === billing.id) item.billingId = null;
+          });
+        }
+        const targetIds = new Set(targetBillings.map((item) => item.id));
+        state.billings = state.billings.filter((item) => !targetIds.has(item.id));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        if (remoteReady && window.dataStore) await window.dataStore.upsertState(state);
+        render();
+        showAppAlert(`${targetBillings.length} cobrança(s) excluída(s).`, { type: "success" });
+      } catch (error) {
+        console.error(error);
+        showAppAlert(error.message || "Não foi possível excluir as cobranças deste cliente.", { type: "error" });
+      } finally {
+        deleteClientBillingsButton.disabled = false;
+      }
+    }
+  }
   if (event.target.closest("[data-close-report]")) document.getElementById("reportDialog").close();
   if (event.target.closest("[data-print-report]")) window.print();
   const whatsappButton = event.target.closest("[data-share-whatsapp]");
@@ -5078,10 +5120,19 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
   const form = event.currentTarget;
+  if (form.dataset.submitting === "1") return;
+  form.dataset.submitting = "1";
+  const wizardNextButton = document.getElementById("billingWizardNav")?.querySelector("[data-wizard-next]");
+  if (wizardNextButton) wizardNextButton.disabled = true;
+  const releaseSubmitGuard = () => {
+    form.dataset.submitting = "";
+    if (wizardNextButton) wizardNextButton.disabled = false;
+  };
   syncBillingClientSelection();
   if (!form.elements.clientId.value) {
     showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
     form.elements.clientSearch.focus();
+    releaseSubmitGuard();
     return;
   }
   const dialog = form.closest("dialog");
@@ -5094,6 +5145,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   const paymentMethodIds = data.getAll("paymentMethodId");
   if (!paymentMethodIds.length) {
     showAppAlert("Selecione pelo menos uma forma de pagamento.", { type: "warning" });
+    releaseSubmitGuard();
     return;
   }
   const services = state.services.filter((item) =>
@@ -5118,7 +5170,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     const confirmed = await showAppConfirm(
       `Existem ${pendingServices.length} serviço(s) ainda marcados como "A fazer":\n\n${names}\n\nOK: gerar a cobrança mesmo assim.\nCancelar: voltar e atualizar os status.`
     );
-    if (!confirmed) return;
+    if (!confirmed) { releaseSubmitGuard(); return; }
   }
 
   const billing = {
@@ -5184,6 +5236,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
   } finally {
     submitButton.disabled = false;
     submitButton.textContent = "Fechar período";
+    releaseSubmitGuard();
   }
 });
 
@@ -5191,6 +5244,14 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
   if (event.submitter?.value === "cancel") return;
   event.preventDefault();
   const form = event.currentTarget;
+  if (form.dataset.submitting === "1") return;
+  form.dataset.submitting = "1";
+  const wizardNextButton = document.getElementById("billingBatchWizardNav")?.querySelector("[data-wizard-next]");
+  if (wizardNextButton) wizardNextButton.disabled = true;
+  const releaseSubmitGuard = () => {
+    form.dataset.submitting = "";
+    if (wizardNextButton) wizardNextButton.disabled = false;
+  };
   const dialog = form.closest("dialog");
   const submitButton = event.submitter;
   const data = new FormData(form);
@@ -5199,6 +5260,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
   const paymentMethodIds = data.getAll("paymentMethodId");
   if (!paymentMethodIds.length) {
     showAppAlert("Selecione pelo menos uma forma de pagamento.", { type: "warning" });
+    releaseSubmitGuard();
     return;
   }
 
@@ -5209,11 +5271,12 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
   const clientIds = [...new Set(eligibleServices.map((item) => item.clientId))];
   if (!clientIds.length) {
     showAppAlert("Nenhum cliente possui servicos pendentes de cobranca neste periodo.", { type: "warning" });
+    releaseSubmitGuard();
     return;
   }
   const pendingCount = eligibleServices.filter((item) => item.status === "A fazer").length;
   const warning = pendingCount ? `\n\nAtencao: ${pendingCount} servico(s) ainda estao marcados como A fazer.` : "";
-  if (!(await showAppConfirm(`Gerar ${clientIds.length} cobranca(s), uma para cada cliente com servicos no periodo?${warning}`))) return;
+  if (!(await showAppConfirm(`Gerar ${clientIds.length} cobranca(s), uma para cada cliente com servicos no periodo?${warning}`))) { releaseSubmitGuard(); return; }
 
   const stateBeforeBatch = typeof structuredClone === "function"
     ? structuredClone(state)
@@ -5283,6 +5346,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
   } finally {
     submitButton.disabled = false;
     submitButton.textContent = "Gerar para todos";
+    releaseSubmitGuard();
   }
 });
 
@@ -5791,7 +5855,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=129").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=130").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 render();
