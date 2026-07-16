@@ -971,7 +971,7 @@ document.querySelector(".tracking-wizard-nav").addEventListener("click", (event)
   }
 });
 document.getElementById("trackingRequestForm").addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+  if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON" || event.target.tagName === "TEXTAREA") return;
   event.preventDefault();
   document.querySelector('.tracking-wizard-nav [data-wizard-next]').click();
 });
