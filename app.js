@@ -2121,6 +2121,14 @@ function syncAdditionalCatalogSelection() {
     : "Escolha um serviço complementar.";
 }
 
+function resolveAdditionalCatalogSearchOnEnter() {
+  const form = document.getElementById("serviceForm");
+  syncAdditionalCatalogSelection();
+  const catalogItem = state.catalog.find((item) => item.id === form.elements.additionalCatalogId.value);
+  if (catalogItem) form.elements.additionalCatalogSearch.value = catalogOptionLabel(catalogItem);
+  return Boolean(catalogItem);
+}
+
 function addAdditionalService() {
   const form = document.getElementById("serviceForm");
   syncAdditionalCatalogSelection();
@@ -2196,6 +2204,19 @@ function syncServiceCatalogSelection() {
   form.elements.catalogId.value = catalogItem?.id || "";
   if (catalogItem) setServiceCatalogError();
   if (form.elements.catalogId.value !== previousCatalogId) updateSuggestedPrice();
+}
+
+function resolveServiceCatalogSearchOnEnter() {
+  const form = document.getElementById("serviceForm");
+  syncServiceCatalogSelection();
+  const catalogItem = state.catalog.find((item) => item.id === form.elements.catalogId.value);
+  if (catalogItem) {
+    form.elements.catalogSearch.value = catalogOptionLabel(catalogItem);
+    setServiceCatalogError();
+  } else if (form.elements.catalogSearch.value.trim()) {
+    setServiceCatalogError("Nenhum serviço encontrado com esse código ou nome.");
+  }
+  return Boolean(catalogItem);
 }
 
 function syncServiceClientFilter() {
@@ -2484,17 +2505,27 @@ const catalogWizard = createDialogWizard({
   }
 });
 
+function nextCatalogCode() {
+  const highest = state.catalog.reduce((max, item) => Math.max(max, Number(item.code) || 0), 0);
+  return String(highest + 1);
+}
+
 function openCatalogForm(item = null) {
   const form = document.getElementById("catalogForm");
   form.reset();
   form.elements.catalogId.value = item?.id || "";
-  form.elements.code.value = item?.code || "";
+  form.elements.code.value = item ? (item.code || "") : nextCatalogCode();
   form.elements.name.value = item?.name || "";
   renderCatalogPriceFields(item);
   document.getElementById("catalogDialogTitle").textContent = item ? "Editar serviço" : "Novo serviço";
   catalogWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
   document.getElementById("catalogDialog").showModal();
-  if (!catalogWizard.isActive()) setTimeout(() => form.elements.code.focus(), 0);
+  if (!catalogWizard.isActive()) {
+    setTimeout(() => {
+      form.elements.code.focus();
+      form.elements.code.select();
+    }, 0);
+  }
 }
 
 function cancellationGroup(entry) {
@@ -5791,14 +5822,18 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
       else document.querySelector("[data-wizard-next]").click();
       return;
     }
+    if (target.name === "catalogSearch") {
+      event.preventDefault();
+      resolveServiceCatalogSearchOnEnter();
+      return;
+    }
     if (target.name === "additionalCatalogSearch") {
       event.preventDefault();
       if (!target.value.trim() && additionalServiceValues.length) {
         document.querySelector("[data-wizard-next]").click();
         return;
       }
-      syncAdditionalCatalogSelection();
-      wizardForm.elements.additionalAmount.focus();
+      resolveAdditionalCatalogSearchOnEnter();
       return;
     }
     if (target.name === "additionalAmount") {
@@ -5910,8 +5945,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
       focusField(form.elements.hasSupplierService);
       return;
     }
-    syncAdditionalCatalogSelection();
-    focusField(form.elements.additionalAmount);
+    resolveAdditionalCatalogSearchOnEnter();
     return;
   }
   if (event.target.name === "additionalAmount") {
@@ -5928,9 +5962,13 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     focusField(form.elements.amount);
     return;
   }
+  if (event.target.name === "catalogSearch") {
+    event.preventDefault();
+    resolveServiceCatalogSearchOnEnter();
+    return;
+  }
   event.preventDefault();
   if (event.target.name === "clientSearch") syncServiceClientSelection();
-  if (event.target.name === "catalogSearch") syncServiceCatalogSelection();
   focusNextFrom(event.target);
 });
 
