@@ -2185,6 +2185,11 @@ function setServiceCatalogError(message = "") {
 function syncServiceCatalogSelection() {
   const form = document.getElementById("serviceForm");
   const previousCatalogId = form.elements.catalogId.value;
+  const previousItem = state.catalog.find((item) => item.id === previousCatalogId);
+  if (previousItem && searchableText(catalogOptionLabel(previousItem)) === searchableText(form.elements.catalogSearch.value)) {
+    setServiceCatalogError();
+    return;
+  }
   const catalogItem = itemByExactLabel(state.catalog, form.elements.catalogSearch.value, catalogOptionLabel);
   form.elements.catalogId.value = catalogItem?.id || "";
   if (catalogItem) setServiceCatalogError();
@@ -2997,8 +3002,11 @@ document.getElementById("serviceDialog").addEventListener("click", async (event)
     const itemId = pickerButton.dataset.pickerItem;
     const label = pickerButton.textContent.trim();
     if (key === "catalog") {
+      const previousCatalogId = form.elements.catalogId.value;
       form.elements.catalogSearch.value = label;
-      syncServiceCatalogSelection();
+      form.elements.catalogId.value = itemId;
+      setServiceCatalogError();
+      if (itemId !== previousCatalogId) updateSuggestedPrice();
       renderServiceCatalogPicker();
     } else if (key === "additionalCatalog") {
       const existingAdditional = additionalServiceValues.find((service) => service.catalogId === itemId);
