@@ -1,4 +1,4 @@
-const CACHE = "gestor-servicos-v158";
+const CACHE = "gestor-servicos-v159";
 const ASSETS = [
   "./",
   "index.html",
@@ -19,7 +19,7 @@ const ASSETS = [
   "cliente.js?v=25",
   "acompanhamento.html",
   "acompanhamento.css?v=26",
-  "acompanhamento.js?v=32",
+  "acompanhamento.js?v=33",
   "manifest.webmanifest?v=2"
 ];
 

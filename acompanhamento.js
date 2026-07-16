@@ -582,10 +582,12 @@ function render(data) {
     .filter(matchesTrackingFilters);
   const cancelledServices = sortTrackingServices([...(data.services || [])].filter((item) => item.status === "Cancelado"), sortBy)
     .filter(matchesTrackingFilters);
+  const primaryServices = services.filter((item) => !item.is_secondary);
+  const primaryCancelledServices = cancelledServices.filter((item) => !item.is_secondary);
   const counts = {
-    pending: services.filter((item) => item.status === "A fazer").length,
-    done: services.filter((item) => item.status === "Pronto").length,
-    delivered: services.filter((item) => item.status === "Entregue").length
+    pending: primaryServices.filter((item) => item.status === "A fazer").length,
+    done: primaryServices.filter((item) => item.status === "Pronto").length,
+    delivered: primaryServices.filter((item) => item.status === "Entregue").length
   };
   const values = {
     pending: services.filter((item) => item.status === "A fazer").reduce((sum, item) => sum + Number(item.amount), 0),
@@ -606,9 +608,9 @@ function render(data) {
     <article class="summary-item summary-pending"><span>A fazer</span><strong>${counts.pending}</strong><small>${amountText(values.pending)}</small></article>
     <article class="summary-item summary-done"><span>Feitos</span><strong>${counts.done}</strong><small>${amountText(values.done)}</small></article>
     <article class="summary-item summary-delivered"><span>Entregues</span><strong>${counts.delivered}</strong><small>${amountText(values.delivered)}</small></article>
-    <article class="summary-item summary-total"><span>Total do periodo</span><strong>${trackingData?.showAmounts === false ? services.length : amountText(total)}</strong><small>${services.length} servico(s)</small></article>
-    <article class="summary-item summary-cancelled"><span>Cancelados</span><strong>${cancelledServices.length}</strong><small>servico(s) cancelado(s)</small></article>`;
-  renderCharts(services, counts);
+    <article class="summary-item summary-total"><span>Total do periodo</span><strong>${trackingData?.showAmounts === false ? primaryServices.length : amountText(total)}</strong><small>${primaryServices.length} servico(s)</small></article>
+    <article class="summary-item summary-cancelled"><span>Cancelados</span><strong>${primaryCancelledServices.length}</strong><small>servico(s) cancelado(s)</small></article>`;
+  renderCharts(primaryServices, counts);
   const serviceGroups = groupedServices(services).filter(({ primary, secondaries }) => {
     if (!search) return true;
     const status = statusData(primary.status);
@@ -622,8 +624,8 @@ function render(data) {
     ).includes(search);
   });
   document.getElementById("serviceCount").textContent = search
-    ? `${serviceGroups.length} de ${services.length} servico(s)`
-    : `${services.length} servico(s)`;
+    ? `${serviceGroups.length} de ${primaryServices.length} servico(s)`
+    : `${primaryServices.length} servico(s)`;
   document.getElementById("serviceList").innerHTML = serviceGroups.length
     ? serviceGroups.map(renderServiceItemCard).join("")
     : `<p class="tracking-message">Nenhum servico encontrado neste periodo.</p>`;
@@ -639,7 +641,7 @@ function render(data) {
       ...secondaries.flatMap((item) => [item.service_name, item.reference, item.status, item.requested_by])
     ).includes(search);
   });
-  document.getElementById("cancelledServiceCount").textContent = `${cancelledServices.length} servico(s)`;
+  document.getElementById("cancelledServiceCount").textContent = `${primaryCancelledServices.length} servico(s)`;
   document.getElementById("cancelledServiceList").innerHTML = cancelledGroups.length
     ? cancelledGroups.map(renderServiceItemCard).join("")
     : `<p class="tracking-message">Nenhum servico cancelado neste periodo.</p>`;
