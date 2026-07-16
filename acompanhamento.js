@@ -706,7 +706,9 @@ async function loadTracking() {
   const storedChoice = sessionStorage.getItem(trackingChoiceKey);
   // Na primeira visita (sem escolha guardada) nao aplica a senha embutida ainda,
   // para sempre perguntar "Entrar sem senha / Entrar com senha" antes de liberar o acesso completo.
-  const data = await requestData(accessCode, storedChoice ? storedTrackingCredentials() : {});
+  // Depois que o usuario escolhe "sem senha", nao reenviar as credenciais guardadas
+  // (o full= embutido na URL continua salvo na sessao) para nao reabrir o acesso completo sozinho.
+  const data = await requestData(accessCode, storedChoice === "full" ? storedTrackingCredentials() : {});
   if (data.linkMode === "gated" && !storedChoice) {
     pendingRestrictedData = data;
     showAccessChoice();
