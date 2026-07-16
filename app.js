@@ -5825,6 +5825,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     if (target.name === "catalogSearch") {
       event.preventDefault();
       resolveServiceCatalogSearchOnEnter();
+      document.querySelector("[data-wizard-next]").click();
       return;
     }
     if (target.name === "additionalCatalogSearch") {
@@ -5834,6 +5835,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
         return;
       }
       resolveAdditionalCatalogSearchOnEnter();
+      wizardForm.elements.additionalAmount.focus();
       return;
     }
     if (target.name === "additionalAmount") {
@@ -5946,6 +5948,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
       return;
     }
     resolveAdditionalCatalogSearchOnEnter();
+    focusField(form.elements.additionalAmount);
     return;
   }
   if (event.target.name === "additionalAmount") {
@@ -5965,6 +5968,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (event.target.name === "catalogSearch") {
     event.preventDefault();
     resolveServiceCatalogSearchOnEnter();
+    focusNextFrom(event.target);
     return;
   }
   event.preventDefault();
