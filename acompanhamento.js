@@ -679,6 +679,8 @@ function renderRequestArea(data) {
   document.getElementById("trackingRequesterOptions").innerHTML = (data.clientRequesters || [])
     .map((item) => `<option value="${escapeHtml(item.name)}"></option>`)
     .join("");
+  renderTrackingServicePicker();
+  renderTrackingRequesterPicker();
 
   const requests = data.serviceRequests || [];
   document.getElementById("trackingRequestHistory").innerHTML = requests.length ? requests.slice(0, 8).map((item) => `
@@ -844,6 +846,65 @@ document.getElementById("trackingServiceSort")?.addEventListener("change", () =>
 });
 const TRACKING_REQUEST_STEP_COUNT = 5;
 let trackingRequestStep = 1;
+const TRACKING_PICKER_PAGE_SIZE = 6;
+const trackingPickerPages = { service: 0, requester: 0 };
+
+function renderTrackingPickerGrid(key, gridId, items, selectedId) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+  const totalPages = Math.max(1, Math.ceil(items.length / TRACKING_PICKER_PAGE_SIZE));
+  trackingPickerPages[key] = Math.min(Math.max(trackingPickerPages[key] || 0, 0), totalPages - 1);
+  const page = trackingPickerPages[key];
+  const pageItems = items.slice(page * TRACKING_PICKER_PAGE_SIZE, page * TRACKING_PICKER_PAGE_SIZE + TRACKING_PICKER_PAGE_SIZE);
+  grid.innerHTML = pageItems.length
+    ? pageItems.map((item) => `<button type="button" class="tracking-choice-btn${item.id === selectedId ? " selected" : ""}" data-picker-item="${escapeHtml(item.id)}">${escapeHtml(item.label)}</button>`).join("")
+    : '<span class="tracking-picker-hint">Nada disponível.</span>';
+  const prevButton = document.querySelector(`[data-picker-prev="${key}"]`);
+  const nextButton = document.querySelector(`[data-picker-next="${key}"]`);
+  if (prevButton) prevButton.disabled = page === 0;
+  if (nextButton) nextButton.disabled = page >= totalPages - 1;
+}
+
+function trackingServiceUsageItems(data) {
+  const services = data.requestServices || [];
+  const counts = {};
+  [...(data.services || []), ...(data.currentServices || [])].forEach((entry) => {
+    if (entry.service_id) counts[entry.service_id] = (counts[entry.service_id] || 0) + 1;
+  });
+  return services
+    .map((service, index) => ({ id: service.id, label: requestServiceOptionLabel(service), order: index }))
+    .sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0) || a.order - b.order);
+}
+
+function trackingRequesterUsageItems(data) {
+  const requesters = data.clientRequesters || [];
+  const counts = {};
+  (data.serviceRequests || []).forEach((item) => {
+    const name = (item.requested_by || "").trim();
+    if (name) counts[name] = (counts[name] || 0) + 1;
+  });
+  return requesters
+    .map((item, index) => ({ id: item.name, label: item.name, order: index }))
+    .sort((a, b) => (counts[b.label] || 0) - (counts[a.label] || 0) || a.order - b.order);
+}
+
+function renderTrackingServicePicker() {
+  const form = document.getElementById("trackingRequestForm");
+  renderTrackingPickerGrid("service", "trackingServicePickerGrid", trackingServiceUsageItems(trackingData || {}), form.elements.serviceId.value);
+}
+
+function renderTrackingRequesterPicker() {
+  const form = document.getElementById("trackingRequestForm");
+  const items = [{ id: "", label: "Não informar" }, ...trackingRequesterUsageItems(trackingData || {})];
+  renderTrackingPickerGrid("requester", "trackingRequesterPickerGrid", items, form.elements.requestedBy.value.trim());
+}
+
+function revealTrackingPickerSearch(step) {
+  const stepElement = document.querySelector(`.tracking-wizard-step[data-step="${step}"]`);
+  const field = stepElement?.querySelector(".tracking-picker-search-field");
+  field?.classList.remove("hidden");
+  setTimeout(() => field?.querySelector("input")?.focus(), 0);
+}
 
 function renderTrackingRequestWizardSummary() {
   const form = document.getElementById("trackingRequestForm");
@@ -863,9 +924,7 @@ function renderTrackingRequestWizardSummary() {
 }
 
 function trackingRequestFirstField(step) {
-  if (step === 1) return document.querySelector('#trackingRequestForm input[name="serviceSearch"]');
   if (step === 2) return document.querySelector('#trackingRequestForm textarea[name="references"]');
-  if (step === 3) return document.querySelector('#trackingRequestForm input[name="requestedBy"]');
   if (step === 4) return document.querySelector('#trackingRequestForm textarea[name="notes"]');
   return null;
 }
@@ -881,6 +940,8 @@ function goToTrackingRequestStep(step) {
   const nav = document.querySelector(".tracking-wizard-nav");
   nav.querySelector("[data-wizard-back]").classList.toggle("hidden", trackingRequestStep === 1);
   nav.querySelector("[data-wizard-next]").textContent = trackingRequestStep === TRACKING_REQUEST_STEP_COUNT ? "Enviar pedido" : "Continuar";
+  if (trackingRequestStep === 1) renderTrackingServicePicker();
+  if (trackingRequestStep === 3) renderTrackingRequesterPicker();
   if (trackingRequestStep === TRACKING_REQUEST_STEP_COUNT) renderTrackingRequestWizardSummary();
   const focusable = trackingRequestFirstField(trackingRequestStep);
   setTimeout(() => {
@@ -896,7 +957,7 @@ function validateTrackingRequestStep(step) {
   if (step === 1) {
     if (!syncRequestServiceSelection()) {
       message.textContent = "Selecione um serviço válido da lista.";
-      form.elements.serviceSearch.focus();
+      revealTrackingPickerSearch(1);
       return false;
     }
   }
@@ -911,6 +972,8 @@ function validateTrackingRequestStep(step) {
 }
 
 document.getElementById("openTrackingRequestDialog").addEventListener("click", () => {
+  trackingPickerPages.service = 0;
+  trackingPickerPages.requester = 0;
   renderRequestArea(trackingData || {});
   document.getElementById("trackingRequestDialog").showModal();
   goToTrackingRequestStep(1);
@@ -923,9 +986,44 @@ document.querySelectorAll("[data-close-tracking-request]").forEach((button) => b
 }));
 document.getElementById("trackingRequestForm").addEventListener("input", (event) => {
   if (event.target.name === "serviceSearch" && trackingData) syncRequestServiceSelection();
+  if (event.target.name === "requestedBy") renderTrackingRequesterPicker();
 });
 document.getElementById("trackingRequestForm").addEventListener("change", (event) => {
   if (event.target.name === "serviceSearch" && trackingData) syncRequestServiceSelection();
+});
+document.getElementById("trackingRequestForm").addEventListener("click", (event) => {
+  const prevButton = event.target.closest("[data-picker-prev]");
+  const nextButton = event.target.closest("[data-picker-next]");
+  const searchButton = event.target.closest("[data-picker-search]");
+  const pickerButton = event.target.closest(".tracking-picker-grid .tracking-choice-btn[data-picker-item]");
+  if (prevButton || nextButton) {
+    const key = (prevButton || nextButton).dataset.pickerPrev || (prevButton || nextButton).dataset.pickerNext;
+    trackingPickerPages[key] = Math.max(0, (trackingPickerPages[key] || 0) + (prevButton ? -1 : 1));
+    if (key === "service") renderTrackingServicePicker();
+    if (key === "requester") renderTrackingRequesterPicker();
+    return;
+  }
+  if (searchButton) {
+    revealTrackingPickerSearch(searchButton.dataset.pickerSearch === "service" ? 1 : 3);
+    return;
+  }
+  if (pickerButton) {
+    const form = event.currentTarget;
+    const key = pickerButton.closest(".tracking-picker")?.dataset.picker;
+    const itemId = pickerButton.dataset.pickerItem;
+    if (key === "service") {
+      const service = (trackingData?.requestServices || []).find((item) => item.id === itemId);
+      form.elements.serviceId.value = itemId;
+      form.elements.serviceSearch.value = service ? requestServiceOptionLabel(service) : "";
+      form.elements.amount.value = service ? amountText(service.amount) : "";
+      document.getElementById("trackingRequestMessage").textContent = "";
+      renderTrackingServicePicker();
+    } else if (key === "requester") {
+      form.elements.requestedBy.value = itemId;
+      renderTrackingRequesterPicker();
+    }
+    return;
+  }
 });
 document.getElementById("trackingRequestForm").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-add-tracking-requester]");
@@ -949,6 +1047,7 @@ document.getElementById("trackingRequestForm").addEventListener("click", async (
     trackingData.clientRequesters.push(result.requester);
     renderRequestArea(trackingData);
     form.elements.requestedBy.value = result.requester.name;
+    renderTrackingRequesterPicker();
     message.textContent = "Solicitante cadastrado.";
   } catch (error) {
     message.textContent = error.message;

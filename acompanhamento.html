@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=25">
+  <link rel="stylesheet" href="acompanhamento.css?v=26">
 </head>
 <body>
   <header class="tracking-header">
@@ -101,7 +101,15 @@
       <input name="serviceId" type="hidden">
       <div class="tracking-wizard-step" data-step="1">
         <h3 class="tracking-wizard-step-title">Qual serviço?</h3>
-        <label>Serviço<input name="serviceSearch" type="search" list="trackingRequestServiceOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
+        <div class="tracking-picker" data-picker="service">
+          <div id="trackingServicePickerGrid" class="tracking-picker-grid"></div>
+          <div class="tracking-picker-nav">
+            <button type="button" class="tracking-secondary" data-picker-prev="service">Voltar</button>
+            <button type="button" class="tracking-secondary" data-picker-search="service">Buscar</button>
+            <button type="button" class="tracking-secondary" data-picker-next="service">Mais</button>
+          </div>
+        </div>
+        <label class="tracking-picker-search-field hidden">Serviço<input name="serviceSearch" type="search" list="trackingRequestServiceOptions" autocomplete="off" required placeholder="Digite o código ou nome"></label>
         <datalist id="trackingRequestServiceOptions"></datalist>
         <label>Valor<input name="amount" type="text" readonly></label>
       </div>
@@ -111,7 +119,15 @@
       </div>
       <div class="tracking-wizard-step hidden" data-step="3">
         <h3 class="tracking-wizard-step-title">Quem solicitou?</h3>
-        <label>Quem solicitou
+        <div class="tracking-picker" data-picker="requester">
+          <div id="trackingRequesterPickerGrid" class="tracking-picker-grid"></div>
+          <div class="tracking-picker-nav">
+            <button type="button" class="tracking-secondary" data-picker-prev="requester">Voltar</button>
+            <button type="button" class="tracking-secondary" data-picker-search="requester">Buscar/novo</button>
+            <button type="button" class="tracking-secondary" data-picker-next="requester">Mais</button>
+          </div>
+        </div>
+        <label class="tracking-picker-search-field hidden">Quem solicitou
           <span class="tracking-requester-row">
             <input name="requestedBy" list="trackingRequesterOptions" placeholder="Nome do solicitante">
             <button class="tracking-secondary" type="button" data-add-tracking-requester>+</button>
@@ -134,6 +150,6 @@
       <button type="button" class="tracking-primary" data-wizard-next>Continuar</button>
     </div>
   </dialog>
-  <script src="acompanhamento.js?v=30"></script>
+  <script src="acompanhamento.js?v=31"></script>
 </body>
 </html>
