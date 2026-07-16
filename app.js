@@ -878,7 +878,9 @@ function searchableText(...values) {
   return values.join(" ")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function matchesSearch(search, ...values) {
