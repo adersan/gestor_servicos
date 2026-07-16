@@ -1076,6 +1076,11 @@ document.querySelector(".tracking-wizard-nav").addEventListener("click", (event)
 document.getElementById("trackingRequestForm").addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON" || event.target.tagName === "TEXTAREA") return;
   event.preventDefault();
+  if (event.target.name === "serviceSearch" && trackingData) {
+    const form = document.getElementById("trackingRequestForm");
+    const service = syncRequestServiceSelection();
+    if (service) form.elements.serviceSearch.value = requestServiceOptionLabel(service);
+  }
   document.querySelector('.tracking-wizard-nav [data-wizard-next]').click();
 });
 document.getElementById("trackingRequestForm").addEventListener("submit", async (event) => {

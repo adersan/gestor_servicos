@@ -2171,13 +2171,21 @@ function toggleAdditionalServices() {
 function syncServiceClientSelection() {
   const form = document.getElementById("serviceForm");
   const previousClientId = form.elements.clientId.value;
-  const client = itemByExactLabel(state.clients, form.elements.clientSearch.value, clientOptionLabel);
+  const client = uniqueClientMatch(form.elements.clientSearch.value);
   form.elements.clientId.value = client?.id || "";
   if (form.elements.clientId.value !== previousClientId) {
     form.elements.requestedBy.value = "";
     updateSuggestedPrice();
     updateServiceRequesterOptions();
   }
+}
+
+function resolveServiceClientSearchOnEnter() {
+  const form = document.getElementById("serviceForm");
+  syncServiceClientSelection();
+  const client = state.clients.find((item) => item.id === form.elements.clientId.value);
+  if (client) form.elements.clientSearch.value = clientOptionLabel(client);
+  return Boolean(client);
 }
 
 function setServiceCatalogError(message = "") {
@@ -5816,6 +5824,12 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   if (serviceWizardModeActive()) {
     const target = event.target;
     const wizardForm = document.getElementById("serviceForm");
+    if (target.name === "clientSearch") {
+      event.preventDefault();
+      resolveServiceClientSearchOnEnter();
+      document.querySelector("[data-wizard-next]").click();
+      return;
+    }
     if (target.name === "reference") {
       event.preventDefault();
       if (target.value.trim()) addCurrentReference();
@@ -5845,6 +5859,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     }
     if (target.name === "supplierSearch") {
       event.preventDefault();
+      window.supplierModule?.resolveSupplierSearchOnEnter(wizardForm);
       wizardForm.elements.supplierServiceSearch.focus();
       return;
     }
@@ -5854,7 +5869,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
         document.querySelector("[data-wizard-next]").click();
         return;
       }
-      if (window.supplierModule?.syncClientEntryServiceSelection(true)) wizardForm.elements.supplierAmount.focus();
+      if (window.supplierModule?.resolveClientSupplierServiceSearchOnEnter()) wizardForm.elements.supplierAmount.focus();
       return;
     }
     if (target.name === "supplierAmount") {
@@ -5925,13 +5940,19 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     else focusField(form.elements.status);
     return;
   }
+  if (event.target.name === "supplierSearch") {
+    event.preventDefault();
+    window.supplierModule?.resolveSupplierSearchOnEnter(form);
+    focusNextFrom(event.target);
+    return;
+  }
   if (event.target.name === "supplierServiceSearch") {
     event.preventDefault();
     if (!event.target.value.trim() && window.supplierModule?.hasClientSupplierServices()) {
       focusField(form.elements.status);
       return;
     }
-    if (!window.supplierModule?.syncClientEntryServiceSelection(true)) return;
+    if (!window.supplierModule?.resolveClientSupplierServiceSearchOnEnter()) return;
     focusField(form.elements.supplierAmount);
     return;
   }
@@ -5972,7 +5993,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     return;
   }
   event.preventDefault();
-  if (event.target.name === "clientSearch") syncServiceClientSelection();
+  if (event.target.name === "clientSearch") resolveServiceClientSearchOnEnter();
   focusNextFrom(event.target);
 });
 

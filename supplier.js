@@ -67,6 +67,12 @@
     return supplier;
   }
 
+  function resolveSupplierSearchOnEnter(form) {
+    const supplier = syncSupplierSearchField(form);
+    if (supplier) form.elements.supplierSearch.value = supplierOptionLabel(supplier);
+    return Boolean(supplier);
+  }
+
   function supplierServiceOptionLabel(service) {
     if (!service) return "";
     const name = service.code ? `${service.code} - ${service.name}` : service.name;
@@ -451,6 +457,16 @@
     if (service) setClientSupplierServiceError();
     else if (showError) setClientSupplierServiceError("Digite o código ou nome e escolha um serviço válido da lista.");
     return Boolean(service);
+  }
+
+  function resolveClientSupplierServiceSearchOnEnter() {
+    const form = byId("serviceForm");
+    const resolved = syncClientEntryServiceSelection(true);
+    if (resolved) {
+      const service = supplierServiceById(form.elements.supplierServiceId.value);
+      if (service) form.elements.supplierServiceSearch.value = supplierServiceOptionLabel(service);
+    }
+    return resolved;
   }
 
   function renderClientSupplierServices() {
@@ -1613,6 +1629,8 @@
     offerSupplierRequestShare,
     addClientSupplierService,
     syncClientEntryServiceSelection,
+    resolveSupplierSearchOnEnter,
+    resolveClientSupplierServiceSearchOnEnter,
     hasClientSupplierServices,
     currentClientSupplierServiceSelections,
     pickerSuppliers,
