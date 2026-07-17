@@ -526,6 +526,7 @@ function deliveredLabel(item) {
 
 function serviceStatusDates(item) {
   const parts = [];
+  if (item?.createdAt) parts.push(`Lançado em ${new Date(item.createdAt).toLocaleString("pt-BR")}`);
   if (item?.doneAt) parts.push(`Feito em ${new Date(item.doneAt).toLocaleString("pt-BR")}`);
   if (item?.deliveredAt) parts.push(`Entregue em ${new Date(item.deliveredAt).toLocaleString("pt-BR")}`);
   return parts.join(" · ");
@@ -1624,6 +1625,7 @@ function renderServices() {
           ${item.status === "A fazer" ? `<button class="table-action success" data-service-status="Pronto" data-entry-id="${item.id}">Marcar feito</button>` : ""}
           ${item.status === "Pronto" ? `<button class="table-action" data-request-delivery="${item.id}">Solicitar confirmação</button>` : ""}
           ${item.status === "Pronto" ? `<button class="table-action success" data-service-status="Entregue" data-entry-id="${item.id}">Marcar entregue</button>` : ""}
+          ${item.status === "Pronto" ? `<button class="table-action" data-service-status="A fazer" data-entry-id="${item.id}">Voltar para A fazer</button>` : ""}
           ${item.status === "Entregue" ? `<button class="table-action" data-service-status="Pronto" data-entry-id="${item.id}">Voltar para Feito</button>` : ""}
         </div>
         <button class="mobile-service-more" type="button" data-toggle-service-actions="${item.id}" aria-expanded="false">Mais opcoes</button>
@@ -5119,6 +5121,13 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
       state.supplierEntries = state.supplierEntries.filter((entry) => !removedIds.has(entry.clientServiceEntryId) || entry.payableId);
       state.services = state.services.filter((service) => !removedIds.has(service.id));
     }
+    state.services
+      .filter((service) => existingSiblingIds.has(service.id) && keptComplementaryIds.has(service.id))
+      .forEach((service) => {
+        service.reference = createdEntries[0].reference;
+        service.date = createdEntries[0].date;
+        service.updatedAt = now;
+      });
     editedSupplierSelections = window.supplierModule?.currentClientSupplierServiceSelections() || [];
     const keptSupplierLinkIds = new Set(editedSupplierSelections.filter((selection) => selection.id).map((selection) => selection.id));
     const supplierLinkIdsToRemove = new Set(
@@ -6194,7 +6203,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=138").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=139").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

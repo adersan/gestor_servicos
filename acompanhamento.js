@@ -19,6 +19,10 @@ function formatDate(value) {
   return value ? value.split("-").reverse().join("/") : "-";
 }
 
+function formatDateTime(value) {
+  return value ? new Date(value).toLocaleString("pt-BR") : "";
+}
+
 function statusData(status) {
   if (status === "Pronto") return { label: "Feito", className: "done" };
   if (status === "Entregue") return { label: "Entregue", className: "delivered" };
@@ -444,6 +448,7 @@ function renderServiceItemCard({ primary, secondaries }) {
       ${secondaries.length ? `<div class="tracking-complement-list">${secondaries.map((secondary) => `<span>${escapeHtml(secondary.service_name)} · ${amountText(secondary.amount)}${originCancelledNote(secondary, item)}</span>`).join("")}</div>` : originCancelledNote(item)}
       <span class="tracking-requester-badge">Solicitante: ${escapeHtml(requesterName(item))}</span>
       <p class="tracking-reference">${escapeHtml(item.reference || "Sem referencia")}</p>
+      ${item.status === "Entregue" && item.delivered_at ? `<p class="tracking-status-date">Entregue em ${escapeHtml(formatDateTime(item.delivered_at))}</p>` : ""}
     </div>
     <div class="tracking-amount"><strong>${amountText(total)}</strong><span class="status status-${status.className}">${status.label}</span></div>
   </article>`;

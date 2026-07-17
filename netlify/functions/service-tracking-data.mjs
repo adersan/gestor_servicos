@@ -63,14 +63,14 @@ export default async (request) => {
     const [clients, services] = await Promise.all([
       supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,name,price_table_id&limit=1`),
       supabase(
-        `/rest/v1/service_entries?client_id=eq.${clientId}&service_date=gte.${link.period_start}&service_date=lte.${link.period_end}&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,updated_at,billing_id,service_id${serviceFilter}&order=service_date.desc`
+        `/rest/v1/service_entries?client_id=eq.${clientId}&service_date=gte.${link.period_start}&service_date=lte.${link.period_end}&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,updated_at,billing_id,service_id,delivered_at${serviceFilter}&order=service_date.desc`
       )
     ]);
     if (!clients.length) return json(404, { error: "Cliente não encontrado." });
     const client = clients[0];
 
     const currentServices = includeCurrentServices
-      ? await supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,service_id${serviceFilter}&order=service_date.desc`)
+      ? await supabase(`/rest/v1/service_entries?billing_id=is.null&client_id=eq.${clientId}&status=neq.Cancelado&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,service_id,delivered_at${serviceFilter}&order=service_date.desc`)
       : [];
 
     let billing = null;

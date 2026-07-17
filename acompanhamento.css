@@ -60,6 +60,7 @@ label { display:grid; gap:6px; color:var(--muted); font-size:12px; font-weight:7
 .tracking-item h4,.tracking-item p { margin:0; }
 .tracking-item h4 { margin-bottom:7px; font-size:16px; font-weight:850; }
 .tracking-reference { display:inline-block; padding:6px 10px; border:1px solid #bdd8ef; border-radius:10px; color:#155f9f !important; background:#eef7ff; font-size:14px !important; font-weight:850; letter-spacing:.035em; }
+.tracking-status-date { margin:6px 0 0; color:var(--muted); font-size:11px; }
 .tracking-complement-list { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
 .tracking-complement-list span { padding:5px 8px; border-radius:999px; color:var(--purple); background:#eee8fa; font-size:11px; font-weight:800; }
 .tracking-origin-cancelled-note { display:block; margin-top:5px; color:#8b5a10; font-style:normal; font-size:11px; font-weight:850; }
