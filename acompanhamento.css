@@ -86,6 +86,9 @@ dialog::backdrop { background:rgba(21,38,34,.42); backdrop-filter:blur(3px); }
 .tracking-request-form { display:grid; gap:12px; padding:18px; }
 .tracking-requester-row { display:grid; grid-template-columns:1fr 46px; gap:8px; align-items:stretch; }
 .tracking-requester-row button { min-height:44px; padding:8px; color:var(--brand); font-size:20px; }
+.tracking-reference-list { display:flex; flex-wrap:wrap; gap:6px; }
+.tracking-reference-list .tracking-reference { display:inline-flex; align-items:center; gap:6px; }
+.tracking-reference-list .tracking-reference button { padding:0; border:0; color:#155f9f; background:transparent; font-size:15px; font-weight:900; line-height:1; cursor:pointer; }
 .tracking-form-message { min-height:20px; margin:0; color:var(--brand); font-weight:800; }
 .tracking-primary { border-color:transparent; color:#241b0d; background:#d89b45; }
 .tracking-wizard-progress { display:flex; align-items:center; gap:10px; margin:2px 18px 0; }

@@ -1921,6 +1921,14 @@ const billingWizard = createDialogWizard({
   stepCount: 5,
   lastStepLabel: "Fechar período",
   onReachLastStep: renderBillingWizardSummary,
+  pickers: {
+    clientSearch: {
+      searchField: "clientSearch",
+      idField: "clientId",
+      items: () => state.clients.map((client) => ({ id: client.id, label: clientOptionLabel(client) })),
+      onApply: () => syncBillingClientSelection()
+    }
+  },
   validateStep: (step, form) => {
     if (step === 1) {
       syncBillingClientSelection();
@@ -2184,7 +2192,14 @@ function resolveServiceClientSearchOnEnter() {
   const form = document.getElementById("serviceForm");
   syncServiceClientSelection();
   const client = state.clients.find((item) => item.id === form.elements.clientId.value);
-  if (client) form.elements.clientSearch.value = clientOptionLabel(client);
+  if (client) {
+    form.elements.clientSearch.value = clientOptionLabel(client);
+  } else {
+    const search = form.elements.clientSearch.value.trim();
+    if (search && state.clients.filter((item) => matchesSearch(search, item.name)).length > 1) {
+      showAppAlert("Vários clientes encontrados. Digite mais letras do nome.", { type: "warning" });
+    }
+  }
   return Boolean(client);
 }
 
@@ -2293,6 +2308,14 @@ const trackingWizard = createDialogWizard({
   stepCount: 6,
   lastStepLabel: "Gerar e compartilhar",
   onReachLastStep: renderTrackingWizardSummary,
+  pickers: {
+    clientSearch: {
+      searchField: "clientSearch",
+      idField: "clientId",
+      items: () => state.clients.map((client) => ({ id: client.id, label: clientOptionLabel(client) })),
+      onApply: () => syncTrackingClientSelection()
+    }
+  },
   validateStep: (step, form) => {
     if (step === 1) {
       syncTrackingClientSelection();
@@ -3360,9 +3383,26 @@ function createDialogWizard(config) {
     }
   });
 
+  function resolvePickerFieldOnEnter(fieldName) {
+    const key = Object.keys(pickers).find((k) => pickers[k].searchField === fieldName);
+    if (!key) return;
+    const form = getForm();
+    const picker = pickers[key];
+    picker.onApply?.(form);
+    const resolvedId = form.elements[picker.idField]?.value || "";
+    const resolvedItem = resolvedId ? picker.items(form).find((item) => item.id === resolvedId) : null;
+    if (resolvedItem) form.elements[picker.searchField].value = resolvedItem.label;
+    if (isActive()) renderPicker(key);
+  }
+
   getForm().addEventListener("keydown", (event) => {
-    if (!isActive()) return;
     if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+    resolvePickerFieldOnEnter(event.target.name);
+    if (!isActive()) return;
+    if (event.target.tagName === "TEXTAREA") {
+      event.stopPropagation();
+      return;
+    }
     event.preventDefault();
     getNav().querySelector("[data-wizard-next]")?.click();
   });
@@ -3436,6 +3476,14 @@ const paymentWizard = createDialogWizard({
     if (step === 4) renderPaymentMethodChoices();
   },
   onReachLastStep: renderPaymentWizardSummary,
+  pickers: {
+    clientSearch: {
+      searchField: "clientSearch",
+      idField: "clientId",
+      items: () => state.clients.map((client) => ({ id: client.id, label: clientOptionLabel(client) })),
+      onApply: () => syncPaymentClientSelection()
+    }
+  },
   validateStep: (step, form) => {
     if (step === 1) {
       syncPaymentClientSelection();

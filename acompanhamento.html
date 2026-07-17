@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=26">
+  <link rel="stylesheet" href="acompanhamento.css?v=27">
 </head>
 <body>
   <header class="tracking-header">
@@ -115,7 +115,14 @@
       </div>
       <div class="tracking-wizard-step hidden" data-step="2">
         <h3 class="tracking-wizard-step-title">Placa ou referência</h3>
-        <label>Placa/referência<textarea name="references" rows="4" required placeholder="Uma por linha. Ex.:&#10;ABC1D23&#10;DEF4G56"></textarea></label>
+        <label>Placa/referência
+          <span class="tracking-requester-row">
+            <input name="referenceInput" type="text" autocomplete="off" placeholder="Digite e aperte Enter">
+            <button class="tracking-secondary" type="button" data-add-tracking-reference>+</button>
+          </span>
+        </label>
+        <div id="trackingReferenceList" class="tracking-reference-list"></div>
+        <input name="references" type="hidden">
       </div>
       <div class="tracking-wizard-step hidden" data-step="3">
         <h3 class="tracking-wizard-step-title">Quem solicitou?</h3>
@@ -150,6 +157,6 @@
       <button type="button" class="tracking-primary" data-wizard-next>Continuar</button>
     </div>
   </dialog>
-  <script src="acompanhamento.js?v=34"></script>
+  <script src="acompanhamento.js?v=35"></script>
 </body>
 </html>

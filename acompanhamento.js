@@ -850,8 +850,28 @@ document.getElementById("trackingServiceSort")?.addEventListener("change", () =>
 });
 const TRACKING_REQUEST_STEP_COUNT = 5;
 let trackingRequestStep = 1;
+let trackingRequestReferenceValues = [];
 const TRACKING_PICKER_PAGE_SIZE = 6;
 const trackingPickerPages = { service: 0, requester: 0 };
+
+function renderTrackingReferenceList() {
+  const form = document.getElementById("trackingRequestForm");
+  document.getElementById("trackingReferenceList").innerHTML = trackingRequestReferenceValues
+    .map((reference, index) => `<span class="tracking-reference">${escapeHtml(reference)}<button type="button" data-remove-tracking-reference="${index}" aria-label="Remover ${escapeHtml(reference)}">×</button></span>`)
+    .join("");
+  form.elements.references.value = trackingRequestReferenceValues.join("\n");
+}
+
+function addCurrentTrackingReference() {
+  const form = document.getElementById("trackingRequestForm");
+  const input = form.elements.referenceInput;
+  const value = input.value.trim().toUpperCase();
+  if (!value) return false;
+  if (!trackingRequestReferenceValues.includes(value)) trackingRequestReferenceValues.push(value);
+  input.value = "";
+  renderTrackingReferenceList();
+  return true;
+}
 
 function renderTrackingPickerGrid(key, gridId, items, selectedId) {
   const grid = document.getElementById(gridId);
@@ -914,7 +934,7 @@ function renderTrackingRequestWizardSummary() {
   const form = document.getElementById("trackingRequestForm");
   const target = document.getElementById("trackingRequestWizardSummary");
   if (!target) return;
-  const referenceCount = form.elements.references.value.split("\n").map((line) => line.trim()).filter(Boolean).length;
+  const referenceCount = trackingRequestReferenceValues.length;
   const rows = [
     ["Serviço", form.elements.serviceSearch.value || "-"],
     ["Valor", form.elements.amount.value || "-"],
@@ -928,7 +948,7 @@ function renderTrackingRequestWizardSummary() {
 }
 
 function trackingRequestFirstField(step) {
-  if (step === 2) return document.querySelector('#trackingRequestForm textarea[name="references"]');
+  if (step === 2) return document.querySelector('#trackingRequestForm input[name="referenceInput"]');
   if (step === 4) return document.querySelector('#trackingRequestForm textarea[name="notes"]');
   return null;
 }
@@ -966,9 +986,10 @@ function validateTrackingRequestStep(step) {
     }
   }
   if (step === 2) {
-    if (!form.elements.references.value.trim()) {
+    addCurrentTrackingReference();
+    if (!trackingRequestReferenceValues.length) {
       message.textContent = "Informe ao menos uma placa ou referência.";
-      form.elements.references.focus();
+      form.elements.referenceInput.focus();
       return false;
     }
   }
@@ -978,6 +999,8 @@ function validateTrackingRequestStep(step) {
 document.getElementById("openTrackingRequestDialog").addEventListener("click", () => {
   trackingPickerPages.service = 0;
   trackingPickerPages.requester = 0;
+  trackingRequestReferenceValues = [];
+  renderTrackingReferenceList();
   renderRequestArea(trackingData || {});
   document.getElementById("trackingRequestDialog").showModal();
   goToTrackingRequestStep(1);
@@ -985,6 +1008,8 @@ document.getElementById("openTrackingRequestDialog").addEventListener("click", (
 document.querySelectorAll("[data-close-tracking-request]").forEach((button) => button.addEventListener("click", () => {
   const form = document.getElementById("trackingRequestForm");
   form.reset();
+  trackingRequestReferenceValues = [];
+  renderTrackingReferenceList();
   document.getElementById("trackingRequestMessage").textContent = "";
   document.getElementById("trackingRequestDialog").close();
 }));
@@ -1027,6 +1052,18 @@ document.getElementById("trackingRequestForm").addEventListener("click", (event)
       renderTrackingRequesterPicker();
     }
     return;
+  }
+});
+document.getElementById("trackingRequestForm").addEventListener("click", (event) => {
+  const addButton = event.target.closest("[data-add-tracking-reference]");
+  if (addButton) {
+    if (!addCurrentTrackingReference()) document.getElementById("trackingRequestForm").elements.referenceInput.focus();
+    return;
+  }
+  const removeButton = event.target.closest("[data-remove-tracking-reference]");
+  if (removeButton) {
+    trackingRequestReferenceValues.splice(Number(removeButton.dataset.removeTrackingReference), 1);
+    renderTrackingReferenceList();
   }
 });
 document.getElementById("trackingRequestForm").addEventListener("click", async (event) => {
@@ -1074,8 +1111,20 @@ document.querySelector(".tracking-wizard-nav").addEventListener("click", (event)
   }
 });
 document.getElementById("trackingRequestForm").addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON" || event.target.tagName === "TEXTAREA") return;
+  if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+  if (event.target.tagName === "TEXTAREA") {
+    if (event.target.name === "notes" && !event.target.value.trim()) {
+      event.preventDefault();
+      document.querySelector('.tracking-wizard-nav [data-wizard-next]').focus();
+    }
+    return;
+  }
   event.preventDefault();
+  if (event.target.name === "referenceInput") {
+    if (addCurrentTrackingReference()) event.target.focus();
+    else document.querySelector('.tracking-wizard-nav [data-wizard-next]').click();
+    return;
+  }
   if (event.target.name === "serviceSearch" && trackingData) {
     const form = document.getElementById("trackingRequestForm");
     const service = syncRequestServiceSelection();
@@ -1106,6 +1155,8 @@ document.getElementById("trackingRequestForm").addEventListener("submit", async 
     });
     message.textContent = "Pedido enviado com sucesso.";
     form.reset();
+    trackingRequestReferenceValues = [];
+    renderTrackingReferenceList();
     document.getElementById("trackingRequestDialog").close();
     await refreshTracking();
   } catch (error) {
