@@ -334,7 +334,8 @@
         <span>Filtros financeiros</span><strong>Mostrar</strong>
       </button>
       <div class="filters payment-filters finance-filters">
-        <select id="paymentClientFilter"><option value="">Todos os clientes</option></select>
+        <input id="paymentClientFilterSearch" type="search" list="serviceClientOptions" placeholder="Digite o cliente">
+        <input id="paymentClientFilter" type="hidden">
         <select id="paymentStatusFilter">
           <option value="open">Em aberto</option>
           <option value="overdue">Atrasadas</option>
@@ -402,7 +403,8 @@
         <span>Filtros de cobrancas</span><strong>Mostrar</strong>
       </button>
       <div class="filters billing-filters finance-filters">
-        <select id="billingClientFilter"><option value="">Todos os clientes</option></select>
+        <input id="billingClientFilterSearch" type="search" list="serviceClientOptions" placeholder="Digite o cliente">
+        <input id="billingClientFilter" type="hidden">
         <select id="billingStatusFilter">
           <option value="">Todas as cobrancas</option>
           <option value="paid">Quitadas</option>
@@ -433,7 +435,8 @@
       </div>
       <div id="supplierDashboardPanel" class="supplier-panel">
         <div class="filters">
-          <select id="supplierDashboardFilter"><option value="">Todos os fornecedores</option></select>
+          <input id="supplierDashboardFilterSearch" type="search" list="supplierOptions" placeholder="Digite o fornecedor">
+          <input id="supplierDashboardFilter" type="hidden">
           <input id="supplierDashboardStart" type="date" aria-label="Data inicial">
           <input id="supplierDashboardEnd" type="date" aria-label="Data final">
         </div>
@@ -463,8 +466,10 @@
           <button class="table-action" type="button" data-supplier-current-week>Voltar para semana atual</button>
         </div>
         <div class="filters">
-          <select id="supplierEntrySupplierFilter"><option value="">Todos os fornecedores</option></select>
-          <select id="supplierEntryClientFilter"><option value="">Todos os clientes</option></select>
+          <input id="supplierEntrySupplierFilterSearch" type="search" list="supplierOptions" placeholder="Digite o fornecedor">
+          <input id="supplierEntrySupplierFilter" type="hidden">
+          <input id="supplierEntryClientFilterSearch" type="search" list="serviceClientOptions" placeholder="Digite o cliente">
+          <input id="supplierEntryClientFilter" type="hidden">
           <select id="supplierEntryStatusFilter"><option value="">Todos os status</option><option>A fazer</option><option>Feito</option><option>Entregue</option><option>Cancelado</option></select>
           <input id="supplierEntryStart" type="date" aria-label="Data inicial">
           <input id="supplierEntryEnd" type="date" aria-label="Data final">
@@ -476,7 +481,8 @@
         <div class="heading-actions supplier-payable-actions"><button class="primary" type="button" data-supplier-action="payable">Gerar pagamento</button></div>
         <div id="supplierPayableSummary" class="dashboard-grid payment-summary"></div>
         <div class="filters">
-          <select id="supplierPayableSupplierFilter"><option value="">Todos os fornecedores</option></select>
+          <input id="supplierPayableSupplierFilterSearch" type="search" list="supplierOptions" placeholder="Digite o fornecedor">
+          <input id="supplierPayableSupplierFilter" type="hidden">
           <select id="supplierPayableStatusFilter"><option value="">Todos</option><option value="open">Em aberto</option><option value="paid">Pagos</option></select>
         </div>
         <div id="supplierPayableList" class="receivable-grid"></div>
@@ -1876,7 +1882,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=43"></script>
-  <script src="app.js?v=136"></script>
-  <script src="supplier.js?v=57"></script>
+  <script src="app.js?v=137"></script>
+  <script src="supplier.js?v=58"></script>
 </body>
 </html>

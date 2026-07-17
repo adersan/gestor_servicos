@@ -113,22 +113,17 @@
   }
 
   function fillSelects() {
-    const ids = [
-      "supplierDashboardFilter", "supplierEntrySupplierFilter",
-      "supplierPayableSupplierFilter"
-    ];
-    ids.forEach((id) => {
-      const field = byId(id);
-      if (!field) return;
-      const selected = field.value;
-      field.innerHTML = `<option value="">Todos os fornecedores</option>${state.suppliers.map((item) =>
-        `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join("")}`;
-      field.value = selected;
-    });
     byId("supplierOptions").innerHTML = [...state.suppliers]
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
       .map((item) => `<option value="${escapeHtml(supplierOptionLabel(item))}"></option>`)
       .join("");
+  }
+
+  function syncSupplierFilterField(searchId, hiddenId) {
+    const searchInput = byId(searchId);
+    const supplier = itemByExactLabel(state.suppliers, searchInput.value, supplierOptionLabel)
+      || uniqueSupplierMatch(searchInput.value);
+    byId(hiddenId).value = supplier?.id || "";
   }
 
   function renderDashboard() {
@@ -1588,8 +1583,19 @@
     }
   });
 
-  ["supplierDashboardFilter", "supplierDashboardStart", "supplierDashboardEnd", "supplierEntrySupplierFilter", "supplierEntryClientFilter", "supplierEntryStatusFilter", "supplierEntryStart", "supplierEntryEnd", "supplierEntrySearch", "supplierSearch", "supplierServiceSearch", "supplierPayableSupplierFilter", "supplierPayableStatusFilter"].forEach((id) => {
+  ["supplierDashboardStart", "supplierDashboardEnd", "supplierEntryStatusFilter", "supplierEntryStart", "supplierEntryEnd", "supplierEntrySearch", "supplierSearch", "supplierServiceSearch", "supplierPayableStatusFilter"].forEach((id) => {
     byId(id).addEventListener(id.includes("Search") ? "input" : "change", render);
+  });
+  [
+    ["supplierDashboardFilterSearch", "supplierDashboardFilter", syncSupplierFilterField],
+    ["supplierEntrySupplierFilterSearch", "supplierEntrySupplierFilter", syncSupplierFilterField],
+    ["supplierEntryClientFilterSearch", "supplierEntryClientFilter", syncClientFilterField],
+    ["supplierPayableSupplierFilterSearch", "supplierPayableSupplierFilter", syncSupplierFilterField]
+  ].forEach(([searchId, hiddenId, syncFn]) => {
+    byId(searchId).addEventListener("input", () => {
+      syncFn(searchId, hiddenId);
+      render();
+    });
   });
 
   const week = currentOperationalWeek();

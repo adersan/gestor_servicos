@@ -1006,14 +1006,6 @@ function formatDate(value) {
 }
 
 function renderSelects() {
-  const options = state.clients.map((client) => `<option value="${client.id}">${escapeHtml(client.name)}</option>`).join("");
-  ["paymentClientFilter", "billingClientFilter", "supplierEntryClientFilter"].forEach((id) => {
-    const filter = document.getElementById(id);
-    const currentFilter = filter.value;
-    filter.innerHTML = `<option value="">Todos os clientes</option>${options}`;
-    filter.value = currentFilter;
-  });
-
   const clientDatalistOptions = [...state.clients]
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
     .map((client) => `<option value="${escapeHtml(clientOptionLabel(client))}"></option>`)
@@ -2336,6 +2328,23 @@ function syncServiceClientFilter() {
   const client = uniqueClientMatch(searchInput.value);
   document.getElementById("serviceClientFilter").value = client?.id || "";
   renderServices();
+}
+
+function syncClientFilterField(searchId, hiddenId) {
+  const searchInput = document.getElementById(searchId);
+  const client = itemByExactLabel(state.clients, searchInput.value, clientOptionLabel)
+    || uniqueClientMatch(searchInput.value);
+  document.getElementById(hiddenId).value = client?.id || "";
+}
+
+function syncPaymentClientFilter() {
+  syncClientFilterField("paymentClientFilterSearch", "paymentClientFilter");
+  renderPayments();
+}
+
+function syncBillingClientFilter() {
+  syncClientFilterField("billingClientFilterSearch", "billingClientFilter");
+  renderBillings();
 }
 
 function syncTrackingClientSelection() {
@@ -5714,14 +5723,14 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["serviceSearch", "input", renderServices],
   ["requestSearch", "input", renderServiceRequests],
   ["requestStatusFilter", "change", renderServiceRequests],
-  ["paymentClientFilter", "change", renderPayments],
+  ["paymentClientFilterSearch", "input", syncPaymentClientFilter],
   ["paymentStatusFilter", "change", renderPayments],
   ["paymentStartFilter", "change", () => { setFinancePeriodFromInputs("payment"); refreshFinanceViews(); }],
   ["paymentEndFilter", "change", () => { setFinancePeriodFromInputs("payment"); refreshFinanceViews(); }],
   ["paymentSearch", "input", renderPayments],
   ["paymentMethodStatusFilter", "change", renderPaymentMethods],
   ["paymentMethodSearch", "input", renderPaymentMethods],
-  ["billingClientFilter", "change", renderBillings],
+  ["billingClientFilterSearch", "input", syncBillingClientFilter],
   ["billingStatusFilter", "change", renderBillings],
   ["billingStartFilter", "change", () => { setFinancePeriodFromInputs("billing"); refreshFinanceViews(); }],
   ["billingEndFilter", "change", () => { setFinancePeriodFromInputs("billing"); refreshFinanceViews(); }],
@@ -6215,7 +6224,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=142").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=143").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
