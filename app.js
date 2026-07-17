@@ -849,7 +849,7 @@ function ensureFinancePeriod() {
 
 function syncFinancePeriodControls() {
   const period = ensureFinancePeriod();
-  ["payment", "billing", "financeSummary"].forEach((prefix) => {
+  ["payment", "billing", "financeSummary", "supplierPayable"].forEach((prefix) => {
     const start = document.getElementById(`${prefix}StartFilter`);
     const end = document.getElementById(`${prefix}EndFilter`);
     const label = document.getElementById(`${prefix}PeriodLabel`);
@@ -891,6 +891,7 @@ function refreshFinanceViews() {
   renderPayments();
   renderBillings();
   renderFinanceSummary();
+  window.supplierModule?.render();
 }
 
 function dateKeysBetween(startDate, endDate, maximum = 31) {
@@ -1234,6 +1235,8 @@ function renderDashboardV2() {
   document.getElementById("dashboardFinanceCards").classList.toggle("hidden", activeDashboardTab !== "finance");
   document.getElementById("dashboardFinanceCharts").classList.toggle("hidden", activeDashboardTab !== "finance");
   document.getElementById("dashboardFinanceSummary").classList.toggle("hidden", activeDashboardTab !== "finance");
+  document.getElementById("dashboardSuppliersPanel").classList.toggle("hidden", activeDashboardTab !== "suppliers");
+  document.querySelector(".dashboard-period-controls").classList.toggle("hidden", activeDashboardTab === "suppliers");
   document.querySelectorAll("[data-dashboard-week-block]").forEach((element) => {
     element.classList.toggle("hidden", !isOperationalWeek);
   });
@@ -1763,30 +1766,40 @@ function renderPayments() {
     <article class="metric-card finance-open-card ${totalOpen > 0 ? "has-open" : ""}"><span>Debito total em aberto</span><strong>${money.format(totalOpen)}</strong><small>${allActiveBillings.filter((billing) => billingOpenAmount(billing) > 0).length} cobranca(s)</small></article>
     <article class="metric-card finance-received-card"><span>Recebido no periodo</span><strong>${money.format(receivedTotal)}</strong><small>${periodLabel(period)}</small></article>`;
 
-  document.getElementById("openBillingList").innerHTML = billings.length ? billings.map((billing) => `
-    <article class="receivable-card ${billingCardStatusClass(billing)}">
-      <div class="receivable-heading">
-        <div><span class="eyebrow">${billing.billingNumber ? `Cobrança #${billing.billingNumber} · ` : ""}${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</span><h3>${escapeHtml(clientById(billing.clientId)?.name || "")}</h3></div>
+  function billingRowMarkup(billing) {
+    const canPay = billing.openAmount > 0 && billing.currentStatus !== "Cancelada";
+    return `
+    <article class="timeline-item ${billingCardStatusClass(billing)}">
+      <time>${formatDate(billing.endDate)}</time>
+      <div>
+        <h3>${escapeHtml(clientById(billing.clientId)?.name || "")}</h3>
+        <p class="meta">${billing.billingNumber ? `Cobrança #${billing.billingNumber} · ` : ""}${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</p>
+        <p class="meta">${escapeHtml(billing.statusReason || (billing.currentStatus === "Paga" ? "Quitada pelos pagamentos vinculados" : "Aguardando pagamento"))}</p>
+        ${isBillingOverdue(billing) ? `<p class="overdue-message">Em atraso há ${daysPastBillingPeriod(billing)} dia(s).</p>` : ""}
+      </div>
+      <strong>${money.format(billing.openAmount)}</strong>
+      <div class="row-actions">
         <span class="billing-status billing-${billing.currentStatus.toLowerCase()}">${billing.currentStatus}</span>
+        ${canPay ? `<button class="table-action" data-pay-billing="${billing.id}" data-payment-mode="partial">Baixa parcial</button><button class="table-action success" data-pay-billing="${billing.id}" data-payment-mode="full">Quitar</button>` : ""}
       </div>
-      <strong class="mobile-finance-balance">${money.format(billing.openAmount)}</strong>
-      <button class="mobile-finance-more" type="button" data-toggle-finance-card aria-expanded="false">Ver detalhes</button>
-      <div class="mobile-finance-details">
-      <div class="receivable-values">
-        <span>Valor original<strong>${money.format(billing.amount)}</strong></span>
-        <span>Pagamentos vinculados<strong>${money.format(billing.paidAmount)}</strong></span>
-        <span>Saldo em aberto<strong>${money.format(billing.openAmount)}</strong></span>
-      </div>
-      <p class="meta"><strong>Motivo:</strong> ${escapeHtml(billing.statusReason || (billing.currentStatus === "Paga" ? "Quitada pelos pagamentos vinculados" : "Aguardando pagamento"))}</p>
-      <p class="meta"><strong>Pagamentos:</strong> ${escapeHtml(billingPaymentSummary(billing))}</p>
-      ${billing.openAmount > 0 && billing.currentStatus !== "Cancelada" ? `
-        <div class="receivable-actions">
-          <button class="table-action" data-pay-billing="${billing.id}" data-payment-mode="partial">Baixa parcial</button>
-          <button class="table-action success" data-pay-billing="${billing.id}" data-payment-mode="full">Quitar ${money.format(billing.openAmount)}</button>
-        </div>` : ""}
-      ${isBillingOverdue(billing) ? `<p class="overdue-message">Cobrança em atraso há ${daysPastBillingPeriod(billing)} dia(s).</p>` : ""}
-      </div>
-    </article>`).join("") : emptyMarkup();
+    </article>`;
+  }
+
+  const billingGroups = [];
+  const billingGroupIndex = new Map();
+  billings.forEach((billing) => {
+    const key = billing.clientId || "";
+    if (!billingGroupIndex.has(key)) {
+      billingGroupIndex.set(key, billingGroups.length);
+      billingGroups.push({ name: clientById(key)?.name || "Sem cliente", billings: [] });
+    }
+    billingGroups[billingGroupIndex.get(key)].billings.push(billing);
+  });
+  billingGroups.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+  document.getElementById("openBillingList").innerHTML = billings.length ? billingGroups.map((group) => `
+    <div class="payment-group-heading">${escapeHtml(group.name)} <span class="payment-group-count">${group.billings.length}</span></div>
+    ${group.billings.map(billingRowMarkup).join("")}`).join("") : emptyMarkup();
 
   const items = state.payments
     .filter((item) => !clientFilter || item.clientId === clientFilter)
@@ -1948,6 +1961,24 @@ function renderBillings() {
     </article>`).join("") : emptyMarkup();
 }
 
+// Saldo anterior ao periodo: cobrancas fechadas antes do periodo que ainda tem saldo,
+// somando de volta o que foi pago DENTRO do periodo (esse valor volta a aparecer em
+// "pagamentos do periodo", sem duplicar - a baixa so aparece uma vez no total final).
+function previousBalanceFor(clientId, startFilter) {
+  return state.billings
+    .filter((billing) => billing.clientId === clientId && billing.endDate < startFilter)
+    .filter((billing) => {
+      const status = billingCurrentStatus(billing);
+      return status !== "Cancelada" && status !== "Consolidada";
+    })
+    .reduce((sum, billing) => {
+      const paidInPeriod = state.payments
+        .filter((payment) => payment.billingId === billing.id && payment.date >= startFilter)
+        .reduce((total, payment) => total + Number(payment.amount), 0);
+      return sum + billingOpenAmount(billing) + paidInPeriod;
+    }, 0);
+}
+
 function renderFinanceSummary() {
   const period = ensureFinancePeriod();
   const clientFilter = document.getElementById("financeSummaryClientFilter").value;
@@ -1959,6 +1990,7 @@ function renderFinanceSummary() {
   const rows = state.clients
     .filter((client) => !clientFilter || client.id === clientFilter)
     .map((client) => {
+      const previousBalance = previousBalanceFor(client.id, startFilter);
       const periodServiceTotal = state.services
         .filter((item) => item.clientId === client.id && item.status !== "Cancelado"
           && item.date >= startFilter && item.date <= endFilter)
@@ -1968,22 +2000,25 @@ function renderFinanceSummary() {
         .reduce((sum, item) => sum + Number(item.amount), 0);
       return {
         client,
+        previousBalance,
         periodServiceTotal,
         periodPaymentTotal,
-        openBalance: balanceFor(client.id, endFilter)
+        openBalance: previousBalance + periodServiceTotal - periodPaymentTotal
       };
     })
-    .filter((row) => row.periodServiceTotal || row.periodPaymentTotal || Math.abs(row.openBalance) > 0.005)
+    .filter((row) => row.previousBalance || row.periodServiceTotal || row.periodPaymentTotal || Math.abs(row.openBalance) > 0.005)
     .filter((row) => matchesSearch(search, row.client.name))
     .sort((a, b) => b.openBalance - a.openBalance);
 
   const totals = rows.reduce((sum, row) => ({
+    previous: sum.previous + row.previousBalance,
     services: sum.services + row.periodServiceTotal,
     payments: sum.payments + row.periodPaymentTotal,
     open: sum.open + Math.max(0, row.openBalance)
-  }), { services: 0, payments: 0, open: 0 });
+  }), { previous: 0, services: 0, payments: 0, open: 0 });
 
   document.getElementById("financeSummaryTotals").innerHTML = `
+    <article class="metric-card"><span>Cobrança anterior</span><strong>${money.format(totals.previous)}</strong><small>Saldo de antes do período</small></article>
     <article class="metric-card"><span>Consumo do período</span><strong>${money.format(totals.services)}</strong><small>${rows.length} cliente(s)</small></article>
     <article class="metric-card"><span>Pago no período</span><strong>${money.format(totals.payments)}</strong></article>
     <article class="metric-card finance-open-card ${totals.open > 0 ? "has-open" : ""}"><span>Saldo em aberto acumulado</span><strong>${money.format(totals.open)}</strong></article>`;
@@ -1991,7 +2026,7 @@ function renderFinanceSummary() {
   document.getElementById("financeSummaryList").innerHTML = rows.length ? rows.map((row) => `
     <div class="account-row">
       <div><strong>${escapeHtml(row.client.name)}</strong><span class="meta">${escapeHtml(row.client.priceGroup || "")}</span></div>
-      <span class="meta">Consumo do período ${money.format(row.periodServiceTotal)} · Pago no período ${money.format(row.periodPaymentTotal)}</span>
+      <span class="meta">Cobrança anterior ${money.format(row.previousBalance)} · Consumo ${money.format(row.periodServiceTotal)} · Pago ${money.format(row.periodPaymentTotal)}</span>
       <strong class="amount ${row.openBalance < 0 ? "negative" : ""}">${money.format(row.openBalance)}</strong>
     </div>`).join("") : emptyMarkup();
 }
@@ -6336,7 +6371,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=144").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=145").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

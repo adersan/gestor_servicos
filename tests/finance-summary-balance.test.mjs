@@ -49,4 +49,46 @@ assert.equal(context.balanceFor("client", "2026-06-12"), 300);
 // Pagamento futuro (depois do endDate consultado) nao pode abater saldo passado.
 assert.equal(context.balanceFor("client", "2026-06-15"), 300);
 
+// Cenario do correcao.md: "Cobranca anterior" do Resumo por cliente precisa separar o
+// saldo que veio de ANTES do periodo do consumo/pagamento DENTRO do periodo, sem deixar
+// um pagamento de divida antiga mascarar o saldo do periodo atual (bug relatado pelo usuario).
+const summaryState = {
+  billings: [
+    { id: "A1", clientId: "A", endDate: "2026-06-14", amount: 3580, calculationVersion: 2, status: "Aberta" },
+    { id: "B1", clientId: "B", endDate: "2026-06-14", amount: 3000, calculationVersion: 2, status: "Aberta" },
+    { id: "C1", clientId: "C", endDate: "2026-06-10", amount: 3000, calculationVersion: 2, status: "Aberta" },
+    { id: "D1", clientId: "D", endDate: "2026-06-01", amount: 5000, calculationVersion: 2, status: "Cancelada" }
+  ],
+  payments: [
+    { clientId: "A", billingId: "A1", date: "2026-06-16", amount: 3580 },
+    { clientId: "B", billingId: "B1", date: "2026-06-16", amount: 1500 },
+    { clientId: "C", billingId: "C1", date: "2026-06-12", amount: 3000 }
+  ]
+};
+const summaryContext = { state: summaryState };
+vm.createContext(summaryContext);
+vm.runInContext([
+  extractFunction("billingPaidAmount", "billingPayments"),
+  extractFunction("rawBillingOpenAmount", "billingRolloverTarget"),
+  extractFunction("billingOpenAmount", "billingCurrentStatus"),
+  extractFunction("billingCurrentStatus", "billingStatusLabel"),
+  extractFunction("previousBalanceFor", "renderFinanceSummary")
+].join("\n"), summaryContext);
+
+// A: cobranca de 3580 quitada por um pagamento DENTRO do periodo -> cobranca anterior
+// mostra os 3580 (nao soma zero so porque ja foi paga), e o pagamento aparece separado
+// em "pagamentos do periodo" pelo proprio renderFinanceSummary.
+assert.equal(summaryContext.previousBalanceFor("A", "2026-06-15"), 3580);
+
+// B: cobranca de 3000 com baixa parcial de 1500 dentro do periodo -> cobranca anterior
+// continua mostrando o valor cheio (1500 em aberto + 1500 pago no periodo = 3000).
+assert.equal(summaryContext.previousBalanceFor("B", "2026-06-15"), 3000);
+
+// C: cobranca de 3000 quitada ANTES do periodo comecar -> nao entra mais como cobranca
+// anterior (0), o pagamento tambem nao aparece nos pagamentos do periodo.
+assert.equal(summaryContext.previousBalanceFor("C", "2026-06-15"), 0);
+
+// D: cobranca cancelada nunca conta como saldo anterior.
+assert.equal(summaryContext.previousBalanceFor("D", "2026-06-15"), 0);
+
 console.log("finance summary balance test passed");

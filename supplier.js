@@ -129,7 +129,27 @@
     byId(hiddenId).value = supplier?.id || "";
   }
 
+  function renderSupplierVolumePicker() {
+    const picker = byId("dashboardSupplierPicker");
+    if (!picker) return;
+    const start = byId("supplierDashboardStart").value;
+    const end = byId("supplierDashboardEnd").value;
+    const selected = byId("supplierDashboardFilter").value;
+    const entries = state.supplierEntries.filter((item) =>
+      item.status !== "Cancelado" && (!start || item.date >= start) && (!end || item.date <= end));
+    const totalBySupplier = entries.reduce((result, item) => {
+      result[item.supplierId] = (result[item.supplierId] || 0) + Number(item.amount);
+      return result;
+    }, {});
+    const ordered = [...state.suppliers].sort((a, b) => (totalBySupplier[b.id] || 0) - (totalBySupplier[a.id] || 0));
+    picker.innerHTML = `
+      <button type="button" class="supplier-volume-chip ${!selected ? "active" : ""}" data-supplier-volume-pick="">Todos</button>
+      ${ordered.map((item) => `
+        <button type="button" class="supplier-volume-chip ${selected === item.id ? "active" : ""}" data-supplier-volume-pick="${item.id}">${escapeHtml(item.name)}<small>${money.format(totalBySupplier[item.id] || 0)}</small></button>`).join("")}`;
+  }
+
   function renderDashboard() {
+    renderSupplierVolumePicker();
     const supplierId = byId("supplierDashboardFilter").value;
     const start = byId("supplierDashboardStart").value;
     const end = byId("supplierDashboardEnd").value;
@@ -206,20 +226,17 @@
     const supplierSearch = normalized(byId("supplierSearch").value);
     const suppliers = state.suppliers.filter((item) =>
       normalized([item.name, item.phone, item.document].join(" ")).includes(supplierSearch));
-    byId("supplierList").innerHTML = suppliers.length ? suppliers.map((item) => {
-      const serviceCount = state.supplierServices.filter((service) => service.supplierId === item.id).length;
-      return `
+    byId("supplierList").innerHTML = suppliers.length ? suppliers.map((item) => `
       <article class="price-table-card">
         <span class="eyebrow">${item.isDefault ? "Fornecedor padrão" : "Fornecedor"}</span>
         <h3>${escapeHtml(item.name)}</h3>
         <p class="meta">${escapeHtml(item.phone || "Sem telefone")} · ${escapeHtml(item.document || "Sem documento")}</p>
         <div class="card-actions">
-          <button class="table-action" data-supplier-services="${item.id}">Serviços (${serviceCount})</button>
+          <button class="table-action" data-supplier-services="${item.id}">Serviços</button>
           <button class="table-action" data-edit-supplier="${item.id}">Editar</button>
           <button class="table-action danger" data-delete-supplier="${item.id}">Excluir</button>
         </div>
-      </article>`;
-    }).join("") : empty();
+      </article>`).join("") : empty();
 
     renderSupplierServicesDialogList();
   }
@@ -240,9 +257,8 @@
     const services = state.supplierServices.filter((item) =>
       item.supplierId === servicesDialogSupplierId
       && normalized([item.code, item.name].join(" ")).includes(search));
-    byId("supplierServicesDialogList").innerHTML = services.length ? `<div class="catalog-table-wrap"><table class="catalog-table"><thead><tr><th><input type="checkbox" id="supplierServicesSelectAll"></th><th>Código</th><th>Serviço</th><th>Custo</th><th></th></tr></thead><tbody>${services.map((item) => `
-      <tr><td><input type="checkbox" class="supplier-service-row-check" value="${item.id}"></td><td>${escapeHtml(item.code || "-")}</td><td>${escapeHtml(item.name)}</td><td>${money.format(item.cost)}</td>
-      <td><div class="row-actions"><button class="table-action" data-edit-supplier-service="${item.id}">Editar</button><button class="table-action danger" data-delete-supplier-service="${item.id}">Excluir</button></div></td></tr>`).join("")}</tbody></table></div>` : empty();
+    byId("supplierServicesDialogList").innerHTML = services.length ? `<div class="catalog-table-wrap supplier-services-table-wrap"><table class="catalog-table supplier-services-table"><thead><tr><th><input type="checkbox" id="supplierServicesSelectAll"></th><th>Código</th><th>Serviço</th><th>Custo</th></tr></thead><tbody>${services.map((item) => `
+      <tr data-service-row="${item.id}"><td><input type="checkbox" class="supplier-service-row-check" value="${item.id}"></td><td>${escapeHtml(item.code || "-")}</td><td>${escapeHtml(item.name)}</td><td>${money.format(item.cost)}</td></tr>`).join("")}</tbody></table></div>` : empty();
     updateSupplierServicesSelectionUI();
   }
 
@@ -331,6 +347,8 @@
       <article class="metric-card"><span>Contas abertas</span><strong>${state.supplierPayables.filter((item) => payableOpen(item) > 0 && item.status !== "Cancelada").length}</strong><small>Inclui parciais</small></article>`;
     byId("supplierPayableList").innerHTML = payables.length ? payables.map((item) => {
       const entryCount = state.supplierEntries.filter((entry) => entry.payableId === item.id).length;
+      const history = state.supplierPayments.filter((payment) => payment.payableId === item.id)
+        .sort((a, b) => b.date.localeCompare(a.date));
       return `
       <article class="receivable-card">
         <div class="receivable-heading"><div><span class="eyebrow">${formatDate(item.startDate)} a ${formatDate(item.endDate)}</span><h3>${escapeHtml(supplierById(item.supplierId)?.name || "")}</h3></div><span class="billing-status billing-${payableStatus(item).toLowerCase()}">${payableStatus(item)}</span></div>
@@ -342,23 +360,23 @@
           <button class="table-action whatsapp-action" data-supplier-share="${item.id}">Compartilhar</button>
           ${payableOpen(item) > 0 ? `<button class="table-action" data-pay-supplier="${item.id}" data-mode="partial">Baixa parcial</button><button class="table-action success" data-pay-supplier="${item.id}" data-mode="full">Quitar</button>` : ""}
           ${!payablePaid(item) ? `<button class="table-action danger" data-cancel-supplier-payable="${item.id}">Cancelar conta</button>` : ""}
+          ${history.length ? `<button class="table-action" data-toggle-payable-history="${item.id}">Histórico de pagamento (${history.length})</button>` : ""}
         </div>
+        ${history.length ? `<div class="payable-history hidden" data-payable-history="${item.id}">${history.map((payment) => `
+          <div class="payable-history-row"><time>${formatDate(payment.date)}</time><span>${escapeHtml(payment.method || "Não informada")} · ${escapeHtml(payment.note || "Sem observação")}</span><strong>${money.format(payment.amount)}</strong><button class="table-action danger" data-delete-supplier-payment="${payment.id}">Excluir</button></div>`).join("")}</div>` : ""}
       </article>`;
     }).join("") : empty();
-    byId("supplierPaymentList").innerHTML = state.supplierPayments.length ? [...state.supplierPayments].sort((a, b) => b.date.localeCompare(a.date)).map((item) => {
-      const payable = state.supplierPayables.find((entry) => entry.id === item.payableId);
-      return `<article class="timeline-item supplier-payment-history"><time>${formatDate(item.date)}</time><div><h3>${escapeHtml(supplierById(item.supplierId)?.name || "")}</h3><p class="meta">${escapeHtml(item.method || "Não informada")} · ${escapeHtml(item.note || "Sem observação")}</p>${payable ? `<span class="payment-allocation">Conta de ${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}</span>` : ""}</div><strong>${money.format(item.amount)}</strong><div class="row-actions">${payable ? `<button class="table-action" data-supplier-report="${payable.id}">Ver conta</button>` : ""}<button class="table-action danger" data-delete-supplier-payment="${item.id}">Excluir</button></div></article>`;
-    }
-    ).join("") : empty();
   }
 
   function renderSupplierOnlineEntries() {
     const supplierId = byId("supplierOnlineFilter").value;
+    const clientId = byId("supplierOnlineClientFilter").value;
     const start = byId("supplierOnlineStart").value;
     const end = byId("supplierOnlineEnd").value;
     const entries = state.supplierEntries.filter((item) =>
       item.source === "Fornecedor"
       && (!supplierId || item.supplierId === supplierId)
+      && (!clientId || item.clientId === clientId)
       && (!start || item.date >= start)
       && (!end || item.date <= end)
     ).sort((a, b) => b.date.localeCompare(a.date));
@@ -436,7 +454,7 @@
     activeTab = tab;
     document.querySelectorAll("[data-supplier-tab]").forEach((button) =>
       button.classList.toggle("active", button.dataset.supplierTab === tab));
-    const panelNames = { dashboard: "Dashboard", records: "Records", entries: "Entries", payables: "Payables", access: "Access" };
+    const panelNames = { records: "Records", entries: "Entries", payables: "Payables", access: "Access" };
     Object.entries(panelNames).forEach(([name, suffix]) =>
       byId(`supplier${suffix}Panel`).classList.toggle("hidden", name !== tab));
   }
@@ -1609,8 +1627,24 @@
     if (tabShortcut) showSupplierTab(tabShortcut.dataset.supplierTabShortcut);
     const action = event.target.closest("[data-supplier-action]");
     if (action) ({ supplier: () => openSupplier(), service: () => openSupplierService(), entry: () => openSupplierEntry(), payable: openPayable, access: openAccess }[action.dataset.supplierAction])?.();
+    const volumePick = event.target.closest("[data-supplier-volume-pick]");
+    if (volumePick) {
+      byId("supplierDashboardFilter").value = volumePick.dataset.supplierVolumePick;
+      render();
+    }
+    const toggleHistory = event.target.closest("[data-toggle-payable-history]");
+    if (toggleHistory) {
+      const block = document.querySelector(`[data-payable-history="${toggleHistory.dataset.togglePayableHistory}"]`);
+      if (block) block.classList.toggle("hidden");
+    }
     const openServicesList = event.target.closest("[data-supplier-services]");
     if (openServicesList) openSupplierServicesList(openServicesList.dataset.supplierServices);
+    const serviceRow = event.target.closest("[data-service-row]");
+    if (serviceRow && !event.target.matches(".supplier-service-row-check")) {
+      const checkbox = serviceRow.querySelector(".supplier-service-row-check");
+      checkbox.checked = !checkbox.checked;
+      updateSupplierServicesSelectionUI();
+    }
     const addServiceFromList = event.target.closest("#supplierServicesAddButton");
     if (addServiceFromList) openSupplierService(null, servicesDialogSupplierId);
     const editSelectedService = event.target.closest("#supplierServicesEditSelected");
@@ -1721,7 +1755,6 @@
       }
     }
     const editSupplier = event.target.closest("[data-edit-supplier]"); if (editSupplier) openSupplier(supplierById(editSupplier.dataset.editSupplier));
-    const editService = event.target.closest("[data-edit-supplier-service]"); if (editService) openSupplierService(supplierServiceById(editService.dataset.editSupplierService));
     const editEntry = event.target.closest("[data-edit-supplier-entry]"); if (editEntry) openSupplierEntry(state.supplierEntries.find((item) => item.id === editEntry.dataset.editSupplierEntry));
     const entryStatus = event.target.closest("[data-supplier-entry-status]");
     if (entryStatus) {
@@ -1756,9 +1789,6 @@
     const deleteSupplier = event.target.closest("[data-delete-supplier]");
     if (deleteSupplier && !state.supplierEntries.some((item) => item.supplierId === deleteSupplier.dataset.deleteSupplier) && await showAppConfirm("Excluir este fornecedor?")) { state.suppliers = state.suppliers.filter((item) => item.id !== deleteSupplier.dataset.deleteSupplier); saveState(); showAppAlert("Fornecedor excluído com sucesso.", { type: "success" }); }
     else if (deleteSupplier && state.supplierEntries.some((item) => item.supplierId === deleteSupplier.dataset.deleteSupplier)) showAppAlert("Este fornecedor possui movimentações e não pode ser excluído.", { type: "warning" });
-    const deleteService = event.target.closest("[data-delete-supplier-service]");
-    if (deleteService && !state.supplierEntries.some((item) => item.supplierServiceId === deleteService.dataset.deleteSupplierService) && await showAppConfirm("Excluir este serviço?")) { state.supplierServices = state.supplierServices.filter((item) => item.id !== deleteService.dataset.deleteSupplierService); saveState(); showAppAlert("Serviço do fornecedor excluído com sucesso.", { type: "success" }); }
-    else if (deleteService && state.supplierEntries.some((item) => item.supplierServiceId === deleteService.dataset.deleteSupplierService)) showAppAlert("Este serviço já possui lançamentos.", { type: "warning" });
     const deleteEntry = event.target.closest("[data-delete-supplier-entry]");
     if (deleteEntry && await showAppConfirm("Excluir este lançamento?")) { state.supplierEntries = state.supplierEntries.filter((item) => item.id !== deleteEntry.dataset.deleteSupplierEntry); saveState(); showAppAlert("Lançamento do fornecedor excluído com sucesso.", { type: "success" }); }
     const pay = event.target.closest("[data-pay-supplier]");
@@ -1800,11 +1830,11 @@
     byId(id).addEventListener(id.includes("Search") ? "input" : "change", render);
   });
   [
-    ["supplierDashboardFilterSearch", "supplierDashboardFilter", syncSupplierFilterField],
     ["supplierEntrySupplierFilterSearch", "supplierEntrySupplierFilter", syncSupplierFilterField],
     ["supplierEntryClientFilterSearch", "supplierEntryClientFilter", syncClientFilterField],
     ["supplierPayableSupplierFilterSearch", "supplierPayableSupplierFilter", syncSupplierFilterField],
-    ["supplierOnlineFilterSearch", "supplierOnlineFilter", syncSupplierFilterField]
+    ["supplierOnlineFilterSearch", "supplierOnlineFilter", syncSupplierFilterField],
+    ["supplierOnlineClientFilterSearch", "supplierOnlineClientFilter", syncClientFilterField]
   ].forEach(([searchId, hiddenId, syncFn]) => {
     byId(searchId).addEventListener("input", () => {
       syncFn(searchId, hiddenId);
