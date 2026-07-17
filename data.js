@@ -164,6 +164,7 @@
       })),
       billings: billingsResult.data.map((billing) => ({
         id: billing.id,
+        billingNumber: billing.billing_number || null,
         clientId: billing.client_id,
         startDate: billing.period_start,
         endDate: billing.period_end,
@@ -433,6 +434,7 @@
       const billingsResult = await client.from("billings").upsert(
         state.billings.map((item) => ({
           id: item.id,
+          billing_number: item.billingNumber || null,
           client_id: item.clientId,
           period_start: item.startDate,
           period_end: item.endDate,

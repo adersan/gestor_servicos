@@ -10,9 +10,15 @@
     sessionStorage.setItem("supplier-access", accessCode);
     history.replaceState({}, "", "/fornecedor.html");
   }
+  const SUPPLIER_CHOICE_KEY = "supplier-access-choice";
+  const SUPPLIER_IDENTIFIER_KEY = "supplier-access-identifier";
+  const SUPPLIER_PASSWORD_KEY = "supplier-access-password";
   let data;
   let search = "";
   let refreshInProgress = false;
+  let pendingRestrictedData = null;
+
+  const amountText = (value) => data?.includeFinancial === false ? "Valor sob consulta" : money.format(Number(value || 0));
 
   const APP_ALERT_KIND = {
     success: { title: "Sucesso" },
@@ -104,14 +110,65 @@
     return result;
   }
 
-  async function load() {
+  function storedSupplierCredentials() {
+    return {
+      identifier: sessionStorage.getItem(SUPPLIER_IDENTIFIER_KEY) || undefined,
+      password: sessionStorage.getItem(SUPPLIER_PASSWORD_KEY) || undefined
+    };
+  }
+
+  async function requestPortalData(credentials = {}) {
     const response = await fetch("/.netlify/functions/supplier-portal-data", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessCode })
+      body: JSON.stringify({ accessCode, ...credentials })
     });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Não foi possível abrir este acesso.");
+    return result;
+  }
+
+  function showAccessChoice() {
+    document.getElementById("message").classList.add("hidden");
+    document.getElementById("content").classList.add("hidden");
+    document.getElementById("accessChoice").classList.remove("hidden");
+    document.getElementById("accessButtons").classList.remove("hidden");
+    document.getElementById("accessPasswordForm").classList.add("hidden");
+  }
+
+  function enterRestricted() {
+    if (!pendingRestrictedData) return;
+    sessionStorage.setItem(SUPPLIER_CHOICE_KEY, "restricted");
+    document.getElementById("accessChoice").classList.add("hidden");
+    data = pendingRestrictedData;
+    pendingRestrictedData = null;
+    render();
+  }
+
+  async function enterFullAccess(credentials) {
+    const result = await requestPortalData({ identifier: credentials.identifier, password: credentials.password });
+    if (result.tier === "restricted") throw new Error("Identificador ou senha inválidos.");
+    sessionStorage.setItem(SUPPLIER_IDENTIFIER_KEY, credentials.identifier);
+    sessionStorage.setItem(SUPPLIER_PASSWORD_KEY, credentials.password);
+    sessionStorage.setItem(SUPPLIER_CHOICE_KEY, "full");
+    document.getElementById("accessChoice").classList.add("hidden");
+    pendingRestrictedData = null;
+    data = result;
+    render();
+  }
+
+  async function load() {
+    const storedChoice = sessionStorage.getItem(SUPPLIER_CHOICE_KEY);
+    // Na primeira visita (sem escolha guardada) nao aplica a senha guardada ainda,
+    // para sempre perguntar "Entrar sem senha / Entrar com senha" antes de liberar o acesso completo.
+    const result = await requestPortalData(storedChoice === "full" ? storedSupplierCredentials() : {});
+    if (result.linkMode === "gated" && !storedChoice) {
+      pendingRestrictedData = result;
+      showAccessChoice();
+      return;
+    }
+    if (result.linkMode === "gated") sessionStorage.setItem(SUPPLIER_CHOICE_KEY, result.tier);
+    document.getElementById("accessChoice").classList.add("hidden");
     data = result;
     render();
   }
@@ -149,7 +206,7 @@
         ${item.cancellation_reason ? `<span class="meta entry-note"><strong>Motivo:</strong> ${escape(item.cancellation_reason)}</span>` : ""}
         ${item.last_changed_by === "Fornecedor" ? `<span class="changed-label">Alterado pelo fornecedor</span>` : ""}
       </div>
-      <div class="entry-value"><strong>${money.format(Number(item.amount))}</strong><span class="status ${normalized(item.status).replace(/\s/g, "-")}">${escape(item.status)}</span></div>
+      <div class="entry-value"><strong>${amountText(item.amount)}</strong><span class="status ${normalized(item.status).replace(/\s/g, "-")}">${escape(item.status)}</span></div>
       <div class="entry-actions">
         ${canMarkDone ? `<button class="success" data-mark-done="${item.id}">Marcar como feito</button>` : ""}
         ${canEdit ? `<button data-edit="${item.id}">Editar</button>` : ""}
@@ -191,9 +248,9 @@
       return result;
     }, {})).sort((a, b) => b.total - a.total);
     const total = grouped.reduce((sum, item) => sum + item.total, 0);
-    document.getElementById("supplyGrandTotal").textContent = money.format(total);
+    document.getElementById("supplyGrandTotal").textContent = amountText(total);
     document.getElementById("supplySummary").innerHTML = grouped.length ? grouped.map((item) => `
-      <div class="supply-row"><strong>${escape(item.name)}</strong><span>${item.count} serviço(s)</span><strong>${money.format(item.total)}</strong></div>
+      <div class="supply-row"><strong>${escape(item.name)}</strong><span>${item.count} serviço(s)</span><strong>${amountText(item.total)}</strong></div>
     `).join("") : `<div class="empty">Nenhum fornecimento no período.</div>`;
   }
 
@@ -272,6 +329,7 @@
     document.querySelector("h1").textContent = data.supplier.name;
     document.getElementById("period").textContent = `${date(data.period.startDate)} a ${date(data.period.endDate)}`;
     const permissionLabels = [
+      data.includeFinancial === false ? "Acesso sem senha (sem financeiro)" : "Acesso completo",
       permissions.canEdit && "Lançamentos",
       permissions.canMarkDone && "Marcar feitos",
       permissions.canCancel && "Cancelamentos",
@@ -292,8 +350,12 @@
       <article class="summary-pending"><span>A fazer</span><strong>${active.filter((item) => item.status === "A fazer").length}</strong></article>
       <article class="summary-done"><span>Feitos</span><strong>${done.length}</strong></article>
       <article class="summary-cancelled"><span>Cancelados</span><strong>${cancelled.length}</strong></article>
-      <article class="summary-paid"><span>Total lançado</span><strong>${money.format(total)}</strong></article>`;
+      <article class="summary-paid"><span>Total lançado</span><strong>${amountText(total)}</strong></article>`;
     renderCharts(active, cancelled);
+
+    document.getElementById("payablesSection").classList.toggle("hidden", !data.includeFinancial);
+    document.getElementById("supplySummarySection").classList.toggle("hidden", !data.includeFinancial);
+    if (!data.includeFinancial) document.getElementById("paymentPreferencePanel").classList.add("hidden");
 
     document.getElementById("openEntryEditor").classList.toggle("hidden", !permissions.canEdit);
     const form = document.getElementById("entryForm");
@@ -572,6 +634,42 @@
       document.getElementById("cancelDialog").showModal();
     }
     if (event.target.closest("[data-close-cancel]")) document.getElementById("cancelDialog").close();
+  });
+
+  document.getElementById("enterWithoutPasswordButton").addEventListener("click", enterRestricted);
+  document.getElementById("showPasswordFormButton").addEventListener("click", () => {
+    document.getElementById("accessButtons").classList.add("hidden");
+    document.getElementById("accessPasswordForm").classList.remove("hidden");
+  });
+  document.getElementById("cancelPasswordEntryButton").addEventListener("click", () => {
+    document.getElementById("accessPasswordForm").classList.add("hidden");
+    document.getElementById("accessButtons").classList.remove("hidden");
+  });
+  document.getElementById("accessPasswordForm").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    if (event.target.name === "identifier") {
+      event.preventDefault();
+      event.currentTarget.elements.password.focus();
+    }
+  });
+  document.getElementById("accessPasswordForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const errorBox = document.getElementById("accessPasswordError");
+    const button = form.querySelector('button[type="submit"]');
+    const identifier = form.elements.identifier.value.trim();
+    const password = form.elements.password.value;
+    errorBox.textContent = "";
+    button.disabled = true;
+    button.textContent = "Entrando...";
+    try {
+      await enterFullAccess({ identifier, password });
+    } catch (error) {
+      errorBox.textContent = error.message;
+    } finally {
+      button.disabled = false;
+      button.textContent = "Entrar";
+    }
   });
 
   load().catch((error) => {

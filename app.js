@@ -585,11 +585,31 @@ function billingPaymentSummary(billing) {
   return payments.map((payment) => `${formatDate(payment.date)} - ${money.format(payment.amount)}`).join("; ");
 }
 
-function paymentAllocationLabel(payment) {
+function paymentIsCredit(payment) {
+  return !payment.billingId && payment.paymentSource === "Credito de pagamento";
+}
+
+function paymentAllocationState(payment) {
+  if (!payment.billingId) return paymentIsCredit(payment) ? "credit" : "loose";
   const billing = state.billings.find((item) => item.id === payment.billingId);
-  return billing
-    ? `Abateu a cobranca de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}`
-    : "Credito disponivel para o proximo fechamento";
+  if (!billing) return "loose";
+  return billingCurrentStatus(billing) === "Paga" ? "linked-paid" : "linked-open";
+}
+
+function paymentAllocationLabel(payment) {
+  const allocationState = paymentAllocationState(payment);
+  if (allocationState === "credit") return "Crédito disponível para o próximo fechamento";
+  if (allocationState === "loose") return "Pagamento parcial, ainda sem cobrança vinculada";
+  const billing = state.billings.find((item) => item.id === payment.billingId);
+  const numberSuffix = billing?.billingNumber ? ` #${billing.billingNumber}` : "";
+  return allocationState === "linked-paid"
+    ? `Quitação da cobrança${numberSuffix}`
+    : `Vinculado à cobrança${numberSuffix} (parcial)`;
+}
+
+function paymentLinkedBadgeLabel(payment) {
+  const allocationState = paymentAllocationState(payment);
+  return allocationState === "linked-paid" ? "Quitação" : "Vinculado";
 }
 
 function rawBillingOpenAmount(billing) {
@@ -693,6 +713,15 @@ function billingCurrentStatus(billing) {
 function billingStatusLabel(billing) {
   const status = billingCurrentStatus(billing);
   return status === "Paga" ? "Quitada" : status;
+}
+
+function nextBillingNumber() {
+  const highest = state.billings.reduce((max, item) => Math.max(max, Number(item.billingNumber) || 0), 0);
+  return highest + 1;
+}
+
+function billingNumberLabel(billing) {
+  return billing?.billingNumber ? `Cobrança #${billing.billingNumber}` : "";
 }
 
 function allocateAdvancePayments(billing, availablePayments) {
@@ -820,7 +849,7 @@ function ensureFinancePeriod() {
 
 function syncFinancePeriodControls() {
   const period = ensureFinancePeriod();
-  ["payment", "billing"].forEach((prefix) => {
+  ["payment", "billing", "financeSummary"].forEach((prefix) => {
     const start = document.getElementById(`${prefix}StartFilter`);
     const end = document.getElementById(`${prefix}EndFilter`);
     const label = document.getElementById(`${prefix}PeriodLabel`);
@@ -861,6 +890,7 @@ function setFinancePeriodFromInputs(prefix) {
 function refreshFinanceViews() {
   renderPayments();
   renderBillings();
+  renderFinanceSummary();
 }
 
 function dateKeysBetween(startDate, endDate, maximum = 31) {
@@ -938,7 +968,7 @@ function showView(viewId) {
   document.querySelectorAll(".view, .tab, .mobile-bottom-nav-button").forEach((element) => element.classList.remove("active"));
   document.getElementById(viewId).classList.add("active");
   const clientViews = ["clients", "catalog", "services", "requests"];
-  const financeViews = ["payments", "paymentMethods", "billing"];
+  const financeViews = ["payments", "paymentMethods", "billing", "financeSummary"];
   const mainView = clientViews.includes(viewId) ? "services" : financeViews.includes(viewId) ? "payments" : viewId;
   document.querySelectorAll(`[data-view="${mainView}"]`).forEach((element) => element.classList.add("active"));
   document.querySelectorAll("[data-client-view]").forEach((button) => {
@@ -1713,7 +1743,8 @@ function renderPayments() {
       search,
       clientById(billing.clientId)?.name,
       billing.currentStatus,
-      billing.identifier
+      billing.identifier,
+      billing.billingNumber ? `#${billing.billingNumber}` : ""
     ))
     .sort((a, b) => b.endDate.localeCompare(a.endDate));
 
@@ -1735,7 +1766,7 @@ function renderPayments() {
   document.getElementById("openBillingList").innerHTML = billings.length ? billings.map((billing) => `
     <article class="receivable-card ${billingCardStatusClass(billing)}">
       <div class="receivable-heading">
-        <div><span class="eyebrow">${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</span><h3>${escapeHtml(clientById(billing.clientId)?.name || "")}</h3></div>
+        <div><span class="eyebrow">${billing.billingNumber ? `Cobrança #${billing.billingNumber} · ` : ""}${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</span><h3>${escapeHtml(clientById(billing.clientId)?.name || "")}</h3></div>
         <span class="billing-status billing-${billing.currentStatus.toLowerCase()}">${billing.currentStatus}</span>
       </div>
       <strong class="mobile-finance-balance">${money.format(billing.openAmount)}</strong>
@@ -1763,13 +1794,33 @@ function renderPayments() {
     .filter((item) => !endFilter || item.date <= endFilter)
     .filter((item) => matchesSearch(search, clientById(item.clientId)?.name, item.note))
     .sort((a, b) => b.date.localeCompare(a.date));
-  document.getElementById("paymentList").innerHTML = items.length ? items.map((item) => `
+
+  function paymentItemMarkup(item) {
+    const allocationState = paymentAllocationState(item);
+    return `
     <article class="timeline-item ${item.billingId ? "payment-applied" : ""}">
       <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
-      <div><h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3><p class="meta">${escapeHtml(item.note || "Pagamento registrado")}</p><span class="payment-origin">${escapeHtml(item.method || "Forma não informada")} · ${escapeHtml(item.paymentSource || "Manual")}</span><p class="payment-allocation ${item.billingId ? "" : "credit"}">${escapeHtml(paymentAllocationLabel(item))}</p></div>
+      <div><h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3><p class="meta">${escapeHtml(item.note || "Pagamento registrado")}</p><span class="payment-origin">${escapeHtml(item.method || "Forma não informada")} · ${escapeHtml(item.paymentSource || "Manual")}</span><p class="payment-allocation ${allocationState}">${escapeHtml(paymentAllocationLabel(item))}</p></div>
       <strong>${money.format(item.amount)}</strong>
-      <div class="row-actions">${item.billingId ? `<span class="applied-badge">Abatido</span>` : `<button class="table-action" data-edit-payment="${item.id}">Editar</button>`}<button class="table-action danger" data-delete-payment="${item.id}">Excluir</button></div>
-    </article>`).join("") : emptyMarkup();
+      <div class="row-actions">${item.billingId ? `<span class="applied-badge">${paymentLinkedBadgeLabel(item)}</span>` : `<button class="table-action" data-edit-payment="${item.id}">Editar</button>`}<button class="table-action danger" data-delete-payment="${item.id}">Excluir</button></div>
+    </article>`;
+  }
+
+  const paymentGroups = [];
+  const paymentGroupIndex = new Map();
+  items.forEach((item) => {
+    const key = item.clientId || "";
+    if (!paymentGroupIndex.has(key)) {
+      paymentGroupIndex.set(key, paymentGroups.length);
+      paymentGroups.push({ name: clientById(key)?.name || "Sem cliente", payments: [] });
+    }
+    paymentGroups[paymentGroupIndex.get(key)].payments.push(item);
+  });
+  paymentGroups.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+  document.getElementById("paymentList").innerHTML = items.length ? paymentGroups.map((group) => `
+    <div class="payment-group-heading">${escapeHtml(group.name)} <span class="payment-group-count">${group.payments.length}</span></div>
+    ${group.payments.map(paymentItemMarkup).join("")}`).join("") : emptyMarkup();
 }
 
 function renderPaymentMethods() {
@@ -1846,7 +1897,8 @@ function renderBillings() {
       item.identifier,
       item.status,
       item.startDate,
-      item.endDate
+      item.endDate,
+      item.billingNumber ? `#${item.billingNumber}` : ""
     ))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   document.getElementById("billingPeriodLabel").textContent = billingOverdueOnly
@@ -1854,7 +1906,7 @@ function renderBillings() {
     : periodLabel(ensureFinancePeriod());
   document.getElementById("billingList").innerHTML = items.length ? items.map((item) => `
     <article class="billing-card ${billingCardStatusClass(item)}">
-      <span class="eyebrow">${item.startDate.split("-").reverse().join("/")} a ${item.endDate.split("-").reverse().join("/")}</span>
+      <span class="eyebrow">${item.billingNumber ? `Cobrança #${item.billingNumber} · ` : ""}${item.startDate.split("-").reverse().join("/")} a ${item.endDate.split("-").reverse().join("/")}</span>
       <h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3>
       <p class="meta"><span class="billing-status billing-${billingCurrentStatus(item).toLowerCase()}">${billingStatusLabel(item)}</span> · Saldo em aberto</p>
       <strong class="hero-value" style="font-size:30px">${money.format(billingOpenAmount(item))}</strong>
@@ -1894,6 +1946,54 @@ function renderBillings() {
       </div>
       </div>
     </article>`).join("") : emptyMarkup();
+}
+
+function renderFinanceSummary() {
+  const period = ensureFinancePeriod();
+  const clientFilter = document.getElementById("financeSummaryClientFilter").value;
+  const startFilter = document.getElementById("financeSummaryStartFilter").value || period.startDate;
+  const endFilter = document.getElementById("financeSummaryEndFilter").value || period.endDate;
+  const search = document.getElementById("financeSummarySearch").value.trim();
+  document.getElementById("financeSummaryPeriodLabel").textContent = periodLabel({ startDate: startFilter, endDate: endFilter });
+
+  const rows = state.clients
+    .filter((client) => !clientFilter || client.id === clientFilter)
+    .map((client) => {
+      const periodServiceTotal = state.services
+        .filter((item) => item.clientId === client.id && item.status !== "Cancelado"
+          && item.date >= startFilter && item.date <= endFilter)
+        .reduce((sum, item) => sum + Number(item.amount), 0);
+      const periodPaymentTotal = state.payments
+        .filter((item) => item.clientId === client.id && item.date >= startFilter && item.date <= endFilter)
+        .reduce((sum, item) => sum + Number(item.amount), 0);
+      return {
+        client,
+        periodServiceTotal,
+        periodPaymentTotal,
+        openBalance: balanceFor(client.id, endFilter)
+      };
+    })
+    .filter((row) => row.periodServiceTotal || row.periodPaymentTotal || Math.abs(row.openBalance) > 0.005)
+    .filter((row) => matchesSearch(search, row.client.name))
+    .sort((a, b) => b.openBalance - a.openBalance);
+
+  const totals = rows.reduce((sum, row) => ({
+    services: sum.services + row.periodServiceTotal,
+    payments: sum.payments + row.periodPaymentTotal,
+    open: sum.open + Math.max(0, row.openBalance)
+  }), { services: 0, payments: 0, open: 0 });
+
+  document.getElementById("financeSummaryTotals").innerHTML = `
+    <article class="metric-card"><span>Consumo do período</span><strong>${money.format(totals.services)}</strong><small>${rows.length} cliente(s)</small></article>
+    <article class="metric-card"><span>Pago no período</span><strong>${money.format(totals.payments)}</strong></article>
+    <article class="metric-card finance-open-card ${totals.open > 0 ? "has-open" : ""}"><span>Saldo em aberto acumulado</span><strong>${money.format(totals.open)}</strong></article>`;
+
+  document.getElementById("financeSummaryList").innerHTML = rows.length ? rows.map((row) => `
+    <div class="account-row">
+      <div><strong>${escapeHtml(row.client.name)}</strong><span class="meta">${escapeHtml(row.client.priceGroup || "")}</span></div>
+      <span class="meta">Consumo do período ${money.format(row.periodServiceTotal)} · Pago no período ${money.format(row.periodPaymentTotal)}</span>
+      <strong class="amount ${row.openBalance < 0 ? "negative" : ""}">${money.format(row.openBalance)}</strong>
+    </div>`).join("") : emptyMarkup();
 }
 
 async function copyText(value, label) {
@@ -1937,6 +2037,7 @@ function render() {
   renderPayments();
   renderPaymentMethods();
   renderBillings();
+  renderFinanceSummary();
   window.supplierModule?.render();
 }
 
@@ -2345,6 +2446,11 @@ function syncPaymentClientFilter() {
 function syncBillingClientFilter() {
   syncClientFilterField("billingClientFilterSearch", "billingClientFilter");
   renderBillings();
+}
+
+function syncFinanceSummaryClientFilter() {
+  syncClientFilterField("financeSummaryClientFilterSearch", "financeSummaryClientFilter");
+  renderFinanceSummary();
 }
 
 function syncTrackingClientSelection() {
@@ -3763,7 +3869,7 @@ function createBillingReportPdf(billing) {
   }
 
   addPage();
-  text("Relatorio de cobranca", margin, 9, colors.gray, true);
+  text(billing.billingNumber ? `Relatorio de cobranca #${billing.billingNumber}` : "Relatorio de cobranca", margin, 9, colors.gray, true);
   y -= 25;
   text(client?.name || "Cliente", margin, 22, colors.dark, true);
   y -= 19;
@@ -3945,7 +4051,7 @@ function whatsappBillingMessage(billing, automaticAccessUrl) {
       .map((method) => `${method.name}: ${method.details || method.link || "Consulte as instruções no relatório"}`)
       .join("\n")
     : "Consulte as formas de pagamento no relatório.";
-  return `Olá, ${client?.name || ""}!\n\nSua cobrança de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)} foi gerada.\n\nTotal em aberto: ${money.format(billingOpenAmount(billing))}\n\nFormas de pagamento:\n${methods}\n\nAcesse sua cobrança sem precisar digitar senha:\n${automaticAccessUrl}`;
+  return `Olá, ${client?.name || ""}!\n\nSua cobrança${billing.billingNumber ? ` #${billing.billingNumber}` : ""} de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)} foi gerada.\n\nTotal em aberto: ${money.format(billingOpenAmount(billing))}\n\nFormas de pagamento:\n${methods}\n\nAcesse sua cobrança sem precisar digitar senha:\n${automaticAccessUrl}`;
 }
 
 async function issueClientMagicLink(billing) {
@@ -4025,7 +4131,7 @@ function openBillingReport(billingId) {
       <button class="icon-button" data-close-report>×</button>
     </div>
     <header class="report-header">
-      <div><span class="eyebrow">Relatório de cobrança</span><h2>${escapeHtml(client?.name || "")}</h2><p class="meta">${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")}</p></div>
+      <div><span class="eyebrow">Relatório de cobrança${billing.billingNumber ? ` #${billing.billingNumber}` : ""}</span><h2>${escapeHtml(client?.name || "")}</h2><p class="meta">${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")}</p></div>
       <div><span class="meta">${billingCurrentStatus(billing)}</span><strong class="hero-value" style="font-size:36px">${money.format(billingOpenAmount(billing))}</strong></div>
     </header>
     <div class="report-summary">
@@ -5493,6 +5599,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
 
   const billing = {
     id: billingId,
+    billingNumber: nextBillingNumber(),
     clientId,
     startDate,
     endDate,
@@ -5602,6 +5709,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
   const selectedMethods = state.paymentMethods
     .filter((method) => paymentMethodIds.includes(method.id))
     .map((method) => ({ ...method }));
+  let nextBatchBillingNumber = nextBillingNumber();
   const drafts = clientIds.map((clientId, index) => {
     const services = eligibleServices.filter((item) => item.clientId === clientId);
     const payments = availableAdvancePayments(clientId);
@@ -5613,7 +5721,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
     const rawBalance = balanceFor(clientId, endDate) - paymentsAfterPeriod;
     const amount = Math.max(0, rawBalance + paymentsTotal);
     const billing = {
-      id: crypto.randomUUID(), clientId, startDate, endDate, amount,
+      id: crypto.randomUUID(), billingNumber: nextBatchBillingNumber++, clientId, startDate, endDate, amount,
       previousBalance: amount - servicesTotal, servicesTotal, paymentsTotal: 0,
       paymentIds: [], creditGenerated: 0, statusReason: "Aguardando pagamento",
       calculationVersion: 2, identifier: "", password: "", status: "Aberta", active: true,
@@ -5742,6 +5850,10 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
     renderBillings();
   }],
   ["billingSearch", "input", renderBillings],
+  ["financeSummaryClientFilterSearch", "input", syncFinanceSummaryClientFilter],
+  ["financeSummaryStartFilter", "change", () => { setFinancePeriodFromInputs("financeSummary"); refreshFinanceViews(); }],
+  ["financeSummaryEndFilter", "change", () => { setFinancePeriodFromInputs("financeSummary"); refreshFinanceViews(); }],
+  ["financeSummarySearch", "input", renderFinanceSummary],
   ["clientRequesterSearch", "input", () => {
     const form = document.querySelector("#clientRequesterDialog form");
     renderClientRequesterManager(form.elements.clientId.value);
@@ -6224,7 +6336,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=143").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=144").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

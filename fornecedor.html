@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Portal do fornecedor</title>
-  <link rel="stylesheet" href="fornecedor.css?v=23">
+  <link rel="stylesheet" href="fornecedor.css?v=24">
 </head>
 <body>
   <header class="portal-header">
@@ -17,6 +17,23 @@
   </header>
   <main>
     <div id="message" class="message">Carregando informações...</div>
+    <section id="accessChoice" class="panel hidden">
+      <h2>Como deseja entrar?</h2>
+      <p class="meta">Entre sem senha para só ver os serviços lançados (sem valores), ou entre com senha para o acesso completo, incluindo contas a pagar e pagamentos.</p>
+      <div id="accessButtons" class="actions">
+        <button id="enterWithoutPasswordButton" class="primary" type="button">Entrar sem senha</button>
+        <button id="showPasswordFormButton" type="button">Entrar com senha</button>
+      </div>
+      <form id="accessPasswordForm" class="access-password-form hidden">
+        <label>Identificador<input name="identifier" autocomplete="username" required placeholder="GS-00000000"></label>
+        <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
+        <p id="accessPasswordError" class="form-message" role="alert"></p>
+        <div class="actions">
+          <button id="cancelPasswordEntryButton" type="button">Voltar</button>
+          <button class="primary" type="submit">Entrar</button>
+        </div>
+      </form>
+    </section>
     <section id="content" class="hidden">
       <div id="summary" class="summary"></div>
 
@@ -42,7 +59,7 @@
         <div id="entries" class="entry-list"></div>
       </section>
 
-      <section class="panel panel-payables">
+      <section id="payablesSection" class="panel panel-payables">
         <div class="section-heading"><div><span class="eyebrow">Financeiro</span><h2>Pagamentos e fechamentos</h2></div></div>
         <div id="payables"></div>
       </section>
@@ -62,7 +79,7 @@
         </form>
       </section>
 
-      <section class="panel supply-summary-panel">
+      <section id="supplySummarySection" class="panel supply-summary-panel">
         <div class="section-heading"><div><span class="eyebrow">Resumo final</span><h2>Resumo dos fornecimentos</h2></div><strong id="supplyGrandTotal"></strong></div>
         <div id="supplySummary" class="supply-summary"></div>
       </section>
@@ -143,6 +160,6 @@
     </div>
   </dialog>
 
-  <script src="fornecedor.js?v=27"></script>
+  <script src="fornecedor.js?v=28"></script>
 </body>
 </html>

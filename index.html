@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=107">
+  <link rel="stylesheet" href="styles.css?v=108">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -315,6 +315,7 @@
         <button class="active" type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
         <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
         <button type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobrancas</small></button>
+        <button type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Baixas</span><h2>Pagamentos</h2></div>
@@ -359,6 +360,7 @@
         <button class="" type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
         <button class="active" type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
         <button class="" type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobrancas</small></button>
+        <button class="" type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Recebimento</span><h2>Formas de pagamento</h2></div>
@@ -381,6 +383,7 @@
         <button type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
         <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
         <button class="active" type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobrancas</small></button>
+        <button type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Fechamento flexível</span><h2>Cobranças</h2></div>
@@ -421,46 +424,83 @@
       <div id="billingList" class="card-grid"></div>
     </section>
 
+    <section id="financeSummary" class="view">
+      <div class="finance-area-tabs" role="tablist">
+        <button type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
+        <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
+        <button type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobrancas</small></button>
+        <button class="active" type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
+      </div>
+      <div class="section-heading">
+        <div><span class="eyebrow">Consumo, pagamentos e saldo real</span><h2>Resumo por cliente</h2></div>
+      </div>
+      <p class="section-note">Saldo em aberto acumulado de cada cliente, mesmo sem cobrança fechada — inclui serviços já lançados e pagamentos já registrados no período, independente do status da cobrança.</p>
+      <section class="finance-period-bar" aria-label="Periodo do resumo por cliente">
+        <div class="period-shortcuts">
+          <button class="active" type="button" data-finance-period="week">Semana atual</button>
+          <button type="button" data-finance-period="month">Mes atual</button>
+          <button type="button" aria-label="Periodo anterior" data-finance-shift="-1">&#8249;</button>
+          <button type="button" aria-label="Proximo periodo" data-finance-shift="1">&#8250;</button>
+        </div>
+        <div class="finance-period-info"><span>Periodo exibido</span><strong id="financeSummaryPeriodLabel"></strong></div>
+      </section>
+      <div id="financeSummaryTotals" class="dashboard-grid payment-summary"></div>
+      <button class="mobile-filter-toggle" type="button" data-toggle-finance-filters="financeSummary" aria-expanded="false">
+        <span>Filtros do resumo</span><strong>Mostrar</strong>
+      </button>
+      <div class="filters finance-filters">
+        <input id="financeSummaryClientFilterSearch" type="search" list="serviceClientOptions" placeholder="Digite o cliente">
+        <input id="financeSummaryClientFilter" type="hidden">
+        <input id="financeSummaryStartFilter" type="date" aria-label="Periodo a partir de">
+        <input id="financeSummaryEndFilter" type="date" aria-label="Periodo ate">
+        <input id="financeSummarySearch" type="search" placeholder="Buscar cliente">
+      </div>
+      <div class="account-list" id="financeSummaryList"></div>
+    </section>
+
     <section id="suppliers" class="view">
       <div class="supplier-tabs" role="tablist">
-        <button class="active" type="button" data-supplier-tab="dashboard"><span class="tab-icon" aria-hidden="true">▦</span><small>Painel</small></button>
-        <button type="button" data-supplier-tab="records"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
-        <button type="button" data-supplier-tab="entries"><span class="tab-icon" aria-hidden="true">✎</span><small>Lançamentos</small></button>
-        <button type="button" data-supplier-tab="payables"><span class="tab-icon" aria-hidden="true">$</span><small>Contas a pagar</small></button>
+        <button class="active" type="button" data-supplier-tab="entries"><span class="tab-icon" aria-hidden="true">✎</span><small>Lançamentos</small></button>
         <button type="button" data-supplier-tab="access"><span class="tab-icon" aria-hidden="true">⇄</span><small>Acessos</small></button>
+        <button type="button" data-supplier-tab="records"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
+        <button type="button" data-supplier-tab="payables"><span class="tab-icon" aria-hidden="true">$</span><small>Contas a pagar</small></button>
+        <button type="button" data-supplier-tab="dashboard"><span class="tab-icon" aria-hidden="true">▦</span><small>Painel</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Contas a pagar</span><h2>Fornecedores</h2></div>
         <button class="primary" type="button" data-supplier-action="entry">Lançamento direto</button>
       </div>
-      <div id="supplierDashboardPanel" class="supplier-panel">
+      <div id="supplierDashboardPanel" class="supplier-panel hidden">
+        <div class="dashboard-inner-tabs" role="tablist">
+          <button class="active" type="button" data-supplier-panel-tab="services">Serviços</button>
+          <button type="button" data-supplier-panel-tab="finance">Financeiro</button>
+        </div>
         <div class="filters">
           <input id="supplierDashboardFilterSearch" type="search" list="supplierOptions" placeholder="Digite o fornecedor">
           <input id="supplierDashboardFilter" type="hidden">
           <input id="supplierDashboardStart" type="date" aria-label="Data inicial">
           <input id="supplierDashboardEnd" type="date" aria-label="Data final">
         </div>
-        <div id="supplierDashboardCards" class="dashboard-grid"></div>
-        <section class="dashboard-charts">
-          <article class="panel"><div class="panel-title"><div><span class="eyebrow">Consumo</span><h2>Por fornecedor</h2></div></div><div id="supplierRanking"></div></article>
-          <article class="panel"><div class="panel-title"><div><span class="eyebrow">Situação</span><h2>Serviços do período</h2></div></div><div id="supplierStatusSummary"></div></article>
-        </section>
-      </div>
-      <div id="supplierRecordsPanel" class="supplier-panel hidden">
-        <div class="supplier-split">
-          <section>
-            <div class="subsection-heading supplier-section-title"><div><span class="eyebrow">Cadastro</span><h3>Fornecedores</h3></div><button class="primary" type="button" data-supplier-action="supplier">Adicionar</button></div>
-            <input id="supplierSearch" class="supplier-search" type="search" placeholder="Buscar fornecedor">
-            <div id="supplierList" class="card-grid"></div>
+        <div id="supplierDashboardServicesTab">
+          <div id="supplierDashboardCards" class="dashboard-grid"></div>
+          <section class="dashboard-charts">
+            <article class="panel"><div class="panel-title"><div><span class="eyebrow">Consumo</span><h2>Por fornecedor</h2></div></div><div id="supplierRanking"></div></article>
+            <article class="panel"><div class="panel-title"><div><span class="eyebrow">Situação</span><h2>Serviços do período</h2></div></div><div id="supplierStatusSummary"></div></article>
           </section>
-          <section>
-            <div class="subsection-heading supplier-section-title"><div><span class="eyebrow">Custos</span><h3>Serviços do fornecedor</h3></div><button class="primary" type="button" data-supplier-action="service">Adicionar</button></div>
-            <input id="supplierServiceSearch" class="supplier-search" type="search" placeholder="Buscar serviço ou código">
-            <div id="supplierServiceList"></div>
+        </div>
+        <div id="supplierDashboardFinanceTab" class="hidden">
+          <div id="supplierDashboardFinanceCards" class="dashboard-grid"></div>
+          <section class="dashboard-charts">
+            <article class="panel"><div class="panel-title"><div><span class="eyebrow">Saldo em aberto</span><h2>Por fornecedor</h2></div></div><div id="supplierDashboardFinanceRanking"></div></article>
           </section>
         </div>
       </div>
-      <div id="supplierEntriesPanel" class="supplier-panel hidden">
+      <div id="supplierRecordsPanel" class="supplier-panel hidden">
+        <div class="subsection-heading supplier-section-title"><div><span class="eyebrow">Cadastro</span><h3>Fornecedores</h3></div><button class="primary" type="button" data-supplier-action="supplier">Adicionar</button></div>
+        <input id="supplierSearch" class="supplier-search" type="search" placeholder="Buscar fornecedor">
+        <div id="supplierList" class="card-grid"></div>
+      </div>
+      <div id="supplierEntriesPanel" class="supplier-panel">
         <div class="supplier-entry-period">
           <div><span class="eyebrow">Semana exibida</span><strong id="supplierEntryPeriodLabel"></strong></div>
           <button class="table-action" type="button" data-supplier-current-week>Voltar para semana atual</button>
@@ -484,17 +524,38 @@
           <input id="supplierPayableSupplierFilterSearch" type="search" list="supplierOptions" placeholder="Digite o fornecedor">
           <input id="supplierPayableSupplierFilter" type="hidden">
           <select id="supplierPayableStatusFilter"><option value="">Todos</option><option value="open">Em aberto</option><option value="paid">Pagos</option></select>
+          <input id="supplierPayableStartFilter" type="date" aria-label="Data inicial das contas">
+          <input id="supplierPayableEndFilter" type="date" aria-label="Data final das contas">
+          <input id="supplierPayableSearch" type="search" placeholder="Buscar fornecedor ou situação">
         </div>
         <div id="supplierPayableList" class="receivable-grid"></div>
         <div class="subsection-heading"><div><span class="eyebrow">Histórico</span><h3>Baixas realizadas</h3></div></div>
         <div id="supplierPaymentList" class="timeline"></div>
       </div>
       <div id="supplierAccessPanel" class="supplier-panel hidden">
-        <section class="panel">
-          <div class="panel-title"><div><span class="eyebrow">Portal seguro</span><h2>Acompanhamento do fornecedor</h2></div></div>
-          <p class="meta">Gere um link somente leitura ou autorize o fornecedor a lançar e alterar os próprios serviços no período.</p>
-          <button class="primary" type="button" data-supplier-action="access">Gerar link</button>
-        </section>
+        <div class="dashboard-inner-tabs" role="tablist">
+          <button class="active" type="button" data-supplier-access-tab="online">Serviço online</button>
+          <button type="button" data-supplier-access-tab="links">Links gerados</button>
+        </div>
+        <div id="supplierOnlineTabPanel">
+          <div class="filters">
+            <input id="supplierOnlineFilterSearch" type="search" list="supplierOptions" placeholder="Digite o fornecedor">
+            <input id="supplierOnlineFilter" type="hidden">
+            <input id="supplierOnlineStart" type="date" aria-label="Data inicial">
+            <input id="supplierOnlineEnd" type="date" aria-label="Data final">
+          </div>
+          <div id="supplierOnlineList" class="timeline"></div>
+        </div>
+        <div id="supplierLinksTabPanel" class="hidden">
+          <div class="section-heading compact-heading">
+            <p class="meta">Um link por fornecedor. Gerar um novo substitui o anterior (link, identificador e senha). Sem senha: só os serviços, sem valores. Com senha: acesso completo, incluindo contas a pagar e pagamentos.</p>
+            <div class="heading-actions">
+              <button class="secondary" type="button" data-refresh-supplier-links>Atualizar</button>
+              <button class="primary" type="button" data-supplier-action="access">Gerar novo link</button>
+            </div>
+          </div>
+          <div id="supplierLinksList" class="request-grid"></div>
+        </div>
       </div>
     </section>
 
@@ -1709,9 +1770,27 @@
       </div>
     </div>
   </dialog>
+  <dialog id="supplierServicesDialog" class="wide-dialog">
+    <div class="supplier-report-dialog">
+      <div class="dialog-heading">
+        <div><span class="eyebrow">Custos</span><h2 id="supplierServicesDialogTitle">Serviços do fornecedor</h2></div>
+        <button class="icon-button" type="button" data-close-supplier-dialog>×</button>
+      </div>
+      <div class="section-heading compact-heading">
+        <input id="supplierServicesDialogSearch" type="search" placeholder="Buscar serviço ou código">
+        <div class="heading-actions">
+          <button class="table-action hidden" type="button" id="supplierServicesEditSelected">Editar selecionado</button>
+          <button class="danger-button hidden" type="button" id="supplierServicesDeleteSelected">Excluir selecionados</button>
+          <button class="primary" type="button" id="supplierServicesAddButton">Adicionar serviço</button>
+        </div>
+      </div>
+      <div id="supplierServicesDialogList"></div>
+    </div>
+  </dialog>
   <dialog id="supplierAccessDialog">
     <form id="supplierAccessForm" method="dialog">
       <div class="dialog-heading"><h2>Link do fornecedor</h2><button class="icon-button" value="cancel" data-close-supplier-dialog>×</button></div>
+      <p class="meta wizard-hide-native">Cria um link do fornecedor. Quem abrir escolhe entrar sem senha (só os serviços, sem valores) ou com senha (acesso completo, incluindo contas a pagar e pagamentos). O identificador/senha ficam guardados para reenviar depois.</p>
       <input name="supplierId" type="hidden">
       <div id="supplierAccessWizardProgress" class="wizard-progress wizard-only hidden">
         <div class="wizard-progress-track"><div id="supplierAccessWizardProgressFill" class="wizard-progress-fill"></div></div>
@@ -1780,14 +1859,20 @@
       <div class="wizard-step" data-step="9">
         <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
         <div id="supplierAccessWizardSummary" class="wizard-summary wizard-only hidden"></div>
-        <div id="supplierAccessResult" class="supplier-access-result hidden" aria-live="polite">
+        <div id="supplierAccessResult" class="tracking-access-result hidden" aria-live="polite">
           <strong id="supplierAccessStatus">Link gerado</strong>
-          <a id="supplierAccessLink" href="#" target="_blank" rel="noopener"></a>
-          <div class="supplier-access-actions">
-            <button class="secondary" type="button" data-copy-supplier-access>Copiar link</button>
-            <button class="secondary whatsapp-action" type="button" data-whatsapp-supplier-access>WhatsApp</button>
-            <button class="primary" type="button" data-share-supplier-access>Compartilhar</button>
+          <div class="tracking-access-credentials">
+            <span><small>Link (sem senha)</small><strong id="supplierAccessLink"></strong></span>
+            <span><small>Identificador</small><strong id="supplierAccessIdentifier"></strong></span>
+            <span><small>Senha</small><strong id="supplierAccessPassword"></strong></span>
           </div>
+          <div class="tracking-access-actions">
+            <button class="secondary" type="button" data-copy-supplier-access="link">Copiar link</button>
+            <button class="secondary" type="button" data-copy-supplier-access="identifier">Copiar identificador</button>
+            <button class="secondary" type="button" data-copy-supplier-access="password">Copiar senha</button>
+            <button class="secondary whatsapp-action" type="button" data-whatsapp-supplier-access>WhatsApp</button>
+          </div>
+          <button class="primary full" type="button" data-close-supplier-dialog>Fechar</button>
         </div>
         <p id="supplierAccessError" class="form-error hidden" aria-live="assertive"></p>
       </div>
@@ -1881,8 +1966,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=43"></script>
-  <script src="app.js?v=137"></script>
-  <script src="supplier.js?v=58"></script>
+  <script src="data.js?v=44"></script>
+  <script src="app.js?v=138"></script>
+  <script src="supplier.js?v=59"></script>
 </body>
 </html>

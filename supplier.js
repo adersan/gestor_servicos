@@ -1,5 +1,8 @@
 (function () {
-  let activeTab = "dashboard";
+  let activeTab = "entries";
+  let dashboardPanelTab = "services";
+  let servicesDialogSupplierId = null;
+  let accessTabState = "online";
   let clientSupplierServiceValues = [];
   let generatedSupplierAccessUrl = "";
   let generatedSupplierAccessText = "";
@@ -169,24 +172,86 @@
       `<article class="supplier-status-${item.className}"><span>${item.status}</span><strong>${item.count}</strong><small>${money.format(item.total)}</small></article>`).join("")}</div>`;
   }
 
+  function renderDashboardFinance() {
+    const supplierId = byId("supplierDashboardFilter").value;
+    const start = byId("supplierDashboardStart").value;
+    const end = byId("supplierDashboardEnd").value;
+    const payables = state.supplierPayables.filter((item) =>
+      item.status !== "Cancelada"
+      && (!supplierId || item.supplierId === supplierId)
+      && (!start || item.endDate >= start)
+      && (!end || item.endDate <= end)
+    );
+    const openTotal = payables.reduce((sum, item) => sum + payableOpen(item), 0);
+    const paidTotal = payables.reduce((sum, item) => sum + payablePaid(item), 0);
+    const openCount = payables.filter((item) => payableOpen(item) > 0).length;
+    const paidCount = payables.filter((item) => payableStatus(item) === "Paga").length;
+    byId("supplierDashboardFinanceCards").innerHTML = `
+      <article class="metric-card metric-main" data-supplier-tab-shortcut="payables" role="button" tabindex="0" title="Ver contas a pagar"><span>Total a pagar</span><strong>${money.format(openTotal)}</strong><small>${openCount} conta(s) em aberto</small></article>
+      <article class="metric-card" data-supplier-tab-shortcut="payables" role="button" tabindex="0" title="Ver contas a pagar"><span>Total pago</span><strong>${money.format(paidTotal)}</strong><small>${paidCount} conta(s) quitada(s)</small></article>
+      <article class="metric-card"><span>Contas no período</span><strong>${payables.length}</strong><small>Geradas neste filtro</small></article>`;
+
+    const ranking = Object.values(payables.reduce((result, item) => {
+      result[item.supplierId] ||= { supplierId: item.supplierId, open: 0, count: 0 };
+      result[item.supplierId].open += payableOpen(item);
+      result[item.supplierId].count += 1;
+      return result;
+    }, {})).filter((item) => item.open > 0.001).sort((a, b) => b.open - a.open);
+    byId("supplierDashboardFinanceRanking").innerHTML = ranking.length ? ranking.map((item, index) => `
+      <div class="ranking-row"><strong>${index + 1}</strong><span>${escapeHtml(supplierById(item.supplierId)?.name || "")}</span><small>${item.count} conta(s)</small><strong>${money.format(item.open)}</strong></div>`
+    ).join("") : empty();
+  }
+
   function renderRecords() {
     const supplierSearch = normalized(byId("supplierSearch").value);
     const suppliers = state.suppliers.filter((item) =>
       normalized([item.name, item.phone, item.document].join(" ")).includes(supplierSearch));
-    byId("supplierList").innerHTML = suppliers.length ? suppliers.map((item) => `
+    byId("supplierList").innerHTML = suppliers.length ? suppliers.map((item) => {
+      const serviceCount = state.supplierServices.filter((service) => service.supplierId === item.id).length;
+      return `
       <article class="price-table-card">
         <span class="eyebrow">${item.isDefault ? "Fornecedor padrão" : "Fornecedor"}</span>
         <h3>${escapeHtml(item.name)}</h3>
         <p class="meta">${escapeHtml(item.phone || "Sem telefone")} · ${escapeHtml(item.document || "Sem documento")}</p>
-        <div class="card-actions"><button class="table-action" data-edit-supplier="${item.id}">Editar</button><button class="table-action danger" data-delete-supplier="${item.id}">Excluir</button></div>
-      </article>`).join("") : empty();
+        <div class="card-actions">
+          <button class="table-action" data-supplier-services="${item.id}">Serviços (${serviceCount})</button>
+          <button class="table-action" data-edit-supplier="${item.id}">Editar</button>
+          <button class="table-action danger" data-delete-supplier="${item.id}">Excluir</button>
+        </div>
+      </article>`;
+    }).join("") : empty();
 
-    const serviceSearch = normalized(byId("supplierServiceSearch").value);
+    renderSupplierServicesDialogList();
+  }
+
+  function updateSupplierServicesSelectionUI() {
+    const checked = [...document.querySelectorAll(".supplier-service-row-check:checked")];
+    byId("supplierServicesDeleteSelected").classList.toggle("hidden", !checked.length);
+    byId("supplierServicesEditSelected").classList.toggle("hidden", checked.length !== 1);
+    if (checked.length === 1) byId("supplierServicesEditSelected").dataset.editSelectedId = checked[0].value;
+    const all = [...document.querySelectorAll(".supplier-service-row-check")];
+    const selectAll = byId("supplierServicesSelectAll");
+    if (selectAll) selectAll.checked = all.length > 0 && checked.length === all.length;
+  }
+
+  function renderSupplierServicesDialogList() {
+    if (!servicesDialogSupplierId) return;
+    const search = normalized(byId("supplierServicesDialogSearch").value);
     const services = state.supplierServices.filter((item) =>
-      normalized([item.code, item.name, supplierById(item.supplierId)?.name].join(" ")).includes(serviceSearch));
-    byId("supplierServiceList").innerHTML = services.length ? `<div class="catalog-table-wrap"><table class="catalog-table"><thead><tr><th>Código</th><th>Serviço</th><th>Fornecedor</th><th>Custo</th><th></th></tr></thead><tbody>${services.map((item) => `
-      <tr><td>${escapeHtml(item.code || "-")}</td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(supplierById(item.supplierId)?.name || "")}</td><td>${money.format(item.cost)}</td>
+      item.supplierId === servicesDialogSupplierId
+      && normalized([item.code, item.name].join(" ")).includes(search));
+    byId("supplierServicesDialogList").innerHTML = services.length ? `<div class="catalog-table-wrap"><table class="catalog-table"><thead><tr><th><input type="checkbox" id="supplierServicesSelectAll"></th><th>Código</th><th>Serviço</th><th>Custo</th><th></th></tr></thead><tbody>${services.map((item) => `
+      <tr><td><input type="checkbox" class="supplier-service-row-check" value="${item.id}"></td><td>${escapeHtml(item.code || "-")}</td><td>${escapeHtml(item.name)}</td><td>${money.format(item.cost)}</td>
       <td><div class="row-actions"><button class="table-action" data-edit-supplier-service="${item.id}">Editar</button><button class="table-action danger" data-delete-supplier-service="${item.id}">Excluir</button></div></td></tr>`).join("")}</tbody></table></div>` : empty();
+    updateSupplierServicesSelectionUI();
+  }
+
+  function openSupplierServicesList(supplierId) {
+    servicesDialogSupplierId = supplierId;
+    byId("supplierServicesDialogSearch").value = "";
+    byId("supplierServicesDialogTitle").textContent = `Serviços de ${supplierById(supplierId)?.name || "fornecedor"}`;
+    renderSupplierServicesDialogList();
+    byId("supplierServicesDialog").showModal();
   }
 
   function renderEntries() {
@@ -246,11 +311,17 @@
     state.supplierPayables.forEach((item) => { item.status = payableStatus(item); });
     const supplierId = byId("supplierPayableSupplierFilter").value;
     const status = byId("supplierPayableStatusFilter").value;
+    const startFilter = byId("supplierPayableStartFilter").value;
+    const endFilter = byId("supplierPayableEndFilter").value;
+    const search = normalized(byId("supplierPayableSearch").value);
     const payables = state.supplierPayables.filter((item) =>
       (!supplierId || item.supplierId === supplierId)
       && (!status || (status === "open" ? payableOpen(item) > 0 : payableStatus(item) === "Paga"))
+      && (!startFilter || item.endDate >= startFilter)
+      && (!endFilter || item.endDate <= endFilter)
       && item.status !== "Cancelada"
-    );
+      && normalized([supplierById(item.supplierId)?.name, payableStatus(item)].join(" ")).includes(search)
+    ).sort((a, b) => b.endDate.localeCompare(a.endDate));
     const totalOpen = state.supplierPayables.filter((item) => item.status !== "Cancelada")
       .reduce((sum, item) => sum + payableOpen(item), 0);
     const paid = state.supplierPayments.reduce((sum, item) => sum + Number(item.amount), 0);
@@ -258,10 +329,13 @@
       <article class="metric-card metric-main"><span>Total a pagar</span><strong>${money.format(totalOpen)}</strong><small>Saldo atual</small></article>
       <article class="metric-card"><span>Total já pago</span><strong>${money.format(paid)}</strong><small>Histórico de baixas</small></article>
       <article class="metric-card"><span>Contas abertas</span><strong>${state.supplierPayables.filter((item) => payableOpen(item) > 0 && item.status !== "Cancelada").length}</strong><small>Inclui parciais</small></article>`;
-    byId("supplierPayableList").innerHTML = payables.length ? payables.map((item) => `
+    byId("supplierPayableList").innerHTML = payables.length ? payables.map((item) => {
+      const entryCount = state.supplierEntries.filter((entry) => entry.payableId === item.id).length;
+      return `
       <article class="receivable-card">
         <div class="receivable-heading"><div><span class="eyebrow">${formatDate(item.startDate)} a ${formatDate(item.endDate)}</span><h3>${escapeHtml(supplierById(item.supplierId)?.name || "")}</h3></div><span class="billing-status billing-${payableStatus(item).toLowerCase()}">${payableStatus(item)}</span></div>
         <div class="receivable-values"><span>Valor original<strong>${money.format(item.amount)}</strong></span><span>Pago<strong>${money.format(payablePaid(item))}</strong></span><span>Saldo<strong>${money.format(payableOpen(item))}</strong></span></div>
+        <p class="meta">${entryCount} serviço(s) nesta conta${item.createdAt ? ` · Gerada em ${new Date(item.createdAt).toLocaleDateString("pt-BR")}` : ""}</p>
         ${item.snapshot?.paymentPreference ? `<p class="supplier-preference-badge">Recebimento informado: <strong>${escapeHtml(item.snapshot.paymentPreference.method)}</strong> · ${money.format(Number(item.snapshot.paymentPreference.amount || 0))}</p>` : ""}
         <div class="supplier-payable-buttons">
           <button class="table-action" data-supplier-report="${item.id}">Abrir conta</button>
@@ -269,7 +343,8 @@
           ${payableOpen(item) > 0 ? `<button class="table-action" data-pay-supplier="${item.id}" data-mode="partial">Baixa parcial</button><button class="table-action success" data-pay-supplier="${item.id}" data-mode="full">Quitar</button>` : ""}
           ${!payablePaid(item) ? `<button class="table-action danger" data-cancel-supplier-payable="${item.id}">Cancelar conta</button>` : ""}
         </div>
-      </article>`).join("") : empty();
+      </article>`;
+    }).join("") : empty();
     byId("supplierPaymentList").innerHTML = state.supplierPayments.length ? [...state.supplierPayments].sort((a, b) => b.date.localeCompare(a.date)).map((item) => {
       const payable = state.supplierPayables.find((entry) => entry.id === item.payableId);
       return `<article class="timeline-item supplier-payment-history"><time>${formatDate(item.date)}</time><div><h3>${escapeHtml(supplierById(item.supplierId)?.name || "")}</h3><p class="meta">${escapeHtml(item.method || "Não informada")} · ${escapeHtml(item.note || "Sem observação")}</p>${payable ? `<span class="payment-allocation">Conta de ${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}</span>` : ""}</div><strong>${money.format(item.amount)}</strong><div class="row-actions">${payable ? `<button class="table-action" data-supplier-report="${payable.id}">Ver conta</button>` : ""}<button class="table-action danger" data-delete-supplier-payment="${item.id}">Excluir</button></div></article>`;
@@ -277,12 +352,84 @@
     ).join("") : empty();
   }
 
+  function renderSupplierOnlineEntries() {
+    const supplierId = byId("supplierOnlineFilter").value;
+    const start = byId("supplierOnlineStart").value;
+    const end = byId("supplierOnlineEnd").value;
+    const entries = state.supplierEntries.filter((item) =>
+      item.source === "Fornecedor"
+      && (!supplierId || item.supplierId === supplierId)
+      && (!start || item.date >= start)
+      && (!end || item.date <= end)
+    ).sort((a, b) => b.date.localeCompare(a.date));
+    byId("supplierOnlineList").innerHTML = entries.length ? entries.map((item) => `
+      <article class="timeline-item">
+        <time>${formatDate(item.date)}</time>
+        <div>
+          <span class="eyebrow">${escapeHtml(supplierById(item.supplierId)?.name || "")}</span>
+          <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
+          <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
+          <p class="meta service-card-context">${item.clientId ? escapeHtml(clientName(item.clientId)) : "Sem cliente vinculado"}</p>
+        </div>
+        <div><span class="status status-${normalized(item.status).replace(/\s/g, "-")}">${item.status}</span><strong>${money.format(item.amount)}</strong></div>
+      </article>`).join("") : empty();
+  }
+
+  async function renderSupplierLinksPanel() {
+    const list = byId("supplierLinksList");
+    if (!list) return;
+    list.innerHTML = `<p class="meta">Carregando...</p>`;
+    try {
+      const session = await window.supabaseClient.auth.getSession();
+      const accessToken = session.data.session?.access_token;
+      if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+      const response = await fetch("/.netlify/functions/admin-supplier-links", {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Não foi possível carregar os links gerados.");
+      const links = result.links || [];
+      list.innerHTML = links.length ? links.map((item) => {
+        const url = `${location.origin}/fornecedor.html?acesso=${encodeURIComponent(item.accessCode)}`;
+        return `<article class="request-card tracking-link-card">
+          <div class="request-card-head"><h3>${escapeHtml(item.supplierName)}</h3></div>
+          <p class="tracking-link-meta">Período ${formatDate(item.periodStart)} a ${formatDate(item.periodEnd)} · Gerado em ${new Date(item.createdAt).toLocaleString("pt-BR")}</p>
+          <div class="tracking-link-fields">
+            <div class="tracking-link-field"><span>Link (sem senha)</span><strong>${escapeHtml(url)}</strong></div>
+            <div class="tracking-link-field"><span>Identificador (com senha)</span><strong>${escapeHtml(item.identifier || "")}</strong></div>
+            <div class="tracking-link-field"><span>Senha</span><strong>${escapeHtml(item.password || "")}</strong></div>
+          </div>
+          <div class="card-actions">
+            <button class="table-action" type="button" data-copy-supplier-link="${escapeHtml(url)}">Copiar link</button>
+            <button class="table-action" type="button" data-copy-supplier-link-identifier="${escapeHtml(item.identifier || "")}">Copiar ID</button>
+            <button class="table-action" type="button" data-copy-supplier-link-password="${escapeHtml(item.password || "")}">Copiar senha</button>
+            <button class="table-action danger" type="button" data-delete-supplier-link="${item.id}">Excluir</button>
+          </div>
+        </article>`;
+      }).join("") : empty();
+    } catch (error) {
+      console.error(error);
+      list.innerHTML = `<p class="meta">${escapeHtml(error.message)}</p>`;
+    }
+  }
+
+  function showSupplierAccessTab(tab) {
+    accessTabState = tab;
+    document.querySelectorAll("[data-supplier-access-tab]").forEach((button) =>
+      button.classList.toggle("active", button.dataset.supplierAccessTab === tab));
+    byId("supplierOnlineTabPanel").classList.toggle("hidden", tab !== "online");
+    byId("supplierLinksTabPanel").classList.toggle("hidden", tab !== "links");
+    if (tab === "links") renderSupplierLinksPanel();
+  }
+
   function render() {
     fillSelects();
     renderDashboard();
+    renderDashboardFinance();
     renderRecords();
     renderEntries();
     renderPayables();
+    renderSupplierOnlineEntries();
   }
 
   function showSupplierTab(tab) {
@@ -292,6 +439,14 @@
     const panelNames = { dashboard: "Dashboard", records: "Records", entries: "Entries", payables: "Payables", access: "Access" };
     Object.entries(panelNames).forEach(([name, suffix]) =>
       byId(`supplier${suffix}Panel`).classList.toggle("hidden", name !== tab));
+  }
+
+  function showSupplierDashboardTab(tab) {
+    dashboardPanelTab = tab;
+    document.querySelectorAll("[data-supplier-panel-tab]").forEach((button) =>
+      button.classList.toggle("active", button.dataset.supplierPanelTab === tab));
+    byId("supplierDashboardServicesTab").classList.toggle("hidden", tab !== "services");
+    byId("supplierDashboardFinanceTab").classList.toggle("hidden", tab !== "finance");
   }
 
   function openSupplier(item) {
@@ -347,12 +502,12 @@
     }
   });
 
-  function openSupplierService(item) {
+  function openSupplierService(item, presetSupplierId = "") {
     const form = byId("supplierServiceForm");
     form.reset();
     fillSelects();
     form.elements.id.value = item?.id || "";
-    form.elements.supplierId.value = item?.supplierId || defaultSupplier()?.id || "";
+    form.elements.supplierId.value = item?.supplierId || presetSupplierId || defaultSupplier()?.id || "";
     form.elements.supplierSearch.value = supplierOptionLabel(supplierById(form.elements.supplierId.value));
     form.elements.code.value = item?.code || "";
     form.elements.name.value = item?.name || "";
@@ -958,7 +1113,8 @@
     byId("supplierAccessError").classList.add("hidden");
     byId("supplierAccessError").textContent = "";
     byId("supplierAccessLink").textContent = "";
-    byId("supplierAccessLink").removeAttribute("href");
+    byId("supplierAccessIdentifier").textContent = "";
+    byId("supplierAccessPassword").textContent = "";
     const submitButton = form.querySelector('button[value="default"]');
     submitButton.disabled = false;
     submitButton.textContent = "Gerar link";
@@ -1383,12 +1539,14 @@
       if (!result.accessCode) throw new Error("O servidor não retornou o código de acesso.");
 
       generatedSupplierAccessUrl = `${location.origin}/fornecedor.html?acesso=${encodeURIComponent(result.accessCode)}`;
-      generatedSupplierAccessText = `Olá, ${result.supplierName}. Acompanhe os serviços de ${formatDate(data.get("startDate"))} a ${formatDate(data.get("endDate"))}:\n${generatedSupplierAccessUrl}`;
+      generatedSupplierAccessText = `Olá, ${result.supplierName}. Acompanhe os serviços de ${formatDate(data.get("startDate"))} a ${formatDate(data.get("endDate"))}:\n${generatedSupplierAccessUrl}\n\nSem senha: só os serviços, sem valores.\nCom senha (acesso completo, incluindo contas a pagar):\nIdentificador: ${result.identifier}\nSenha: ${result.password}`;
       byId("supplierAccessStatus").textContent = `Link de ${result.supplierName} gerado com sucesso`;
-      byId("supplierAccessLink").href = generatedSupplierAccessUrl;
       byId("supplierAccessLink").textContent = generatedSupplierAccessUrl;
+      byId("supplierAccessIdentifier").textContent = result.identifier;
+      byId("supplierAccessPassword").textContent = result.password;
       resultBox.classList.remove("hidden");
       submitButton.textContent = "Gerar novo link";
+      if (accessTabState === "links") renderSupplierLinksPanel();
     } catch (error) {
       console.error(error);
       errorBox.textContent = error.message || "Não foi possível gerar o link do fornecedor.";
@@ -1421,10 +1579,16 @@
       }
     }
     if (event.target.matches("#supplierEntryForm input[name=supplierServiceSearch]")) syncSupplierEntryServiceSelection(event.target.form);
+    if (event.target.matches("#supplierServicesSelectAll")) {
+      document.querySelectorAll(".supplier-service-row-check").forEach((field) => { field.checked = event.target.checked; });
+      updateSupplierServicesSelectionUI();
+    }
+    if (event.target.matches(".supplier-service-row-check")) updateSupplierServicesSelectionUI();
   });
 
   document.addEventListener("input", (event) => {
     handleSupplierSearchChange(event);
+    if (event.target.matches("#supplierServicesDialogSearch")) renderSupplierServicesDialogList();
     if (event.target.matches("#serviceForm input[name=supplierServiceSearch]")) {
       setClientSupplierServiceError();
       syncClientEntryServiceSelection();
@@ -1439,8 +1603,33 @@
 
   document.addEventListener("click", async (event) => {
     const tab = event.target.closest("[data-supplier-tab]"); if (tab) showSupplierTab(tab.dataset.supplierTab);
+    const panelTab = event.target.closest("[data-supplier-panel-tab]");
+    if (panelTab) showSupplierDashboardTab(panelTab.dataset.supplierPanelTab);
+    const tabShortcut = event.target.closest("[data-supplier-tab-shortcut]");
+    if (tabShortcut) showSupplierTab(tabShortcut.dataset.supplierTabShortcut);
     const action = event.target.closest("[data-supplier-action]");
     if (action) ({ supplier: () => openSupplier(), service: () => openSupplierService(), entry: () => openSupplierEntry(), payable: openPayable, access: openAccess }[action.dataset.supplierAction])?.();
+    const openServicesList = event.target.closest("[data-supplier-services]");
+    if (openServicesList) openSupplierServicesList(openServicesList.dataset.supplierServices);
+    const addServiceFromList = event.target.closest("#supplierServicesAddButton");
+    if (addServiceFromList) openSupplierService(null, servicesDialogSupplierId);
+    const editSelectedService = event.target.closest("#supplierServicesEditSelected");
+    if (editSelectedService && editSelectedService.dataset.editSelectedId) {
+      openSupplierService(supplierServiceById(editSelectedService.dataset.editSelectedId));
+    }
+    const deleteSelectedServices = event.target.closest("#supplierServicesDeleteSelected");
+    if (deleteSelectedServices) {
+      const ids = [...document.querySelectorAll(".supplier-service-row-check:checked")].map((field) => field.value);
+      const blocked = ids.filter((id) => state.supplierEntries.some((item) => item.supplierServiceId === id));
+      const deletable = ids.filter((id) => !blocked.includes(id));
+      if (!deletable.length) {
+        showAppAlert("Os serviços selecionados já possuem lançamentos e não podem ser excluídos.", { type: "warning" });
+      } else if (await showAppConfirm(`Excluir ${deletable.length} serviço(s) selecionado(s)?${blocked.length ? `\n\n${blocked.length} serviço(s) já possuem lançamentos e serão mantidos.` : ""}`)) {
+        state.supplierServices = state.supplierServices.filter((item) => !deletable.includes(item.id));
+        saveState();
+        showAppAlert(`${deletable.length} serviço(s) excluído(s) com sucesso.${blocked.length ? ` ${blocked.length} mantido(s) por já ter lançamentos.` : ""}`, { type: blocked.length ? "warning" : "success" });
+      }
+    }
     const close = event.target.closest("[data-close-supplier-dialog]"); if (close) close.closest("dialog")?.close();
     const closeRequestShare = event.target.closest("[data-close-supplier-request-share]");
     if (closeRequestShare) closeSupplierRequestShare();
@@ -1464,7 +1653,46 @@
       render();
     }
     const copySupplierAccess = event.target.closest("[data-copy-supplier-access]");
-    if (copySupplierAccess && generatedSupplierAccessUrl) await copyText(generatedSupplierAccessUrl, "Link do fornecedor");
+    if (copySupplierAccess) {
+      const fieldId = { link: "supplierAccessLink", identifier: "supplierAccessIdentifier", password: "supplierAccessPassword" }[copySupplierAccess.dataset.copySupplierAccess];
+      const label = { link: "Link", identifier: "Identificador", password: "Senha" }[copySupplierAccess.dataset.copySupplierAccess];
+      const field = byId(fieldId);
+      if (field) await copyText(field.textContent, label);
+    }
+    const copySupplierLink = event.target.closest("[data-copy-supplier-link]");
+    if (copySupplierLink) await copyText(copySupplierLink.dataset.copySupplierLink, "Link");
+    const copySupplierLinkIdentifier = event.target.closest("[data-copy-supplier-link-identifier]");
+    if (copySupplierLinkIdentifier) await copyText(copySupplierLinkIdentifier.dataset.copySupplierLinkIdentifier, "Identificador");
+    const copySupplierLinkPassword = event.target.closest("[data-copy-supplier-link-password]");
+    if (copySupplierLinkPassword) await copyText(copySupplierLinkPassword.dataset.copySupplierLinkPassword, "Senha");
+    const deleteSupplierLink = event.target.closest("[data-delete-supplier-link]");
+    if (deleteSupplierLink) {
+      if (await showAppConfirm("Excluir este link? O acesso e a senha deixam de funcionar imediatamente.")) {
+        deleteSupplierLink.disabled = true;
+        try {
+          const session = await window.supabaseClient.auth.getSession();
+          const accessToken = session.data.session?.access_token;
+          if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+          const response = await fetch("/.netlify/functions/admin-supplier-links", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({ id: deleteSupplierLink.dataset.deleteSupplierLink })
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.error || "Não foi possível excluir o link.");
+          showAppAlert("Link excluído.", { type: "success" });
+          renderSupplierLinksPanel();
+        } catch (error) {
+          console.error(error);
+          showAppAlert(error.message, { type: "error" });
+          deleteSupplierLink.disabled = false;
+        }
+      }
+    }
+    const accessTabButton = event.target.closest("[data-supplier-access-tab]");
+    if (accessTabButton) showSupplierAccessTab(accessTabButton.dataset.supplierAccessTab);
+    const refreshSupplierLinksButton = event.target.closest("[data-refresh-supplier-links]");
+    if (refreshSupplierLinksButton) renderSupplierLinksPanel();
     const copyPayablePortal = event.target.closest("[data-copy-payable-portal]");
     if (copyPayablePortal) await copyText(copyPayablePortal.dataset.copyPayablePortal, "Link do fornecedor");
     const copySupplierPix = event.target.closest("[data-copy-supplier-pix]");
@@ -1476,21 +1704,6 @@
       link.target = "_blank";
       link.rel = "noopener";
       link.click();
-    }
-    const shareSupplierAccess = event.target.closest("[data-share-supplier-access]");
-    if (shareSupplierAccess && generatedSupplierAccessText) {
-      try {
-        if (navigator.share) {
-          await navigator.share({ title: "Acompanhamento de serviços", text: generatedSupplierAccessText });
-        } else {
-          await copyText(generatedSupplierAccessText, "Mensagem do fornecedor");
-        }
-      } catch (error) {
-        if (error?.name !== "AbortError") {
-          console.error(error);
-          await copyText(generatedSupplierAccessText, "Mensagem do fornecedor");
-        }
-      }
     }
     const addClientSupplierServiceButton = event.target.closest("#addSupplierServiceButton");
     if (addClientSupplierServiceButton) addClientSupplierService();
@@ -1583,14 +1796,15 @@
     }
   });
 
-  ["supplierDashboardStart", "supplierDashboardEnd", "supplierEntryStatusFilter", "supplierEntryStart", "supplierEntryEnd", "supplierEntrySearch", "supplierSearch", "supplierServiceSearch", "supplierPayableStatusFilter"].forEach((id) => {
+  ["supplierDashboardStart", "supplierDashboardEnd", "supplierEntryStatusFilter", "supplierEntryStart", "supplierEntryEnd", "supplierEntrySearch", "supplierSearch", "supplierPayableStatusFilter", "supplierPayableStartFilter", "supplierPayableEndFilter", "supplierPayableSearch", "supplierOnlineStart", "supplierOnlineEnd"].forEach((id) => {
     byId(id).addEventListener(id.includes("Search") ? "input" : "change", render);
   });
   [
     ["supplierDashboardFilterSearch", "supplierDashboardFilter", syncSupplierFilterField],
     ["supplierEntrySupplierFilterSearch", "supplierEntrySupplierFilter", syncSupplierFilterField],
     ["supplierEntryClientFilterSearch", "supplierEntryClientFilter", syncClientFilterField],
-    ["supplierPayableSupplierFilterSearch", "supplierPayableSupplierFilter", syncSupplierFilterField]
+    ["supplierPayableSupplierFilterSearch", "supplierPayableSupplierFilter", syncSupplierFilterField],
+    ["supplierOnlineFilterSearch", "supplierOnlineFilter", syncSupplierFilterField]
   ].forEach(([searchId, hiddenId, syncFn]) => {
     byId(searchId).addEventListener("input", () => {
       syncFn(searchId, hiddenId);
