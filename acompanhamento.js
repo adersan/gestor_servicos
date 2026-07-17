@@ -860,6 +860,17 @@ document.getElementById("trackingServiceEndFilter")?.addEventListener("change", 
 document.getElementById("trackingServiceSort")?.addEventListener("change", () => {
   if (trackingData) render(trackingData);
 });
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey) return;
+  if (!["INPUT", "SELECT"].includes(event.target.tagName)) return;
+  const container = event.target.closest(".tracking-search");
+  if (!container) return;
+  event.preventDefault();
+  const fields = Array.from(container.querySelectorAll("input, select"))
+    .filter((field) => !field.disabled && field.offsetParent !== null);
+  const next = fields[fields.indexOf(event.target) + 1];
+  if (next) next.focus();
+});
 const TRACKING_REQUEST_STEP_COUNT = 5;
 let trackingRequestStep = 1;
 let trackingRequestReferenceValues = [];

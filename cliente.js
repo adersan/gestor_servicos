@@ -700,6 +700,15 @@ async function submitClientRequest(form) {
 function advanceClientRequestField(event) {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
   if (event.target.tagName === "TEXTAREA") return;
+  const filters = event.target.closest(".client-filters");
+  if (filters) {
+    event.preventDefault();
+    const fields = Array.from(filters.querySelectorAll("input, select"))
+      .filter((field) => !field.disabled && field.offsetParent !== null);
+    const next = fields[fields.indexOf(event.target) + 1];
+    if (next) next.focus();
+    return;
+  }
   const form = event.target.closest("#clientRequestForm");
   if (!form) return;
   event.preventDefault();

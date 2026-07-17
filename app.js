@@ -5740,6 +5740,17 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
 ].forEach(([id, eventName, handler]) => {
   document.getElementById(id).addEventListener(eventName, handler);
 });
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey) return;
+  if (!["INPUT", "SELECT"].includes(event.target.tagName)) return;
+  const container = event.target.closest(".filters");
+  if (!container) return;
+  event.preventDefault();
+  const fields = Array.from(container.querySelectorAll("input, select"))
+    .filter((field) => !field.disabled && field.offsetParent !== null);
+  const next = fields[fields.indexOf(event.target) + 1];
+  if (next) next.focus();
+});
 document.addEventListener("click", (event) => {
   const periodButton = event.target.closest("[data-finance-period]");
   const shiftButton = event.target.closest("[data-finance-shift]");
@@ -6204,7 +6215,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=141").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=142").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
