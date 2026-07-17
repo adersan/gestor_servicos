@@ -5990,8 +5990,11 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     }
     if (target.name === "reference") {
       event.preventDefault();
-      if (target.value.trim()) addCurrentReference();
-      else document.querySelector("[data-wizard-next]").click();
+      if (wizardForm.elements.entryId.value || !target.value.trim()) {
+        document.querySelector("[data-wizard-next]").click();
+      } else {
+        addCurrentReference();
+      }
       return;
     }
     if (target.name === "catalogSearch") {
@@ -6137,7 +6140,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   }
   if (event.target.name === "reference") {
     event.preventDefault();
-    if (event.target.value.trim()) {
+    if (!form.elements.entryId.value && event.target.value.trim()) {
       addCurrentReference();
       return;
     }
@@ -6203,7 +6206,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=139").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=140").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

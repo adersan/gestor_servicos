@@ -28,6 +28,14 @@
     return `${originName} cancelado por ${reason}`;
   }
 
+  function supplierEntryStatusDates(item) {
+    const parts = [];
+    if (item?.createdAt) parts.push(`Lançado em ${new Date(item.createdAt).toLocaleString("pt-BR")}`);
+    if (item?.doneAt) parts.push(`Feito em ${new Date(item.doneAt).toLocaleString("pt-BR")}`);
+    if (item?.deliveredAt) parts.push(`Entregue em ${new Date(item.deliveredAt).toLocaleString("pt-BR")}`);
+    return parts.join(" · ");
+  }
+
   function defaultSupplier() {
     return state.suppliers.find((item) => item.isDefault) || state.suppliers[0];
   }
@@ -221,7 +229,7 @@
           ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
           <p class="meta service-card-context">${item.clientId ? escapeHtml(clientName(item.clientId)) : "Sem cliente vinculado"} · ${escapeHtml(item.source)}</p>
           ${item.lastChangedBy === "Fornecedor" ? `<span class="supplier-change-label">Alterado pelo fornecedor</span>` : ""}
-          ${item.doneAt || item.deliveredAt ? `<p class="service-status-dates">${item.doneAt ? `Feito em ${new Date(item.doneAt).toLocaleString("pt-BR")}` : ""}${item.doneAt && item.deliveredAt ? " · " : ""}${item.deliveredAt ? `Entregue em ${new Date(item.deliveredAt).toLocaleString("pt-BR")}` : ""}</p>` : ""}
+          ${supplierEntryStatusDates(item) ? `<p class="service-status-dates">${supplierEntryStatusDates(item)}</p>` : ""}
           ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Custo anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
         </div>
         <div><span class="status status-${normalized(item.status).replace(/\s/g, "-")}">${item.status}</span><strong>${money.format(item.amount)}</strong></div>
