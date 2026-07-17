@@ -444,6 +444,18 @@
   document.getElementById("paymentPreferenceForm").addEventListener("change", (event) => {
     if (event.target.name === "method") syncPixField();
   });
+  document.getElementById("paymentPreferenceForm").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+    event.preventDefault();
+    const form = event.currentTarget;
+    const fields = Array.from(form.querySelectorAll("input, select, textarea"))
+      .filter((field) => !field.disabled && field.type !== "hidden" && field.offsetParent !== null);
+    const index = fields.indexOf(event.target);
+    if (index < 0) return;
+    const next = fields[index + 1];
+    if (next) next.focus();
+    else form.requestSubmit(form.querySelector('button[type="submit"]'));
+  });
   document.getElementById("paymentPreferenceForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;

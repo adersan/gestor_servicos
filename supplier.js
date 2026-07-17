@@ -1247,6 +1247,8 @@
 
   byId("supplierEntryForm").addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+    if (event.target.tagName === "TEXTAREA") return;
+    if (supplierEntryWizard.isActive()) return;
     event.preventDefault();
     const form = event.currentTarget;
     const fields = [

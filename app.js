@@ -6162,9 +6162,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
   const form = event.target.closest("dialog form");
   if (!form || form.id === "serviceForm" || form.id === "supplierEntryForm") return;
-  if (event.target.tagName === "TEXTAREA") {
-    event.preventDefault();
-  }
+  if (event.target.tagName === "TEXTAREA") return;
   const fields = Array.from(form.querySelectorAll("input, select, textarea, button"))
     .filter((field) => !field.disabled && field.type !== "hidden" && field.offsetParent !== null);
   const index = fields.indexOf(event.target);
@@ -6206,7 +6204,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=140").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=141").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

@@ -699,6 +699,7 @@ async function submitClientRequest(form) {
 
 function advanceClientRequestField(event) {
   if (event.key !== "Enter" || event.shiftKey || event.target.tagName === "BUTTON") return;
+  if (event.target.tagName === "TEXTAREA") return;
   const form = event.target.closest("#clientRequestForm");
   if (!form) return;
   event.preventDefault();
@@ -737,6 +738,14 @@ async function loginFromAutomaticLink() {
     return false;
   }
 }
+
+document.getElementById("clientLoginForm").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey) return;
+  if (event.target.name === "identifier") {
+    event.preventDefault();
+    event.currentTarget.elements.password.focus();
+  }
+});
 
 document.getElementById("clientLoginForm").addEventListener("submit", async (event) => {
   event.preventDefault();

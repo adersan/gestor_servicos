@@ -777,6 +777,13 @@ document.getElementById("switchToFullAccessButton").addEventListener("click", ()
   sessionStorage.removeItem(trackingChoiceKey);
   showAccessChoice();
 });
+document.getElementById("trackingPasswordForm").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.shiftKey) return;
+  if (event.target.name === "identifier") {
+    event.preventDefault();
+    event.currentTarget.elements.password.focus();
+  }
+});
 document.getElementById("trackingPasswordForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
