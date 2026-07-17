@@ -86,7 +86,7 @@ export default async (request) => {
       title: "Novo pedido de cliente",
       body: `${client.name}: ${service.name}`,
       tag: `request:${inserted[0]?.id}`,
-      url: "/#services"
+      url: "/#requests"
     }).catch((error) => console.error("Falha ao enviar push de pedido novo:", error.message));
 
     return json(200, {

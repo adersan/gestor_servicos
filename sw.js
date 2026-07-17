@@ -1,4 +1,4 @@
-const CACHE = "gestor-servicos-v166";
+const CACHE = "gestor-servicos-v167";
 const ASSETS = [
   "./",
   "index.html",
@@ -11,7 +11,7 @@ const ASSETS = [
   "config.js?v=31",
   "auth.js?v=30",
   "data.js?v=43",
-  "app.js?v=131",
+  "app.js?v=132",
   "supplier.js?v=55",
   "fornecedor.html",
   "fornecedor.css?v=22",
@@ -71,9 +71,13 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url || "/";
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsList) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clientsList) => {
       for (const client of clientsList) {
-        if ("focus" in client) return client.focus();
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) await client.navigate(url).catch(() => {});
+          return;
+        }
       }
       if (self.clients.openWindow) return self.clients.openWindow(url);
     })

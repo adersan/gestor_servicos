@@ -177,6 +177,7 @@ async function initializeRemoteState(force = false) {
     closeRemoteLoadError();
     knownPendingRequestIds = new Set((state.serviceRequests || []).filter((item) => item.status === "Novo").map((item) => item.id));
     render();
+    applyNotificationDeepLink();
     if (rolloversMigrated) {
       try {
         await window.dataStore.upsertState(state);
@@ -947,6 +948,13 @@ function showView(viewId) {
     const target = button.dataset.clientView;
     button.classList.toggle("active", target === viewId);
   });
+}
+
+function applyNotificationDeepLink() {
+  const target = location.hash.replace(/^#/, "");
+  if (!target || !document.getElementById(target)) return;
+  showView(target);
+  history.replaceState(null, "", location.pathname + location.search);
 }
 
 function emptyMarkup() {
@@ -6186,7 +6194,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=137").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=138").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
