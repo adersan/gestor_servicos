@@ -1,4 +1,4 @@
-const CACHE = "gestor-servicos-v165";
+const CACHE = "gestor-servicos-v166";
 const ASSETS = [
   "./",
   "index.html",
@@ -8,10 +8,10 @@ const ASSETS = [
   "icon-512.png",
   "styles.css?v=107",
   "cliente.css?v=24",
-  "config.js?v=30",
+  "config.js?v=31",
   "auth.js?v=30",
   "data.js?v=43",
-  "app.js?v=130",
+  "app.js?v=131",
   "supplier.js?v=55",
   "fornecedor.html",
   "fornecedor.css?v=22",
@@ -44,5 +44,38 @@ self.addEventListener("fetch", (event) => {
         return response;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "Gestor de Serviços";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || "",
+      icon: "icon-192.png",
+      badge: "icon-192.png",
+      tag: data.tag || undefined,
+      renotify: Boolean(data.tag),
+      data: { url: data.url || "/" }
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsList) => {
+      for (const client of clientsList) {
+        if ("focus" in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
   );
 });

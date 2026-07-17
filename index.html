@@ -569,9 +569,11 @@
           </div>
         </article>
         <article class="panel settings-card">
-          <span class="eyebrow">Sistema</span>
-          <h3>Outras configuracoes</h3>
-          <p class="meta">Reservado para WhatsApp oficial, mensagens, automacoes e prefer?ncias futuras.</p>
+          <span class="eyebrow">Alertas</span>
+          <h3>Notificacoes push</h3>
+          <p class="meta">Receba avisos de pedido novo e atrasos mesmo com o app fechado neste aparelho. No iPhone, adicione o app a Tela de Inicio antes de ativar (iOS 16.4 ou mais novo).</p>
+          <button class="table-action" type="button" id="settingsPushToggle">Ativar notificacoes push neste aparelho</button>
+          <p class="meta" id="settingsPushStatus"></p>
         </article>
         <article class="panel settings-card">
           <span class="eyebrow">Sobre</span>
@@ -1871,10 +1873,10 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=30"></script>
+  <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=43"></script>
-  <script src="app.js?v=130"></script>
+  <script src="app.js?v=131"></script>
   <script src="supplier.js?v=55"></script>
 </body>
 </html>

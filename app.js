@@ -276,6 +276,85 @@ function notifyAttention() {
   playAlertTone();
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+}
+
+async function pushAuthHeaders() {
+  const { data } = await window.supabaseClient.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+  return { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` };
+}
+
+function pushSupported() {
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
+async function updatePushToggleButton() {
+  const button = document.getElementById("settingsPushToggle");
+  const status = document.getElementById("settingsPushStatus");
+  if (!button) return;
+  if (!pushSupported()) {
+    button.disabled = true;
+    button.textContent = "Notificações push não suportadas neste navegador";
+    if (status) status.textContent = "";
+    return;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  button.disabled = false;
+  if (subscription) {
+    button.textContent = "Desativar notificações push neste aparelho";
+    if (status) status.textContent = "Ativas neste aparelho.";
+  } else {
+    button.textContent = "Ativar notificações push neste aparelho";
+    if (status) status.textContent = "";
+  }
+}
+
+async function enablePushNotifications() {
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    showAppAlert("Permissão de notificação não concedida.", { type: "warning" });
+    return;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(window.APP_CONFIG.vapidPublicKey)
+  });
+  const headers = await pushAuthHeaders();
+  const response = await fetch("/.netlify/functions/push-subscribe", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ ...subscription.toJSON(), deviceLabel: navigator.userAgent.slice(0, 120) })
+  });
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.error || "Não foi possível ativar as notificações push.");
+  }
+  showAppAlert("Notificações push ativadas neste aparelho.", { type: "success" });
+}
+
+async function disablePushNotifications() {
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return;
+  const endpoint = subscription.endpoint;
+  await subscription.unsubscribe();
+  try {
+    const headers = await pushAuthHeaders();
+    await fetch("/.netlify/functions/push-unsubscribe", { method: "POST", headers, body: JSON.stringify({ endpoint }) });
+  } catch {
+    /* segue mesmo se a limpeza no servidor falhar; a inscricao local ja foi cancelada */
+  }
+  showAppAlert("Notificações push desativadas neste aparelho.", { type: "success" });
+}
+
 function showToast(message) {
   const toast = document.getElementById("appToast");
   if (!toast) return;
@@ -5786,6 +5865,20 @@ document.getElementById("settingsOfferSupplierShare")?.addEventListener("change"
   systemSettings = { ...systemSettings, offerSupplierShare: event.currentTarget.checked };
   saveSystemSettings();
 });
+document.getElementById("settingsPushToggle")?.addEventListener("click", async () => {
+  const button = document.getElementById("settingsPushToggle");
+  button.disabled = true;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) await disablePushNotifications();
+    else await enablePushNotifications();
+  } catch (error) {
+    showAppAlert(error.message, { type: "warning" });
+  } finally {
+    await updatePushToggleButton();
+  }
+});
 document.addEventListener("click", (event) => {
   const themeButton = event.target.closest("[data-theme-option]");
   if (!themeButton) return;
@@ -6093,9 +6186,10 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=136").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=137").then((registration) => registration.update());
 }
 updateSoundAlertButton();
+updatePushToggleButton();
 render();
 window.addEventListener("app-authenticated", (event) => {
   const user = event.detail?.user;

@@ -1,5 +1,6 @@
 window.APP_CONFIG = {
   supabaseUrl: "https://SEU-PROJETO.supabase.co",
-  supabaseAnonKey: "SUA_CHAVE_PUBLICA_ANON"
+  supabaseAnonKey: "SUA_CHAVE_PUBLICA_ANON",
+  vapidPublicKey: "SUA_CHAVE_PUBLICA_VAPID"
 };
 
