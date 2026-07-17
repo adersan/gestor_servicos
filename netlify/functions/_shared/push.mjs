@@ -18,7 +18,8 @@ export async function sendPushToAllAdmins(payload) {
     try {
       await webpush.sendNotification(
         { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth_key } },
-        body
+        body,
+        { TTL: 3600, urgency: "high" }
       );
     } catch (error) {
       if (error.statusCode === 404 || error.statusCode === 410) {
