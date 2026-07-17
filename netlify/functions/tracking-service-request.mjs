@@ -1,4 +1,5 @@
 import { accessCodeHash, json, supabase } from "./_shared/server.mjs";
+import { sendPushToAllAdmins } from "./_shared/push.mjs";
 
 function normalizeReferences(value) {
   return String(value || "")
@@ -36,7 +37,7 @@ export default async (request) => {
     if (!link.allow_requests) return json(403, { error: "Este link esta liberado somente para consulta." });
 
     const clientId = encodeURIComponent(link.client_id);
-    const clients = await supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,price_table_id&limit=1`);
+    const clients = await supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,name,price_table_id&limit=1`);
     const client = clients[0];
     if (!client) return json(404, { error: "Cliente nao encontrado." });
 
@@ -81,6 +82,13 @@ export default async (request) => {
         status: "Novo"
       })
     });
+
+    await sendPushToAllAdmins({
+      title: "Novo pedido de cliente",
+      body: `${client.name}: ${service.name}`,
+      tag: `request:${inserted[0]?.id}`,
+      url: "/#requests"
+    }).catch((error) => console.error("Falha ao enviar push de pedido novo:", error.message));
 
     return json(200, {
       id: inserted[0]?.id,
