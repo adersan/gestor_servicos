@@ -266,6 +266,7 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .mobile-filter-toggle, .mobile-service-more, .mobile-finance-more, .mobile-finance-balance { display: none; }
 .filters-compact { grid-template-columns: minmax(240px, 520px); }
 .payment-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
+#financeSummaryTotals.payment-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .request-summary { margin-bottom: 16px; }
 .request-card-new { border-top: 4px solid #d9902f; background: #fff7eb; }
 .request-card-value { border-top: 4px solid #2d72c4; background: #eef6ff; }
@@ -871,9 +872,9 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .ranking-row { grid-template-columns: 28px 1fr auto; }
   .ranking-row > strong:last-child { grid-column: 2 / -1; }
   .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  #payments .payment-summary { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; scroll-snap-type: x mandatory; scrollbar-width: none; }
-  #payments .payment-summary::-webkit-scrollbar { display: none; }
-  #payments .payment-summary .metric-card { flex: 0 0 min(76vw, 255px); scroll-snap-align: start; }
+  #payments .payment-summary, #financeSummary .payment-summary { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  #payments .payment-summary::-webkit-scrollbar, #financeSummary .payment-summary::-webkit-scrollbar { display: none; }
+  #payments .payment-summary .metric-card, #financeSummary .payment-summary .metric-card { flex: 0 0 min(76vw, 255px); scroll-snap-align: start; }
   .dashboard-charts { grid-template-columns: 1fr; }
   .status-chart { grid-template-columns: 120px 1fr; gap: 14px; }
   .donut-chart { width: 120px; }
