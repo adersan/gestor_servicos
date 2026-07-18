@@ -1776,7 +1776,7 @@ function renderPayments() {
     return `
     <tr data-payment-row="${item.id}" data-allocation="${paymentAllocationState(item)}" class="${item.id === selectedPaymentId ? "selected-row" : ""}">
       <td>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</td>
-      <td>${escapeHtml(clientById(item.clientId)?.name || "")}</td>
+      <td class="payment-history-client">${escapeHtml(clientById(item.clientId)?.name || "")}</td>
       <td class="amount">${money.format(item.amount)}</td>
     </tr>`;
   }
@@ -6445,7 +6445,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=157").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=158").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
