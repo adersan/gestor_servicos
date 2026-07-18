@@ -2,6 +2,7 @@ const STORAGE_KEY = "gestor-servicos-v1";
 const ALERT_MESSAGES_KEY = "gestor-servicos-alert-messages-v1";
 const SOUND_ALERTS_KEY = "gestor-servicos-sound-alerts-v1";
 const SYSTEM_SETTINGS_KEY = "gestor-servicos-system-settings-v1";
+const PUSH_ENABLED_KEY = "gestor-servicos-push-enabled-v1";
 const APP_THEMES = ["verde", "azul", "grafite", "dark", "bluedark"];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
@@ -310,6 +311,7 @@ async function updatePushToggleButton() {
   const subscription = await registration.pushManager.getSubscription();
   button.disabled = false;
   if (subscription) {
+    localStorage.setItem(PUSH_ENABLED_KEY, "true");
     button.textContent = "Desativar notificações push neste aparelho";
     if (status) status.textContent = "Ativas neste aparelho.";
   } else {
@@ -339,10 +341,12 @@ async function enablePushNotifications() {
     const result = await response.json().catch(() => ({}));
     throw new Error(result.error || "Não foi possível ativar as notificações push.");
   }
+  localStorage.setItem(PUSH_ENABLED_KEY, "true");
   showAppAlert("Notificações push ativadas neste aparelho.", { type: "success" });
 }
 
 async function disablePushNotifications() {
+  localStorage.setItem(PUSH_ENABLED_KEY, "false");
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.getSubscription();
   if (!subscription) return;
@@ -359,16 +363,23 @@ async function disablePushNotifications() {
 
 async function refreshPushSubscriptionIfEnabled() {
   if (!pushSupported() || Notification.permission !== "granted") return;
+  if (localStorage.getItem(PUSH_ENABLED_KEY) !== "true") return;
   try {
     const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    if (!subscription) return;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(window.APP_CONFIG.vapidPublicKey)
+      });
+    }
     const headers = await pushAuthHeaders();
     await fetch("/.netlify/functions/push-subscribe", {
       method: "POST",
       headers,
       body: JSON.stringify({ ...subscription.toJSON(), deviceLabel: navigator.userAgent.slice(0, 120) })
     });
+    await updatePushToggleButton();
   } catch (error) {
     console.error("Falha ao renovar inscrição push:", error.message);
   }
@@ -6465,7 +6476,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=164").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=165").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
