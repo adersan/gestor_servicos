@@ -653,7 +653,7 @@
     const client = requireClient();
     const session = await client.auth.getSession();
     const accessToken = session.data.session?.access_token;
-    if (!accessToken) throw new Error("Sessao administrativa expirada.");
+    if (!accessToken) throw new Error("Sessão administrativa expirada.");
     const response = await fetch("/.netlify/functions/admin-client-service-requests", {
       method,
       headers: {

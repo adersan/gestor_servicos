@@ -79,7 +79,7 @@ function originCancelledNote(item, primary = null) {
 }
 
 function referenceChip(reference) {
-  return `<span class="tracking-reference">${escapeHtml(reference || "Sem referencia")}</span>`;
+  return `<span class="tracking-reference">${escapeHtml(reference || "Sem referência")}</span>`;
 }
 
 function requesterBadge(item) {

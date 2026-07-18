@@ -797,7 +797,7 @@ function allocateAdvancePayments(billing, availablePayments) {
           updatedAt: now
         } : payment;
         credit.billingId = null;
-        credit.note = `Credito de ${money.format(creditAmount)} gerado no fechamento de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}${payment.note ? ` - ${payment.note}` : ""}`;
+        credit.note = `Crédito de ${money.format(creditAmount)} gerado no fechamento de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}${payment.note ? ` - ${payment.note}` : ""}`;
         credit.paymentSource = "Credito de pagamento";
         credit.updatedAt = now;
         if (appliedAmount > 0) state.payments.push(credit);
@@ -1522,7 +1522,7 @@ function activeAlertItems() {
       id: service.id,
       type: "service",
       title: `${clientById(service.clientId)?.name || "Cliente"}: ${service.description}`,
-      detail: `${formatServiceAge(service)} - ${service.reference || "Sem referencia"}`
+      detail: `${formatServiceAge(service)} - ${service.reference || "Sem referência"}`
     })),
     ...overdueBillings.map((billing) => ({
       id: billing.id,
@@ -1697,7 +1697,7 @@ function renderServices() {
           ${item.status === "Pronto" ? `<button class="table-action" data-service-status="A fazer" data-entry-id="${item.id}">Voltar para A fazer</button>` : ""}
           ${item.status === "Entregue" ? `<button class="table-action" data-service-status="Pronto" data-entry-id="${item.id}">Voltar para Feito</button>` : ""}
         </div>
-        <button class="mobile-service-more" type="button" data-toggle-service-actions="${item.id}" aria-expanded="false">Mais opcoes</button>
+        <button class="mobile-service-more" type="button" data-toggle-service-actions="${item.id}" aria-expanded="false">Mais opções</button>
         <div class="row-actions">
           ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-entry="${item.id}">Editar</button><button class="table-action danger" data-cancel-entry="${item.id}">Cancelar</button>` : ""}
           <button class="table-action danger" data-delete-entry="${item.id}">Excluir</button>
@@ -1836,7 +1836,7 @@ function renderPaymentDetailBody(payment) {
   const rows = [
     ["Data", formatDate(payment.date)],
     ["Forma de pagamento", escapeHtml(payment.method || "Não informada")],
-    ["Origem", escapeHtml(payment.paymentSource || "Manual")],
+    ["Origem", escapeHtml(payment.paymentSource === "Credito de pagamento" ? "Crédito de pagamento" : (payment.paymentSource || "Manual"))],
     ["Observação", escapeHtml(payment.note || "-")],
     ["Situação", `<span class="payment-status-pill payment-status-${allocationState}">${escapeHtml(paymentAllocationLabel(payment))}</span>`]
   ];
@@ -6045,7 +6045,7 @@ document.addEventListener("click", (event) => {
     const expanded = !card.classList.contains("mobile-actions-open");
     card.classList.toggle("mobile-actions-open", expanded);
     actionButton.setAttribute("aria-expanded", String(expanded));
-    actionButton.textContent = expanded ? "Ocultar opcoes" : "Mais opcoes";
+    actionButton.textContent = expanded ? "Ocultar opções" : "Mais opções";
   }
 });
 document.addEventListener("click", (event) => {
@@ -6469,7 +6469,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=162").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=163").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

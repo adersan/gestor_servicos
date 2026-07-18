@@ -39,7 +39,7 @@ function serviceStatusChip(status) {
 }
 
 function referenceChip(reference) {
-  return `<span class="client-reference-chip">${escapeHtml(reference || "Sem referencia")}</span>`;
+  return `<span class="client-reference-chip">${escapeHtml(reference || "Sem referência")}</span>`;
 }
 
 function requesterName(item) {
@@ -342,7 +342,7 @@ function renderStatement(data) {
       <td class="amount-service">${money.format([item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0))}</td>
     </tr>`).join("");
     return `<table class="client-report-service-table">
-      <thead><tr><th>Data</th><th>Servico</th><th>Ref</th><th>Solicitante</th><th>Status</th><th>Valor</th></tr></thead>
+      <thead><tr><th>Data</th><th>Serviço</th><th>Ref</th><th>Solicitante</th><th>Status</th><th>Valor</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="6">-</td></tr>`}</tbody>
     </table>`;
   }

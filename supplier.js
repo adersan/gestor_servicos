@@ -1218,8 +1218,8 @@
     }
 
     addPage();
-    write(`Documento: ${supplier?.document || "Nao informado"}`, 42, 9);
-    write(`Contato: ${supplier?.phone || "Nao informado"}`, 310, 9);
+    write(`Documento: ${supplier?.document || "Não informado"}`, 42, 9);
+    write(`Contato: ${supplier?.phone || "Não informado"}`, 310, 9);
     y -= 30;
     write(`Total da conta: ${money.format(payable.amount)}`, 42, 11, true);
     write(`Total pago: ${money.format(payablePaid(payable))}`, 220, 11, true, "0.08 0.45 0.27");
@@ -1228,18 +1228,18 @@
 
     const preference = payable.snapshot?.paymentPreference;
     if (preference) {
-      heading("Solicitacao de recebimento do fornecedor");
+      heading("Solicitação de recebimento do fornecedor");
       write(`Forma: ${preference.method || "-"}`, 42, 9, true);
       write(`Valor solicitado: ${money.format(Number(preference.amount || 0))}`, 300, 9, true);
       y -= 16;
-      write(`Titular: ${preference.holder || "Nao informado"}`, 42, 8);
+      write(`Titular: ${preference.holder || "Não informado"}`, 42, 8);
       write(`Chave PIX: ${preference.pixKey || "-"}`, 300, 8);
       y -= 16;
-      write(`Observacao: ${String(preference.note || "-").slice(0, 80)}`, 42, 8);
+      write(`Observação: ${String(preference.note || "-").slice(0, 80)}`, 42, 8);
       y -= 24;
     }
 
-    heading(`Lancamentos incluidos (${entries.length})`);
+    heading(`Lançamentos incluídos (${entries.length})`);
     entries.forEach((item) => {
       ensureSpace(42);
       commands.push(`0.97 0.98 0.97 rg 42 ${y - 24} 511 34 re f`);
@@ -1249,7 +1249,7 @@
       write(item.status, 395, 7.5);
       write(money.format(item.amount), 475, 8, true);
       y -= 14;
-      const detail = item.status === "Cancelado" ? `Motivo: ${item.cancellationReason || item.notes || "Nao informado"}` : `Obs: ${item.notes || "-"}`;
+      const detail = item.status === "Cancelado" ? `Motivo: ${item.cancellationReason || item.notes || "Não informado"}` : `Obs: ${item.notes || "-"}`;
       write(String(detail).slice(0, 92), 105, 6.8, false, "0.35 0.40 0.38");
       y -= 26;
     });
@@ -1263,8 +1263,8 @@
         ensureSpace(32);
         commands.push(`0.96 0.99 0.97 rg 42 ${y - 17} 511 26 re f`);
         write(formatDate(payment.date), 47, 8);
-        write(String(payment.method || "Nao informada").slice(0, 22), 125, 8, true);
-        write(String(payment.note || "Sem observacao").slice(0, 42), 260, 7.5);
+        write(String(payment.method || "Não informada").slice(0, 22), 125, 8, true);
+        write(String(payment.note || "Sem observação").slice(0, 42), 260, 7.5);
         write(money.format(payment.amount), 470, 8, true, "0.08 0.45 0.27");
         y -= 31;
       });
