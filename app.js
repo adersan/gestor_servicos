@@ -1809,28 +1809,22 @@ function renderPaymentDetailBody(payment) {
     ["Data", formatDate(payment.date)],
     ["Forma de pagamento", escapeHtml(payment.method || "Não informada")],
     ["Origem", escapeHtml(payment.paymentSource || "Manual")],
-    ["Observação", escapeHtml(payment.note || "-")]
+    ["Observação", escapeHtml(payment.note || "-")],
+    ["Situação", `<span class="payment-status-pill payment-status-${allocationState}">${escapeHtml(paymentAllocationLabel(payment))}</span>`]
   ];
-
-  let calloutBody = `<strong>${escapeHtml(paymentAllocationLabel(payment))}</strong>`;
   if (billing) {
-    calloutBody += `
-      <p>${billingNumberLabel(billing) || "Cobrança"} · Período ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</p>
-      <p>Saldo atual da cobrança: ${money.format(billingOpenAmount(billing))}</p>`;
+    rows.push([billingNumberLabel(billing) || "Cobrança", `Período ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}`]);
+    rows.push(["Saldo atual da cobrança", money.format(billingOpenAmount(billing))]);
   }
+  rows.push(["Consumo do período atual ainda não faturado", money.format(unbilled)]);
 
   return `
     <div class="payment-detail-header">
       <div><span class="eyebrow">Pagamento de</span><h3>${escapeHtml(client?.name || "")}</h3></div>
       <strong class="payment-detail-amount payment-detail-amount-${allocationState}">${money.format(payment.amount)}</strong>
     </div>
-    <dl class="payment-detail-grid">
-      ${rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("")}
-    </dl>
-    <div class="payment-detail-callout payment-detail-callout-${allocationState}">${calloutBody}</div>
-    <div class="payment-detail-callout payment-detail-callout-info">
-      <span>Consumo do período atual ainda não faturado</span>
-      <strong>${money.format(unbilled)}</strong>
+    <div class="payment-detail-summary">
+      ${rows.map(([label, value]) => `<div class="payment-detail-summary-row"><span class="payment-detail-summary-row-label">${label}</span><strong>${value}</strong></div>`).join("")}
     </div>`;
 }
 
@@ -6447,7 +6441,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=151").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=156").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

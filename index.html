@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=115">
+  <link rel="stylesheet" href="styles.css?v=120">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -319,7 +319,6 @@
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Baixas</span><h2>Pagamentos</h2></div>
-        <button class="primary" data-dialog="paymentDialog">Registrar pagamento</button>
       </div>
       <section class="finance-period-bar" aria-label="Periodo financeiro">
         <div class="period-shortcuts">
@@ -343,7 +342,10 @@
       </div>
       <div class="subsection-heading list-heading-actions">
         <div><span class="eyebrow">Histórico</span><h3>Pagamentos registrados</h3></div>
-        <button class="row-options-button hidden" type="button" id="paymentDetailsButton" title="Detalhes" aria-label="Ver detalhes do pagamento selecionado">⋮</button>
+        <div class="list-heading-buttons">
+          <button class="row-options-button button-accent" type="button" data-dialog="paymentDialog" title="Registrar pagamento" aria-label="Registrar pagamento">+</button>
+          <button class="row-options-button hidden" type="button" id="paymentDetailsButton" title="Detalhes" aria-label="Ver detalhes do pagamento selecionado">⋮</button>
+        </div>
       </div>
       <div id="paymentList"></div>
     </section>
@@ -1308,13 +1310,15 @@
   </dialog>
 
   <dialog id="paymentDetailDialog">
-    <div class="dialog-heading"><h2>Detalhes do pagamento</h2><button class="icon-button" type="button" data-close-dialog>×</button></div>
-    <div id="paymentDetailBody"></div>
-    <p class="meta hidden" id="paymentDetailEditNote">Pagamento vinculado a uma cobrança não pode ser editado.</p>
-    <div class="dialog-actions">
-      <button class="secondary" type="button" data-close-dialog>Fechar</button>
-      <button class="danger-button" type="button" id="paymentDetailDeleteButton">Excluir</button>
-      <button class="primary" type="button" id="paymentDetailEditButton">Editar</button>
+    <div class="payment-detail-content">
+      <div class="dialog-heading"><h2>Detalhes do pagamento</h2><button class="icon-button" type="button" data-close-dialog>×</button></div>
+      <div id="paymentDetailBody"></div>
+      <p class="meta hidden" id="paymentDetailEditNote">Pagamento vinculado a uma cobrança não pode ser editado.</p>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Fechar</button>
+        <button class="danger-button" type="button" id="paymentDetailDeleteButton">Excluir</button>
+        <button class="primary" type="button" id="paymentDetailEditButton">Editar</button>
+      </div>
     </div>
   </dialog>
 
@@ -1989,7 +1993,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=44"></script>
-  <script src="app.js?v=144"></script>
+  <script src="app.js?v=147"></script>
   <script src="supplier.js?v=62"></script>
 </body>
 </html>
