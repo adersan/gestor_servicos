@@ -361,12 +361,8 @@ async function refreshPushSubscriptionIfEnabled() {
   if (!pushSupported() || Notification.permission !== "granted") return;
   try {
     const registration = await navigator.serviceWorker.ready;
-    const existing = await registration.pushManager.getSubscription();
-    if (!existing) return;
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(window.APP_CONFIG.vapidPublicKey)
-    });
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) return;
     const headers = await pushAuthHeaders();
     await fetch("/.netlify/functions/push-subscribe", {
       method: "POST",
@@ -6469,7 +6465,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=163").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=164").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
