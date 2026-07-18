@@ -6448,7 +6448,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=160").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=161").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
