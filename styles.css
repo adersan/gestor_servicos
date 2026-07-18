@@ -855,7 +855,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .dashboard-period-controls { align-items: stretch; flex-direction: column; }
   #dashboard.active > .dashboard-heading { order: 1; }
   #dashboard.active > .dashboard-inner-tabs { order: 2; }
-  #dashboard.active > #dashboardServicesCards, #dashboard.active > #dashboardFinanceCards { order: 3; }
+  #dashboard.active > #dashboardServicesCards, #dashboard.active > #dashboardFinanceCards, #dashboard.active > #dashboardSuppliersPanel { order: 3; }
   #dashboard.active > .dashboard-period-controls { order: 4; }
   #dashboard.active > #dashboardServicesCharts, #dashboard.active > #dashboardFinanceCharts { order: 5; }
   .finance-period-bar { align-items: stretch; flex-direction: column; }

@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=111">
+  <link rel="stylesheet" href="styles.css?v=112">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -88,7 +88,7 @@
       <div class="dashboard-inner-tabs dashboard-inner-tabs-3" role="tablist">
         <button class="active" type="button" data-dashboard-tab="services">Serviços</button>
         <button type="button" data-dashboard-tab="finance">Financeiro</button>
-        <button type="button" id="toggleDashboardSuppliers" data-toggle-suppliers-panel>Fornecedores</button>
+        <button type="button" data-dashboard-tab="suppliers">Fornecedores</button>
       </div>
       <div id="dashboardFinanceSummary" class="finance-summary-strip hidden"></div>
 
@@ -173,7 +173,7 @@
         </section>
       </section>
 
-      <section id="dashboardSuppliersPanel" class="hidden">
+      <section id="dashboardSuppliersPanel" class="dashboard-tab-panel hidden">
         <div class="section-heading compact-heading">
           <div><span class="eyebrow">Custos e consumo</span><h2>Fornecedores</h2></div>
         </div>
@@ -1989,7 +1989,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=44"></script>
-  <script src="app.js?v=140"></script>
+  <script src="app.js?v=141"></script>
   <script src="supplier.js?v=61"></script>
 </body>
 </html>
