@@ -1,7 +1,7 @@
 import { json, supabase } from "./_shared/server.mjs";
 
 export default async (request) => {
-  if (request.method !== "GET") return json(405, { error: "Metodo nao permitido." });
+  if (request.method !== "GET") return json(405, { error: "Método não permitido." });
   try {
     const rows = await supabase("/rest/v1/clients?select=id&limit=1");
     return json(200, {

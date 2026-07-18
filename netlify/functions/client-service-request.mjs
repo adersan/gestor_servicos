@@ -14,7 +14,7 @@ function normalizeRequesterName(value) {
 }
 
 export default async (request) => {
-  if (request.method !== "POST") return json(405, { error: "Metodo nao permitido." });
+  if (request.method !== "POST") return json(405, { error: "Método não permitido." });
 
   try {
     const authorization = request.headers.get("authorization") || "";
@@ -24,8 +24,8 @@ export default async (request) => {
     const references = normalizeReferences(body.references);
     const requestedBy = String(body.requestedBy || "").trim();
     const notes = String(body.notes || "").trim();
-    if (!serviceId) return json(400, { error: "Escolha um servico." });
-    if (!references.length) return json(400, { error: "Informe pelo menos uma placa ou referencia." });
+    if (!serviceId) return json(400, { error: "Escolha um serviço." });
+    if (!references.length) return json(400, { error: "Informe pelo menos uma placa ou referência." });
 
     const clientId = encodeURIComponent(payload.clientId);
     const accessBillingId = encodeURIComponent(payload.billingId);
@@ -34,17 +34,17 @@ export default async (request) => {
     );
     const credential = credentials[0];
     const expired = credential?.expires_at && new Date(credential.expires_at) <= new Date();
-    if (!credential || expired) return json(401, { error: "Este acesso nao esta mais ativo." });
+    if (!credential || expired) return json(401, { error: "Este acesso não está mais ativo." });
 
     const clients = await supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,name,price_table_id&limit=1`);
     const client = clients[0];
-    if (!client) return json(404, { error: "Cliente nao encontrado." });
+    if (!client) return json(404, { error: "Cliente não encontrado." });
 
     const serviceRows = await supabase(
       `/rest/v1/service_catalog?id=eq.${encodeURIComponent(serviceId)}&active=eq.true&select=id,name&limit=1`
     );
     const service = serviceRows[0];
-    if (!service) return json(404, { error: "Servico nao encontrado." });
+    if (!service) return json(404, { error: "Serviço não encontrado." });
 
     const priceRows = client.price_table_id
       ? await supabase(`/rest/v1/service_prices?service_id=eq.${encodeURIComponent(serviceId)}&price_table_id=eq.${encodeURIComponent(client.price_table_id)}&select=amount&limit=1`)
@@ -98,6 +98,6 @@ export default async (request) => {
     });
   } catch (error) {
     console.error(error);
-    return json(500, { error: error.message || "Nao foi possivel enviar o pedido agora." });
+    return json(500, { error: error.message || "Não foi possível enviar o pedido agora." });
   }
 };

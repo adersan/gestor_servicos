@@ -88,7 +88,7 @@ function requesterBadge(item) {
 
 function complementaryLabel(item) {
   return item.is_secondary
-    ? `<span class="secondary-label">Complementar vinculado ao servico original</span>`
+    ? `<span class="secondary-label">Complementar vinculado ao serviço original</span>`
     : "";
 }
 
@@ -196,7 +196,7 @@ function createBillingPdf(data) {
   }
 
   addPage();
-  text("Relatorio de cobranca", margin, 9, color.gray, true);
+  text("Relatório de cobrança", margin, 9, color.gray, true);
   y -= 25;
   text(data.client.name, margin, 22, color.dark, true);
   y -= 19;
@@ -231,9 +231,9 @@ function createBillingPdf(data) {
   });
   y -= 72;
 
-  heading("Servicos do periodo");
+  heading("Serviços do período");
   if (!data.services.length) {
-    text("Nenhum servico neste fechamento.", margin);
+    text("Nenhum serviço neste fechamento.", margin);
     y -= 22;
   } else {
     const columnWidth = 510;
@@ -342,7 +342,7 @@ async function requestData(accessCode, credentials = {}) {
     body: JSON.stringify({ accessCode, ...credentials })
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "Nao foi possivel abrir o acompanhamento.");
+  if (!response.ok) throw new Error(data.error || "Não foi possível abrir o acompanhamento.");
   return data;
 }
 
@@ -379,7 +379,7 @@ async function sendTrackingRequest(payload) {
     body: JSON.stringify(payload)
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "Nao foi possivel enviar o pedido.");
+  if (!response.ok) throw new Error(data.error || "Não foi possível enviar o pedido.");
   return data;
 }
 
@@ -390,7 +390,7 @@ async function saveTrackingRequester(payload) {
     body: JSON.stringify(payload)
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "Nao foi possivel cadastrar o solicitante.");
+  if (!response.ok) throw new Error(data.error || "Não foi possível cadastrar o solicitante.");
   return data;
 }
 
@@ -420,7 +420,7 @@ function renderCharts(services, counts) {
       <span>${escapeHtml(item.name)}</span>
       <div><i style="width:${item.count / max * 100}%"></i></div>
       <strong>${item.count}</strong>
-    </div>`).join("") : `<p class="tracking-message">Sem servicos para o grafico.</p>`;
+    </div>`).join("") : `<p class="tracking-message">Sem serviços para o gráfico.</p>`;
 }
 
 function groupedServices(services) {
@@ -447,7 +447,7 @@ function renderServiceItemCard({ primary, secondaries }) {
       <h4>${escapeHtml(item.service_name)}${secondaries.length ? `<span class="secondary-label">+ ${secondaries.length} complementar(es)</span>` : ""}</h4>
       ${secondaries.length ? `<div class="tracking-complement-list">${secondaries.map((secondary) => `<span>${escapeHtml(secondary.service_name)} · ${amountText(secondary.amount)}${originCancelledNote(secondary, item)}</span>`).join("")}</div>` : originCancelledNote(item)}
       <span class="tracking-requester-badge">Solicitante: ${escapeHtml(requesterName(item))}</span>
-      <p class="tracking-reference">${escapeHtml(item.reference || "Sem referencia")}</p>
+      <p class="tracking-reference">${escapeHtml(item.reference || "Sem referência")}</p>
       ${item.status === "Entregue" && item.delivered_at ? `<p class="tracking-status-date">Entregue em ${escapeHtml(formatDateTime(item.delivered_at))}</p>` : ""}
     </div>
     <div class="tracking-amount"><strong>${amountText(total)}</strong><span class="status status-${status.className}">${status.label}</span></div>
@@ -460,15 +460,15 @@ function renderFinancialView(data) {
   const billing = data.billing;
   const openAmount = billing ? Number(billing.open_amount) : 0;
   document.getElementById("trackingFinancialSummary").innerHTML = `
-    <article class="summary-item summary-pending"><span>Consumo não faturado</span><strong>${amountText(unbilledTotal)}</strong><small>${unbilled.length} servico(s)</small></article>
+    <article class="summary-item summary-pending"><span>Consumo não faturado</span><strong>${amountText(unbilledTotal)}</strong><small>${unbilled.length} serviço(s)</small></article>
     <article class="summary-item summary-done"><span>Cobrança atual</span><strong>${billing ? amountText(billing.total_due) : "-"}</strong><small>${billing ? `${formatDate(billing.period_start)} a ${formatDate(billing.period_end)}` : "Nenhuma cobrança em aberto"}</small></article>
     <article class="summary-item summary-total"><span>Saldo em aberto</span><strong>${billing ? amountText(openAmount) : amountText(0)}</strong><small>${billing ? escapeHtml(billing.status) : "Sem cobrança"}</small></article>
     <article class="summary-item summary-grand-total"><span>Total em aberto + não faturado</span><strong>${amountText(openAmount + unbilledTotal)}</strong><small>Saldo em aberto somado ao consumo não faturado</small></article>`;
   const groups = groupedServices(unbilled);
-  document.getElementById("trackingUnbilledCount").textContent = `${unbilled.length} servico(s)`;
+  document.getElementById("trackingUnbilledCount").textContent = `${unbilled.length} serviço(s)`;
   document.getElementById("trackingUnbilledList").innerHTML = groups.length
     ? groups.map(renderServiceItemCard).join("")
-    : `<p class="tracking-message">Nenhum servico pendente de faturamento.</p>`;
+    : `<p class="tracking-message">Nenhum serviço pendente de faturamento.</p>`;
 }
 
 function renderBillingView(data) {
@@ -487,23 +487,23 @@ function renderBillingView(data) {
   function serviceTable(items) {
     const rows = items.map(({ primary: item, secondaries }) => `<tr>
       <td>${formatDate(item.service_date)}</td>
-      <td>${billingServiceName(item, secondaries)}${requesterBadge(item)}${secondaries.length ? `<span class="secondary-label">Complementar vinculado ao servico original</span>` : complementaryLabel(item)}</td>
+      <td>${billingServiceName(item, secondaries)}${requesterBadge(item)}${secondaries.length ? `<span class="secondary-label">Complementar vinculado ao serviço original</span>` : complementaryLabel(item)}</td>
       <td>${referenceChip(item.reference)}</td>
       <td>${escapeHtml(requesterName(item))}</td>
       <td>${billingServiceStatusChip(item.status)}</td>
       <td class="amount-service">${money.format([item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0))}</td>
     </tr>`).join("");
     return `<table class="tracking-report-table">
-      <thead><tr><th>Data</th><th>Servico</th><th>Ref</th><th>Solicitante</th><th>Status</th><th>Valor</th></tr></thead>
+      <thead><tr><th>Data</th><th>Serviço</th><th>Ref</th><th>Solicitante</th><th>Status</th><th>Valor</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="6">-</td></tr>`}</tbody>
     </table>`;
   }
 
   const requesterRows = billingRequesterSummary(serviceGroups).map((group) => `
     <article class="tracking-requester-summary-card">
-      <div><strong>${escapeHtml(group.requester)}</strong><span>${group.count} servico(s) - ${money.format(group.total)}</span></div>
+      <div><strong>${escapeHtml(group.requester)}</strong><span>${group.count} serviço(s) - ${money.format(group.total)}</span></div>
       <ul>${group.services.map((service) => `<li>${escapeHtml(service.name)}: ${service.count} - ${money.format(service.total)}</li>`).join("")}</ul>
-    </article>`).join("") || `<p class="tracking-message">Nenhum solicitante informado neste periodo.</p>`;
+    </article>`).join("") || `<p class="tracking-message">Nenhum solicitante informado neste período.</p>`;
 
   const paymentRows = payments.length
     ? payments.map((item) => `<tr>
@@ -608,13 +608,13 @@ function render(data) {
   if (requesterSelect) requesterSelect.innerHTML = requesterOptionsFromServices(data.services || [], requesterFilter);
   const sortSelect = document.getElementById("trackingServiceSort");
   if (sortSelect) sortSelect.value = sortBy;
-  document.getElementById("expiryText").textContent = `Link valido ate ${new Date(data.expiresAt).toLocaleString("pt-BR")}.`;
+  document.getElementById("expiryText").textContent = `Link válido até ${new Date(data.expiresAt).toLocaleString("pt-BR")}.`;
   document.getElementById("trackingSummary").innerHTML = `
     <article class="summary-item summary-pending"><span>A fazer</span><strong>${counts.pending}</strong><small>${amountText(values.pending)}</small></article>
     <article class="summary-item summary-done"><span>Feitos</span><strong>${counts.done}</strong><small>${amountText(values.done)}</small></article>
     <article class="summary-item summary-delivered"><span>Entregues</span><strong>${counts.delivered}</strong><small>${amountText(values.delivered)}</small></article>
-    <article class="summary-item summary-total"><span>Total do periodo</span><strong>${trackingData?.showAmounts === false ? primaryServices.length : amountText(total)}</strong><small>${primaryServices.length} servico(s)</small></article>
-    <article class="summary-item summary-cancelled"><span>Cancelados</span><strong>${primaryCancelledServices.length}</strong><small>servico(s) cancelado(s)</small></article>`;
+    <article class="summary-item summary-total"><span>Total do período</span><strong>${trackingData?.showAmounts === false ? primaryServices.length : amountText(total)}</strong><small>${primaryServices.length} serviço(s)</small></article>
+    <article class="summary-item summary-cancelled"><span>Cancelados</span><strong>${primaryCancelledServices.length}</strong><small>serviço(s) cancelado(s)</small></article>`;
   renderCharts(primaryServices, counts);
   const serviceGroups = groupedServices(services).filter(({ primary, secondaries }) => {
     if (!search) return true;
@@ -629,11 +629,11 @@ function render(data) {
     ).includes(search);
   });
   document.getElementById("serviceCount").textContent = search
-    ? `${serviceGroups.length} de ${primaryServices.length} servico(s)`
-    : `${primaryServices.length} servico(s)`;
+    ? `${serviceGroups.length} de ${primaryServices.length} serviço(s)`
+    : `${primaryServices.length} serviço(s)`;
   document.getElementById("serviceList").innerHTML = serviceGroups.length
     ? serviceGroups.map(renderServiceItemCard).join("")
-    : `<p class="tracking-message">Nenhum servico encontrado neste periodo.</p>`;
+    : `<p class="tracking-message">Nenhum serviço encontrado neste período.</p>`;
   const cancelledGroups = groupedServices(cancelledServices).filter(({ primary, secondaries }) => {
     if (!search) return true;
     const status = statusData(primary.status);
@@ -646,10 +646,10 @@ function render(data) {
       ...secondaries.flatMap((item) => [item.service_name, item.reference, item.status, item.requested_by])
     ).includes(search);
   });
-  document.getElementById("cancelledServiceCount").textContent = `${primaryCancelledServices.length} servico(s)`;
+  document.getElementById("cancelledServiceCount").textContent = `${primaryCancelledServices.length} serviço(s)`;
   document.getElementById("cancelledServiceList").innerHTML = cancelledGroups.length
     ? cancelledGroups.map(renderServiceItemCard).join("")
-    : `<p class="tracking-message">Nenhum servico cancelado neste periodo.</p>`;
+    : `<p class="tracking-message">Nenhum serviço cancelado neste período.</p>`;
   renderRequestArea(data);
   document.getElementById("trackingFinancialTab").classList.toggle("hidden", data.showAmounts === false);
   document.getElementById("trackingBillingTab").classList.toggle("hidden", !data.billing);
@@ -707,7 +707,7 @@ async function loadTracking() {
     history.replaceState({}, "", location.pathname);
   }
   const accessCode = queryCode || sessionStorage.getItem(trackingTokenKey);
-  if (!accessCode) throw new Error("Este link de acompanhamento e invalido.");
+  if (!accessCode) throw new Error("Este link de acompanhamento é inválido.");
   document.getElementById("loadingPanel").classList.remove("hidden");
   document.getElementById("errorPanel").classList.add("hidden");
   const storedChoice = sessionStorage.getItem(trackingChoiceKey);

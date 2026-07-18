@@ -33,7 +33,7 @@ async function checkOverdueServices() {
       body: `${row.clients?.name || "Cliente"}: ${row.service_name}`,
       tag: key,
       url: "/#services"
-    }).catch((error) => console.error("Falha ao enviar push de servico atrasado:", error.message));
+    }).catch((error) => console.error("Falha ao enviar push de serviço atrasado:", error.message));
     await markNotified(key);
   }
 }
@@ -59,7 +59,7 @@ async function checkOverdueBillings() {
       body: `${billing.clients?.name || "Cliente"}: ${money(open)} em aberto`,
       tag: key,
       url: "/#billing"
-    }).catch((error) => console.error("Falha ao enviar push de cobranca atrasada:", error.message));
+    }).catch((error) => console.error("Falha ao enviar push de cobrança atrasada:", error.message));
     await markNotified(key);
   }
 }

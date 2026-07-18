@@ -167,7 +167,7 @@ function createPdf(data) {
   }
 
   addPage();
-  text("Relatorio de cobranca", margin, 9, color.gray, true);
+  text("Relatório de cobrança", margin, 9, color.gray, true);
   y -= 25;
   text(data.client.name, margin, 22, color.dark, true);
   y -= 19;
@@ -202,9 +202,9 @@ function createPdf(data) {
   });
   y -= 72;
 
-  heading("Servicos do periodo");
+  heading("Serviços do período");
   if (!data.services.length) {
-    text("Nenhum servico neste fechamento.", margin);
+    text("Nenhum serviço neste fechamento.", margin);
     y -= 22;
   } else {
     const columnWidth = 510;
@@ -335,7 +335,7 @@ function renderStatement(data) {
   function serviceTable(items) {
     const rows = items.map(({ primary: item, secondaries }) => `<tr class="${secondaries.length ? "client-secondary-service" : ""}">
       <td>${formatDate(item.service_date)}</td>
-      <td title="${escapeHtml(item.service_name)}">${groupedServiceName(item, secondaries)}${requesterBadge(item)}${secondaries.length ? `<span class="client-secondary-label">Complementar vinculado ao servico original</span>` : complementaryLabel(item)}</td>
+      <td title="${escapeHtml(item.service_name)}">${groupedServiceName(item, secondaries)}${requesterBadge(item)}${secondaries.length ? `<span class="client-secondary-label">Complementar vinculado ao serviço original</span>` : complementaryLabel(item)}</td>
       <td title="${escapeHtml(item.reference || "-")}">${referenceChip(item.reference || "-")}</td>
       <td>${escapeHtml(requesterName(item))}</td>
       <td>${serviceStatusChip(item.status)}</td>
@@ -373,7 +373,7 @@ function renderStatement(data) {
     : `<p class="meta">Nenhum serviço neste fechamento.</p>`;
   const requesterRows = requesterSummary(serviceGroups).map((group) => `
     <article class="requester-summary-card">
-      <div><strong>${escapeHtml(group.requester)}</strong><span>${group.count} servico(s) - ${money.format(group.total)}</span></div>
+      <div><strong>${escapeHtml(group.requester)}</strong><span>${group.count} serviço(s) - ${money.format(group.total)}</span></div>
       <ul>${group.services.map((service) => `<li>${escapeHtml(service.name)}: ${service.count} - ${money.format(service.total)}</li>`).join("")}</ul>
     </article>`).join("") || `<p class="meta">Nenhum solicitante informado neste periodo.</p>`;
   const paymentRows = payments.length
@@ -456,12 +456,12 @@ function renderCurrentServices(data) {
   const total = items.reduce((sum, item) => sum + Number(item.amount), 0);
   const rows = serviceGroups.length ? serviceGroups.map(({ primary: item, secondaries }) => `<tr class="${secondaries.length ? "client-secondary-service" : ""}">
     <td>${formatDate(item.service_date)}</td>
-    <td>${groupedServiceName(item, secondaries)}${requesterBadge(item)}${secondaries.length ? `<span class="client-secondary-label">Complementar vinculado ao servico original</span>` : complementaryLabel(item)}</td>
+    <td>${groupedServiceName(item, secondaries)}${requesterBadge(item)}${secondaries.length ? `<span class="client-secondary-label">Complementar vinculado ao serviço original</span>` : complementaryLabel(item)}</td>
     <td>${referenceChip(item.reference || "-")}</td>
     <td>${escapeHtml(requesterName(item))}</td>
     <td>${serviceStatusChip(item.status)}</td>
     <td class="amount-service">${money.format([item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0))}</td>
-  </tr>`).join("") : `<tr><td colspan="6">Nenhum servico encontrado.</td></tr>`;
+  </tr>`).join("") : `<tr><td colspan="6">Nenhum serviço encontrado.</td></tr>`;
 
   document.getElementById("clientName").textContent = data.client.name;
   document.getElementById("billingPeriod").textContent = "Serviços ainda não incluídos em uma cobrança";

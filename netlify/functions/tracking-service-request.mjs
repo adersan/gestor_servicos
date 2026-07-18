@@ -14,7 +14,7 @@ function normalizeRequesterName(value) {
 }
 
 export default async (request) => {
-  if (request.method !== "POST") return json(405, { error: "Metodo nao permitido." });
+  if (request.method !== "POST") return json(405, { error: "Método não permitido." });
 
   try {
     const body = await request.json();
@@ -23,29 +23,29 @@ export default async (request) => {
     const references = normalizeReferences(body.references);
     const requestedBy = String(body.requestedBy || "").trim();
     const notes = String(body.notes || "").trim();
-    if (!accessCode || accessCode.length < 32) return json(400, { error: "Link de acompanhamento invalido." });
-    if (!serviceId) return json(400, { error: "Escolha um servico." });
-    if (!references.length) return json(400, { error: "Informe pelo menos uma placa ou referencia." });
+    if (!accessCode || accessCode.length < 32) return json(400, { error: "Link de acompanhamento inválido." });
+    if (!serviceId) return json(400, { error: "Escolha um serviço." });
+    if (!references.length) return json(400, { error: "Informe pelo menos uma placa ou referência." });
 
     const links = await supabase(
       `/rest/v1/service_tracking_links?token_hash=eq.${accessCodeHash(accessCode)}&active=eq.true&select=id,client_id,expires_at,allow_requests&limit=1`
     );
     const link = links[0];
     if (!link || new Date(link.expires_at) <= new Date()) {
-      return json(401, { error: "Este link expirou ou foi substituido." });
+      return json(401, { error: "Este link expirou ou foi substituído." });
     }
-    if (!link.allow_requests) return json(403, { error: "Este link esta liberado somente para consulta." });
+    if (!link.allow_requests) return json(403, { error: "Este link está liberado somente para consulta." });
 
     const clientId = encodeURIComponent(link.client_id);
     const clients = await supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,name,price_table_id&limit=1`);
     const client = clients[0];
-    if (!client) return json(404, { error: "Cliente nao encontrado." });
+    if (!client) return json(404, { error: "Cliente não encontrado." });
 
     const serviceRows = await supabase(
       `/rest/v1/service_catalog?id=eq.${encodeURIComponent(serviceId)}&active=eq.true&select=id,name&limit=1`
     );
     const service = serviceRows[0];
-    if (!service) return json(404, { error: "Servico nao encontrado." });
+    if (!service) return json(404, { error: "Serviço não encontrado." });
 
     const priceRows = client.price_table_id
       ? await supabase(`/rest/v1/service_prices?service_id=eq.${encodeURIComponent(serviceId)}&price_table_id=eq.${encodeURIComponent(client.price_table_id)}&select=amount&limit=1`)
@@ -99,6 +99,6 @@ export default async (request) => {
     });
   } catch (error) {
     console.error(error);
-    return json(500, { error: error.message || "Nao foi possivel enviar o pedido agora." });
+    return json(500, { error: error.message || "Não foi possível enviar o pedido agora." });
   }
 };

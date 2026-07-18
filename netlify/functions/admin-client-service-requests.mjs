@@ -13,7 +13,7 @@ export default async (request) => {
 
     if (request.method === "PATCH") {
       const { id, values = {} } = await request.json();
-      if (!id) return json(400, { error: "Pedido nao informado." });
+      if (!id) return json(400, { error: "Pedido não informado." });
       const allowed = {};
       if (values.status) allowed.status = values.status;
       if (Array.isArray(values.imported_entry_ids)) allowed.imported_entry_ids = values.imported_entry_ids;
@@ -29,7 +29,7 @@ export default async (request) => {
 
     if (request.method === "DELETE") {
       const { id } = await request.json();
-      if (!id) return json(400, { error: "Pedido nao informado." });
+      if (!id) return json(400, { error: "Pedido não informado." });
       await supabase(`/rest/v1/client_service_requests?id=eq.${encodeURIComponent(id)}`, {
         method: "DELETE",
         prefer: "return=minimal"
@@ -37,9 +37,9 @@ export default async (request) => {
       return json(200, { ok: true });
     }
 
-    return json(405, { error: "Metodo nao permitido." });
+    return json(405, { error: "Método não permitido." });
   } catch (error) {
     console.error(error);
-    return json(500, { error: error.message || "Nao foi possivel gerenciar os pedidos." });
+    return json(500, { error: error.message || "Não foi possível gerenciar os pedidos." });
   }
 };

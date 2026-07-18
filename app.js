@@ -183,7 +183,7 @@ async function initializeRemoteState(force = false) {
       try {
         await window.dataStore.upsertState(state);
       } catch (migrationError) {
-        console.error("Falha ao persistir a consolidacao de cobrancas:", migrationError);
+        console.error("Falha ao persistir a consolidação de cobranças:", migrationError);
       }
     }
   } catch (error) {
@@ -357,6 +357,27 @@ async function disablePushNotifications() {
   showAppAlert("Notificações push desativadas neste aparelho.", { type: "success" });
 }
 
+async function refreshPushSubscriptionIfEnabled() {
+  if (!pushSupported() || Notification.permission !== "granted") return;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const existing = await registration.pushManager.getSubscription();
+    if (!existing) return;
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(window.APP_CONFIG.vapidPublicKey)
+    });
+    const headers = await pushAuthHeaders();
+    await fetch("/.netlify/functions/push-subscribe", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...subscription.toJSON(), deviceLabel: navigator.userAgent.slice(0, 120) })
+    });
+  } catch (error) {
+    console.error("Falha ao renovar inscrição push:", error.message);
+  }
+}
+
 function showToast(message) {
   const toast = document.getElementById("appToast");
   if (!toast) return;
@@ -465,7 +486,7 @@ function addClientRequester(clientId, name) {
   const cleanName = String(name || "").trim().replace(/\s+/g, " ");
   const normalizedName = normalizeRequesterName(cleanName);
   if (!clientId || !normalizedName) return { ok: false, message: "Informe o solicitante." };
-  if (requesterExists(clientId, cleanName)) return { ok: false, message: "Este solicitante ja esta cadastrado para este cliente." };
+  if (requesterExists(clientId, cleanName)) return { ok: false, message: "Este solicitante já está cadastrado para este cliente." };
   state.clientRequesters ||= [];
   state.clientRequesters.push({
     id: crypto.randomUUID(),
@@ -672,7 +693,7 @@ function consolidatePreviousBillings(billing) {
     item.rolledIntoBillingId = billing.id;
     item.rolledAt = rolledAt;
     item.status = "Consolidada";
-    item.statusReason = `Saldo transferido para a cobranca de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}`;
+    item.statusReason = `Saldo transferido para a cobrança de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}`;
   });
   billing.rolledBillingIds = selected.map((item) => item.id);
   billing.rolledBalance = selected.reduce((sum, item) => sum + rawBillingOpenAmount(item), 0);
@@ -689,7 +710,7 @@ function releaseRolledBillings(billing) {
       const paid = billingPaidAmount(item);
       item.statusReason = item.status === "Paga"
         ? `Quitada por ${billingPayments(item).length} pagamento(s) vinculado(s)`
-        : paid > 0 ? "Pagamento parcial vinculado ao periodo" : "Aguardando pagamento";
+        : paid > 0 ? "Pagamento parcial vinculado ao período" : "Aguardando pagamento";
     }
   });
   if (billing) {
@@ -789,7 +810,7 @@ function allocateAdvancePayments(billing, availablePayments) {
   billing.creditGenerated = creditGenerated;
   billing.statusReason = remainingDue <= 0
     ? `Quitada por ${allocatedIds.length} pagamento(s) vinculado(s)`
-    : allocatedIds.length ? "Pagamento parcial vinculado ao periodo" : "Aguardando pagamento";
+    : allocatedIds.length ? "Pagamento parcial vinculado ao período" : "Aguardando pagamento";
 }
 
 function billingAgeDays(billing) {
@@ -945,15 +966,15 @@ function updateBillingStatuses() {
     if (billing.status === "Consolidada") {
       const target = billingRolloverTarget(billing);
       billing.statusReason = target
-        ? `Saldo transferido para a cobranca de ${formatDate(target.startDate)} a ${formatDate(target.endDate)}`
-        : "Saldo transferido para uma cobranca posterior";
+        ? `Saldo transferido para a cobrança de ${formatDate(target.startDate)} a ${formatDate(target.endDate)}`
+        : "Saldo transferido para uma cobrança posterior";
       return;
     }
     if (billing.calculationVersion >= 2) {
       const paid = billingPaidAmount(billing);
       billing.statusReason = billing.status === "Paga"
         ? `Quitada por ${billingPayments(billing).length} pagamento(s) vinculado(s)`
-        : paid > 0 ? "Pagamento parcial vinculado ao periodo" : "Aguardando pagamento";
+        : paid > 0 ? "Pagamento parcial vinculado ao período" : "Aguardando pagamento";
     }
   });
 }
@@ -1506,14 +1527,14 @@ function activeAlertItems() {
     ...overdueBillings.map((billing) => ({
       id: billing.id,
       type: "billing",
-      title: `Cobranca de ${clientById(billing.clientId)?.name || "Cliente"}`,
+      title: `Cobrança de ${clientById(billing.clientId)?.name || "Cliente"}`,
       detail: `${money.format(billingOpenAmount(billing))} - ${daysPastBillingPeriod(billing)} dia(s) de atraso`
     })),
     ...pendingRequests.slice(0, 20).map((request) => ({
       id: request.id,
       type: "request",
       title: `Pedido de ${clientById(request.clientId)?.name || "Cliente"}`,
-      detail: `${request.references?.length || 0} referencia(s) - ${request.serviceName || "Servico"}`
+      detail: `${request.references?.length || 0} referência(s) - ${request.serviceName || "Serviço"}`
     }))
   ];
 }
@@ -1614,7 +1635,7 @@ function renderServices() {
   const searchAcrossHistory = Boolean(search) && state.services.some((item) =>
     matchesSearch(search, item.reference));
   document.getElementById("serviceEntryPeriodLabel").textContent = searchAcrossHistory
-    ? "Busca por referencia em todo o historico"
+    ? "Busca por referência em todo o histórico"
     : startDate && endDate
     ? `${formatDate(startDate)} a ${formatDate(endDate)}`
     : "Todos os períodos";
@@ -1934,8 +1955,8 @@ function renderBillings() {
       <div class="mobile-finance-details">
       <p class="meta"><strong>${escapeHtml(item.statusReason || (billingCurrentStatus(item) === "Paga" ? "Quitada pelos pagamentos vinculados" : "Aguardando pagamento"))}</strong></p>
       <p class="meta">Pagamentos: ${escapeHtml(billingPaymentSummary(item))}</p>
-      ${billingRolloverTarget(item) ? `<p class="billing-rollover-note">Saldo incorporado na cobranca de ${formatDate(billingRolloverTarget(item).startDate)} a ${formatDate(billingRolloverTarget(item).endDate)}.</p>` : ""}
-      ${Number(item.creditGenerated || 0) > 0 ? `<p class="payment-allocation credit">Credito gerado para a proxima cobranca: <strong>${money.format(item.creditGenerated)}</strong></p>` : ""}
+      ${billingRolloverTarget(item) ? `<p class="billing-rollover-note">Saldo incorporado na cobrança de ${formatDate(billingRolloverTarget(item).startDate)} a ${formatDate(billingRolloverTarget(item).endDate)}.</p>` : ""}
+      ${Number(item.creditGenerated || 0) > 0 ? `<p class="payment-allocation credit">Crédito gerado para a próxima cobrança: <strong>${money.format(item.creditGenerated)}</strong></p>` : ""}
       <p class="billing-history">${item.sendHistory?.length
         ? `Último envio: ${new Date(item.sendHistory[item.sendHistory.length - 1].sentAt).toLocaleString("pt-BR")}`
         : "Ainda não enviada pelo sistema"}</p>
@@ -2526,8 +2547,8 @@ function updatePaymentBillingHint(client) {
   form.elements.billingId.value = billing?.id || "";
   hint.classList.remove("hidden");
   hint.textContent = billing
-    ? `Cliente com ${billingNumberLabel(billing) || "cobranca"} em aberto (${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}). Saldo atual: ${money.format(billingOpenAmount(billing))}. Este pagamento sera vinculado a ela.`
-    : "Cliente sem cobranca em aberto. Este pagamento ficara como credito para a proxima cobranca.";
+    ? `Cliente com ${billingNumberLabel(billing) || "cobrança"} em aberto (${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}). Saldo atual: ${money.format(billingOpenAmount(billing))}. Este pagamento será vinculado a ela.`
+    : "Cliente sem cobrança em aberto. Este pagamento ficará como crédito para a próxima cobrança.";
 }
 
 function syncBillingClientSelection() {
@@ -2544,7 +2565,7 @@ function renderTrackingServiceOptions() {
       .sort((a, b) => (Number(a.code) || 999999) - (Number(b.code) || 999999) || a.name.localeCompare(b.name, "pt-BR"))
       .map((item) => `<label class="checkbox-label"><input type="checkbox" name="visibleServiceId" value="${item.id}" checked>${escapeHtml(item.code ? `${item.code} - ${item.name}` : item.name)}</label>`)
       .join("")
-    : `<p class="meta">Cadastre servicos no catalogo.</p>`;
+    : `<p class="meta">Cadastre serviços no catálogo.</p>`;
 }
 
 function renderTrackingWizardSummary() {
@@ -3934,12 +3955,12 @@ function createBillingReportPdf(billing) {
   }
 
   addPage();
-  text(billing.billingNumber ? `Relatorio de cobranca #${billing.billingNumber}` : "Relatorio de cobranca", margin, 9, colors.gray, true);
+  text(billing.billingNumber ? `Relatório de cobrança #${billing.billingNumber}` : "Relatório de cobrança", margin, 9, colors.gray, true);
   y -= 25;
   text(client?.name || "Cliente", margin, 22, colors.dark, true);
   y -= 19;
   text(
-    `Periodo: ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")}`,
+    `Período: ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")}`,
     margin,
     10,
     colors.gray
@@ -3948,7 +3969,7 @@ function createBillingReportPdf(billing) {
 
   const cards = [
     ["Saldo anterior", details.previousBalance, colors.gray],
-    ["Servicos", details.serviceTotal, colors.blue],
+    ["Serviços", details.serviceTotal, colors.blue],
     ["Pagamentos", details.paymentTotal, colors.payment],
     ["Total em aberto", billingOpenAmount(billing), colors.orange]
   ];
@@ -3964,7 +3985,7 @@ function createBillingReportPdf(billing) {
     heading("Resumo por solicitante");
     for (const group of requesterGroups) {
       ensureSpace(28);
-      text(`${group.requester}: ${group.count} servico(s) - ${money.format(group.total)}`, margin, 9, colors.dark, true);
+      text(`${group.requester}: ${group.count} serviço(s) - ${money.format(group.total)}`, margin, 9, colors.dark, true);
       y -= 16;
       for (const service of group.services) {
         ensureSpace(18);
@@ -3975,9 +3996,9 @@ function createBillingReportPdf(billing) {
     }
   }
 
-  heading("Servicos do periodo");
+  heading("Serviços do período");
   if (!details.services.length) {
-    text("Nenhum servico neste fechamento.", margin);
+    text("Nenhum serviço neste fechamento.", margin);
     y -= 22;
   } else {
     const columnWidth = 510;
@@ -4078,8 +4099,8 @@ async function shareBillingReport(billing) {
   const blob = createBillingReportPdf(billing);
   const file = new File([blob], billingReportFileName(billing), { type: "application/pdf" });
   const shareData = {
-    title: `Relatorio de cobranca - ${client?.name || "Cliente"}`,
-    text: `Segue o relatorio de cobranca de ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")}.`,
+    title: `Relatório de cobrança - ${client?.name || "Cliente"}`,
+    text: `Segue o relatório de cobrança de ${billing.startDate.split("-").reverse().join("/")} a ${billing.endDate.split("-").reverse().join("/")}.`,
     files: [file]
   };
 
@@ -4177,9 +4198,9 @@ function openBillingReport(billingId) {
     : `<p class="meta">Nenhum serviço neste período.</p>`;
   const requesterRows = requesterGroups.length ? requesterGroups.map((group) => `
     <article class="requester-summary-card">
-      <div><strong>${escapeHtml(group.requester)}</strong><span>${group.count} servico(s) - ${money.format(group.total)}</span></div>
+      <div><strong>${escapeHtml(group.requester)}</strong><span>${group.count} serviço(s) - ${money.format(group.total)}</span></div>
       <ul>${group.services.map((service) => `<li>${escapeHtml(service.name)}: ${service.count} - ${money.format(service.total)}</li>`).join("")}</ul>
-    </article>`).join("") : `<p class="meta">Nenhum solicitante informado neste periodo.</p>`;
+    </article>`).join("") : `<p class="meta">Nenhum solicitante informado neste período.</p>`;
   const methodRows = methods.length ? methods.map((method) => `
     <div class="payment-option">
       <strong>${escapeHtml(method.name)} (${escapeHtml(method.type)})</strong>
@@ -4455,7 +4476,7 @@ document.addEventListener("click", async (event) => {
       && item.clientId === requester.clientId
       && item.active !== false
       && item.normalizedName === normalizedName)) {
-      showAppAlert("Este solicitante ja esta cadastrado para este cliente.", { type: "warning" });
+      showAppAlert("Este solicitante já está cadastrado para este cliente.", { type: "warning" });
       return;
     }
     requester.name = cleanName;
@@ -4637,7 +4658,7 @@ document.addEventListener("click", async (event) => {
         showAppAlert("Pedido excluído com sucesso.", { type: "success" });
       } catch (error) {
         console.error(error);
-        showAppAlert("O pedido saiu desta tela, mas nao foi possivel excluir no banco agora.", { type: "error" });
+        showAppAlert("O pedido saiu desta tela, mas não foi possível excluir no banco agora.", { type: "error" });
       }
       saveState();
     }
@@ -4656,7 +4677,7 @@ document.addEventListener("click", async (event) => {
         showAppAlert("Pedido cancelado com sucesso.", { type: "success" });
       } catch (error) {
         console.error(error);
-        showAppAlert("O pedido foi cancelado nesta tela, mas nao foi possivel atualizar no banco agora.", { type: "error" });
+        showAppAlert("O pedido foi cancelado nesta tela, mas não foi possível atualizar no banco agora.", { type: "error" });
       }
       saveState();
     }
@@ -5808,13 +5829,13 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
   );
   const clientIds = [...new Set(eligibleServices.map((item) => item.clientId))];
   if (!clientIds.length) {
-    showAppAlert("Nenhum cliente possui servicos pendentes de cobranca neste periodo.", { type: "warning" });
+    showAppAlert("Nenhum cliente possui serviços pendentes de cobrança neste período.", { type: "warning" });
     releaseSubmitGuard();
     return;
   }
   const pendingCount = eligibleServices.filter((item) => item.status === "A fazer").length;
-  const warning = pendingCount ? `\n\nAtencao: ${pendingCount} servico(s) ainda estao marcados como A fazer.` : "";
-  if (!(await showAppConfirm(`Gerar ${clientIds.length} cobranca(s), uma para cada cliente com servicos no periodo?${warning}`))) { releaseSubmitGuard(); return; }
+  const warning = pendingCount ? `\n\nAtenção: ${pendingCount} serviço(s) ainda estão marcados como A fazer.` : "";
+  if (!(await showAppConfirm(`Gerar ${clientIds.length} cobrança(s), uma para cada cliente com serviços no período?${warning}`))) { releaseSubmitGuard(); return; }
 
   const stateBeforeBatch = typeof structuredClone === "function"
     ? structuredClone(state)
@@ -5871,7 +5892,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
     dialog.close();
     render();
     const successCount = drafts.length - failures.length;
-    showAppAlert(`${successCount} cobranca(s) gerada(s) com sucesso.${failures.length ? `\n\nFalhas:\n${failures.join("\n")}` : ""}`, { type: "success" });
+    showAppAlert(`${successCount} cobrança(s) gerada(s) com sucesso.${failures.length ? `\n\nFalhas:\n${failures.join("\n")}` : ""}`, { type: "success" });
   } catch (error) {
     console.error(error);
     state = stateBeforeBatch;
@@ -5881,7 +5902,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
       console.error("Falha ao desfazer o fechamento em lote:", rollbackError);
     }
     render();
-    showAppAlert(`Nao foi possivel concluir o fechamento em lote. ${error.message}`, { type: "error" });
+    showAppAlert(`Não foi possível concluir o fechamento em lote. ${error.message}`, { type: "error" });
   } finally {
     submitButton.disabled = false;
     submitButton.textContent = "Gerar para todos";
@@ -6115,7 +6136,7 @@ document.querySelector('#billingForm input[name="clientSearch"]').addEventListen
       button.classList.toggle("active", button.dataset.dashboardPeriod === "week");
     });
     renderDashboardV2();
-    showToast("Periodo padrao atualizado.");
+    showToast("Período padrão atualizado.");
   });
 });
 document.getElementById("settingsAskEntryContinuation")?.addEventListener("change", (event) => {
@@ -6448,7 +6469,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=161").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=162").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
@@ -6460,6 +6481,7 @@ window.addEventListener("app-authenticated", (event) => {
     || user?.email?.split("@")[0]
     || "Administrador";
   initializeRemoteState();
+  refreshPushSubscriptionIfEnabled();
 });
 window.addEventListener("focus", refreshRemoteState);
 document.addEventListener("visibilitychange", () => {

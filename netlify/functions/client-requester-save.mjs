@@ -5,7 +5,7 @@ function normalizeRequesterName(value) {
 }
 
 export default async (request) => {
-  if (request.method !== "POST") return json(405, { error: "Metodo nao permitido." });
+  if (request.method !== "POST") return json(405, { error: "Método não permitido." });
 
   try {
     const authorization = request.headers.get("authorization") || "";
@@ -22,7 +22,7 @@ export default async (request) => {
     );
     const credential = credentials[0];
     const expired = credential?.expires_at && new Date(credential.expires_at) <= new Date();
-    if (!credential || expired) return json(401, { error: "Este acesso nao esta mais ativo." });
+    if (!credential || expired) return json(401, { error: "Este acesso não está mais ativo." });
 
     const existing = await supabase(
       `/rest/v1/client_requesters?client_id=eq.${clientId}&normalized_name=eq.${encodeURIComponent(normalizedName)}&select=id,name&limit=1`
@@ -30,7 +30,7 @@ export default async (request) => {
       if (/client_requesters|schema cache|does not exist|Could not find/i.test(error.message || "")) return [];
       throw error;
     });
-    if (existing.length) return json(409, { error: "Este solicitante ja esta cadastrado.", requester: existing[0] });
+    if (existing.length) return json(409, { error: "Este solicitante já está cadastrado.", requester: existing[0] });
 
     const inserted = await supabase("/rest/v1/client_requesters?select=id,name,normalized_name", {
       method: "POST",
@@ -52,6 +52,6 @@ export default async (request) => {
     });
   } catch (error) {
     console.error(error);
-    return json(500, { error: error.message || "Nao foi possivel cadastrar o solicitante." });
+    return json(500, { error: error.message || "Não foi possível cadastrar o solicitante." });
   }
 };

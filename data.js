@@ -255,7 +255,7 @@
         if (response.ok) return { data: result.requests || [] };
       }
     } catch (error) {
-      console.warn("Falha ao consultar pedidos pela funÃ§Ã£o administrativa:", error);
+      console.warn("Falha ao consultar pedidos pela função administrativa:", error);
     }
     return client.from("client_service_requests").select("*").order("created_at", { ascending: false });
   }
@@ -663,7 +663,7 @@
       body: JSON.stringify(body)
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "Nao foi possivel atualizar o pedido.");
+    if (!response.ok) throw new Error(result.error || "Não foi possível atualizar o pedido.");
     return result;
   }
 
