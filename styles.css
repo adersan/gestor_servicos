@@ -940,6 +940,8 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .metric-card small { display: none; }
   #paymentSummary .metric-card small { display: block; font-size: 11px; }
   .payment-history-client { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #paymentDetailDialog .dialog-actions { padding: 8px 14px calc(8px + env(safe-area-inset-bottom)); }
+  #paymentDetailDialog .dialog-actions button { padding: 9px 8px; }
   .quick-actions { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .quick-actions:not(.dashboard-actions) { grid-template-columns: 1fr; }
   .quick-actions button { padding: 13px; }

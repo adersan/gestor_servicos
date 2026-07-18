@@ -1770,7 +1770,7 @@ function renderPayments() {
     .filter((item) => !startFilter || item.date >= startFilter)
     .filter((item) => !endFilter || item.date <= endFilter)
     .filter((item) => matchesSearch(search, clientById(item.clientId)?.name, item.note))
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 
   function paymentRowMarkup(item) {
     return `
@@ -6448,7 +6448,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=159").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=160").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
