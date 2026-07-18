@@ -44,6 +44,7 @@ let additionalServiceValues = [];
 let entryContinuationResolver = null;
 let referenceHistoryResolver = null;
 let activeDashboardTab = "services";
+let dashboardSuppliersPanelOpen = false;
 let dashboardPeriod = null;
 let financePeriod = null;
 let financePeriodMode = "week";
@@ -1235,8 +1236,8 @@ function renderDashboardV2() {
   document.getElementById("dashboardFinanceCards").classList.toggle("hidden", activeDashboardTab !== "finance");
   document.getElementById("dashboardFinanceCharts").classList.toggle("hidden", activeDashboardTab !== "finance");
   document.getElementById("dashboardFinanceSummary").classList.toggle("hidden", activeDashboardTab !== "finance");
-  document.getElementById("dashboardSuppliersPanel").classList.toggle("hidden", activeDashboardTab !== "suppliers");
-  document.querySelector(".dashboard-period-controls").classList.toggle("hidden", activeDashboardTab === "suppliers");
+  document.getElementById("dashboardSuppliersPanel").classList.toggle("hidden", !dashboardSuppliersPanelOpen);
+  document.getElementById("toggleDashboardSuppliers").classList.toggle("active", dashboardSuppliersPanelOpen);
   document.querySelectorAll("[data-dashboard-week-block]").forEach((element) => {
     element.classList.toggle("hidden", !isOperationalWeek);
   });
@@ -4359,6 +4360,7 @@ document.addEventListener("click", async (event) => {
   const opener = event.target.closest("[data-open-view]");
   const dialogButton = event.target.closest("[data-dialog]");
   const dashboardTab = event.target.closest("[data-dashboard-tab]");
+  const suppliersPanelToggle = event.target.closest("[data-toggle-suppliers-panel]");
   const dashboardPeriodButton = event.target.closest("[data-dashboard-period]");
   const dashboardMonthButton = event.target.closest("[data-dashboard-month]");
   const clientDialogTab = event.target.closest("[data-client-dialog-tab]");
@@ -4476,6 +4478,14 @@ document.addEventListener("click", async (event) => {
   if (dashboardTab) {
     activeDashboardTab = dashboardTab.dataset.dashboardTab;
     renderDashboardV2();
+  }
+  if (suppliersPanelToggle) {
+    dashboardSuppliersPanelOpen = !dashboardSuppliersPanelOpen;
+    renderDashboardV2();
+    if (dashboardSuppliersPanelOpen) {
+      window.supplierModule?.render();
+      suppliersPanelToggle.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
   const requestTabButton = event.target.closest("[data-request-tab]");
   if (requestTabButton) {
@@ -6371,7 +6381,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=146").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=147").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

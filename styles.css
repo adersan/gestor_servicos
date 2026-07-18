@@ -151,11 +151,6 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .dashboard-heading h2 { color: var(--brand-ink); }
 .dashboard-inner-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 180px)); gap: 8px; margin-bottom: 14px; }
 .dashboard-inner-tabs-3 { grid-template-columns: repeat(3, minmax(0, 180px)); }
-.supplier-volume-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
-.supplier-volume-chip { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--brand-ink); font-weight: 750; font-size: 13px; }
-.supplier-volume-chip small { color: var(--muted); font-weight: 700; font-size: 11px; }
-.supplier-volume-chip.active { border-color: var(--brand-ink); background: var(--brand); color: white; }
-.supplier-volume-chip.active small { color: rgba(255,255,255,.8); }
 .dashboard-inner-tabs button, .period-shortcuts button { padding: 10px 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--brand-ink); font-weight: 800; }
 .dashboard-inner-tabs button.active, .period-shortcuts button.active { border-color: var(--brand-ink); background: var(--brand); color: white; }
 .period-shortcuts button.has-overdue { border-color: var(--danger); color: var(--danger); }
@@ -860,7 +855,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .dashboard-period-controls { align-items: stretch; flex-direction: column; }
   #dashboard.active > .dashboard-heading { order: 1; }
   #dashboard.active > .dashboard-inner-tabs { order: 2; }
-  #dashboard.active > #dashboardServicesCards, #dashboard.active > #dashboardFinanceCards, #dashboard.active > #dashboardSuppliersPanel { order: 3; }
+  #dashboard.active > #dashboardServicesCards, #dashboard.active > #dashboardFinanceCards { order: 3; }
   #dashboard.active > .dashboard-period-controls { order: 4; }
   #dashboard.active > #dashboardServicesCharts, #dashboard.active > #dashboardFinanceCharts { order: 5; }
   .finance-period-bar { align-items: stretch; flex-direction: column; }

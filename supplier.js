@@ -129,27 +129,7 @@
     byId(hiddenId).value = supplier?.id || "";
   }
 
-  function renderSupplierVolumePicker() {
-    const picker = byId("dashboardSupplierPicker");
-    if (!picker) return;
-    const start = byId("supplierDashboardStart").value;
-    const end = byId("supplierDashboardEnd").value;
-    const selected = byId("supplierDashboardFilter").value;
-    const entries = state.supplierEntries.filter((item) =>
-      item.status !== "Cancelado" && (!start || item.date >= start) && (!end || item.date <= end));
-    const totalBySupplier = entries.reduce((result, item) => {
-      result[item.supplierId] = (result[item.supplierId] || 0) + Number(item.amount);
-      return result;
-    }, {});
-    const ordered = [...state.suppliers].sort((a, b) => (totalBySupplier[b.id] || 0) - (totalBySupplier[a.id] || 0));
-    picker.innerHTML = `
-      <button type="button" class="supplier-volume-chip ${!selected ? "active" : ""}" data-supplier-volume-pick="">Todos</button>
-      ${ordered.map((item) => `
-        <button type="button" class="supplier-volume-chip ${selected === item.id ? "active" : ""}" data-supplier-volume-pick="${item.id}">${escapeHtml(item.name)}<small>${money.format(totalBySupplier[item.id] || 0)}</small></button>`).join("")}`;
-  }
-
   function renderDashboard() {
-    renderSupplierVolumePicker();
     const supplierId = byId("supplierDashboardFilter").value;
     const start = byId("supplierDashboardStart").value;
     const end = byId("supplierDashboardEnd").value;
@@ -168,11 +148,11 @@
       .filter((item) => item.status !== "Cancelada" && (!supplierId || item.supplierId === supplierId))
       .reduce((sum, item) => sum + payableOpen(item), 0);
     byId("supplierDashboardCards").innerHTML = `
-      <article class="metric-card supplier-card-total"><span>Serviços no período</span><strong>${entries.length}</strong><small>Custos registrados</small></article>
-      <article class="metric-card supplier-card-cost"><span>Custo no período</span><strong>${money.format(total)}</strong><small>Antes das baixas</small></article>
-      <article class="metric-card supplier-card-pending"><span>A fazer</span><strong>${pendingEntries.length}</strong><small>${money.format(pendingTotal)} em produção</small></article>
-      <article class="metric-card supplier-card-done"><span>Feitos</span><strong>${doneEntries.length}</strong><small>${money.format(doneTotal)} concluídos</small></article>
-      <article class="metric-card metric-main supplier-card-open"><span>Total a pagar</span><strong>${money.format(open)}</strong><small>Contas abertas e parciais</small></article>`;
+      <article class="metric-card supplier-card-total" data-open-view="suppliers" role="button" tabindex="0" title="Ver lançamentos"><span>Serviços no período</span><strong>${entries.length}</strong><small>Custos registrados</small></article>
+      <article class="metric-card supplier-card-cost" data-open-view="suppliers" role="button" tabindex="0" title="Ver lançamentos"><span>Custo no período</span><strong>${money.format(total)}</strong><small>Antes das baixas</small></article>
+      <article class="metric-card supplier-card-pending" data-open-view="suppliers" role="button" tabindex="0" title="Ver lançamentos"><span>A fazer</span><strong>${pendingEntries.length}</strong><small>${money.format(pendingTotal)} em produção</small></article>
+      <article class="metric-card supplier-card-done" data-open-view="suppliers" role="button" tabindex="0" title="Ver lançamentos"><span>Feitos</span><strong>${doneEntries.length}</strong><small>${money.format(doneTotal)} concluídos</small></article>
+      <article class="metric-card metric-main supplier-card-open" data-open-view="suppliers" data-supplier-tab-shortcut="payables" role="button" tabindex="0" title="Ver contas a pagar"><span>Total a pagar</span><strong>${money.format(open)}</strong><small>Contas abertas e parciais</small></article>`;
 
     const ranking = Object.values(entries.reduce((result, item) => {
       result[item.supplierId] ||= { supplierId: item.supplierId, count: 0, total: 0 };
@@ -207,8 +187,8 @@
     const openCount = payables.filter((item) => payableOpen(item) > 0).length;
     const paidCount = payables.filter((item) => payableStatus(item) === "Paga").length;
     byId("supplierDashboardFinanceCards").innerHTML = `
-      <article class="metric-card metric-main" data-supplier-tab-shortcut="payables" role="button" tabindex="0" title="Ver contas a pagar"><span>Total a pagar</span><strong>${money.format(openTotal)}</strong><small>${openCount} conta(s) em aberto</small></article>
-      <article class="metric-card" data-supplier-tab-shortcut="payables" role="button" tabindex="0" title="Ver contas a pagar"><span>Total pago</span><strong>${money.format(paidTotal)}</strong><small>${paidCount} conta(s) quitada(s)</small></article>
+      <article class="metric-card metric-main" data-open-view="suppliers" data-supplier-tab-shortcut="payables" role="button" tabindex="0" title="Ver contas a pagar"><span>Total a pagar</span><strong>${money.format(openTotal)}</strong><small>${openCount} conta(s) em aberto</small></article>
+      <article class="metric-card" data-open-view="suppliers" data-supplier-tab-shortcut="payables" role="button" tabindex="0" title="Ver contas a pagar"><span>Total pago</span><strong>${money.format(paidTotal)}</strong><small>${paidCount} conta(s) quitada(s)</small></article>
       <article class="metric-card"><span>Contas no período</span><strong>${payables.length}</strong><small>Geradas neste filtro</small></article>`;
 
     const ranking = Object.values(payables.reduce((result, item) => {
@@ -1627,9 +1607,15 @@
     if (tabShortcut) showSupplierTab(tabShortcut.dataset.supplierTabShortcut);
     const action = event.target.closest("[data-supplier-action]");
     if (action) ({ supplier: () => openSupplier(), service: () => openSupplierService(), entry: () => openSupplierEntry(), payable: openPayable, access: openAccess }[action.dataset.supplierAction])?.();
-    const volumePick = event.target.closest("[data-supplier-volume-pick]");
-    if (volumePick) {
-      byId("supplierDashboardFilter").value = volumePick.dataset.supplierVolumePick;
+    const dashboardPeriodButton = event.target.closest("[data-supplier-dashboard-period]");
+    if (dashboardPeriodButton) {
+      const mode = dashboardPeriodButton.dataset.supplierDashboardPeriod;
+      const period = mode === "month" ? monthPeriod() : currentOperationalWeek();
+      byId("supplierDashboardStart").value = period.startDate;
+      byId("supplierDashboardEnd").value = period.endDate;
+      document.querySelectorAll("[data-supplier-dashboard-period]").forEach((button) => {
+        button.classList.toggle("active", button.dataset.supplierDashboardPeriod === mode);
+      });
       render();
     }
     const toggleHistory = event.target.closest("[data-toggle-payable-history]");
@@ -1830,6 +1816,7 @@
     byId(id).addEventListener(id.includes("Search") ? "input" : "change", render);
   });
   [
+    ["supplierDashboardFilterSearch", "supplierDashboardFilter", syncSupplierFilterField],
     ["supplierEntrySupplierFilterSearch", "supplierEntrySupplierFilter", syncSupplierFilterField],
     ["supplierEntryClientFilterSearch", "supplierEntryClientFilter", syncClientFilterField],
     ["supplierPayableSupplierFilterSearch", "supplierPayableSupplierFilter", syncSupplierFilterField],
