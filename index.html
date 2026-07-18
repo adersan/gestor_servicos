@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=122">
+  <link rel="stylesheet" href="styles.css?v=123">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -1312,8 +1312,10 @@
   <dialog id="paymentDetailDialog">
     <div class="payment-detail-content">
       <div class="dialog-heading"><h2>Detalhes do pagamento</h2><button class="icon-button" type="button" data-close-dialog>×</button></div>
-      <div id="paymentDetailBody"></div>
-      <p class="meta hidden" id="paymentDetailEditNote">Pagamento vinculado a uma cobrança não pode ser editado.</p>
+      <div class="payment-detail-scroll">
+        <div id="paymentDetailBody"></div>
+        <p class="meta hidden" id="paymentDetailEditNote">Pagamento vinculado a uma cobrança não pode ser editado.</p>
+      </div>
       <div class="dialog-actions">
         <button class="secondary" type="button" data-close-dialog>Fechar</button>
         <button class="danger-button" type="button" id="paymentDetailDeleteButton">Excluir</button>
@@ -1993,7 +1995,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=44"></script>
-  <script src="app.js?v=149"></script>
+  <script src="app.js?v=150"></script>
   <script src="supplier.js?v=62"></script>
 </body>
 </html>

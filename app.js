@@ -1781,12 +1781,15 @@ function renderPayments() {
     </tr>`;
   }
 
+  const previousScrollTop = document.querySelector("#paymentList .catalog-table-wrap")?.scrollTop || 0;
   document.getElementById("paymentList").innerHTML = items.length
     ? `<div class="catalog-table-wrap"><table class="catalog-table payment-history-table">
         <thead><tr><th>Data</th><th>Cliente</th><th>Valor</th></tr></thead>
         <tbody>${items.map(paymentRowMarkup).join("")}</tbody>
       </table></div>`
     : emptyMarkup();
+  const newWrap = document.querySelector("#paymentList .catalog-table-wrap");
+  if (newWrap) newWrap.scrollTop = previousScrollTop;
 
   updatePaymentSelectionUI();
 }
@@ -6445,7 +6448,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=158").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=159").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
