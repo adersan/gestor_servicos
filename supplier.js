@@ -434,7 +434,7 @@
     activeTab = tab;
     document.querySelectorAll("[data-supplier-tab]").forEach((button) =>
       button.classList.toggle("active", button.dataset.supplierTab === tab));
-    const panelNames = { records: "Records", entries: "Entries", payables: "Payables", access: "Access" };
+    const panelNames = { dashboard: "Dashboard", records: "Records", entries: "Entries", payables: "Payables", access: "Access" };
     Object.entries(panelNames).forEach(([name, suffix]) =>
       byId(`supplier${suffix}Panel`).classList.toggle("hidden", name !== tab));
   }

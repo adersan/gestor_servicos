@@ -1235,9 +1235,6 @@ function renderDashboardV2() {
   document.getElementById("dashboardFinanceCards").classList.toggle("hidden", activeDashboardTab !== "finance");
   document.getElementById("dashboardFinanceCharts").classList.toggle("hidden", activeDashboardTab !== "finance");
   document.getElementById("dashboardFinanceSummary").classList.toggle("hidden", activeDashboardTab !== "finance");
-  document.getElementById("dashboardSuppliersPanel").classList.toggle("hidden", activeDashboardTab !== "suppliers");
-  document.querySelector(".dashboard-period-controls").classList.toggle("hidden", activeDashboardTab === "suppliers");
-  if (activeDashboardTab === "suppliers") window.supplierModule?.render();
   document.querySelectorAll("[data-dashboard-week-block]").forEach((element) => {
     element.classList.toggle("hidden", !isOperationalWeek);
   });
@@ -6372,7 +6369,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=148").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=149").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
