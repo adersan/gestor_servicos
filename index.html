@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=113">
+  <link rel="stylesheet" href="styles.css?v=115">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -337,22 +337,15 @@
       <div class="filters payment-filters finance-filters">
         <input id="paymentClientFilterSearch" type="search" list="serviceClientOptions" placeholder="Digite o cliente">
         <input id="paymentClientFilter" type="hidden">
-        <select id="paymentStatusFilter">
-          <option value="open">Em aberto</option>
-          <option value="overdue">Atrasadas</option>
-          <option value="paid">Pagas</option>
-          <option value="">Todas</option>
-        </select>
-        <input id="paymentStartFilter" type="date" aria-label="Cobranças a partir de">
-        <input id="paymentEndFilter" type="date" aria-label="Cobranças até">
+        <input id="paymentStartFilter" type="date" aria-label="Pagamentos a partir de">
+        <input id="paymentEndFilter" type="date" aria-label="Pagamentos até">
         <input id="paymentSearch" type="search" placeholder="Buscar cliente ou observação">
       </div>
-      <div class="subsection-heading finance-list-heading"><div><span class="eyebrow">Cobrancas do periodo</span><h3>Baixas e saldos</h3></div></div>
-      <div id="openBillingList" class="timeline"></div>
-      <div class="subsection-heading">
+      <div class="subsection-heading list-heading-actions">
         <div><span class="eyebrow">Histórico</span><h3>Pagamentos registrados</h3></div>
+        <button class="row-options-button hidden" type="button" id="paymentDetailsButton" title="Detalhes" aria-label="Ver detalhes do pagamento selecionado">⋮</button>
       </div>
-      <div id="paymentList" class="timeline"></div>
+      <div id="paymentList"></div>
     </section>
 
     <section id="paymentMethods" class="view">
@@ -1314,6 +1307,17 @@
     </div>
   </dialog>
 
+  <dialog id="paymentDetailDialog">
+    <div class="dialog-heading"><h2>Detalhes do pagamento</h2><button class="icon-button" type="button" data-close-dialog>×</button></div>
+    <div id="paymentDetailBody"></div>
+    <p class="meta hidden" id="paymentDetailEditNote">Pagamento vinculado a uma cobrança não pode ser editado.</p>
+    <div class="dialog-actions">
+      <button class="secondary" type="button" data-close-dialog>Fechar</button>
+      <button class="danger-button" type="button" id="paymentDetailDeleteButton">Excluir</button>
+      <button class="primary" type="button" id="paymentDetailEditButton">Editar</button>
+    </div>
+  </dialog>
+
   <dialog id="billingDialog">
     <form id="billingForm" method="dialog">
       <div class="dialog-heading"><h2>Gerar cobrança</h2><button class="icon-button" value="cancel" data-close-dialog>×</button></div>
@@ -1985,7 +1989,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=44"></script>
-  <script src="app.js?v=142"></script>
+  <script src="app.js?v=144"></script>
   <script src="supplier.js?v=62"></script>
 </body>
 </html>

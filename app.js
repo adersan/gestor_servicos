@@ -48,6 +48,7 @@ let dashboardPeriod = null;
 let financePeriod = null;
 let financePeriodMode = "week";
 let billingOverdueOnly = false;
+let selectedPaymentId = null;
 let remoteRefreshInProgress = false;
 let remoteLoadInProgress = false;
 let localStateRevision = 0;
@@ -493,6 +494,31 @@ function availableAdvancePayments(clientId) {
   );
 }
 
+// A cobranca valida de um cliente e sempre a ultima gerada (maior createdAt) que ainda tem saldo.
+function latestOpenBillingFor(clientId) {
+  return state.billings
+    .filter((billing) => billing.clientId === clientId)
+    .filter((billing) => {
+      const status = billingCurrentStatus(billing);
+      return status !== "Cancelada" && status !== "Consolidada" && billingOpenAmount(billing) > 0.001;
+    })
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0] || null;
+}
+
+function unbilledConsumptionFor(clientId) {
+  const period = currentOperationalWeek();
+  const alreadyBilled = state.billings.some((billing) =>
+    billing.clientId === clientId
+    && billing.status !== "Cancelada"
+    && billing.startDate <= period.endDate
+    && billing.endDate >= period.startDate);
+  if (alreadyBilled) return 0;
+  return state.services
+    .filter((item) => item.clientId === clientId && item.status !== "Cancelado"
+      && item.date >= period.startDate && item.date <= period.endDate)
+    .reduce((sum, item) => sum + Number(item.amount), 0);
+}
+
 function serviceStatusLabel(status) {
   return status === "Pronto" ? "Feito" : status;
 }
@@ -605,11 +631,6 @@ function paymentAllocationLabel(payment) {
   return allocationState === "linked-paid"
     ? `Quitação da cobrança${numberSuffix}`
     : `Vinculado à cobrança${numberSuffix} (parcial)`;
-}
-
-function paymentLinkedBadgeLabel(payment) {
-  const allocationState = paymentAllocationState(payment);
-  return allocationState === "linked-paid" ? "Quitação" : "Vinculado";
 }
 
 function rawBillingOpenAmount(billing) {
@@ -836,8 +857,12 @@ function monthPeriod(reference = new Date()) {
   return { startDate: localDateKey(start), endDate: localDateKey(end) };
 }
 
-function previousOperationalWeek(period) {
+function previousFinancePeriod(period, mode) {
   const reference = new Date(`${period.startDate}T12:00:00`);
+  if (mode === "month") {
+    reference.setMonth(reference.getMonth() - 1);
+    return monthPeriod(reference);
+  }
   reference.setDate(reference.getDate() - 1);
   return currentOperationalWeek(reference);
 }
@@ -1163,7 +1188,7 @@ function renderDashboard() {
   billingAlertPanel.innerHTML = `
     <div class="panel-title">
       <div><span class="eyebrow">Alertas financeiros</span><h2>Cobranças em aberto</h2></div>
-      <button class="table-action" data-payment-dashboard-filter="open">Ver pagamentos</button>
+      <button class="table-action" data-payment-dashboard-filter="open">Ver cobranças</button>
     </div>
     <div class="alert-summary finance-alert-summary">
       <article><span>Em aberto</span><strong>${money.format(openTotal)}</strong><small>${openBillings.length} cliente(s)</small></article>
@@ -1459,7 +1484,7 @@ function renderDashboardFinanceSummary() {
     .filter((payment) => payment.date === today)
     .reduce((sum, payment) => sum + Number(payment.amount), 0);
   strip.innerHTML = `
-    <button type="button" data-payment-dashboard-filter="open" title="Abrir Pagamentos"><span>Em aberto</span><strong>${money.format(openTotal)}</strong></button>
+    <button type="button" data-payment-dashboard-filter="open" title="Abrir cobranças"><span>Em aberto</span><strong>${money.format(openTotal)}</strong></button>
     <button type="button" class="${overdueTotal > 0 ? "summary-danger" : ""}" data-attention="overdue-billings" title="Ver cobranças atrasadas"><span>Atrasado</span><strong>${money.format(overdueTotal)}</strong></button>
     <button type="button" class="summary-received" data-open-view="payments" title="Abrir Pagamentos"><span>Recebido hoje</span><strong>${money.format(receivedToday)}</strong></button>`;
 }
@@ -1717,87 +1742,24 @@ function renderServiceRequests() {
 function renderPayments() {
   const period = ensureFinancePeriod();
   const clientFilter = document.getElementById("paymentClientFilter").value;
-  const statusFilter = document.getElementById("paymentStatusFilter").value;
   const startFilter = document.getElementById("paymentStartFilter").value;
   const endFilter = document.getElementById("paymentEndFilter").value;
   const search = document.getElementById("paymentSearch").value.trim();
-  const billings = state.billings
-    .filter((billing) => billing.status !== "Cancelada")
-    .map((billing) => ({
-      ...billing,
-      currentStatus: billingCurrentStatus(billing),
-      paidAmount: billingPaidAmount(billing),
-      openAmount: billingOpenAmount(billing),
-      ageDays: billingAgeDays(billing)
-    }))
-    .filter((billing) => !clientFilter || billing.clientId === clientFilter)
-    .filter((billing) => !startFilter || billing.endDate >= startFilter)
-    .filter((billing) => !endFilter || billing.endDate <= endFilter)
-    .filter((billing) => {
-      if (!statusFilter) return true;
-      if (statusFilter === "open") return billing.openAmount > 0 && billing.currentStatus !== "Cancelada";
-      if (statusFilter === "overdue") return isBillingOverdue(billing);
-      if (statusFilter === "paid") return billing.currentStatus === "Paga";
-      return true;
-    })
-    .filter((billing) => matchesSearch(
-      search,
-      clientById(billing.clientId)?.name,
-      billing.currentStatus,
-      billing.identifier,
-      billing.billingNumber ? `#${billing.billingNumber}` : ""
-    ))
-    .sort((a, b) => b.endDate.localeCompare(a.endDate));
 
-  const allActiveBillings = state.billings.filter((billing) => billing.status !== "Cancelada");
-  const totalOpen = allActiveBillings.reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
-  const receivedTotal = state.payments
-    .filter((payment) => inPeriod(payment.date, period))
+  const sumPaymentsIn = (rangeStart, rangeEnd) => state.payments
+    .filter((payment) => payment.date >= rangeStart && payment.date <= rangeEnd)
     .reduce((sum, payment) => sum + Number(payment.amount), 0);
 
-  const previousWeek = previousOperationalWeek(period);
-  const previousWeekOpen = allActiveBillings
-    .filter((billing) => inPeriod(billing.endDate, previousWeek))
-    .reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
+  const previousPeriod = previousFinancePeriod(period, financePeriodMode);
+  const today = localDateKey(new Date());
+  const receivedPrevious = sumPaymentsIn(previousPeriod.startDate, previousPeriod.endDate);
+  const receivedToday = sumPaymentsIn(today, today);
+  const receivedCurrent = sumPaymentsIn(period.startDate, period.endDate);
+
   document.getElementById("paymentSummary").innerHTML = `
-    <article class="metric-card finance-open-card ${previousWeekOpen > 0 ? "has-open" : ""}"><span>Em aberto da semana anterior</span><strong>${money.format(previousWeekOpen)}</strong><small>${periodLabel(previousWeek)}</small></article>
-    <article class="metric-card finance-open-card ${totalOpen > 0 ? "has-open" : ""}"><span>Debito total em aberto</span><strong>${money.format(totalOpen)}</strong><small>${allActiveBillings.filter((billing) => billingOpenAmount(billing) > 0).length} cobranca(s)</small></article>
-    <article class="metric-card finance-received-card"><span>Recebido no periodo</span><strong>${money.format(receivedTotal)}</strong><small>${periodLabel(period)}</small></article>`;
-
-  function billingRowMarkup(billing) {
-    const canPay = billing.openAmount > 0 && billing.currentStatus !== "Cancelada";
-    return `
-    <article class="timeline-item ${billingCardStatusClass(billing)}">
-      <time>${formatDate(billing.endDate)}</time>
-      <div>
-        <h3>${escapeHtml(clientById(billing.clientId)?.name || "")}</h3>
-        <p class="meta">${billing.billingNumber ? `Cobrança #${billing.billingNumber} · ` : ""}${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</p>
-        <p class="meta">${escapeHtml(billing.statusReason || (billing.currentStatus === "Paga" ? "Quitada pelos pagamentos vinculados" : "Aguardando pagamento"))}</p>
-        ${isBillingOverdue(billing) ? `<p class="overdue-message">Em atraso há ${daysPastBillingPeriod(billing)} dia(s).</p>` : ""}
-      </div>
-      <strong>${money.format(billing.openAmount)}</strong>
-      <div class="row-actions">
-        <span class="billing-status billing-${billing.currentStatus.toLowerCase()}">${billing.currentStatus}</span>
-        ${canPay ? `<button class="table-action" data-pay-billing="${billing.id}" data-payment-mode="partial">Baixa parcial</button><button class="table-action success" data-pay-billing="${billing.id}" data-payment-mode="full">Quitar</button>` : ""}
-      </div>
-    </article>`;
-  }
-
-  const billingGroups = [];
-  const billingGroupIndex = new Map();
-  billings.forEach((billing) => {
-    const key = billing.clientId || "";
-    if (!billingGroupIndex.has(key)) {
-      billingGroupIndex.set(key, billingGroups.length);
-      billingGroups.push({ name: clientById(key)?.name || "Sem cliente", billings: [] });
-    }
-    billingGroups[billingGroupIndex.get(key)].billings.push(billing);
-  });
-  billingGroups.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-
-  document.getElementById("openBillingList").innerHTML = billings.length ? billingGroups.map((group) => `
-    <div class="payment-group-heading">${escapeHtml(group.name)} <span class="payment-group-count">${group.billings.length}</span></div>
-    ${group.billings.map(billingRowMarkup).join("")}`).join("") : emptyMarkup();
+    <article class="metric-card finance-received-card"><span>Recebido no período anterior</span><strong>${money.format(receivedPrevious)}</strong><small>${periodLabel(previousPeriod)}</small></article>
+    <article class="metric-card finance-received-card"><span>Recebido hoje</span><strong>${money.format(receivedToday)}</strong><small>${formatDate(today)}</small></article>
+    <article class="metric-card finance-received-card"><span>Recebido no período</span><strong>${money.format(receivedCurrent)}</strong><small>${periodLabel(period)}</small></article>`;
 
   const items = state.payments
     .filter((item) => !clientFilter || item.clientId === clientFilter)
@@ -1806,32 +1768,78 @@ function renderPayments() {
     .filter((item) => matchesSearch(search, clientById(item.clientId)?.name, item.note))
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  function paymentItemMarkup(item) {
-    const allocationState = paymentAllocationState(item);
+  function paymentRowMarkup(item) {
     return `
-    <article class="timeline-item ${item.billingId ? "payment-applied" : ""}">
-      <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
-      <div><h3>${escapeHtml(clientById(item.clientId)?.name || "")}</h3><p class="meta">${escapeHtml(item.note || "Pagamento registrado")}</p><span class="payment-origin">${escapeHtml(item.method || "Forma não informada")} · ${escapeHtml(item.paymentSource || "Manual")}</span><p class="payment-allocation ${allocationState}">${escapeHtml(paymentAllocationLabel(item))}</p></div>
-      <strong>${money.format(item.amount)}</strong>
-      <div class="row-actions">${item.billingId ? `<span class="applied-badge">${paymentLinkedBadgeLabel(item)}</span>` : `<button class="table-action" data-edit-payment="${item.id}">Editar</button>`}<button class="table-action danger" data-delete-payment="${item.id}">Excluir</button></div>
-    </article>`;
+    <tr data-payment-row="${item.id}" data-allocation="${paymentAllocationState(item)}" class="${item.id === selectedPaymentId ? "selected-row" : ""}">
+      <td>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</td>
+      <td>${escapeHtml(clientById(item.clientId)?.name || "")}</td>
+      <td class="amount">${money.format(item.amount)}</td>
+    </tr>`;
   }
 
-  const paymentGroups = [];
-  const paymentGroupIndex = new Map();
-  items.forEach((item) => {
-    const key = item.clientId || "";
-    if (!paymentGroupIndex.has(key)) {
-      paymentGroupIndex.set(key, paymentGroups.length);
-      paymentGroups.push({ name: clientById(key)?.name || "Sem cliente", payments: [] });
-    }
-    paymentGroups[paymentGroupIndex.get(key)].payments.push(item);
-  });
-  paymentGroups.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  document.getElementById("paymentList").innerHTML = items.length
+    ? `<div class="catalog-table-wrap"><table class="catalog-table payment-history-table">
+        <thead><tr><th>Data</th><th>Cliente</th><th>Valor</th></tr></thead>
+        <tbody>${items.map(paymentRowMarkup).join("")}</tbody>
+      </table></div>`
+    : emptyMarkup();
 
-  document.getElementById("paymentList").innerHTML = items.length ? paymentGroups.map((group) => `
-    <div class="payment-group-heading">${escapeHtml(group.name)} <span class="payment-group-count">${group.payments.length}</span></div>
-    ${group.payments.map(paymentItemMarkup).join("")}`).join("") : emptyMarkup();
+  updatePaymentSelectionUI();
+}
+
+function updatePaymentSelectionUI() {
+  const rows = document.querySelectorAll("#paymentList tr[data-payment-row]");
+  let stillVisible = false;
+  rows.forEach((row) => {
+    const isSelected = row.dataset.paymentRow === selectedPaymentId;
+    row.classList.toggle("selected-row", isSelected);
+    if (isSelected) stillVisible = true;
+  });
+  if (!stillVisible) selectedPaymentId = null;
+  document.getElementById("paymentDetailsButton").classList.toggle("hidden", !selectedPaymentId);
+}
+
+function renderPaymentDetailBody(payment) {
+  const client = clientById(payment.clientId);
+  const allocationState = paymentAllocationState(payment);
+  const billing = payment.billingId ? state.billings.find((item) => item.id === payment.billingId) : null;
+  const unbilled = unbilledConsumptionFor(payment.clientId);
+
+  const rows = [
+    ["Data", formatDate(payment.date)],
+    ["Forma de pagamento", escapeHtml(payment.method || "Não informada")],
+    ["Origem", escapeHtml(payment.paymentSource || "Manual")],
+    ["Observação", escapeHtml(payment.note || "-")]
+  ];
+
+  let calloutBody = `<strong>${escapeHtml(paymentAllocationLabel(payment))}</strong>`;
+  if (billing) {
+    calloutBody += `
+      <p>${billingNumberLabel(billing) || "Cobrança"} · Período ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}</p>
+      <p>Saldo atual da cobrança: ${money.format(billingOpenAmount(billing))}</p>`;
+  }
+
+  return `
+    <div class="payment-detail-header">
+      <div><span class="eyebrow">Pagamento de</span><h3>${escapeHtml(client?.name || "")}</h3></div>
+      <strong class="payment-detail-amount payment-detail-amount-${allocationState}">${money.format(payment.amount)}</strong>
+    </div>
+    <dl class="payment-detail-grid">
+      ${rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("")}
+    </dl>
+    <div class="payment-detail-callout payment-detail-callout-${allocationState}">${calloutBody}</div>
+    <div class="payment-detail-callout payment-detail-callout-info">
+      <span>Consumo do período atual ainda não faturado</span>
+      <strong>${money.format(unbilled)}</strong>
+    </div>`;
+}
+
+function openPaymentDetail(payment) {
+  document.getElementById("paymentDetailBody").innerHTML = renderPaymentDetailBody(payment);
+  const editable = !payment.billingId;
+  document.getElementById("paymentDetailEditButton").classList.toggle("hidden", !editable);
+  document.getElementById("paymentDetailEditNote").classList.toggle("hidden", editable);
+  document.getElementById("paymentDetailDialog").showModal();
 }
 
 function renderPaymentMethods() {
@@ -2498,6 +2506,27 @@ function syncPaymentClientSelection() {
   const client = itemByExactLabel(state.clients, form.elements.clientSearch.value, clientOptionLabel)
     || uniqueClientMatch(form.elements.clientSearch.value);
   form.elements.clientId.value = client?.id || "";
+  if (!form.elements.paymentId.value) updatePaymentBillingHint(client);
+}
+
+// So decide/atualiza a cobranca vinculada automaticamente para pagamento NOVO (sem cobranca
+// pre-selecionada por um botao especifico de "baixa parcial/quitar"). Editar um pagamento
+// existente nunca passa por aqui, preservando a regra de nao reatribuir cobranca na edicao.
+function updatePaymentBillingHint(client) {
+  const form = document.getElementById("paymentForm");
+  const hint = document.getElementById("paymentBillingHint");
+  if (!client) {
+    form.elements.billingId.value = "";
+    hint.textContent = "";
+    hint.classList.add("hidden");
+    return;
+  }
+  const billing = latestOpenBillingFor(client.id);
+  form.elements.billingId.value = billing?.id || "";
+  hint.classList.remove("hidden");
+  hint.textContent = billing
+    ? `Cliente com ${billingNumberLabel(billing) || "cobranca"} em aberto (${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}). Saldo atual: ${money.format(billingOpenAmount(billing))}. Este pagamento sera vinculado a ela.`
+    : "Cliente sem cobranca em aberto. Este pagamento ficara como credito para a proxima cobranca.";
 }
 
 function syncBillingClientSelection() {
@@ -3664,9 +3693,11 @@ function openPaymentForm(item = null, billing = null, mode = "partial") {
   if (billing) {
     hint.textContent = `Cobrança de ${formatDate(billing.startDate)} a ${formatDate(billing.endDate)}. Saldo atual: ${money.format(billingOpenAmount(billing))}.`;
     hint.classList.remove("hidden");
-  } else {
+  } else if (item) {
     hint.textContent = "";
     hint.classList.add("hidden");
+  } else {
+    updatePaymentBillingHint(null);
   }
   document.getElementById("paymentDialogTitle").textContent = item ? "Editar pagamento" : "Registrar pagamento";
   paymentWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
@@ -4635,9 +4666,17 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (paymentDashboardFilter) {
-    document.getElementById("paymentStatusFilter").value = paymentDashboardFilter.dataset.paymentDashboardFilter;
-    showView("payments");
-    renderPayments();
+    const filter = paymentDashboardFilter.dataset.paymentDashboardFilter;
+    if (filter === "overdue") {
+      billingOverdueOnly = true;
+      document.getElementById("billingOverdueStartFilter").value = "";
+      document.getElementById("billingOverdueEndFilter").value = "";
+    } else {
+      billingOverdueOnly = false;
+      document.getElementById("billingStatusFilter").value = filter;
+    }
+    showView("billing");
+    renderBillings();
   }
   if (event.target.closest("#notificationButton")) {
     renderNotifications();
@@ -4670,9 +4709,11 @@ document.addEventListener("click", async (event) => {
       showView("requests");
       renderServiceRequests();
     } else {
-      document.getElementById("paymentStatusFilter").value = "overdue";
-      showView("payments");
-      renderPayments();
+      billingOverdueOnly = true;
+      document.getElementById("billingOverdueStartFilter").value = "";
+      document.getElementById("billingOverdueEndFilter").value = "";
+      showView("billing");
+      renderBillings();
     }
   }
   if (dialogButton) {
@@ -4824,23 +4865,39 @@ document.addEventListener("click", async (event) => {
   const deleteEntry = event.target.closest("[data-delete-entry]");
   if (deleteEntry) openServiceDeletion(state.services.find((item) => item.id === deleteEntry.dataset.deleteEntry));
 
-  const editPayment = event.target.closest("[data-edit-payment]");
-  if (editPayment) {
-    const payment = state.payments.find((item) => item.id === editPayment.dataset.editPayment);
-    if (payment?.billingId) showAppAlert("Este pagamento ja foi abatido em uma cobranca e nao pode mais ser editado.", { type: "warning" });
-    else if (payment) openPaymentForm(payment);
-  }
   const payBillingButton = event.target.closest("[data-pay-billing]");
   if (payBillingButton) {
     const billing = state.billings.find((item) => item.id === payBillingButton.dataset.payBilling);
     if (billing) openPaymentForm(null, billing, payBillingButton.dataset.paymentMode);
   }
-  const deletePayment = event.target.closest("[data-delete-payment]");
-  if (deletePayment && await showAppConfirm("Excluir este pagamento?")) {
-    state.payments = state.payments.filter((item) => item.id !== deletePayment.dataset.deletePayment);
-    updateBillingStatuses();
-    saveState();
-    showAppAlert("Pagamento excluído com sucesso.", { type: "success" });
+  const paymentRow = event.target.closest("tr[data-payment-row]");
+  if (paymentRow) {
+    const rowId = paymentRow.dataset.paymentRow;
+    selectedPaymentId = selectedPaymentId === rowId ? null : rowId;
+    updatePaymentSelectionUI();
+  }
+  const paymentDetailsButton = event.target.closest("#paymentDetailsButton");
+  if (paymentDetailsButton && selectedPaymentId) {
+    const payment = state.payments.find((item) => item.id === selectedPaymentId);
+    if (payment) openPaymentDetail(payment);
+  }
+  const paymentDetailEditButton = event.target.closest("#paymentDetailEditButton");
+  if (paymentDetailEditButton) {
+    const payment = state.payments.find((item) => item.id === selectedPaymentId);
+    document.getElementById("paymentDetailDialog").close();
+    if (payment) openPaymentForm(payment);
+  }
+  const paymentDetailDeleteButton = event.target.closest("#paymentDetailDeleteButton");
+  if (paymentDetailDeleteButton && selectedPaymentId) {
+    const payment = state.payments.find((item) => item.id === selectedPaymentId);
+    if (payment && await showAppConfirm("Excluir este pagamento?")) {
+      state.payments = state.payments.filter((item) => item.id !== payment.id);
+      selectedPaymentId = null;
+      updateBillingStatuses();
+      document.getElementById("paymentDetailDialog").close();
+      saveState();
+      showAppAlert("Pagamento excluído com sucesso.", { type: "success" });
+    }
   }
 
   const editMethod = event.target.closest("[data-edit-method]");
@@ -5450,6 +5507,8 @@ document.getElementById("paymentForm").addEventListener("submit", (event) => {
   const billingId = data.get("billingId") || existingPayment?.billingId || null;
   const amount = Number(data.get("amount"));
   const linkedBilling = state.billings.find((item) => item.id === billingId);
+  let appliedAmount = amount;
+  let creditAmount = 0;
   if (linkedBilling) {
     if (data.get("clientId") !== linkedBilling.clientId) {
       showAppAlert("O cliente do pagamento deve ser o mesmo da cobrança.", { type: "warning" });
@@ -5457,8 +5516,8 @@ document.getElementById("paymentForm").addEventListener("submit", (event) => {
     }
     const available = billingOpenAmount(linkedBilling) + Number(existingPayment?.amount || 0);
     if (amount > available + 0.001) {
-      showAppAlert(`O valor máximo para esta cobrança é ${money.format(available)}.`, { type: "warning" });
-      return;
+      appliedAmount = available;
+      creditAmount = amount - available;
     }
   }
   const payment = {
@@ -5466,7 +5525,7 @@ document.getElementById("paymentForm").addEventListener("submit", (event) => {
     clientId: data.get("clientId"),
     billingId,
     date: data.get("date"),
-    amount,
+    amount: appliedAmount,
     method: data.get("method"),
     note: data.get("note"),
     externalPaymentId: existingPayment?.externalPaymentId || "",
@@ -5478,11 +5537,31 @@ document.getElementById("paymentForm").addEventListener("submit", (event) => {
   const isNewPayment = index < 0;
   if (index >= 0) state.payments[index] = payment;
   else state.payments.push(payment);
+  if (creditAmount > 0.001) {
+    state.payments.push({
+      id: crypto.randomUUID(),
+      clientId: payment.clientId,
+      billingId: null,
+      date: payment.date,
+      amount: creditAmount,
+      method: payment.method,
+      note: `Crédito de ${money.format(creditAmount)} gerado por pagamento acima do saldo da ${billingNumberLabel(linkedBilling) || "cobrança"}`,
+      paymentSource: "Credito de pagamento",
+      externalPaymentId: "",
+      createdAt: now,
+      updatedAt: now
+    });
+  }
   updateBillingStatuses();
   event.currentTarget.reset();
   event.currentTarget.closest("dialog").close();
   saveState();
-  showAppAlert(isNewPayment ? "Pagamento cadastrado com sucesso." : "Pagamento atualizado com sucesso.", { type: "success" });
+  showAppAlert(
+    creditAmount > 0.001
+      ? `Pagamento cadastrado. ${money.format(appliedAmount)} aplicado à cobrança e ${money.format(creditAmount)} viraram crédito para a próxima cobrança.`
+      : (isNewPayment ? "Pagamento cadastrado com sucesso." : "Pagamento atualizado com sucesso."),
+    { type: "success" }
+  );
 });
 
 document.getElementById("paymentMethodForm").addEventListener("submit", (event) => {
@@ -5865,7 +5944,6 @@ document.getElementById("whatsappForm").addEventListener("submit", async (event)
   ["requestSearch", "input", renderServiceRequests],
   ["requestStatusFilter", "change", renderServiceRequests],
   ["paymentClientFilterSearch", "input", syncPaymentClientFilter],
-  ["paymentStatusFilter", "change", renderPayments],
   ["paymentStartFilter", "change", () => { setFinancePeriodFromInputs("payment"); refreshFinanceViews(); }],
   ["paymentEndFilter", "change", () => { setFinancePeriodFromInputs("payment"); refreshFinanceViews(); }],
   ["paymentSearch", "input", renderPayments],
@@ -6369,7 +6447,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=149").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=151").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
