@@ -1746,8 +1746,12 @@ function renderPayments() {
   const endFilter = document.getElementById("paymentEndFilter").value;
   const search = document.getElementById("paymentSearch").value.trim();
 
+  const filteredClient = clientFilter ? clientById(clientFilter) : null;
+  const clientSuffix = filteredClient ? ` · ${escapeHtml(filteredClient.name)}` : "";
+
   const sumPaymentsIn = (rangeStart, rangeEnd) => state.payments
     .filter((payment) => payment.date >= rangeStart && payment.date <= rangeEnd)
+    .filter((payment) => !clientFilter || payment.clientId === clientFilter)
     .reduce((sum, payment) => sum + Number(payment.amount), 0);
 
   const previousPeriod = previousFinancePeriod(period, financePeriodMode);
@@ -1757,9 +1761,9 @@ function renderPayments() {
   const receivedCurrent = sumPaymentsIn(period.startDate, period.endDate);
 
   document.getElementById("paymentSummary").innerHTML = `
-    <article class="metric-card finance-received-card"><span>Recebido no período anterior</span><strong>${money.format(receivedPrevious)}</strong><small>${periodLabel(previousPeriod)}</small></article>
-    <article class="metric-card finance-received-card"><span>Recebido hoje</span><strong>${money.format(receivedToday)}</strong><small>${formatDate(today)}</small></article>
-    <article class="metric-card finance-received-card"><span>Recebido no período</span><strong>${money.format(receivedCurrent)}</strong><small>${periodLabel(period)}</small></article>`;
+    <article class="metric-card finance-received-card"><span>Recebido no período anterior</span><strong>${money.format(receivedPrevious)}</strong><small>${periodLabel(previousPeriod)}${clientSuffix}</small></article>
+    <article class="metric-card finance-received-card"><span>Recebido hoje</span><strong>${money.format(receivedToday)}</strong><small>${formatDate(today)}${clientSuffix}</small></article>
+    <article class="metric-card finance-received-card"><span>Recebido no período</span><strong>${money.format(receivedCurrent)}</strong><small>${periodLabel(period)}${clientSuffix}</small></article>`;
 
   const items = state.payments
     .filter((item) => !clientFilter || item.clientId === clientFilter)
@@ -6441,7 +6445,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=156").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=157").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

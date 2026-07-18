@@ -506,6 +506,8 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .catalog-table th { color: var(--muted); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
 .catalog-table tr:last-child td { border-bottom: 0; }
 .payment-history-table { min-width: 0; }
+#paymentList .catalog-table-wrap { max-height: 496px; overflow-y: auto; }
+#paymentList .catalog-table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); }
 .payment-history-table tbody tr { cursor: pointer; }
 .payment-history-table tbody tr:nth-child(even) { background: var(--surface-2); }
 .payment-history-table tbody tr:hover { background: var(--surface-3); }
