@@ -26,11 +26,6 @@ function formatServiceDay(value) {
   return parts.length === 3 ? parts[2] : "-";
 }
 
-function formatDateDDMM(value) {
-  const parts = String(value || "").split("-");
-  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : "-";
-}
-
 const SIMPLE_STATUS_INITIALS = { pending: "AF", done: "F", delivered: "E", cancelled: "C" };
 
 function formatDateTime(value) {
@@ -476,8 +471,8 @@ function renderServiceSimpleRow({ primary, secondaries }) {
   const fullServiceLabel = `${item.service_name}${secondaries.length ? ` + ${secondaries.length} complementar(es)` : ""}`;
   const compactServiceLabel = `${item.service_name}${secondaries.length ? ` +${secondaries.length}` : ""}`;
   return `<tr>
-    <td><span class="tracking-simple-full">${formatDateDDMM(item.service_date)}</span><span class="tracking-simple-compact">${formatServiceDay(item.service_date)}</span></td>
-    <td class="tracking-simple-truncate"><strong>${escapeHtml(item.reference || "Sem referência")}</strong></td>
+    <td><span class="tracking-simple-full">${formatDate(item.service_date)}</span><span class="tracking-simple-compact">${formatServiceDay(item.service_date)}</span></td>
+    <td><strong>${escapeHtml(item.reference || "Sem referência")}</strong></td>
     <td class="tracking-simple-truncate"><span class="tracking-simple-full">${escapeHtml(fullServiceLabel)}</span><span class="tracking-simple-compact">${escapeHtml(compactServiceLabel)}</span></td>
     <td><span class="status status-${status.className} tracking-simple-full">${escapeHtml(status.label)}</span><span class="status status-${status.className} tracking-simple-compact">${escapeHtml(statusInitial)}</span></td>
     <td class="tracking-simple-amount">${amountText(total)}</td>
