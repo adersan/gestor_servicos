@@ -26,6 +26,11 @@ function formatServiceDay(value) {
   return parts.length === 3 ? parts[2] : "-";
 }
 
+function formatDateDDMM(value) {
+  const parts = String(value || "").split("-");
+  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : "-";
+}
+
 const SIMPLE_STATUS_INITIALS = { pending: "AF", done: "F", delivered: "E", cancelled: "C" };
 
 function formatDateTime(value) {
@@ -467,12 +472,15 @@ function renderServiceSimpleRow({ primary, secondaries }) {
   const item = primary;
   const status = statusData(item.status);
   const statusInitial = SIMPLE_STATUS_INITIALS[status.className] || status.label;
-  const serviceLabel = `${item.service_name}${secondaries.length ? ` +${secondaries.length}` : ""}`;
+  const total = [item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0);
+  const fullServiceLabel = `${item.service_name}${secondaries.length ? ` + ${secondaries.length} complementar(es)` : ""}`;
+  const compactServiceLabel = `${item.service_name}${secondaries.length ? ` +${secondaries.length}` : ""}`;
   return `<tr>
-    <td>${formatServiceDay(item.service_date)}</td>
+    <td><span class="tracking-simple-full">${formatDateDDMM(item.service_date)}</span><span class="tracking-simple-compact">${formatServiceDay(item.service_date)}</span></td>
     <td class="tracking-simple-truncate"><strong>${escapeHtml(item.reference || "Sem referência")}</strong></td>
-    <td class="tracking-simple-truncate">${escapeHtml(serviceLabel)}</td>
-    <td><span class="status status-${status.className}">${escapeHtml(statusInitial)}</span></td>
+    <td class="tracking-simple-truncate"><span class="tracking-simple-full">${escapeHtml(fullServiceLabel)}</span><span class="tracking-simple-compact">${escapeHtml(compactServiceLabel)}</span></td>
+    <td><span class="status status-${status.className} tracking-simple-full">${escapeHtml(status.label)}</span><span class="status status-${status.className} tracking-simple-compact">${escapeHtml(statusInitial)}</span></td>
+    <td class="tracking-simple-amount">${amountText(total)}</td>
   </tr>`;
 }
 
@@ -480,7 +488,7 @@ function renderServiceGroups(groups, emptyMessage) {
   if (!groups.length) return `<p class="tracking-message">${emptyMessage}</p>`;
   if (serviceDisplayMode !== "simple") return groups.map(renderServiceItemCard).join("");
   return `<div class="tracking-simple-wrap"><table class="tracking-simple-table">
-    <thead><tr><th>Dia</th><th>Referência</th><th>Serviço</th><th>Status</th></tr></thead>
+    <thead><tr><th>Data</th><th>Referência</th><th>Serviço</th><th>Status</th><th>Valor</th></tr></thead>
     <tbody>${groups.map(renderServiceSimpleRow).join("")}</tbody>
   </table></div>`;
 }
