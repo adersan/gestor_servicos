@@ -21,10 +21,12 @@ function formatDate(value) {
   return value ? value.split("-").reverse().join("/") : "-";
 }
 
-function formatDateDDMM(value) {
+function formatServiceDay(value) {
   const parts = String(value || "").split("-");
-  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : "-";
+  return parts.length === 3 ? parts[2] : "-";
 }
+
+const SIMPLE_STATUS_INITIALS = { pending: "AF", done: "F", delivered: "E", cancelled: "C" };
 
 function formatDateTime(value) {
   return value ? new Date(value).toLocaleString("pt-BR") : "";
@@ -464,14 +466,13 @@ function renderServiceItemCard({ primary, secondaries }) {
 function renderServiceSimpleRow({ primary, secondaries }) {
   const item = primary;
   const status = statusData(item.status);
-  const total = [item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0);
-  const serviceLabel = `${item.service_name}${secondaries.length ? ` +${secondaries.length} compl.` : ""}`;
+  const statusInitial = SIMPLE_STATUS_INITIALS[status.className] || status.label;
+  const serviceLabel = `${item.service_name}${secondaries.length ? ` +${secondaries.length}` : ""}`;
   return `<tr>
-    <td>${formatDateDDMM(item.service_date)}</td>
-    <td class="tracking-simple-truncate">${escapeHtml(item.reference || "Sem referência")}</td>
+    <td>${formatServiceDay(item.service_date)}</td>
+    <td class="tracking-simple-truncate"><strong>${escapeHtml(item.reference || "Sem referência")}</strong></td>
     <td class="tracking-simple-truncate">${escapeHtml(serviceLabel)}</td>
-    <td><span class="status status-${status.className}">${escapeHtml(status.label)}</span></td>
-    <td class="tracking-simple-amount">${amountText(total)}</td>
+    <td><span class="status status-${status.className}">${escapeHtml(statusInitial)}</span></td>
   </tr>`;
 }
 
@@ -479,7 +480,7 @@ function renderServiceGroups(groups, emptyMessage) {
   if (!groups.length) return `<p class="tracking-message">${emptyMessage}</p>`;
   if (serviceDisplayMode !== "simple") return groups.map(renderServiceItemCard).join("");
   return `<div class="tracking-simple-wrap"><table class="tracking-simple-table">
-    <thead><tr><th>Data</th><th>Referência</th><th>Serviço/complemento</th><th>Status</th><th>Valor</th></tr></thead>
+    <thead><tr><th>Dia</th><th>Referência</th><th>Serviço</th><th>Status</th></tr></thead>
     <tbody>${groups.map(renderServiceSimpleRow).join("")}</tbody>
   </table></div>`;
 }
