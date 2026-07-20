@@ -1,4 +1,4 @@
-const CACHE = "gestor-servicos-v201";
+const CACHE = "gestor-servicos-v202";
 const ASSETS = [
   "./",
   "index.html",
@@ -6,13 +6,13 @@ const ASSETS = [
   "logo.svg",
   "icon-192.png",
   "icon-512.png",
-  "styles.css?v=125",
+  "styles.css?v=126",
   "cliente.css?v=24",
   "config.js?v=31",
   "auth.js?v=30",
-  "data.js?v=46",
-  "app.js?v=156",
-  "supplier.js?v=63",
+  "data.js?v=47",
+  "app.js?v=157",
+  "supplier.js?v=64",
   "fornecedor.html",
   "fornecedor.css?v=24",
   "fornecedor.js?v=28",

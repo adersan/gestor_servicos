@@ -327,7 +327,7 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .payment-status-linked-open { color: #1768ad; background: #eef6ff; }
 .payment-status-linked-paid { color: #117440; background: #edf9f2; }
 .payment-detail-content { padding: 24px; }
-#paymentDetailDialog .dialog-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#paymentDetailDialog .dialog-actions, #supplierPaymentDetailDialog .dialog-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .filters input, .filters select, label input, label select, label textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); }
 .timeline { display: grid; gap: 10px; }
 .linked-service-group { display: grid; gap: 18px; padding: 10px; border: 1px solid #d8cdeb; border-radius: 18px; background: #faf8fe; }
@@ -938,10 +938,10 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .metric-card { padding: 15px; }
   .metric-card strong { font-size: 20px; }
   .metric-card small { display: none; }
-  #paymentSummary .metric-card small { display: block; font-size: 11px; }
+  #paymentSummary .metric-card small, #supplierPaymentSummary .metric-card small { display: block; font-size: 11px; }
   .payment-history-client { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #paymentDetailDialog .dialog-actions { padding: 8px 14px; }
-  #paymentDetailDialog .dialog-actions button { padding: 9px 8px; }
+  #paymentDetailDialog .dialog-actions, #supplierPaymentDetailDialog .dialog-actions { padding: 8px 14px; }
+  #paymentDetailDialog .dialog-actions button, #supplierPaymentDetailDialog .dialog-actions button { padding: 9px 8px; }
   .quick-actions { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .quick-actions:not(.dashboard-actions) { grid-template-columns: 1fr; }
   .quick-actions button { padding: 13px; }

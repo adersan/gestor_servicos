@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=125">
+  <link rel="stylesheet" href="styles.css?v=126">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -459,6 +459,7 @@
         <button type="button" data-supplier-tab="access"><span class="tab-icon" aria-hidden="true">⇄</span><small>Acessos</small></button>
         <button type="button" data-supplier-tab="records"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
         <button type="button" data-supplier-tab="payables"><span class="tab-icon" aria-hidden="true">$</span><small>Contas a pagar</small></button>
+        <button type="button" data-supplier-tab="payments"><span class="tab-icon" aria-hidden="true">▥</span><small>Pagamento</small></button>
         <button type="button" data-supplier-tab="dashboard"><span class="tab-icon" aria-hidden="true">▦</span><small>Painel</small></button>
       </div>
       <div class="section-heading">
@@ -540,6 +541,33 @@
         </div>
         <div id="supplierPayableList" class="receivable-grid"></div>
       </div>
+      <div id="supplierPaymentsPanel" class="supplier-panel hidden">
+        <section class="finance-period-bar" aria-label="Período de pagamentos a fornecedores">
+          <div class="period-shortcuts">
+            <button class="active" type="button" data-finance-period="week">Semana atual</button>
+            <button type="button" data-finance-period="month">Mes atual</button>
+            <button type="button" aria-label="Período anterior" data-finance-shift="-1">&#8249;</button>
+            <button type="button" aria-label="Próximo período" data-finance-shift="1">&#8250;</button>
+          </div>
+          <div class="finance-period-info"><span>Período exibido</span><strong id="supplierPaymentPeriodLabel"></strong></div>
+        </section>
+        <div id="supplierPaymentSummary" class="dashboard-grid payment-summary"></div>
+        <div class="filters">
+          <input id="supplierPaymentSupplierFilterSearch" type="search" list="supplierOptions" placeholder="Digite o fornecedor">
+          <input id="supplierPaymentSupplierFilter" type="hidden">
+          <input id="supplierPaymentStartFilter" type="date" aria-label="Pagamentos a partir de">
+          <input id="supplierPaymentEndFilter" type="date" aria-label="Pagamentos até">
+          <input id="supplierPaymentSearch" type="search" placeholder="Buscar fornecedor ou observação">
+        </div>
+        <div class="subsection-heading list-heading-actions">
+          <div><span class="eyebrow">Histórico</span><h3>Pagamentos registrados</h3></div>
+          <div class="list-heading-buttons">
+            <button class="row-options-button button-accent" type="button" data-supplier-action="advancePayment" title="Registrar pagamento" aria-label="Registrar pagamento">+</button>
+            <button class="row-options-button hidden" type="button" id="supplierPaymentDetailsButton" title="Detalhes" aria-label="Ver detalhes do pagamento selecionado">⋮</button>
+          </div>
+        </div>
+        <div id="supplierPaymentList"></div>
+      </div>
       <div id="supplierAccessPanel" class="supplier-panel hidden">
         <div class="dashboard-inner-tabs" role="tablist">
           <button class="active" type="button" data-supplier-access-tab="online">Serviço online</button>
@@ -578,6 +606,12 @@
           <span class="eyebrow">Semana operacional</span>
           <h3>Período padrão</h3>
           <p class="meta">Escolha o início e o fim da semana usada nos filtros e fechamentos operacionais.</p>
+          <label>Tipo de período
+            <select id="periodMode">
+              <option value="week">Semanal</option>
+              <option value="month">Mensal</option>
+            </select>
+          </label>
           <div class="date-pair">
             <label>Começa em
               <select id="weekStartDay">
@@ -1784,6 +1818,81 @@
       <button type="button" class="primary" data-wizard-next>Continuar</button>
     </div>
   </dialog>
+  <dialog id="supplierAdvancePaymentDialog">
+    <form id="supplierAdvancePaymentForm" method="dialog">
+      <div class="dialog-heading"><h2 id="supplierAdvancePaymentDialogTitle">Registrar pagamento</h2><button class="icon-button" value="cancel" data-close-supplier-dialog>×</button></div>
+      <input name="paymentId" type="hidden">
+      <input name="payableId" type="hidden">
+      <input name="supplierId" type="hidden">
+      <div id="supplierAdvancePaymentWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="supplierAdvancePaymentWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="supplierAdvancePaymentWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Fornecedor</h3>
+        <div id="supplierAdvancePaymentPicker" class="wizard-picker wizard-only hidden" data-picker="supplierAdvancePayment">
+          <div id="supplierAdvancePaymentPickerGrid" class="wizard-picker-grid"></div>
+          <div class="wizard-picker-nav">
+            <button type="button" class="secondary" data-picker-prev="supplierAdvancePayment">Voltar</button>
+            <button type="button" class="secondary" data-picker-search="supplierAdvancePayment">Buscar</button>
+            <button type="button" class="secondary" data-picker-next="supplierAdvancePayment">Mais</button>
+          </div>
+        </div>
+        <label class="wizard-picker-search-field hidden" data-picker-search-target="supplierAdvancePayment">Fornecedor<input name="supplierSearch" type="search" list="supplierOptions" autocomplete="off" required placeholder="Digite o nome do fornecedor"></label>
+        <p id="supplierAdvancePaymentHint" class="hint hidden"></p>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Data</h3>
+        <div class="wizard-choice wizard-only hidden" data-choice-for="date">
+          <button type="button" class="wizard-choice-btn" data-date-choice="today">Hoje</button>
+          <button type="button" class="wizard-choice-btn" data-date-choice="pick">Outra data</button>
+        </div>
+        <label>Data<input name="date" type="date" required></label>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Valor</h3>
+        <label>Valor pago<input name="amount" type="number" min="0.01" step="0.01" required></label>
+      </div>
+      <div class="wizard-step" data-step="4">
+        <h3 class="wizard-step-title wizard-only hidden">Forma</h3>
+        <div class="wizard-choice wizard-choice-3 wizard-only hidden" data-choice-for="method">
+          <button type="button" class="wizard-choice-btn" data-choice-value="PIX">PIX</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Transferência">Transferência</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Dinheiro">Dinheiro</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Cartão">Cartão</button>
+          <button type="button" class="wizard-choice-btn" data-choice-value="Outro">Outro</button>
+        </div>
+        <label class="wizard-hide-native">Forma<select name="method"><option>PIX</option><option>Transferência</option><option>Dinheiro</option><option>Cartão</option><option>Outro</option></select></label>
+      </div>
+      <div class="wizard-step" data-step="5">
+        <h3 class="wizard-step-title wizard-only hidden">Observação</h3>
+        <label>Observação<input name="note"></label>
+      </div>
+      <div class="wizard-step" data-step="6">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="supplierAdvancePaymentWizardSummary" class="wizard-summary wizard-only hidden"></div>
+      </div>
+      <div class="dialog-actions"><button class="secondary" type="button" data-close-supplier-dialog>Cancelar</button><button class="primary" value="default">Registrar pagamento</button></div>
+    </form>
+    <div class="wizard-nav wizard-only hidden" id="supplierAdvancePaymentWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
+  </dialog>
+  <dialog id="supplierPaymentDetailDialog">
+    <div class="payment-detail-content">
+      <div class="dialog-heading"><h2>Detalhes do pagamento</h2><button class="icon-button" type="button" data-close-supplier-dialog>×</button></div>
+      <div class="payment-detail-scroll">
+        <div id="supplierPaymentDetailBody"></div>
+        <p class="meta hidden" id="supplierPaymentDetailEditNote">Pagamento vinculado a uma conta não pode ser editado.</p>
+      </div>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-supplier-dialog>Fechar</button>
+        <button class="danger-button" type="button" id="supplierPaymentDetailDeleteButton" data-delete-supplier-payment="">Excluir</button>
+        <button class="primary" type="button" id="supplierPaymentDetailEditButton">Editar</button>
+      </div>
+    </div>
+  </dialog>
   <dialog id="supplierReportDialog" class="wide-dialog">
     <div class="supplier-report-dialog">
       <div class="dialog-heading"><h2>Conta do fornecedor</h2><button class="icon-button" type="button" data-close-supplier-dialog>×</button></div>
@@ -1994,8 +2103,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=46"></script>
-  <script src="app.js?v=156"></script>
-  <script src="supplier.js?v=63"></script>
+  <script src="data.js?v=47"></script>
+  <script src="app.js?v=157"></script>
+  <script src="supplier.js?v=64"></script>
 </body>
 </html>

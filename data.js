@@ -222,7 +222,7 @@
       supplierPayments: supplierPaymentsResult.data.map((item) => ({
         id: item.id, supplierId: item.supplier_id, payableId: item.payable_id,
         date: item.payment_date, amount: Number(item.amount), method: item.method || "",
-        note: item.notes || "", createdAt: item.created_at
+        note: item.notes || "", paymentSource: item.payment_source || "", createdAt: item.created_at
       })),
       serviceRequests: clientRequestsResult.data.map((item) => ({
         id: item.id,
@@ -536,7 +536,7 @@
       const result = await client.from("supplier_payments").upsert(state.supplierPayments.map((item) => ({
         id: item.id, supplier_id: item.supplierId, payable_id: item.payableId || null,
         payment_date: item.date, amount: Number(item.amount), method: item.method || null,
-        notes: item.note || null, created_at: item.createdAt
+        notes: item.note || null, payment_source: item.paymentSource || null, created_at: item.createdAt
       })));
       if (result.error) throw result.error;
     }

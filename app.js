@@ -47,7 +47,7 @@ let referenceHistoryResolver = null;
 let activeDashboardTab = "services";
 let dashboardPeriod = null;
 let financePeriod = null;
-let financePeriodMode = "week";
+let financePeriodMode = null;
 let billingOverdueOnly = false;
 let selectedPaymentId = null;
 let remoteRefreshInProgress = false;
@@ -89,6 +89,7 @@ function loadSystemSettings() {
   try {
     const parsed = JSON.parse(localStorage.getItem(SYSTEM_SETTINGS_KEY)) || {};
     return {
+      periodMode: parsed.periodMode === "month" ? "month" : "week",
       weekStartDay: Number.isInteger(Number(parsed.weekStartDay)) ? Number(parsed.weekStartDay) : 0,
       weekEndDay: Number.isInteger(Number(parsed.weekEndDay)) ? Number(parsed.weekEndDay) : 5,
       askEntryContinuation: parsed.askEntryContinuation !== false,
@@ -96,7 +97,7 @@ function loadSystemSettings() {
       theme: APP_THEMES.includes(parsed.theme) ? parsed.theme : "verde"
     };
   } catch {
-    return { weekStartDay: 0, weekEndDay: 5, askEntryContinuation: true, offerSupplierShare: true, theme: "verde" };
+    return { periodMode: "week", weekStartDay: 0, weekEndDay: 5, askEntryContinuation: true, offerSupplierShare: true, theme: "verde" };
   }
 }
 
@@ -885,6 +886,14 @@ function monthPeriod(reference = new Date()) {
   return { startDate: localDateKey(start), endDate: localDateKey(end) };
 }
 
+function defaultFinancePeriodMode() {
+  return systemSettings.periodMode === "month" ? "month" : "week";
+}
+
+function defaultPeriod() {
+  return defaultFinancePeriodMode() === "month" ? monthPeriod() : currentOperationalWeek();
+}
+
 function previousFinancePeriod(period, mode) {
   const reference = new Date(`${period.startDate}T12:00:00`);
   if (mode === "month") {
@@ -896,13 +905,16 @@ function previousFinancePeriod(period, mode) {
 }
 
 function ensureFinancePeriod() {
-  financePeriod ||= currentOperationalWeek();
+  if (!financePeriod) {
+    financePeriodMode = defaultFinancePeriodMode();
+    financePeriod = defaultPeriod();
+  }
   return financePeriod;
 }
 
 function syncFinancePeriodControls() {
   const period = ensureFinancePeriod();
-  ["payment", "billing", "financeSummary", "supplierPayable"].forEach((prefix) => {
+  ["payment", "billing", "financeSummary", "supplierPayable", "supplierPayment"].forEach((prefix) => {
     const start = document.getElementById(`${prefix}StartFilter`);
     const end = document.getElementById(`${prefix}EndFilter`);
     const label = document.getElementById(`${prefix}PeriodLabel`);
@@ -1277,7 +1289,7 @@ function renderDashboard() {
 }
 
 function renderDashboardV2() {
-  dashboardPeriod ||= currentOperationalWeek();
+  dashboardPeriod ||= defaultPeriod();
   const week = currentOperationalWeek();
   const period = dashboardPeriod;
   const isOperationalWeek = period.startDate === week.startDate && period.endDate === week.endDate;
@@ -2117,6 +2129,13 @@ function renderSystemSettings() {
   if (!startSelect || !endSelect) return;
   startSelect.value = String(systemSettings.weekStartDay ?? 0);
   endSelect.value = String(systemSettings.weekEndDay ?? 5);
+  const periodModeSelect = document.getElementById("periodMode");
+  if (periodModeSelect) {
+    periodModeSelect.value = systemSettings.periodMode === "month" ? "month" : "week";
+    const isMonthly = periodModeSelect.value === "month";
+    startSelect.disabled = isMonthly;
+    endSelect.disabled = isMonthly;
+  }
   const askEntryContinuationCheckbox = document.getElementById("settingsAskEntryContinuation");
   if (askEntryContinuationCheckbox) askEntryContinuationCheckbox.checked = systemSettings.askEntryContinuation !== false;
   const offerSupplierShareCheckbox = document.getElementById("settingsOfferSupplierShare");
@@ -6146,6 +6165,21 @@ document.querySelector('#billingForm input[name="clientSearch"]').addEventListen
     showToast("Período padrão atualizado.");
   });
 });
+document.getElementById("periodMode")?.addEventListener("change", (event) => {
+  const periodMode = event.currentTarget.value === "month" ? "month" : "week";
+  systemSettings = { ...systemSettings, periodMode };
+  saveSystemSettings();
+  document.getElementById("weekStartDay").disabled = periodMode === "month";
+  document.getElementById("weekEndDay").disabled = periodMode === "month";
+  dashboardPeriod = defaultPeriod();
+  document.querySelectorAll("[data-dashboard-period]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.dashboardPeriod === periodMode);
+  });
+  renderDashboardV2();
+  setFinancePeriod(defaultPeriod(), periodMode);
+  refreshFinanceViews();
+  showToast("Período padrão atualizado.");
+});
 document.getElementById("settingsAskEntryContinuation")?.addEventListener("change", (event) => {
   systemSettings = { ...systemSettings, askEntryContinuation: event.currentTarget.checked };
   saveSystemSettings();
@@ -6476,7 +6510,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=165").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=166").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

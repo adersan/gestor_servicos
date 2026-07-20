@@ -8,6 +8,7 @@
   let generatedSupplierAccessText = "";
   let activeSupplierReportId = "";
   let supplierRequestShareResolver = null;
+  let selectedSupplierPaymentId = null;
 
   const byId = (id) => document.getElementById(id);
   const today = () => new Date().toISOString().slice(0, 10);
@@ -58,6 +59,66 @@
     const paid = payablePaid(payable);
     if (!paid) return "Aberta";
     return payableOpen(payable) <= 0.001 ? "Paga" : "Parcial";
+  }
+
+  function supplierAvailableAdvancePayments(supplierId) {
+    const todayKey = today();
+    return state.supplierPayments.filter((item) =>
+      !item.payableId
+      && item.supplierId === supplierId
+      && item.date <= todayKey
+    );
+  }
+
+  function supplierLatestOpenPayableFor(supplierId) {
+    return state.supplierPayables
+      .filter((item) => item.supplierId === supplierId)
+      .filter((item) => payableStatus(item) !== "Cancelada" && payableOpen(item) > 0.001)
+      .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0] || null;
+  }
+
+  function supplierPaymentIsCredit(payment) {
+    return !payment.payableId && payment.paymentSource === "Credito de pagamento";
+  }
+
+  function supplierPaymentAllocationState(payment) {
+    if (!payment.payableId) return supplierPaymentIsCredit(payment) ? "credit" : "loose";
+    const payable = state.supplierPayables.find((item) => item.id === payment.payableId);
+    if (!payable) return "loose";
+    return payableStatus(payable) === "Paga" ? "linked-paid" : "linked-open";
+  }
+
+  function supplierPaymentAllocationLabel(payment) {
+    const allocationState = supplierPaymentAllocationState(payment);
+    if (allocationState === "credit") return "Crédito disponível para a próxima conta";
+    if (allocationState === "loose") return "Adiantamento, ainda sem conta vinculada";
+    return allocationState === "linked-paid" ? "Quitação da conta" : "Vinculado à conta (parcial)";
+  }
+
+  function allocateSupplierAdvancePayments(payable, availablePayments) {
+    const now = new Date().toISOString();
+    let remainingDue = Number(payable.amount || 0);
+    availablePayments
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+      .forEach((payment) => {
+        const originalAmount = Number(payment.amount || 0);
+        const appliedAmount = Math.min(originalAmount, Math.max(0, remainingDue));
+        const creditAmount = originalAmount - appliedAmount;
+        if (appliedAmount > 0) {
+          payment.amount = appliedAmount;
+          payment.payableId = payable.id;
+          payment.note = payment.note || "Pagamento antecipado aplicado ao fechamento";
+          remainingDue -= appliedAmount;
+        }
+        if (creditAmount > 0) {
+          const credit = appliedAmount > 0 ? { ...payment, id: crypto.randomUUID(), payableId: null, amount: creditAmount, createdAt: now } : payment;
+          credit.payableId = null;
+          credit.note = `Crédito de ${money.format(creditAmount)} gerado no fechamento de ${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}${payment.note ? ` - ${payment.note}` : ""}`;
+          credit.paymentSource = "Credito de pagamento";
+          if (appliedAmount > 0) state.supplierPayments.push(credit);
+        }
+      });
   }
 
   function supplierOptionLabel(supplier) {
@@ -348,6 +409,109 @@
     }).join("") : empty();
   }
 
+  function renderSupplierPayments() {
+    const period = ensureFinancePeriod();
+    const supplierId = byId("supplierPaymentSupplierFilter").value;
+    const startFilter = byId("supplierPaymentStartFilter").value;
+    const endFilter = byId("supplierPaymentEndFilter").value;
+    const search = normalized(byId("supplierPaymentSearch").value);
+
+    const filteredSupplier = supplierId ? supplierById(supplierId) : null;
+    const supplierSuffix = filteredSupplier ? ` · ${escapeHtml(filteredSupplier.name)}` : "";
+
+    const sumPaymentsIn = (rangeStart, rangeEnd) => state.supplierPayments
+      .filter((payment) => payment.date >= rangeStart && payment.date <= rangeEnd)
+      .filter((payment) => !supplierId || payment.supplierId === supplierId)
+      .reduce((sum, payment) => sum + Number(payment.amount), 0);
+
+    const previousPeriod = previousFinancePeriod(period, financePeriodMode);
+    const todayKey = today();
+    const paidPrevious = sumPaymentsIn(previousPeriod.startDate, previousPeriod.endDate);
+    const paidToday = sumPaymentsIn(todayKey, todayKey);
+    const paidCurrent = sumPaymentsIn(period.startDate, period.endDate);
+
+    byId("supplierPaymentSummary").innerHTML = `
+      <article class="metric-card finance-received-card"><span>Pago no período anterior</span><strong>${money.format(paidPrevious)}</strong><small>${periodLabel(previousPeriod)}${supplierSuffix}</small></article>
+      <article class="metric-card finance-received-card"><span>Pago hoje</span><strong>${money.format(paidToday)}</strong><small>${formatDate(todayKey)}${supplierSuffix}</small></article>
+      <article class="metric-card finance-received-card"><span>Pago no período</span><strong>${money.format(paidCurrent)}</strong><small>${periodLabel(period)}${supplierSuffix}</small></article>`;
+
+    const items = state.supplierPayments
+      .filter((item) => !supplierId || item.supplierId === supplierId)
+      .filter((item) => !startFilter || item.date >= startFilter)
+      .filter((item) => !endFilter || item.date <= endFilter)
+      .filter((item) => !search || normalized([supplierById(item.supplierId)?.name, item.note].join(" ")).includes(search))
+      .sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+
+    function paymentRowMarkup(item) {
+      return `
+      <tr data-supplier-payment-row="${item.id}" data-allocation="${supplierPaymentAllocationState(item)}" class="${item.id === selectedSupplierPaymentId ? "selected-row" : ""}">
+        <td>${formatDate(item.date)}</td>
+        <td class="payment-history-client">${escapeHtml(supplierById(item.supplierId)?.name || "")}</td>
+        <td class="amount">${money.format(item.amount)}</td>
+      </tr>`;
+    }
+
+    const previousScrollTop = document.querySelector("#supplierPaymentList .catalog-table-wrap")?.scrollTop || 0;
+    byId("supplierPaymentList").innerHTML = items.length
+      ? `<div class="catalog-table-wrap"><table class="catalog-table payment-history-table">
+          <thead><tr><th>Data</th><th>Fornecedor</th><th>Valor</th></tr></thead>
+          <tbody>${items.map(paymentRowMarkup).join("")}</tbody>
+        </table></div>`
+      : empty();
+    const newWrap = document.querySelector("#supplierPaymentList .catalog-table-wrap");
+    if (newWrap) newWrap.scrollTop = previousScrollTop;
+
+    updateSupplierPaymentSelectionUI();
+  }
+
+  function updateSupplierPaymentSelectionUI() {
+    const rows = document.querySelectorAll("#supplierPaymentList tr[data-supplier-payment-row]");
+    let stillVisible = false;
+    rows.forEach((row) => {
+      const isSelected = row.dataset.supplierPaymentRow === selectedSupplierPaymentId;
+      row.classList.toggle("selected-row", isSelected);
+      if (isSelected) stillVisible = true;
+    });
+    if (!stillVisible) selectedSupplierPaymentId = null;
+    byId("supplierPaymentDetailsButton").classList.toggle("hidden", !selectedSupplierPaymentId);
+  }
+
+  function renderSupplierPaymentDetailBody(payment) {
+    const supplier = supplierById(payment.supplierId);
+    const allocationState = supplierPaymentAllocationState(payment);
+    const payable = payment.payableId ? state.supplierPayables.find((item) => item.id === payment.payableId) : null;
+
+    const rows = [
+      ["Data", formatDate(payment.date)],
+      ["Forma de pagamento", escapeHtml(payment.method || "Não informada")],
+      ["Origem", escapeHtml(payment.paymentSource === "Credito de pagamento" ? "Crédito de pagamento" : (payment.paymentSource || "Manual"))],
+      ["Observação", escapeHtml(payment.note || "-")],
+      ["Situação", `<span class="payment-status-pill payment-status-${allocationState}">${escapeHtml(supplierPaymentAllocationLabel(payment))}</span>`]
+    ];
+    if (payable) {
+      rows.push(["Conta", `Período ${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}`]);
+      rows.push(["Saldo atual da conta", money.format(payableOpen(payable))]);
+    }
+
+    return `
+      <div class="payment-detail-header">
+        <div><span class="eyebrow">Pagamento para</span><h3>${escapeHtml(supplier?.name || "")}</h3></div>
+        <strong class="payment-detail-amount payment-detail-amount-${allocationState}">${money.format(payment.amount)}</strong>
+      </div>
+      <div class="payment-detail-summary">
+        ${rows.map(([label, value]) => `<div class="payment-detail-summary-row"><span class="payment-detail-summary-row-label">${label}</span><strong>${value}</strong></div>`).join("")}
+      </div>`;
+  }
+
+  function openSupplierPaymentDetail(payment) {
+    byId("supplierPaymentDetailBody").innerHTML = renderSupplierPaymentDetailBody(payment);
+    const editable = !payment.payableId;
+    byId("supplierPaymentDetailEditButton").classList.toggle("hidden", !editable);
+    byId("supplierPaymentDetailEditNote").classList.toggle("hidden", editable);
+    byId("supplierPaymentDetailDeleteButton").dataset.deleteSupplierPayment = payment.id;
+    byId("supplierPaymentDetailDialog").showModal();
+  }
+
   function renderSupplierOnlineEntries() {
     const supplierId = byId("supplierOnlineFilter").value;
     const clientId = byId("supplierOnlineClientFilter").value;
@@ -427,6 +591,7 @@
     renderRecords();
     renderEntries();
     renderPayables();
+    renderSupplierPayments();
     renderSupplierOnlineEntries();
   }
 
@@ -434,7 +599,7 @@
     activeTab = tab;
     document.querySelectorAll("[data-supplier-tab]").forEach((button) =>
       button.classList.toggle("active", button.dataset.supplierTab === tab));
-    const panelNames = { dashboard: "Dashboard", records: "Records", entries: "Entries", payables: "Payables", access: "Access" };
+    const panelNames = { dashboard: "Dashboard", records: "Records", entries: "Entries", payables: "Payables", payments: "Payments", access: "Access" };
     Object.entries(panelNames).forEach(([name, suffix]) =>
       byId(`supplier${suffix}Panel`).classList.toggle("hidden", name !== tab));
   }
@@ -1044,6 +1209,107 @@
     }
   });
 
+  function updateSupplierAdvancePaymentHint(supplier) {
+    const form = byId("supplierAdvancePaymentForm");
+    const hint = byId("supplierAdvancePaymentHint");
+    if (!supplier) {
+      form.elements.payableId.value = "";
+      hint.textContent = "";
+      hint.classList.add("hidden");
+      return;
+    }
+    const payable = supplierLatestOpenPayableFor(supplier.id);
+    form.elements.payableId.value = payable?.id || "";
+    hint.classList.remove("hidden");
+    hint.textContent = payable
+      ? `Fornecedor com conta em aberto (${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}). Saldo atual: ${money.format(payableOpen(payable))}. Este pagamento será vinculado a ela.`
+      : "Fornecedor sem conta em aberto. Este pagamento ficará como adiantamento para a próxima conta.";
+  }
+
+  function syncSupplierAdvancePaymentSelection(form) {
+    const supplier = syncSupplierSearchField(form);
+    if (!form.elements.paymentId.value) updateSupplierAdvancePaymentHint(supplier);
+    return supplier;
+  }
+
+  function openSupplierAdvancePaymentForm(item = null) {
+    const form = byId("supplierAdvancePaymentForm");
+    form.reset();
+    form.elements.paymentId.value = item?.id || "";
+    form.elements.payableId.value = item?.payableId || "";
+    form.elements.supplierId.value = item?.supplierId || "";
+    form.elements.supplierSearch.value = supplierOptionLabel(supplierById(form.elements.supplierId.value));
+    form.elements.date.value = item?.date || today();
+    form.elements.amount.value = item ? Number(item.amount).toFixed(2) : "";
+    form.elements.method.value = item?.method || "";
+    form.elements.note.value = item?.note || "";
+    const hint = byId("supplierAdvancePaymentHint");
+    if (item) {
+      hint.textContent = "";
+      hint.classList.add("hidden");
+    } else {
+      updateSupplierAdvancePaymentHint(null);
+    }
+    byId("supplierAdvancePaymentDialogTitle").textContent = item ? "Editar pagamento" : "Registrar pagamento";
+    supplierAdvancePaymentWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
+    byId("supplierAdvancePaymentDialog").showModal();
+    if (!supplierAdvancePaymentWizard.isActive()) setTimeout(() => form.elements.supplierSearch.focus(), 0);
+  }
+
+  function renderSupplierAdvancePaymentWizardSummary() {
+    const form = byId("supplierAdvancePaymentForm");
+    const target = byId("supplierAdvancePaymentWizardSummary");
+    if (!target) return;
+    const rows = [
+      ["Fornecedor", form.elements.supplierSearch.value || "-"],
+      ["Data", formatDate(form.elements.date.value)],
+      ["Valor", money.format(Number(form.elements.amount.value || 0))],
+      ["Forma", form.elements.method.value || "Não informada"],
+      form.elements.note.value ? ["Observação", form.elements.note.value] : null
+    ].filter(Boolean);
+    target.innerHTML = rows
+      .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+      .join("");
+  }
+
+  const supplierAdvancePaymentWizard = createDialogWizard({
+    dialogId: "supplierAdvancePaymentDialog",
+    formId: "supplierAdvancePaymentForm",
+    navId: "supplierAdvancePaymentWizardNav",
+    progressFillId: "supplierAdvancePaymentWizardProgressFill",
+    progressLabelId: "supplierAdvancePaymentWizardProgressLabel",
+    stepCount: 6,
+    lastStepLabel: "Registrar pagamento",
+    onReachLastStep: renderSupplierAdvancePaymentWizardSummary,
+    pickers: {
+      supplierAdvancePayment: {
+        searchField: "supplierSearch",
+        idField: "supplierId",
+        items: () => pickerSuppliers(),
+        onApply: (form) => syncSupplierAdvancePaymentSelection(form)
+      }
+    },
+    validateStep: (step, form) => {
+      if (step === 1) {
+        const supplier = syncSupplierAdvancePaymentSelection(form);
+        if (!supplier) {
+          showAppAlert("Selecione um fornecedor válido da lista.", { type: "warning" });
+          document.querySelector('[data-picker-search-target="supplierAdvancePayment"]')?.classList.remove("hidden");
+          form.elements.supplierSearch.focus();
+          return false;
+        }
+      }
+      if (step === 3) {
+        if (form.elements.amount.value === "" || Number(form.elements.amount.value) <= 0) {
+          showAppAlert("Informe o valor pago.", { type: "warning" });
+          form.elements.amount.focus();
+          return false;
+        }
+      }
+      return true;
+    }
+  });
+
   function renderSupplierAccessWizardSummary() {
     const form = byId("supplierAccessForm");
     const target = byId("supplierAccessWizardSummary");
@@ -1449,6 +1715,7 @@
     const amount = entries.reduce((sum, item) => sum + Number(item.amount), 0);
     const payable = { id: payableId, supplierId: data.get("supplierId"), startDate: data.get("startDate"), endDate: data.get("endDate"), amount, status: "Aberta", snapshot: { entryCount: entries.length }, createdAt: new Date().toISOString() };
     state.supplierPayables.push(payable);
+    allocateSupplierAdvancePayments(payable, supplierAvailableAdvancePayments(payable.supplierId));
     entries.forEach((item) => { item.payableId = payableId; });
     event.currentTarget.closest("dialog").close();
     await window.persistStateNow();
@@ -1490,6 +1757,74 @@
     payable.status = payableOpen(payable) <= 0.001 ? "Paga" : "Parcial";
     event.currentTarget.closest("dialog").close(); saveState(); openSupplierReport(payable);
     showAppAlert("Pagamento ao fornecedor registrado com sucesso.", { type: "success" });
+  });
+
+  byId("supplierAdvancePaymentForm").addEventListener("submit", (event) => {
+    if (event.submitter?.value === "cancel") return;
+    event.preventDefault();
+    const form = event.currentTarget;
+    syncSupplierAdvancePaymentSelection(form);
+    if (!form.elements.supplierId.value) {
+      showAppAlert("Selecione um fornecedor válido da lista.", { type: "warning" });
+      form.elements.supplierSearch.focus();
+      return;
+    }
+    const data = new FormData(form);
+    const existingPayment = state.supplierPayments.find((item) => item.id === data.get("paymentId"));
+    const now = new Date().toISOString();
+    const payableId = data.get("payableId") || existingPayment?.payableId || null;
+    const amount = Number(data.get("amount"));
+    const linkedPayable = state.supplierPayables.find((item) => item.id === payableId);
+    let appliedAmount = amount;
+    let creditAmount = 0;
+    if (linkedPayable) {
+      if (data.get("supplierId") !== linkedPayable.supplierId) {
+        showAppAlert("O fornecedor do pagamento deve ser o mesmo da conta.", { type: "warning" });
+        return;
+      }
+      const available = payableOpen(linkedPayable) + Number(existingPayment?.amount || 0);
+      if (amount > available + 0.001) {
+        appliedAmount = available;
+        creditAmount = amount - available;
+      }
+    }
+    const payment = {
+      id: data.get("paymentId") || crypto.randomUUID(),
+      supplierId: data.get("supplierId"),
+      payableId,
+      date: data.get("date"),
+      amount: appliedAmount,
+      method: data.get("method"),
+      note: data.get("note"),
+      paymentSource: existingPayment?.paymentSource || "Manual",
+      createdAt: existingPayment?.createdAt || now
+    };
+    const index = state.supplierPayments.findIndex((item) => item.id === payment.id);
+    const isNewPayment = index < 0;
+    if (index >= 0) state.supplierPayments[index] = payment;
+    else state.supplierPayments.push(payment);
+    if (creditAmount > 0.001) {
+      state.supplierPayments.push({
+        id: crypto.randomUUID(),
+        supplierId: payment.supplierId,
+        payableId: null,
+        date: payment.date,
+        amount: creditAmount,
+        method: payment.method,
+        note: `Crédito de ${money.format(creditAmount)} gerado por pagamento acima do saldo da conta`,
+        paymentSource: "Credito de pagamento",
+        createdAt: now
+      });
+    }
+    form.reset();
+    form.closest("dialog").close();
+    saveState();
+    showAppAlert(
+      creditAmount > 0.001
+        ? `Pagamento cadastrado. ${money.format(appliedAmount)} aplicado à conta e ${money.format(creditAmount)} viraram adiantamento para a próxima conta.`
+        : (isNewPayment ? "Pagamento cadastrado com sucesso." : "Pagamento atualizado com sucesso."),
+      { type: "success" }
+    );
   });
 
   byId("supplierAccessForm").addEventListener("submit", async (event) => {
@@ -1606,7 +1941,7 @@
     const tabShortcut = event.target.closest("[data-supplier-tab-shortcut]");
     if (tabShortcut) showSupplierTab(tabShortcut.dataset.supplierTabShortcut);
     const action = event.target.closest("[data-supplier-action]");
-    if (action) ({ supplier: () => openSupplier(), service: () => openSupplierService(), entry: () => openSupplierEntry(), payable: openPayable, access: openAccess }[action.dataset.supplierAction])?.();
+    if (action) ({ supplier: () => openSupplier(), service: () => openSupplierService(), entry: () => openSupplierEntry(), payable: openPayable, advancePayment: () => openSupplierAdvancePaymentForm(), access: openAccess }[action.dataset.supplierAction])?.();
     const dashboardPeriodButton = event.target.closest("[data-supplier-dashboard-period]");
     if (dashboardPeriodButton) {
       const mode = dashboardPeriodButton.dataset.supplierDashboardPeriod;
@@ -1805,14 +2140,33 @@
       showAppAlert("Conta do fornecedor cancelada com sucesso.", { type: "success" });
     }
     const deletePayment = event.target.closest("[data-delete-supplier-payment]");
-    if (deletePayment && await showAppConfirm("Excluir esta baixa?")) {
+    if (deletePayment && deletePayment.dataset.deleteSupplierPayment && await showAppConfirm("Excluir esta baixa?")) {
       state.supplierPayments = state.supplierPayments.filter((item) => item.id !== deletePayment.dataset.deleteSupplierPayment);
+      if (selectedSupplierPaymentId === deletePayment.dataset.deleteSupplierPayment) selectedSupplierPaymentId = null;
+      byId("supplierPaymentDetailDialog")?.close();
       saveState();
       showAppAlert("Baixa excluída com sucesso.", { type: "success" });
     }
+    const supplierPaymentRow = event.target.closest("tr[data-supplier-payment-row]");
+    if (supplierPaymentRow) {
+      const rowId = supplierPaymentRow.dataset.supplierPaymentRow;
+      selectedSupplierPaymentId = selectedSupplierPaymentId === rowId ? null : rowId;
+      updateSupplierPaymentSelectionUI();
+    }
+    const supplierPaymentDetailsButton = event.target.closest("#supplierPaymentDetailsButton");
+    if (supplierPaymentDetailsButton && selectedSupplierPaymentId) {
+      const payment = state.supplierPayments.find((item) => item.id === selectedSupplierPaymentId);
+      if (payment) openSupplierPaymentDetail(payment);
+    }
+    const supplierPaymentDetailEditButton = event.target.closest("#supplierPaymentDetailEditButton");
+    if (supplierPaymentDetailEditButton) {
+      const payment = state.supplierPayments.find((item) => item.id === selectedSupplierPaymentId);
+      byId("supplierPaymentDetailDialog").close();
+      if (payment) openSupplierAdvancePaymentForm(payment);
+    }
   });
 
-  ["supplierDashboardStart", "supplierDashboardEnd", "supplierEntryStatusFilter", "supplierEntryStart", "supplierEntryEnd", "supplierEntrySearch", "supplierSearch", "supplierPayableStatusFilter", "supplierPayableStartFilter", "supplierPayableEndFilter", "supplierPayableSearch", "supplierOnlineStart", "supplierOnlineEnd"].forEach((id) => {
+  ["supplierDashboardStart", "supplierDashboardEnd", "supplierEntryStatusFilter", "supplierEntryStart", "supplierEntryEnd", "supplierEntrySearch", "supplierSearch", "supplierPayableStatusFilter", "supplierPayableStartFilter", "supplierPayableEndFilter", "supplierPayableSearch", "supplierPaymentStartFilter", "supplierPaymentEndFilter", "supplierPaymentSearch", "supplierOnlineStart", "supplierOnlineEnd"].forEach((id) => {
     byId(id).addEventListener(id.includes("Search") ? "input" : "change", render);
   });
   [
@@ -1820,6 +2174,7 @@
     ["supplierEntrySupplierFilterSearch", "supplierEntrySupplierFilter", syncSupplierFilterField],
     ["supplierEntryClientFilterSearch", "supplierEntryClientFilter", syncClientFilterField],
     ["supplierPayableSupplierFilterSearch", "supplierPayableSupplierFilter", syncSupplierFilterField],
+    ["supplierPaymentSupplierFilterSearch", "supplierPaymentSupplierFilter", syncSupplierFilterField],
     ["supplierOnlineFilterSearch", "supplierOnlineFilter", syncSupplierFilterField],
     ["supplierOnlineClientFilterSearch", "supplierOnlineClientFilter", syncClientFilterField]
   ].forEach(([searchId, hiddenId, syncFn]) => {
