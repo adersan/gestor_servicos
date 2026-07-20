@@ -123,6 +123,15 @@ dialog::backdrop { background:rgba(21,38,34,.42); backdrop-filter:blur(3px); }
 .tracking-nav { display:flex; gap:8px; margin-bottom:18px; padding:6px; overflow-x:auto; border:1px solid var(--line); border-radius:14px; background:white; }
 .tracking-nav button { min-width:max-content; padding:10px 16px; border:0; border-radius:10px; color:var(--ink); background:transparent; cursor:pointer; }
 .tracking-nav button.active { color:white; background:var(--brand); }
+.tracking-display-toggle { margin-bottom:14px; }
+.tracking-simple-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:14px; background:white; }
+.tracking-simple-table { width:100%; min-width:560px; border-collapse:collapse; font-size:13px; }
+.tracking-simple-table th, .tracking-simple-table td { padding:11px 12px; overflow:hidden; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; }
+.tracking-simple-table tr:last-child td { border-bottom:0; }
+.tracking-simple-table th { color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; background:#f6f8f7; }
+.tracking-simple-table tbody tr:nth-child(even) { background:#f8faf9; }
+.tracking-simple-truncate { max-width:0; width:100%; text-overflow:ellipsis; }
+.tracking-simple-amount { font-weight:800; text-align:right; }
 .status-cancelled { color:#9c3026; background:#fdecea; }
 .tracking-billing-section { margin-top:18px; padding:20px; border:1px solid var(--line); border-radius:16px; background:var(--white); overflow-x:auto; }
 .tracking-billing-section h3 { margin-top:0; }

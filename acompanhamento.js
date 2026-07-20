@@ -3,11 +3,13 @@ const trackingFullKey = "gestor_servicos_tracking_full";
 const trackingIdentifierKey = "gestor_servicos_tracking_identifier";
 const trackingPasswordKey = "gestor_servicos_tracking_password";
 const trackingChoiceKey = "gestor_servicos_tracking_choice";
+const trackingServiceDisplayKey = "gestor_servicos_tracking_service_display";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 let refreshInProgress = false;
 let trackingData = null;
 let pendingRestrictedData = null;
 let activeTrackingView = "services";
+let serviceDisplayMode = localStorage.getItem(trackingServiceDisplayKey) === "simple" ? "simple" : "full";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -17,6 +19,11 @@ function escapeHtml(value) {
 
 function formatDate(value) {
   return value ? value.split("-").reverse().join("/") : "-";
+}
+
+function formatDateDDMM(value) {
+  const parts = String(value || "").split("-");
+  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : "-";
 }
 
 function formatDateTime(value) {
@@ -454,6 +461,29 @@ function renderServiceItemCard({ primary, secondaries }) {
   </article>`;
 }
 
+function renderServiceSimpleRow({ primary, secondaries }) {
+  const item = primary;
+  const status = statusData(item.status);
+  const total = [item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0);
+  const serviceLabel = `${item.service_name}${secondaries.length ? ` +${secondaries.length} compl.` : ""}`;
+  return `<tr>
+    <td>${formatDateDDMM(item.service_date)}</td>
+    <td class="tracking-simple-truncate">${escapeHtml(item.reference || "Sem referência")}</td>
+    <td class="tracking-simple-truncate">${escapeHtml(serviceLabel)}</td>
+    <td><span class="status status-${status.className}">${escapeHtml(status.label)}</span></td>
+    <td class="tracking-simple-amount">${amountText(total)}</td>
+  </tr>`;
+}
+
+function renderServiceGroups(groups, emptyMessage) {
+  if (!groups.length) return `<p class="tracking-message">${emptyMessage}</p>`;
+  if (serviceDisplayMode !== "simple") return groups.map(renderServiceItemCard).join("");
+  return `<div class="tracking-simple-wrap"><table class="tracking-simple-table">
+    <thead><tr><th>Data</th><th>Referência</th><th>Serviço/complemento</th><th>Status</th><th>Valor</th></tr></thead>
+    <tbody>${groups.map(renderServiceSimpleRow).join("")}</tbody>
+  </table></div>`;
+}
+
 function renderFinancialView(data) {
   const unbilled = data.currentServices || [];
   const unbilledTotal = unbilled.reduce((sum, item) => sum + Number(item.amount), 0);
@@ -575,6 +605,8 @@ function selectTrackingView(view) {
 
 function render(data) {
   trackingData = data;
+  document.querySelectorAll("[data-service-display]").forEach((button) =>
+    button.classList.toggle("active", button.dataset.serviceDisplay === serviceDisplayMode));
   const requesterFilter = document.getElementById("trackingRequesterFilter")?.value || "";
   const sortBy = document.getElementById("trackingServiceSort")?.value || "date";
   const startFilter = document.getElementById("trackingServiceStartFilter")?.value || "";
@@ -631,9 +663,7 @@ function render(data) {
   document.getElementById("serviceCount").textContent = search
     ? `${serviceGroups.length} de ${primaryServices.length} serviço(s)`
     : `${primaryServices.length} serviço(s)`;
-  document.getElementById("serviceList").innerHTML = serviceGroups.length
-    ? serviceGroups.map(renderServiceItemCard).join("")
-    : `<p class="tracking-message">Nenhum serviço encontrado neste período.</p>`;
+  document.getElementById("serviceList").innerHTML = renderServiceGroups(serviceGroups, "Nenhum serviço encontrado neste período.");
   const cancelledGroups = groupedServices(cancelledServices).filter(({ primary, secondaries }) => {
     if (!search) return true;
     const status = statusData(primary.status);
@@ -647,9 +677,7 @@ function render(data) {
     ).includes(search);
   });
   document.getElementById("cancelledServiceCount").textContent = `${primaryCancelledServices.length} serviço(s)`;
-  document.getElementById("cancelledServiceList").innerHTML = cancelledGroups.length
-    ? cancelledGroups.map(renderServiceItemCard).join("")
-    : `<p class="tracking-message">Nenhum serviço cancelado neste período.</p>`;
+  document.getElementById("cancelledServiceList").innerHTML = renderServiceGroups(cancelledGroups, "Nenhum serviço cancelado neste período.");
   renderRequestArea(data);
   document.getElementById("trackingFinancialTab").classList.toggle("hidden", data.showAmounts === false);
   document.getElementById("trackingBillingTab").classList.toggle("hidden", !data.billing);
@@ -807,6 +835,13 @@ document.getElementById("trackingNav").addEventListener("click", (event) => {
   const button = event.target.closest("[data-tracking-view]");
   if (!button) return;
   selectTrackingView(button.dataset.trackingView);
+});
+document.getElementById("serviceDisplayToggle").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-service-display]");
+  if (!button || button.dataset.serviceDisplay === serviceDisplayMode) return;
+  serviceDisplayMode = button.dataset.serviceDisplay;
+  localStorage.setItem(trackingServiceDisplayKey, serviceDisplayMode);
+  if (trackingData) render(trackingData);
 });
 document.getElementById("trackingBillingPdfButton").addEventListener("click", () => {
   if (!trackingData?.billing) return;

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=29">
+  <link rel="stylesheet" href="acompanhamento.css?v=30">
 </head>
 <body>
   <header class="tracking-header">
@@ -42,6 +42,10 @@
         <button id="trackingBillingTab" class="hidden" type="button" data-tracking-view="billing">Relatório de cobrança</button>
       </nav>
       <div id="trackingViewServices" class="tracking-view">
+        <div id="serviceDisplayToggle" class="tracking-nav tracking-display-toggle" role="group" aria-label="Modo de exibição dos serviços">
+          <button class="active" type="button" data-service-display="full">Exibir completo</button>
+          <button type="button" data-service-display="simple">Exibir simples</button>
+        </div>
         <section id="trackingRequestSection" class="tracking-card tracking-request-card hidden">
           <div class="section-title"><h3>Pedidos</h3><button id="openTrackingRequestDialog" class="tracking-primary" type="button">Novo pedido</button></div>
           <div class="section-title request-history-title"><h3>Pedidos enviados</h3></div>
@@ -157,6 +161,6 @@
       <button type="button" class="tracking-primary" data-wizard-next>Continuar</button>
     </div>
   </dialog>
-  <script src="acompanhamento.js?v=40"></script>
+  <script src="acompanhamento.js?v=41"></script>
 </body>
 </html>
