@@ -607,10 +607,18 @@ function selectTrackingView(view) {
   document.getElementById("trackingViewBilling").classList.toggle("hidden", view !== "billing");
 }
 
+function updateServiceDisplayToggleButton() {
+  const button = document.getElementById("serviceDisplayToggle");
+  if (!button) return;
+  const isSimple = serviceDisplayMode === "simple";
+  button.textContent = isSimple ? "Exibir completo" : "Exibir simples";
+  button.classList.toggle("active", isSimple);
+  button.setAttribute("aria-pressed", String(isSimple));
+}
+
 function render(data) {
   trackingData = data;
-  document.querySelectorAll("[data-service-display]").forEach((button) =>
-    button.classList.toggle("active", button.dataset.serviceDisplay === serviceDisplayMode));
+  updateServiceDisplayToggleButton();
   const requesterFilter = document.getElementById("trackingRequesterFilter")?.value || "";
   const sortBy = document.getElementById("trackingServiceSort")?.value || "date";
   const startFilter = document.getElementById("trackingServiceStartFilter")?.value || "";
@@ -840,12 +848,11 @@ document.getElementById("trackingNav").addEventListener("click", (event) => {
   if (!button) return;
   selectTrackingView(button.dataset.trackingView);
 });
-document.getElementById("serviceDisplayToggle").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-service-display]");
-  if (!button || button.dataset.serviceDisplay === serviceDisplayMode) return;
-  serviceDisplayMode = button.dataset.serviceDisplay;
+document.getElementById("serviceDisplayToggle").addEventListener("click", () => {
+  serviceDisplayMode = serviceDisplayMode === "simple" ? "full" : "simple";
   localStorage.setItem(trackingServiceDisplayKey, serviceDisplayMode);
   if (trackingData) render(trackingData);
+  else updateServiceDisplayToggleButton();
 });
 document.getElementById("trackingBillingPdfButton").addEventListener("click", () => {
   if (!trackingData?.billing) return;
