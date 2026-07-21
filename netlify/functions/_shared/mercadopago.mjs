@@ -49,7 +49,8 @@ export async function createPreference({ title, amount, externalReference, backU
       external_reference: externalReference,
       back_urls: backUrls,
       auto_return: "approved",
-      notification_url: notificationUrl
+      notification_url: notificationUrl,
+      payment_methods: { installments: 1 }
     })
   });
 }

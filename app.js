@@ -5809,6 +5809,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     paymentMethods: state.paymentMethods
       .filter((method) => paymentMethodIds.includes(method.id))
       .map((method) => ({ ...method })),
+    cardSurchargePercent: data.get("cardSurcharge") === "on" ? 8 : 0,
     historyEnabled: data.get("historyEnabled") === "on",
     sendHistory: [],
     createdAt: new Date().toISOString()
@@ -5899,6 +5900,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
   const selectedMethods = state.paymentMethods
     .filter((method) => paymentMethodIds.includes(method.id))
     .map((method) => ({ ...method }));
+  const cardSurchargePercent = data.get("cardSurcharge") === "on" ? 8 : 0;
   let nextBatchBillingNumber = nextBillingNumber();
   const drafts = clientIds.map((clientId, index) => {
     const services = eligibleServices.filter((item) => item.clientId === clientId);
@@ -5916,6 +5918,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
       paymentIds: [], creditGenerated: 0, statusReason: "Aguardando pagamento",
       calculationVersion: 2, identifier: "", password: "", status: "Aberta", active: true,
       paymentMethodIds, paymentMethods: selectedMethods.map((method) => ({ ...method })),
+      cardSurchargePercent,
       historyEnabled: data.get("historyEnabled") === "on", sendHistory: [],
       createdAt: new Date(Date.now() + index).toISOString()
     };
@@ -6540,7 +6543,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=169").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=170").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

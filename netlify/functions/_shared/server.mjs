@@ -111,7 +111,7 @@ export class BillingPaymentError extends Error {
   }
 }
 
-export async function applyPaymentToBilling({ billingId, amount, date, method, note, source, externalId }) {
+export async function applyPaymentToBilling({ billingId, amount, date, method, note, source, externalId, capExcessAsFee = false }) {
   if (externalId) {
     const duplicate = await supabase(
       `/rest/v1/payments?external_payment_id=eq.${encodeURIComponent(externalId)}&select=id,billing_id,amount&limit=1`
@@ -140,7 +140,10 @@ export async function applyPaymentToBilling({ billingId, amount, date, method, n
   const paid = existingPayments.reduce((sum, item) => sum + Number(item.amount), 0);
   const openAmount = Math.max(0, Number(billing.total_due) - paid);
   if (openAmount <= 0) throw new BillingPaymentError(409, "Cobrança já está paga.");
-  if (amount > openAmount + 0.001) {
+  // capExcessAsFee: usado quando o valor recebido pode legitimamente exceder o saldo
+  // (ex.: acréscimo de forma de pagamento) — o excedente fica como receita da baixa,
+  // não vira credito pro cliente (remaining ja fica em 0 pelo Math.max abaixo).
+  if (amount > openAmount + 0.001 && !capExcessAsFee) {
     throw new BillingPaymentError(409, "Valor recebido maior que o saldo da cobrança.", { openAmount });
   }
 

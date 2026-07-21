@@ -383,8 +383,10 @@ function renderStatement(data) {
         <td class="amount-payment">${money.format(Number(item.amount))}</td>
       </tr>`).join("")
     : `<tr><td colspan="3">Nenhum pagamento neste fechamento.</td></tr>`;
-  const methods = paymentMethods.length
-    ? paymentMethods.map((method) => `<article class="payment-option">
+  const isCardPaymentMethod = (method) => String(method.type || "").toUpperCase().includes("CARTÃO");
+  const listedPaymentMethods = paymentMethods.filter((method) => !isCardPaymentMethod(method));
+  const methods = listedPaymentMethods.length
+    ? listedPaymentMethods.map((method) => `<article class="payment-option">
         <strong>${escapeHtml(method.name)} (${escapeHtml(method.type)})</strong>
         <span>${escapeHtml(method.details || "")}</span>
         ${String(method.type || "").toUpperCase().includes("PIX") && method.details ? `<button class="copy-pix-button" type="button" data-copy-pix="${escapeHtml(method.details.includes(":") ? method.details.split(":").pop().trim() : method.details.trim())}">Copiar chave PIX</button>` : ""}
@@ -392,10 +394,13 @@ function renderStatement(data) {
       </article>`).join("")
     : `<p class="meta">Consulte as formas de pagamento com o responsável.</p>`;
   const openAmountValue = Number(billing.open_amount ?? billing.total_due);
-  const hasCardPaymentMethod = paymentMethods.some((method) => String(method.type || "").toUpperCase().includes("CARTÃO"));
+  const hasCardPaymentMethod = paymentMethods.some(isCardPaymentMethod);
   const canPayByCard = hasCardPaymentMethod && openAmountValue > 0.001 && !["Paga", "Cancelada", "Consolidada"].includes(billing.status);
+  const cardSurchargePercent = Number(billing.snapshot?.cardSurchargePercent || 0);
   const cardPaymentMarkup = canPayByCard
-    ? `<button class="card-payment-button primary" type="button" data-pay-with-card="${escapeHtml(billing.id)}">Pagar com cartão de crédito</button><p id="cardPaymentMessage" class="meta"></p>`
+    ? `<button class="card-payment-button primary" type="button" data-pay-with-card="${escapeHtml(billing.id)}">Outras formas de pagamento</button>
+       ${cardSurchargePercent > 0 ? `<p class="meta">Este link inclui acréscimo de ${cardSurchargePercent}%.</p>` : ""}
+       <p id="cardPaymentMessage" class="meta"></p>`
     : "";
   const maxValue = Math.max(
     Number(billing.services_total),
@@ -904,4 +909,4 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshClientPortal();
 });
 setInterval(refreshClientPortal, 20000);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=70").then((registration) => registration.update());
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=71").then((registration) => registration.update());

@@ -44,8 +44,10 @@ export default async (request) => {
     if (billing.snapshot?.rolledIntoBillingId) {
       return json(409, { error: "Esta cobrança foi consolidada em uma cobrança posterior." });
     }
-    const amount = openAmount(billing, payments);
-    if (amount <= 0) return json(409, { error: "Esta cobrança já está paga." });
+    const baseAmount = openAmount(billing, payments);
+    if (baseAmount <= 0) return json(409, { error: "Esta cobrança já está paga." });
+    const surchargePercent = Number(billing.snapshot?.cardSurchargePercent || 0);
+    const amount = Math.round(baseAmount * (1 + surchargePercent / 100) * 100) / 100;
 
     const origin = new URL(request.url).origin;
     const preference = await createPreference({

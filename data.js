@@ -185,6 +185,7 @@
         rolledAt: billing.snapshot?.rolledAt || null,
         rolledBillingIds: billing.snapshot?.rolledBillingIds || [],
         rolledBalance: Number(billing.snapshot?.rolledBalance || 0),
+        cardSurchargePercent: Number(billing.snapshot?.cardSurchargePercent || 0),
         password: "",
         status: billing.snapshot?.rolledIntoBillingId ? "Consolidada" : billing.status,
         active: billing.status !== "Cancelada",
@@ -456,7 +457,8 @@
             rolledIntoBillingId: item.rolledIntoBillingId || null,
             rolledAt: item.rolledAt || null,
             rolledBillingIds: item.rolledBillingIds || [],
-            rolledBalance: Number(item.rolledBalance || 0)
+            rolledBalance: Number(item.rolledBalance || 0),
+            cardSurchargePercent: Number(item.cardSurchargePercent || 0)
           },
           created_at: item.createdAt
         }))
