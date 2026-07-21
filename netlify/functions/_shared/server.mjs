@@ -103,6 +103,75 @@ export function accessCodeHash(code) {
   return createHash("sha256").update(String(code || "")).digest("hex");
 }
 
+export class BillingPaymentError extends Error {
+  constructor(status, message, details = {}) {
+    super(message);
+    this.status = status;
+    this.details = details;
+  }
+}
+
+export async function applyPaymentToBilling({ billingId, amount, date, method, note, source, externalId }) {
+  if (externalId) {
+    const duplicate = await supabase(
+      `/rest/v1/payments?external_payment_id=eq.${encodeURIComponent(externalId)}&select=id,billing_id,amount&limit=1`
+    );
+    if (duplicate.length) {
+      return { processed: false, duplicate: true, paymentId: duplicate[0].id };
+    }
+  }
+
+  const billings = await supabase(
+    `/rest/v1/billings?id=eq.${encodeURIComponent(billingId)}&select=id,client_id,total_due,status,created_at,snapshot&limit=1`
+  );
+  const billing = billings[0];
+  if (!billing || billing.status === "Cancelada") throw new BillingPaymentError(404, "Cobrança ativa não encontrada.");
+  if (billing.snapshot?.rolledIntoBillingId) {
+    throw new BillingPaymentError(409, "Esta cobrança foi consolidada em uma cobrança posterior.");
+  }
+
+  const calculationVersion = Number(billing.snapshot?.calculationVersion || 1);
+  const createdFilter = calculationVersion >= 2
+    ? ""
+    : `&created_at=gt.${encodeURIComponent(billing.created_at)}`;
+  const existingPayments = await supabase(
+    `/rest/v1/payments?billing_id=eq.${encodeURIComponent(billing.id)}${createdFilter}&select=amount,created_at`
+  );
+  const paid = existingPayments.reduce((sum, item) => sum + Number(item.amount), 0);
+  const openAmount = Math.max(0, Number(billing.total_due) - paid);
+  if (openAmount <= 0) throw new BillingPaymentError(409, "Cobrança já está paga.");
+  if (amount > openAmount + 0.001) {
+    throw new BillingPaymentError(409, "Valor recebido maior que o saldo da cobrança.", { openAmount });
+  }
+
+  const paymentId = crypto.randomUUID();
+  await supabase("/rest/v1/payments", {
+    method: "POST",
+    prefer: "return=minimal",
+    body: JSON.stringify({
+      id: paymentId,
+      client_id: billing.client_id,
+      billing_id: billing.id,
+      payment_date: date,
+      amount,
+      method,
+      notes: note,
+      external_payment_id: externalId || null,
+      payment_source: source
+    })
+  });
+
+  const remaining = Math.max(0, openAmount - amount);
+  const status = remaining <= 0 ? "Paga" : "Parcial";
+  await supabase(`/rest/v1/billings?id=eq.${encodeURIComponent(billing.id)}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: JSON.stringify({ status })
+  });
+
+  return { processed: true, paymentId, billingId: billing.id, status, remaining };
+}
+
 export function billingOpenAmount(billing, payments) {
   if (billing.snapshot?.rolledIntoBillingId) return 0;
   const calculationVersion = Number(billing.snapshot?.calculationVersion || 1);

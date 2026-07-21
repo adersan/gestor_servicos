@@ -156,6 +156,8 @@
 
 .payment-methods-first { border-top-color: #d99c39; background: #fffbf2; }
 .copy-pix-button { align-self: flex-start; margin-top: 8px; padding: 8px 11px; border: 1px solid #c98925; border-radius: 9px; background: #fff; color: #83520a; font-weight: 800; cursor: pointer; }
+.card-payment-button { display: block; width: 100%; margin-top: 14px; }
+#paymentReturnMessage { margin: 10px 0 0; font-weight: 750; }
 
 .summary-total strong {
   color: #b54d0c;

@@ -391,6 +391,11 @@ function renderStatement(data) {
         ${method.payment_link ? `<a href="${escapeHtml(method.payment_link)}" target="_blank" rel="noopener">Abrir link de pagamento</a>` : ""}
       </article>`).join("")
     : `<p class="meta">Consulte as formas de pagamento com o responsável.</p>`;
+  const openAmountValue = Number(billing.open_amount ?? billing.total_due);
+  const canPayByCard = openAmountValue > 0.001 && !["Paga", "Cancelada", "Consolidada"].includes(billing.status);
+  const cardPaymentMarkup = canPayByCard
+    ? `<button class="card-payment-button primary" type="button" data-pay-with-card="${escapeHtml(billing.id)}">Pagar com cartão de crédito</button><p id="cardPaymentMessage" class="meta"></p>`
+    : "";
   const maxValue = Math.max(
     Number(billing.services_total),
     paymentTotal,
@@ -402,6 +407,7 @@ function renderStatement(data) {
     <section class="client-section payment-methods-first">
       <h3>Formas de pagamento</h3>
       <div class="payment-options">${methods}</div>
+      ${cardPaymentMarkup}
     </section>
     <div class="client-summary">
       <article class="summary-card summary-previous"><span class="summary-dot"></span><span class="meta">Saldo anterior</span><strong>${money.format(Number(billing.previous_balance))}</strong></article>
@@ -826,6 +832,24 @@ document.getElementById("statementContent").addEventListener("click", async (eve
   }
   const historyButton = event.target.closest("[data-open-history]");
   if (historyButton) await loadStatement(historyButton.dataset.openHistory);
+  const payWithCardButton = event.target.closest("[data-pay-with-card]");
+  if (payWithCardButton) {
+    const token = sessionStorage.getItem(tokenKey);
+    const message = document.getElementById("cardPaymentMessage");
+    payWithCardButton.disabled = true;
+    message.textContent = "Abrindo pagamento...";
+    try {
+      const result = await request("client-payment-preference", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ billingId: payWithCardButton.dataset.payWithCard })
+      });
+      window.location.href = result.initPoint;
+    } catch (error) {
+      message.textContent = error.message;
+      payWithCardButton.disabled = false;
+    }
+  }
 });
 document.getElementById("statementContent").addEventListener("change", (event) => {
   if (activeView === "current-services") renderCurrentServices(portalData);
@@ -846,15 +870,37 @@ document.getElementById("statementContent").addEventListener("submit", async (ev
   await submitClientRequest(event.target);
 });
 
+function announcePaymentReturn(status) {
+  const message = document.getElementById("paymentReturnMessage");
+  if (!message) return;
+  const texts = {
+    success: "Pagamento aprovado! Atualizando o saldo...",
+    pending: "Pagamento em processamento. O saldo pode levar alguns instantes para atualizar.",
+    failure: "Pagamento não aprovado. Você pode tentar novamente."
+  };
+  const text = texts[status];
+  if (!text) return;
+  message.textContent = text;
+  message.classList.remove("hidden");
+  if (status !== "failure") setTimeout(() => refreshClientPortal(), 3000);
+}
+
+const paymentReturnStatus = new URLSearchParams(location.search).get("payment");
+if (paymentReturnStatus) history.replaceState({}, "", `${location.pathname}${location.hash}`);
+
 loginFromAutomaticLink().then((loggedIn) => {
   if (!loggedIn) {
-    loadStatement().catch((error) => {
+    loadStatement().then((loaded) => {
+      if (loaded && paymentReturnStatus) announcePaymentReturn(paymentReturnStatus);
+    }).catch((error) => {
       document.getElementById("loginError").textContent = error.message;
     });
+  } else if (paymentReturnStatus) {
+    announcePaymentReturn(paymentReturnStatus);
   }
 });
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshClientPortal();
 });
 setInterval(refreshClientPortal, 20000);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=67").then((registration) => registration.update());
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=68").then((registration) => registration.update());

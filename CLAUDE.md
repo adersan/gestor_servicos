@@ -65,7 +65,20 @@ As funcoes ficam em `netlify/functions`.
 
 ## Supabase
 
-SQL e migracoes ficam em `supabase`.
+CLI do Supabase autenticado e linkado nesta maquina ao projeto `tfkhhxopxupbefaaijcz` (`npx supabase link --project-ref tfkhhxopxupbefaaijcz`). `supabase/config.toml` e `supabase/migrations/` sao gerados/geridos pelo CLI.
+
+### Fluxo atual de mudanca de banco (CLI)
+
+1. `npx supabase migration new nome-da-mudanca` cria um arquivo vazio novo em `supabase/migrations/`.
+2. Escrever o SQL da mudanca nesse arquivo.
+3. Conferir com `npx supabase db push --dry-run` antes de aplicar de verdade.
+4. Só rodar `npx supabase db push` (aplica direto no banco de produção) com autorização explícita do usuário no turno — mesma cautela de um `git push`.
+
+Uma migração baseline (`supabase/migrations/20260721104848_baseline.sql`) captura o schema completo de produção nessa data e já está marcada como aplicada (`migration repair --status applied`) — não rodar essa de novo, e não usar `supabase db pull` sem checar antes (tinha um bug nessa versão do CLI retornando `LegacyDbPullInSyncError` mesmo com `--diff-engine pg-delta`; o caminho que funcionou foi `supabase db dump --linked --schema public -f supabase/migrations/<timestamp>_nome.sql` seguido de `migration repair --status applied <timestamp>`).
+
+### Arquivos antigos (historico, mantidos como estao)
+
+Os `.sql` soltos abaixo, na raiz de `supabase/`, são anteriores ao uso do CLI — já foram aplicados manualmente no banco em algum momento e estão cobertos pela baseline. Mantidos só como documentação/histórico; não fazem parte do fluxo de migrations e não devem ser reexecutados:
 
 - `schema.sql`: esquema base.
 - `suppliers.sql`: fornecedores e servicos de fornecedor.
@@ -81,7 +94,7 @@ SQL e migracoes ficam em `supabase`.
 - `push_subscriptions.sql`: tabela de inscricoes de notificacao push por admin/aparelho e tabela `push_notified_alerts` (controle de alerta de atraso ja avisado, evita repetir a cada checagem periodica).
 - `fix_*.sql`: scripts corretivos pontuais.
 
-Antes de alterar codigo que depende de coluna/tabela nova, criar ou atualizar o SQL correspondente e orientar o usuario a executar no Supabase.
+Se o CLI não estiver disponível/logado numa sessão futura, o fallback é o de sempre: criar/atualizar o arquivo `.sql` e orientar o usuário a rodar manualmente no editor SQL do Supabase.
 
 ## Variaveis De Ambiente
 
@@ -191,7 +204,7 @@ Estas regras refletem o combinado com o usuario durante o desenvolvimento real d
   - `app.js`: `navigator.serviceWorker.register("sw.js?v=N")`
 - Rodar validacoes antes de commit/deploy (ver secao Testes E Validacao acima).
 - Se a mudanca envolver Netlify Functions, rodar `node --check` na funcao alterada.
-- Se a mudanca exigir banco, criar/atualizar arquivo SQL em `supabase` e avisar o usuario exatamente qual script executar no Supabase.
+- Se a mudanca exigir banco, criar uma migration nova (`npx supabase migration new nome-da-mudanca` em `supabase/migrations/`) e so rodar `npx supabase db push` com autorizacao explicita do usuario no turno (ver secao Supabase acima). Sem CLI disponivel, cair no fallback manual: criar/atualizar o `.sql` e avisar o usuario exatamente o que rodar no editor do Supabase.
 - Nunca colocar secrets no codigo: Supabase service role/secret key, Bearer token, Device token, Webhook secret, Chaves de API.
 - Secrets devem ficar somente nas variaveis de ambiente do Netlify.
 - Evitar comandos destrutivos como `git reset --hard`, `git checkout --`, `rm`/`Remove-Item` sem pedido explicito e confirmacao.
