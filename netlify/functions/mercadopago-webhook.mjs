@@ -16,14 +16,21 @@ export default async (request) => {
     const body = await request.json().catch(() => ({}));
     const topic = String(body?.type || body?.topic || url.searchParams.get("type") || url.searchParams.get("topic") || "").toLowerCase();
     const dataId = String(body?.data?.id || url.searchParams.get("data.id") || url.searchParams.get("id") || "").trim();
+    console.log("[mercadopago-webhook] recebido", { topic, dataId, hasSignatureHeader: request.headers.has("x-signature"), hasRequestIdHeader: request.headers.has("x-request-id") });
 
-    if (topic !== "payment" || !dataId) return json(200, { processed: false, reason: "Notificação ignorada." });
+    if (topic !== "payment" || !dataId) {
+      console.log("[mercadopago-webhook] ignorado: topic ou dataId ausente/invalido", { topic, dataId });
+      return json(200, { processed: false, reason: "Notificação ignorada." });
+    }
 
-    if (!verifyMercadoPagoSignature(request, dataId)) {
+    const signatureOk = verifyMercadoPagoSignature(request, dataId);
+    console.log("[mercadopago-webhook] verificacao de assinatura", { signatureOk });
+    if (!signatureOk) {
       return json(401, { error: "Assinatura inválida." });
     }
 
     const payment = await getPayment(dataId);
+    console.log("[mercadopago-webhook] pagamento consultado", { status: payment.status, externalReference: payment.external_reference, transactionAmount: payment.transaction_amount });
     if (payment.status !== "approved") {
       return json(200, { processed: false, status: payment.status });
     }
@@ -40,6 +47,7 @@ export default async (request) => {
       source: "Mercado Pago",
       externalId: String(payment.id)
     });
+    console.log("[mercadopago-webhook] resultado aplicado", result);
 
     return json(200, result);
   } catch (error) {
