@@ -392,7 +392,8 @@ function renderStatement(data) {
       </article>`).join("")
     : `<p class="meta">Consulte as formas de pagamento com o responsável.</p>`;
   const openAmountValue = Number(billing.open_amount ?? billing.total_due);
-  const canPayByCard = openAmountValue > 0.001 && !["Paga", "Cancelada", "Consolidada"].includes(billing.status);
+  const hasCardPaymentMethod = paymentMethods.some((method) => String(method.type || "").toUpperCase().includes("CARTÃO"));
+  const canPayByCard = hasCardPaymentMethod && openAmountValue > 0.001 && !["Paga", "Cancelada", "Consolidada"].includes(billing.status);
   const cardPaymentMarkup = canPayByCard
     ? `<button class="card-payment-button primary" type="button" data-pay-with-card="${escapeHtml(billing.id)}">Pagar com cartão de crédito</button><p id="cardPaymentMessage" class="meta"></p>`
     : "";
@@ -903,4 +904,4 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshClientPortal();
 });
 setInterval(refreshClientPortal, 20000);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=69").then((registration) => registration.update());
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=70").then((registration) => registration.update());

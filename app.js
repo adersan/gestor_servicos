@@ -752,6 +752,17 @@ function billingOpenAmount(billing) {
   return billing?.rolledIntoBillingId ? 0 : rawBillingOpenAmount(billing);
 }
 
+function billingPaymentMethodsFor(billing) {
+  const snapshotMethods = Array.isArray(billing.paymentMethods) ? billing.paymentMethods : [];
+  if (snapshotMethods.length) return snapshotMethods;
+  const ids = billing.paymentMethodIds || [];
+  return ids.length ? state.paymentMethods.filter((method) => ids.includes(method.id)) : state.paymentMethods;
+}
+
+function billingHasCardPaymentMethod(billing) {
+  return billingPaymentMethodsFor(billing).some((method) => String(method.type || "").toUpperCase().includes("CARTÃO"));
+}
+
 function billingCurrentStatus(billing) {
   if (billing.rolledIntoBillingId) return "Consolidada";
   if (billing.status === "Cancelada") return "Cancelada";
@@ -1996,6 +2007,7 @@ function renderBillings() {
         <button class="table-action" data-view-report="${item.id}">Ver relatório</button>
         <button class="table-action whatsapp-action" data-share-whatsapp="${item.id}">WhatsApp</button>
         <button class="table-action" data-share-report="${item.id}">Compartilhar relatório</button>
+        ${billingOpenAmount(item) > 0.001 && item.status !== "Cancelada" && billingHasCardPaymentMethod(item) ? `<button class="table-action" data-share-payment-link="${item.id}">Compartilhar link de pagamento</button>` : ""}
         ${billingOpenAmount(item) > 0 && item.status !== "Cancelada" ? `<button class="table-action" data-pay-billing="${item.id}" data-payment-mode="partial">Pagar parcialmente</button><button class="table-action success" data-pay-billing="${item.id}" data-payment-mode="full">Quitar</button>` : ""}
         <button class="table-action" data-renew-access="${item.id}">Gerar novo acesso</button>
         ${item.identifier && accessBillingByClient.get(item.clientId) === item.id
@@ -5126,6 +5138,24 @@ document.addEventListener("click", async (event) => {
       }
     }
   }
+  const sharePaymentLinkButton = event.target.closest("[data-share-payment-link]");
+  if (sharePaymentLinkButton) {
+    const billing = state.billings.find((item) => item.id === sharePaymentLinkButton.dataset.sharePaymentLink);
+    if (billing) {
+      try {
+        sharePaymentLinkButton.disabled = true;
+        sharePaymentLinkButton.textContent = "Gerando link...";
+        const url = await issueClientMagicLink(billing);
+        await copyText(url, "Link de pagamento");
+      } catch (error) {
+        console.error(error);
+        showAppAlert(error.message || "Não foi possível gerar o link de pagamento.", { type: "error" });
+      } finally {
+        sharePaymentLinkButton.disabled = false;
+        sharePaymentLinkButton.textContent = "Compartilhar link de pagamento";
+      }
+    }
+  }
   const shareReportButton = event.target.closest("[data-share-report]");
   if (shareReportButton) {
     const billing = state.billings.find((item) => item.id === shareReportButton.dataset.shareReport);
@@ -6510,7 +6540,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=168").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=169").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
