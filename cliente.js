@@ -903,4 +903,4 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshClientPortal();
 });
 setInterval(refreshClientPortal, 20000);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=68").then((registration) => registration.update());
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=69").then((registration) => registration.update());
