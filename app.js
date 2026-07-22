@@ -2083,7 +2083,7 @@ function renderBillings() {
         ${item.identifier && accessBillingByClient.get(item.clientId) === item.id
           ? `<button class="table-action" data-toggle-history="${item.id}">${item.historyEnabled ? "Bloquear histórico" : "Liberar histórico"}</button>`
           : ""}
-        ${billingCurrentStatus(item) === "Aberta" ? `<button class="table-action danger" data-cancel-billing="${item.id}">Cancelar</button>` : ""}
+        ${["Aberta", "Parcial"].includes(billingCurrentStatus(item)) ? `<button class="table-action danger" data-cancel-billing="${item.id}">Cancelar</button>` : ""}
         <button class="table-action danger" data-delete-billing="${item.id}">Excluir</button>
       </div>
       </div>
@@ -5160,9 +5160,11 @@ document.addEventListener("click", async (event) => {
   const cancelBillingButton = event.target.closest("[data-cancel-billing]");
   if (cancelBillingButton) {
     const billing = state.billings.find((item) => item.id === cancelBillingButton.dataset.cancelBilling);
-    if (billing && billingPaidAmount(billing) > 0) {
-      showAppAlert("Esta cobrança possui pagamento posterior e não pode ser cancelada.", { type: "warning" });
-    } else if (billing && await showAppConfirm("Cancelar esta cobrança e liberar os lançamentos para um novo fechamento?")) {
+    const paidAmount = billing ? billingPaidAmount(billing) : 0;
+    const confirmMessage = paidAmount > 0
+      ? `Cancelar esta cobrança e liberar os lançamentos para um novo fechamento? O valor já recebido (${money.format(paidAmount)}) fica como crédito do cliente.`
+      : "Cancelar esta cobrança e liberar os lançamentos para um novo fechamento?";
+    if (billing && await showAppConfirm(confirmMessage)) {
       try {
         await cancelClientAccess(billing);
         releaseRolledBillings(billing);
@@ -5172,7 +5174,7 @@ document.addEventListener("click", async (event) => {
           if (item.billingId === billing.id) item.billingId = null;
         });
         state.payments.forEach((item) => {
-          if (item.billingId === billing.id && !paymentWasAfterBilling(item, billing)) item.billingId = null;
+          if (item.billingId === billing.id) item.billingId = null;
         });
         saveState();
         showAppAlert("Cobrança cancelada com sucesso.", { type: "success" });
@@ -6757,7 +6759,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=175").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=176").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
