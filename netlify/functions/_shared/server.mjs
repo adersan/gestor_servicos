@@ -139,7 +139,10 @@ export async function applyAdvancePayment({ linkId, amount, date, method, note, 
   const links = await supabase(`/rest/v1/payment_links?id=eq.${encodeURIComponent(linkId)}&select=id,client_id,status&limit=1`);
   const link = links[0];
   if (!link) throw new BillingPaymentError(404, "Link de pagamento não encontrado.");
-  if (link.status !== "pending") {
+  // "cancelled" so ainda oculta da lista de pendentes do admin - se o cliente pagar mesmo
+  // assim (ja tinha o link aberto), o pagamento e aplicado normalmente, nunca recusado por
+  // causa de um cancelamento so local. So bloqueia reprocessar um link ja pago.
+  if (link.status === "paid") {
     return { processed: false, duplicate: true, reason: "Link de pagamento já processado." };
   }
 

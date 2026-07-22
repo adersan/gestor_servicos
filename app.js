@@ -1852,7 +1852,10 @@ function renderPaymentLinksPending() {
       <span>${escapeHtml(clientById(item.clientId)?.name || "Cliente")}</span>
       <strong>${money.format(item.amount)}</strong>
       <span class="meta">${item.createdAt ? new Date(item.createdAt).toLocaleString("pt-BR") : ""}</span>
-      ${item.initPoint ? `<button class="table-action" type="button" data-copy-pending-payment-link="${escapeHtml(item.initPoint)}">Copiar link</button>` : ""}
+      <div class="payment-link-pending-actions">
+        ${item.initPoint ? `<button class="table-action" type="button" data-copy-pending-payment-link="${escapeHtml(item.initPoint)}">Copiar link</button>` : ""}
+        <button class="table-action danger" type="button" data-cancel-pending-payment-link="${item.id}">Excluir</button>
+      </div>
     </div>`).join("");
   container.innerHTML = `
     <div class="payment-link-pending-heading">🔗 ${pending.length} pagamento${pending.length > 1 ? "s" : ""} por link pendente${pending.length > 1 ? "s" : ""}</div>
@@ -5306,6 +5309,24 @@ document.addEventListener("click", async (event) => {
   if (copyPendingPaymentLinkButton) {
     await copyText(copyPendingPaymentLinkButton.dataset.copyPendingPaymentLink, "Link de pagamento");
   }
+  const cancelPendingPaymentLinkButton = event.target.closest("[data-cancel-pending-payment-link]");
+  if (cancelPendingPaymentLinkButton) {
+    const id = cancelPendingPaymentLinkButton.dataset.cancelPendingPaymentLink;
+    if (await showAppConfirm("Excluir este link de pagamento? Ele some da lista de pendentes; se o cliente já tiver aberto o link, o pagamento ainda será aceito normalmente se ele concluir.")) {
+      try {
+        cancelPendingPaymentLinkButton.disabled = true;
+        await window.dataStore.cancelPaymentLink(id);
+        const link = state.paymentLinks.find((item) => item.id === id);
+        if (link) link.status = "cancelled";
+        renderPaymentLinksPending();
+        showAppAlert("Link de pagamento excluído.", { type: "success" });
+      } catch (error) {
+        console.error(error);
+        showAppAlert(error.message || "Não foi possível excluir o link.", { type: "error" });
+        cancelPendingPaymentLinkButton.disabled = false;
+      }
+    }
+  }
   const sharePaymentLinkWhatsAppButton = event.target.closest("[data-share-payment-link-whatsapp]");
   if (sharePaymentLinkWhatsAppButton) {
     const url = document.getElementById("paymentLinkResultUrl").textContent;
@@ -6759,7 +6780,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=176").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=177").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

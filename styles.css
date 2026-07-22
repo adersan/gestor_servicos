@@ -263,8 +263,9 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .payment-links-pending.hidden { display: none; }
 .payment-link-pending-heading { margin-bottom: 8px; color: #8a5a00; font-size: 13px; font-weight: 800; }
 .payment-link-pending-list { display: grid; gap: 6px; }
-.payment-link-pending-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 10px; background: white; font-size: 13px; }
+.payment-link-pending-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 10px; background: white; font-size: 13px; }
 .payment-link-pending-row .meta { color: var(--muted); font-size: 11px; }
+.payment-link-pending-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .request-summary { margin-bottom: 16px; }
 .request-card-new { border-top: 4px solid #d9902f; background: #fff7eb; }
 .request-card-value { border-top: 4px solid #2d72c4; background: #eef6ff; }

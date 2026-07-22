@@ -695,6 +695,12 @@
     return requestAdminClientServiceRequest("PATCH", { id, values });
   }
 
+  async function cancelPaymentLink(id) {
+    const client = requireClient();
+    const { error } = await client.from("payment_links").update({ status: "cancelled" }).eq("id", id);
+    if (error) throw error;
+  }
+
   window.dataStore = {
     fetchAll,
     upsertState,
@@ -703,6 +709,7 @@
     saveNow,
     deleteClientServiceRequest,
     updateClientServiceRequest,
+    cancelPaymentLink,
     hasPendingSave: () => Boolean(pendingState),
     hasUnsyncedChanges: () => Boolean(pendingState || activeSave)
   };
