@@ -7,6 +7,8 @@ const SERVICE_DISPLAY_KEY = "gestor-servicos-service-display-v1";
 const APP_THEMES = ["verde", "azul", "grafite", "dark", "bluedark"];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
+const shortDateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "2-digit" });
+const SERVICE_SIMPLE_STATUS_INITIALS = { "A fazer": "AF", Pronto: "F", Entregue: "E", Cancelado: "C" };
 
 const initialState = {
   priceTables: ["Tabela 01", "Tabela 02", "Tabela 03"],
@@ -1750,12 +1752,15 @@ function renderServices() {
     const total = [primary, ...complementary].reduce((sum, item) => sum + Number(item.amount), 0);
     const fullServiceLabel = `${primary.description}${complementary.length ? ` + ${complementary.length} complementar(es)` : ""}`;
     const clickable = primary.status !== "Cancelado";
+    const statusClass = primary.status.toLowerCase().replace(" ", "-");
+    const statusLabel = serviceStatusLabel(primary.status);
+    const statusInitial = SERVICE_SIMPLE_STATUS_INITIALS[primary.status] || statusLabel;
     return `<tr class="${isOverdueService(primary) ? "service-overdue" : ""}" ${clickable ? `data-edit-entry="${primary.id}"` : ""}>
-      <td>${dateFormat.format(new Date(`${primary.date}T00:00:00Z`))}</td>
+      <td>${shortDateFormat.format(new Date(`${primary.date}T00:00:00Z`))}</td>
       <td><strong>${escapeHtml(primary.reference || "Sem referência")}</strong></td>
-      <td class="service-simple-truncate">${escapeHtml(clientById(primary.clientId)?.name || "")}</td>
+      <td>${escapeHtml(clientById(primary.clientId)?.name || "")}</td>
       <td class="service-simple-truncate">${escapeHtml(fullServiceLabel)}</td>
-      <td><span class="status status-${primary.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(primary.status))}</span></td>
+      <td><span class="status status-${statusClass} service-simple-full">${escapeHtml(statusLabel)}</span><span class="status status-${statusClass} service-simple-compact">${escapeHtml(statusInitial)}</span></td>
       <td class="service-simple-amount">${money.format(total)}</td>
     </tr>`;
   };
@@ -1764,7 +1769,7 @@ function renderServices() {
     ? emptyMarkup()
     : serviceDisplayMode === "simple"
     ? `<div class="service-simple-wrap"><table class="service-simple-table">
-        <thead><tr><th>Data</th><th>Referência</th><th>Cliente</th><th>Serviço</th><th>Status</th><th>Valor</th></tr></thead>
+        <thead><tr><th>Data</th><th><span class="service-simple-full">Referência</span><span class="service-simple-compact">REF</span></th><th>Cliente</th><th>Serviço</th><th>Status</th><th>Valor</th></tr></thead>
         <tbody>${groupedItems.map(serviceSimpleRowMarkup).join("")}</tbody>
       </table></div>`
     : groupedItems.map(({ ordered }) => ordered.length > 1
@@ -1847,6 +1852,7 @@ function renderPaymentLinksPending() {
       <span>${escapeHtml(clientById(item.clientId)?.name || "Cliente")}</span>
       <strong>${money.format(item.amount)}</strong>
       <span class="meta">${item.createdAt ? new Date(item.createdAt).toLocaleString("pt-BR") : ""}</span>
+      ${item.initPoint ? `<button class="table-action" type="button" data-copy-pending-payment-link="${escapeHtml(item.initPoint)}">Copiar link</button>` : ""}
     </div>`).join("");
   container.innerHTML = `
     <div class="payment-link-pending-heading">🔗 ${pending.length} pagamento${pending.length > 1 ? "s" : ""} por link pendente${pending.length > 1 ? "s" : ""}</div>
@@ -5294,6 +5300,10 @@ document.addEventListener("click", async (event) => {
     const url = document.getElementById("paymentLinkResultUrl").textContent;
     if (url) await copyText(url, "Link de pagamento");
   }
+  const copyPendingPaymentLinkButton = event.target.closest("[data-copy-pending-payment-link]");
+  if (copyPendingPaymentLinkButton) {
+    await copyText(copyPendingPaymentLinkButton.dataset.copyPendingPaymentLink, "Link de pagamento");
+  }
   const sharePaymentLinkWhatsAppButton = event.target.closest("[data-share-payment-link-whatsapp]");
   if (sharePaymentLinkWhatsAppButton) {
     const url = document.getElementById("paymentLinkResultUrl").textContent;
@@ -6747,7 +6757,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=174").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=175").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

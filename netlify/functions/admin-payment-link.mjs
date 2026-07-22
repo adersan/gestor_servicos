@@ -46,6 +46,12 @@ export default async (request) => {
       throw error;
     }
 
+    await supabase(`/rest/v1/payment_links?id=eq.${encodeURIComponent(linkId)}`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: JSON.stringify({ init_point: preference.init_point })
+    });
+
     return json(200, { initPoint: preference.init_point });
   } catch (error) {
     if (error instanceof MercadoPagoError) {

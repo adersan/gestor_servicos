@@ -349,6 +349,12 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .service-simple-table tr.service-overdue { box-shadow: inset 4px 0 0 var(--danger); }
 .service-simple-truncate { max-width: 0; width: 100%; }
 .service-simple-amount { font-weight: 800; text-align: right; }
+.service-simple-compact { display: none; }
+.service-simple-table th:nth-child(1), .service-simple-table td:nth-child(1) { width: 1%; }
+.service-simple-table th:nth-child(2), .service-simple-table td:nth-child(2) { width: 100px; }
+.service-simple-table th:nth-child(3), .service-simple-table td:nth-child(3) { max-width: 140px; width: 140px; }
+.service-simple-table th:nth-child(5), .service-simple-table td:nth-child(5) { width: 1%; }
+.service-simple-table th:nth-child(6), .service-simple-table td:nth-child(6) { width: 1%; }
 .linked-service-group { display: grid; gap: 18px; padding: 10px; border: 1px solid #d8cdeb; border-radius: 18px; background: #faf8fe; }
 .linked-service-entry { position: relative; }
 .linked-service-entry + .linked-service-entry::before { content: "↓"; position: absolute; top: -25px; left: 50%; z-index: 2; display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid #cbbbe8; border-radius: 50%; background: #7654a8; color: white; font-size: 14px; font-weight: 900; transform: translateX(-50%); }
@@ -1014,6 +1020,9 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .service-simple-table { font-size: 12px; }
   .service-simple-table th, .service-simple-table td { padding: 8px; }
   .service-simple-truncate { max-width: 120px; }
+  .service-simple-full { display: none; }
+  .service-simple-compact { display: inline; }
+  .service-simple-table th:nth-child(3), .service-simple-table td:nth-child(3) { max-width: 84px; width: 84px; }
   #payments .receivable-grid, #billing .card-grid { gap: 8px; }
   #payments .receivable-card, #billing .billing-card { padding: 14px; border-radius: 14px; }
   #payments .receivable-heading h3, #billing .billing-card h3 { font-size: 17px; }

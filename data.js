@@ -254,6 +254,7 @@
         clientId: item.client_id,
         amount: Number(item.amount),
         status: item.status,
+        initPoint: item.init_point || "",
         paymentId: item.payment_id || "",
         createdAt: item.created_at,
         paidAt: item.paid_at || null
