@@ -54,6 +54,7 @@ let financePeriod = null;
 let financePeriodMode = null;
 let billingOverdueOnly = false;
 let selectedPaymentId = null;
+const serviceGroupsById = new Map();
 let remoteRefreshInProgress = false;
 let remoteLoadInProgress = false;
 let localStateRevision = 0;
@@ -1660,6 +1661,47 @@ function renderClients() {
   }).join("") : emptyMarkup();
 }
 
+function serviceItemMarkup(item, linked = false) {
+  return `
+    <article class="timeline-item ${linked ? "linked-service-entry" : ""} ${isOverdueService(item) ? "service-overdue" : ""} ${item.isSecondary ? "secondary-service" : ""}">
+      <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
+      <div>
+        <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
+        <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
+        <p class="meta service-card-context">${escapeHtml(clientById(item.clientId)?.name || "")}</p>
+        ${item.requestedBy ? `<p class="meta">Solicitante: ${escapeHtml(item.requestedBy)}</p>` : ""}
+        ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
+        <span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">${escapeHtml(deliveredLabel(item))}</span>` : ""}${serviceStatusDates(item) ? `<p class="service-status-dates">${escapeHtml(serviceStatusDates(item))}</p>` : ""}${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
+      </div>
+      <strong>${money.format(item.amount)}</strong>
+      <div class="service-actions">
+        <div class="status-actions">
+          ${item.status === "A fazer" ? `<button class="table-action success" data-service-status="Pronto" data-entry-id="${item.id}">Marcar feito</button>` : ""}
+          ${item.status === "Pronto" ? `<button class="table-action" data-request-delivery="${item.id}">Solicitar confirmação</button>` : ""}
+          ${item.status === "Pronto" ? `<button class="table-action success" data-service-status="Entregue" data-entry-id="${item.id}">Marcar entregue</button>` : ""}
+          ${item.status === "Pronto" ? `<button class="table-action" data-service-status="A fazer" data-entry-id="${item.id}">Voltar para A fazer</button>` : ""}
+          ${item.status === "Entregue" ? `<button class="table-action" data-service-status="Pronto" data-entry-id="${item.id}">Voltar para Feito</button>` : ""}
+        </div>
+        <button class="mobile-service-more" type="button" data-toggle-service-actions="${item.id}" aria-expanded="false">Mais opções</button>
+        <div class="row-actions">
+          ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-entry="${item.id}">Editar</button><button class="table-action danger" data-cancel-entry="${item.id}">Cancelar</button>` : ""}
+          <button class="table-action danger" data-delete-entry="${item.id}">Excluir</button>
+        </div>
+      </div>
+    </article>`;
+}
+
+function openServiceQuickView(primaryId) {
+  const primary = state.services.find((item) => item.id === primaryId);
+  if (!primary) return;
+  const group = serviceGroupsById.get(primaryId);
+  const ordered = group?.ordered || [primary];
+  document.getElementById("serviceQuickViewContent").innerHTML = ordered.length > 1
+    ? `<section class="linked-service-group">${ordered.map((item) => serviceItemMarkup(item, true)).join("")}</section>`
+    : serviceItemMarkup(ordered[0]);
+  document.getElementById("serviceQuickViewDialog").showModal();
+}
+
 function renderServices() {
   updateServiceDisplayToggleButton();
   const clientFilter = document.getElementById("serviceClientFilter").value;
@@ -1720,42 +1762,16 @@ function renderServices() {
       || String(b.primary.createdAt || "").localeCompare(String(a.primary.createdAt || ""));
   });
 
-  const serviceItemMarkup = (item, linked = false) => `
-    <article class="timeline-item ${linked ? "linked-service-entry" : ""} ${isOverdueService(item) ? "service-overdue" : ""} ${item.isSecondary ? "secondary-service" : ""}">
-      <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
-      <div>
-        <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
-        <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
-        <p class="meta service-card-context">${escapeHtml(clientById(item.clientId)?.name || "")}</p>
-        ${item.requestedBy ? `<p class="meta">Solicitante: ${escapeHtml(item.requestedBy)}</p>` : ""}
-        ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
-        <span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">${escapeHtml(deliveredLabel(item))}</span>` : ""}${serviceStatusDates(item) ? `<p class="service-status-dates">${escapeHtml(serviceStatusDates(item))}</p>` : ""}${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
-      </div>
-      <strong>${money.format(item.amount)}</strong>
-      <div class="service-actions">
-        <div class="status-actions">
-          ${item.status === "A fazer" ? `<button class="table-action success" data-service-status="Pronto" data-entry-id="${item.id}">Marcar feito</button>` : ""}
-          ${item.status === "Pronto" ? `<button class="table-action" data-request-delivery="${item.id}">Solicitar confirmação</button>` : ""}
-          ${item.status === "Pronto" ? `<button class="table-action success" data-service-status="Entregue" data-entry-id="${item.id}">Marcar entregue</button>` : ""}
-          ${item.status === "Pronto" ? `<button class="table-action" data-service-status="A fazer" data-entry-id="${item.id}">Voltar para A fazer</button>` : ""}
-          ${item.status === "Entregue" ? `<button class="table-action" data-service-status="Pronto" data-entry-id="${item.id}">Voltar para Feito</button>` : ""}
-        </div>
-        <button class="mobile-service-more" type="button" data-toggle-service-actions="${item.id}" aria-expanded="false">Mais opções</button>
-        <div class="row-actions">
-          ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-entry="${item.id}">Editar</button><button class="table-action danger" data-cancel-entry="${item.id}">Cancelar</button>` : ""}
-          <button class="table-action danger" data-delete-entry="${item.id}">Excluir</button>
-        </div>
-      </div>
-    </article>`;
+  serviceGroupsById.clear();
+  groupedItems.forEach((group) => serviceGroupsById.set(group.primary.id, group));
 
   const serviceSimpleRowMarkup = ({ primary, complementary }) => {
     const total = [primary, ...complementary].reduce((sum, item) => sum + Number(item.amount), 0);
     const fullServiceLabel = `${primary.description}${complementary.length ? ` + ${complementary.length} complementar(es)` : ""}`;
-    const clickable = primary.status !== "Cancelado";
     const statusClass = primary.status.toLowerCase().replace(" ", "-");
     const statusLabel = serviceStatusLabel(primary.status);
     const statusInitial = SERVICE_SIMPLE_STATUS_INITIALS[primary.status] || statusLabel;
-    return `<tr class="${isOverdueService(primary) ? "service-overdue" : ""}" ${clickable ? `data-edit-entry="${primary.id}"` : ""}>
+    return `<tr class="${isOverdueService(primary) ? "service-overdue" : ""}" data-view-entry-group="${primary.id}">
       <td>${shortDateFormat.format(new Date(`${primary.date}T00:00:00Z`))}</td>
       <td><strong>${escapeHtml(primary.reference || "Sem referência")}</strong></td>
       <td>${escapeHtml(clientById(primary.clientId)?.name || "")}</td>
@@ -5036,6 +5052,8 @@ document.addEventListener("click", async (event) => {
     }
   }
 
+  const viewEntryGroup = event.target.closest("[data-view-entry-group]");
+  if (viewEntryGroup) openServiceQuickView(viewEntryGroup.dataset.viewEntryGroup);
   const editEntry = event.target.closest("[data-edit-entry]");
   if (editEntry) openEntryForm(state.services.find((item) => item.id === editEntry.dataset.editEntry));
   const cancelEntry = event.target.closest("[data-cancel-entry]");
@@ -6372,6 +6390,11 @@ document.getElementById("serviceDisplayToggle").addEventListener("click", () => 
   localStorage.setItem(SERVICE_DISPLAY_KEY, serviceDisplayMode);
   renderServices();
 });
+document.getElementById("serviceQuickViewDialog").addEventListener("click", (event) => {
+  if (event.target.closest("[data-edit-entry], [data-cancel-entry], [data-delete-entry], [data-service-status], [data-request-delivery]")) {
+    document.getElementById("serviceQuickViewDialog").close();
+  }
+});
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("input", syncServiceClientSelection);
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("change", syncServiceClientSelection);
 document.querySelector('#serviceForm input[name="hasRequester"]').addEventListener("change", toggleServiceRequesterSection);
@@ -6780,7 +6803,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=177").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=178").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

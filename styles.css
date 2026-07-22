@@ -334,6 +334,19 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .payment-status-linked-open { color: #1768ad; background: #eef6ff; }
 .payment-status-linked-paid { color: #117440; background: #edf9f2; }
 .payment-detail-content { padding: 24px; }
+.service-quick-view-content { padding: 24px; }
+#serviceQuickViewDialog .timeline-item { grid-template-columns: 1fr auto; gap: 8px 12px; padding: 12px; border-radius: 13px; }
+#serviceQuickViewDialog .timeline-item > time { grid-column: 1 / -1; color: var(--muted); font-size: 10px; font-weight: 750; text-transform: uppercase; }
+#serviceQuickViewDialog .timeline-item h3 { font-size: 15px; }
+#serviceQuickViewDialog .service-card-reference { margin: 3px 0 5px; padding: 4px 8px; font-size: 14px; }
+#serviceQuickViewDialog .service-card-context { margin-bottom: 6px; font-size: 11px; }
+#serviceQuickViewDialog .timeline-item > strong { align-self: start; font-size: 14px; }
+#serviceQuickViewDialog .service-actions { grid-column: 1 / -1; width: 100%; justify-items: stretch; }
+#serviceQuickViewDialog .service-actions .row-actions, #serviceQuickViewDialog .status-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#serviceQuickViewDialog .service-actions button { width: 100%; }
+#serviceQuickViewDialog .mobile-service-more { display: none; }
+#serviceQuickViewDialog .linked-service-group { gap: 14px; padding: 7px; border-radius: 14px; }
+#serviceQuickViewDialog .linked-service-entry + .linked-service-entry::before { top: -20px; width: 20px; height: 20px; font-size: 12px; }
 #paymentDetailDialog .dialog-actions, #supplierPaymentDetailDialog .dialog-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .filters input, .filters select, label input, label select, label textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); }
 .timeline { display: grid; gap: 10px; }
@@ -345,8 +358,8 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .service-simple-table tr:last-child td { border-bottom: 0; }
 .service-simple-table th { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--surface-2); }
 .service-simple-table tbody tr:nth-child(even) { background: var(--surface-2); }
-.service-simple-table tbody tr[data-edit-entry] { cursor: pointer; }
-.service-simple-table tbody tr[data-edit-entry]:hover { background: var(--brand-soft); }
+.service-simple-table tbody tr[data-view-entry-group] { cursor: pointer; }
+.service-simple-table tbody tr[data-view-entry-group]:hover { background: var(--brand-soft); }
 .service-simple-table tr.service-overdue { box-shadow: inset 4px 0 0 var(--danger); }
 .service-simple-truncate { max-width: 0; width: 100%; }
 .service-simple-amount { font-weight: 800; text-align: right; }
@@ -795,6 +808,8 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   dialog[open]:not(.wide-dialog) form { flex: 0 1 auto; min-height: 0; gap: 11px; overflow-y: auto; overscroll-behavior: contain; scroll-padding: 82px 0 100px; padding: 0 14px calc(20px + env(safe-area-inset-bottom)); }
   dialog[open]:not(.wide-dialog) .payment-detail-content { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow: hidden; gap: 11px; padding: 0 14px; }
   .payment-detail-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  dialog[open]:not(.wide-dialog) .service-quick-view-content { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow: hidden; gap: 11px; padding: 0 14px; }
+  .service-quick-view-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   dialog .dialog-heading { position: sticky; top: 0; z-index: 4; margin: 0 -14px 2px; padding: 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
   dialog .dialog-heading h2 { font-size: 23px; }
   #serviceDialog .dialog-heading-actions { gap: 6px; }

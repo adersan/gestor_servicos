@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=132">
+  <link rel="stylesheet" href="styles.css?v=133">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -1120,6 +1120,15 @@
     </form>
   </dialog>
 
+  <dialog id="serviceQuickViewDialog">
+    <div class="service-quick-view-content">
+      <div class="dialog-heading"><h2>Detalhes do lançamento</h2><button class="icon-button" type="button" data-close-dialog>×</button></div>
+      <div class="service-quick-view-scroll">
+        <div id="serviceQuickViewContent"></div>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="cancelServiceDialog">
     <form id="cancelServiceForm" method="dialog">
       <div class="dialog-heading"><h2>Cancelar serviço</h2><button class="icon-button" value="cancel">×</button></div>
@@ -2158,7 +2167,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=50"></script>
-  <script src="app.js?v=166"></script>
+  <script src="app.js?v=167"></script>
   <script src="supplier.js?v=64"></script>
 </body>
 </html>
