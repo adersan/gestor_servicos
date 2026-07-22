@@ -111,15 +111,56 @@ export class BillingPaymentError extends Error {
   }
 }
 
-export async function applyPaymentToBilling({ billingId, amount, date, method, note, source, externalId, capExcessAsFee = false }) {
-  if (externalId) {
-    const duplicate = await supabase(
-      `/rest/v1/payments?external_payment_id=eq.${encodeURIComponent(externalId)}&select=id,billing_id,amount&limit=1`
-    );
-    if (duplicate.length) {
-      return { processed: false, duplicate: true, paymentId: duplicate[0].id };
-    }
+async function findDuplicatePayment(externalId) {
+  if (!externalId) return null;
+  const duplicate = await supabase(
+    `/rest/v1/payments?external_payment_id=eq.${encodeURIComponent(externalId)}&select=id,billing_id,amount&limit=1`
+  );
+  return duplicate[0] || null;
+}
+
+// external_reference do Mercado Pago: "advance:<clientId>" para pagamento antecipado
+// (gerado antes de existir cobrança, vira credito/solto) ou o proprio billingId (fluxo de cobrança).
+export function parsePaymentReference(reference) {
+  const trimmed = String(reference || "").trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("advance:")) {
+    const clientId = trimmed.slice("advance:".length).trim();
+    return clientId ? { type: "advance", clientId } : null;
   }
+  return { type: "billing", billingId: trimmed };
+}
+
+export async function applyAdvancePayment({ clientId, amount, date, method, note, source, externalId }) {
+  const duplicate = await findDuplicatePayment(externalId);
+  if (duplicate) return { processed: false, duplicate: true, paymentId: duplicate.id };
+
+  const clients = await supabase(`/rest/v1/clients?id=eq.${encodeURIComponent(clientId)}&select=id&limit=1`);
+  if (!clients.length) throw new BillingPaymentError(404, "Cliente não encontrado.");
+
+  const paymentId = crypto.randomUUID();
+  await supabase("/rest/v1/payments", {
+    method: "POST",
+    prefer: "return=minimal",
+    body: JSON.stringify({
+      id: paymentId,
+      client_id: clientId,
+      billing_id: null,
+      payment_date: date,
+      amount,
+      method,
+      notes: note,
+      external_payment_id: externalId || null,
+      payment_source: source
+    })
+  });
+
+  return { processed: true, paymentId, clientId, billingId: null };
+}
+
+export async function applyPaymentToBilling({ billingId, amount, date, method, note, source, externalId, capExcessAsFee = false }) {
+  const duplicate = await findDuplicatePayment(externalId);
+  if (duplicate) return { processed: false, duplicate: true, paymentId: duplicate.id };
 
   const billings = await supabase(
     `/rest/v1/billings?id=eq.${encodeURIComponent(billingId)}&select=id,client_id,total_due,status,created_at,snapshot&limit=1`

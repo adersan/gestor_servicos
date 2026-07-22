@@ -1,4 +1,4 @@
-import { applyPaymentToBilling, BillingPaymentError, json } from "./_shared/server.mjs";
+import { applyAdvancePayment, applyPaymentToBilling, BillingPaymentError, json, parsePaymentReference } from "./_shared/server.mjs";
 import { getPayment, verifyMercadoPagoSignature } from "./_shared/mercadopago.mjs";
 
 function paymentMethodLabel(payment) {
@@ -31,19 +31,34 @@ export default async (request) => {
       return json(200, { processed: false, status: payment.status });
     }
 
-    const billingId = String(payment.external_reference || "").trim();
-    if (!billingId) return json(200, { processed: false, reason: "Sem cobrança vinculada." });
+    const reference = parsePaymentReference(payment.external_reference);
+    if (!reference) return json(200, { processed: false, reason: "Sem referência vinculada." });
 
-    const result = await applyPaymentToBilling({
-      billingId,
-      amount: Number(payment.transaction_amount),
-      date: String(payment.date_approved || new Date().toISOString()).slice(0, 10),
-      method: paymentMethodLabel(payment),
-      note: "Pagamento por cartão via Mercado Pago",
-      source: "Mercado Pago",
-      externalId: String(payment.id),
-      capExcessAsFee: true
-    });
+    const amount = Number(payment.transaction_amount);
+    const date = String(payment.date_approved || new Date().toISOString()).slice(0, 10);
+    const method = paymentMethodLabel(payment);
+    const externalId = String(payment.id);
+
+    const result = reference.type === "advance"
+      ? await applyAdvancePayment({
+        clientId: reference.clientId,
+        amount,
+        date,
+        method,
+        note: "Pagamento antecipado via Mercado Pago",
+        source: "Mercado Pago",
+        externalId
+      })
+      : await applyPaymentToBilling({
+        billingId: reference.billingId,
+        amount,
+        date,
+        method,
+        note: "Pagamento por cartão via Mercado Pago",
+        source: "Mercado Pago",
+        externalId,
+        capExcessAsFee: true
+      });
     console.log("[mercadopago-webhook] pagamento aplicado", result);
 
     return json(200, result);

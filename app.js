@@ -3871,6 +3871,74 @@ const paymentWizard = createDialogWizard({
   }
 });
 
+function syncPaymentLinkClientSelection() {
+  const form = document.getElementById("paymentLinkForm");
+  const client = itemByExactLabel(state.clients, form.elements.clientSearch.value, clientOptionLabel)
+    || uniqueClientMatch(form.elements.clientSearch.value);
+  form.elements.clientId.value = client?.id || "";
+}
+
+function renderPaymentLinkWizardSummary() {
+  const form = document.getElementById("paymentLinkForm");
+  const target = document.getElementById("paymentLinkWizardSummary");
+  if (!target) return;
+  const client = clientById(form.elements.clientId.value);
+  const rows = [
+    ["Cliente", clientOptionLabel(client) || "-"],
+    ["Valor", money.format(Number(form.elements.amount.value || 0))]
+  ];
+  target.innerHTML = rows
+    .map(([label, value]) => `<div class="wizard-summary-row"><span class="wizard-summary-label">${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+}
+
+const paymentLinkWizard = createDialogWizard({
+  dialogId: "paymentLinkDialog",
+  formId: "paymentLinkForm",
+  navId: "paymentLinkWizardNav",
+  progressFillId: "paymentLinkWizardProgressFill",
+  progressLabelId: "paymentLinkWizardProgressLabel",
+  stepCount: 3,
+  lastStepLabel: "Gerar link",
+  onReachLastStep: renderPaymentLinkWizardSummary,
+  pickers: {
+    clientSearch: {
+      searchField: "clientSearch",
+      idField: "clientId",
+      items: () => state.clients.map((client) => ({ id: client.id, label: clientOptionLabel(client) })),
+      onApply: () => syncPaymentLinkClientSelection()
+    }
+  },
+  validateStep: (step, form) => {
+    if (step === 1) {
+      syncPaymentLinkClientSelection();
+      if (!form.elements.clientId.value) {
+        showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
+        form.elements.clientSearch.focus();
+        return false;
+      }
+    }
+    if (step === 2) {
+      if (form.elements.amount.value === "" || Number(form.elements.amount.value) <= 0) {
+        showAppAlert("Informe um valor válido.", { type: "warning" });
+        form.elements.amount.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+});
+
+function openPaymentLinkForm() {
+  const form = document.getElementById("paymentLinkForm");
+  form.reset();
+  document.getElementById("paymentLinkResult").classList.add("hidden");
+  document.getElementById("paymentLinkResultUrl").textContent = "";
+  paymentLinkWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
+  document.getElementById("paymentLinkDialog").showModal();
+  if (!paymentLinkWizard.isActive()) setTimeout(() => form.elements.clientSearch.focus(), 0);
+}
+
 function openPaymentMethodForm(method = null) {
   const form = document.getElementById("paymentMethodForm");
   form.reset();
@@ -4827,6 +4895,7 @@ document.addEventListener("click", async (event) => {
       openEntryForm(null, preferredClient?.id || "");
     }
     else if (dialogButton.dataset.dialog === "paymentDialog") openPaymentForm();
+    else if (dialogButton.dataset.dialog === "paymentLinkDialog") openPaymentLinkForm();
     else if (dialogButton.dataset.dialog === "paymentMethodDialog") openPaymentMethodForm();
     else if (dialogButton.dataset.dialog === "priceTableDialog") {
       const form = document.getElementById("priceTableForm");
@@ -5193,6 +5262,25 @@ document.addEventListener("click", async (event) => {
         sharePaymentLinkButton.disabled = false;
         sharePaymentLinkButton.textContent = "Compartilhar link de pagamento";
       }
+    }
+  }
+  const copyPaymentLinkButton = event.target.closest("[data-copy-payment-link]");
+  if (copyPaymentLinkButton) {
+    const url = document.getElementById("paymentLinkResultUrl").textContent;
+    if (url) await copyText(url, "Link de pagamento");
+  }
+  const sharePaymentLinkWhatsAppButton = event.target.closest("[data-share-payment-link-whatsapp]");
+  if (sharePaymentLinkWhatsAppButton) {
+    const url = document.getElementById("paymentLinkResultUrl").textContent;
+    if (url) {
+      const form = document.getElementById("paymentLinkForm");
+      const client = clientById(form.elements.clientId.value);
+      const phone = whatsappPhone(client);
+      const text = `Olá, ${client?.name || ""}!\n\nSegue o link para pagamento:\n\n${url}`;
+      openWhatsApp(
+        `whatsapp://send?${phone ? `phone=${phone}&` : ""}text=${encodeURIComponent(text)}`,
+        whatsappWebFallback(phone, text)
+      );
     }
   }
   const shareReportButton = event.target.closest("[data-share-report]");
@@ -5606,6 +5694,53 @@ document.getElementById("deleteServiceForm").addEventListener("submit", (event) 
   event.currentTarget.closest("dialog").close();
   saveState();
   showAppAlert("Lançamento excluído com sucesso.", { type: "success" });
+});
+
+document.getElementById("paymentLinkForm").addEventListener("submit", async (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  const form = event.currentTarget;
+  syncPaymentLinkClientSelection();
+  if (!form.elements.clientId.value) {
+    showAppAlert("Selecione um cliente válido da lista.", { type: "warning" });
+    form.elements.clientSearch.focus();
+    return;
+  }
+  if (form.elements.amount.value === "" || Number(form.elements.amount.value) <= 0) {
+    showAppAlert("Informe um valor válido.", { type: "warning" });
+    form.elements.amount.focus();
+    return;
+  }
+
+  const button = event.submitter;
+  button.disabled = true;
+  button.textContent = "Gerando link...";
+  try {
+    const { data } = await window.supabaseClient.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+    const response = await fetch("/.netlify/functions/admin-payment-link", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        clientId: form.elements.clientId.value,
+        amount: Number(form.elements.amount.value)
+      })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Não foi possível gerar o link de pagamento.");
+    document.getElementById("paymentLinkResultUrl").textContent = result.initPoint;
+    document.getElementById("paymentLinkResult").classList.remove("hidden");
+  } catch (error) {
+    console.error(error);
+    showAppAlert(error.message, { type: "error" });
+  } finally {
+    button.disabled = false;
+    button.textContent = "Gerar link";
+  }
 });
 
 document.getElementById("paymentForm").addEventListener("submit", (event) => {
@@ -6587,7 +6722,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=172").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=173").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

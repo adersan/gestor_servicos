@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=128">
+  <link rel="stylesheet" href="styles.css?v=129">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -345,6 +345,7 @@
         <div><span class="eyebrow">Histórico</span><h3>Pagamentos registrados</h3></div>
         <div class="list-heading-buttons">
           <button class="row-options-button button-accent" type="button" data-dialog="paymentDialog" title="Registrar pagamento" aria-label="Registrar pagamento">+</button>
+          <button class="row-options-button" type="button" data-dialog="paymentLinkDialog" title="Gerar link de pagamento (Mercado Pago)" aria-label="Gerar link de pagamento por Mercado Pago">🔗</button>
           <button class="row-options-button hidden" type="button" id="paymentDetailsButton" title="Detalhes" aria-label="Ver detalhes do pagamento selecionado">⋮</button>
         </div>
       </div>
@@ -1344,6 +1345,49 @@
     </div>
   </dialog>
 
+  <dialog id="paymentLinkDialog">
+    <form id="paymentLinkForm" method="dialog">
+      <div class="dialog-heading"><h2>Gerar link de pagamento</h2><button class="icon-button" value="cancel" data-close-dialog>×</button></div>
+      <p class="meta wizard-hide-native">Gera um link de pagamento do Mercado Pago para o cliente pagar antes mesmo de existir cobrança. O valor pago fica registrado em Pagamentos como crédito, a ser abatido na próxima cobrança.</p>
+      <input name="clientId" type="hidden">
+      <div id="paymentLinkWizardProgress" class="wizard-progress wizard-only hidden">
+        <div class="wizard-progress-track"><div id="paymentLinkWizardProgressFill" class="wizard-progress-fill"></div></div>
+        <span id="paymentLinkWizardProgressLabel" class="wizard-progress-label"></span>
+      </div>
+      <div class="wizard-step" data-step="1">
+        <h3 class="wizard-step-title wizard-only hidden">Cliente</h3>
+        <label>Cliente<input name="clientSearch" type="search" list="serviceClientOptions" autocomplete="off" required placeholder="Digite parte do nome"></label>
+      </div>
+      <div class="wizard-step" data-step="2">
+        <h3 class="wizard-step-title wizard-only hidden">Valor</h3>
+        <label>Valor a cobrar<input name="amount" type="number" min="0.01" step="0.01" required></label>
+      </div>
+      <div class="wizard-step" data-step="3">
+        <h3 class="wizard-step-title wizard-only hidden">Confirmação</h3>
+        <div id="paymentLinkWizardSummary" class="wizard-summary wizard-only hidden"></div>
+        <div id="paymentLinkResult" class="tracking-access-result hidden" aria-live="polite">
+          <strong>Link gerado</strong>
+          <div class="tracking-access-credentials">
+            <span><small>Link</small><strong id="paymentLinkResultUrl"></strong></span>
+          </div>
+          <div class="tracking-access-actions">
+            <button class="secondary" type="button" data-copy-payment-link>Copiar link</button>
+            <button class="secondary" type="button" data-share-payment-link-whatsapp>Enviar por WhatsApp</button>
+          </div>
+          <button class="primary full" type="button" data-close-dialog>Fechar</button>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="secondary" type="button" data-close-dialog>Cancelar</button>
+        <button class="primary" value="default">Gerar link</button>
+      </div>
+    </form>
+    <div class="wizard-nav wizard-only hidden" id="paymentLinkWizardNav">
+      <button type="button" class="secondary" data-wizard-back>Voltar</button>
+      <button type="button" class="primary" data-wizard-next>Continuar</button>
+    </div>
+  </dialog>
+
   <dialog id="paymentDetailDialog">
     <div class="payment-detail-content">
       <div class="dialog-heading"><h2>Detalhes do pagamento</h2><button class="icon-button" type="button" data-close-dialog>×</button></div>
@@ -2113,7 +2157,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=47"></script>
-  <script src="app.js?v=161"></script>
+  <script src="app.js?v=162"></script>
   <script src="supplier.js?v=64"></script>
 </body>
 </html>
