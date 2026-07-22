@@ -3,6 +3,7 @@ const ALERT_MESSAGES_KEY = "gestor-servicos-alert-messages-v1";
 const SOUND_ALERTS_KEY = "gestor-servicos-sound-alerts-v1";
 const SYSTEM_SETTINGS_KEY = "gestor-servicos-system-settings-v1";
 const PUSH_ENABLED_KEY = "gestor-servicos-push-enabled-v1";
+const SERVICE_DISPLAY_KEY = "gestor-servicos-service-display-v1";
 const APP_THEMES = ["verde", "azul", "grafite", "dark", "bluedark"];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
@@ -56,6 +57,7 @@ let localStateRevision = 0;
 let knownPendingRequestIds = null;
 let alertMessages = loadAlertMessages();
 let soundAlertsEnabled = localStorage.getItem(SOUND_ALERTS_KEY) === "true";
+let serviceDisplayMode = localStorage.getItem(SERVICE_DISPLAY_KEY) === "simple" ? "simple" : "full";
 let alertAudioContext = null;
 let currentAdminName = "Administrador";
 let systemSettings = loadSystemSettings();
@@ -1656,6 +1658,7 @@ function renderClients() {
 }
 
 function renderServices() {
+  updateServiceDisplayToggleButton();
   const clientFilter = document.getElementById("serviceClientFilter").value;
   const clientNameFilter = document.getElementById("serviceClientNameFilter").value.trim();
   const statusFilter = document.getElementById("serviceStatusFilter").value;
@@ -1706,7 +1709,7 @@ function renderServices() {
     const ordered = primary.status === "Cancelado" && complementary.some((item) => item.status !== "Cancelado")
       ? [...complementary, primary]
       : [primary, ...complementary];
-    return { primary, ordered };
+    return { primary, complementary, ordered };
   }).sort((a, b) => {
     const statusOrder = { "A fazer": 0, Pronto: 1, Entregue: 2, Cancelado: 3 };
     const statusDifference = (statusOrder[a.primary.status] ?? 4) - (statusOrder[b.primary.status] ?? 4);
@@ -1741,11 +1744,40 @@ function renderServices() {
         </div>
       </div>
     </article>`;
-  document.getElementById("serviceList").innerHTML = groupedItems.length
-    ? groupedItems.map(({ ordered }) => ordered.length > 1
+
+  const serviceSimpleRowMarkup = ({ primary, complementary }) => {
+    const total = [primary, ...complementary].reduce((sum, item) => sum + Number(item.amount), 0);
+    const fullServiceLabel = `${primary.description}${complementary.length ? ` + ${complementary.length} complementar(es)` : ""}`;
+    const clickable = primary.status !== "Cancelado";
+    return `<tr class="${isOverdueService(primary) ? "service-overdue" : ""}" ${clickable ? `data-edit-entry="${primary.id}"` : ""}>
+      <td>${dateFormat.format(new Date(`${primary.date}T00:00:00Z`))}</td>
+      <td><strong>${escapeHtml(primary.reference || "Sem referência")}</strong></td>
+      <td class="service-simple-truncate">${escapeHtml(clientById(primary.clientId)?.name || "")}</td>
+      <td class="service-simple-truncate">${escapeHtml(fullServiceLabel)}</td>
+      <td><span class="status status-${primary.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(primary.status))}</span></td>
+      <td class="service-simple-amount">${money.format(total)}</td>
+    </tr>`;
+  };
+
+  document.getElementById("serviceList").innerHTML = !groupedItems.length
+    ? emptyMarkup()
+    : serviceDisplayMode === "simple"
+    ? `<div class="service-simple-wrap"><table class="service-simple-table">
+        <thead><tr><th>Data</th><th>Referência</th><th>Cliente</th><th>Serviço</th><th>Status</th><th>Valor</th></tr></thead>
+        <tbody>${groupedItems.map(serviceSimpleRowMarkup).join("")}</tbody>
+      </table></div>`
+    : groupedItems.map(({ ordered }) => ordered.length > 1
       ? `<section class="linked-service-group">${ordered.map((item) => serviceItemMarkup(item, true)).join("")}</section>`
-      : serviceItemMarkup(ordered[0])).join("")
-    : emptyMarkup();
+      : serviceItemMarkup(ordered[0])).join("");
+}
+
+function updateServiceDisplayToggleButton() {
+  const button = document.getElementById("serviceDisplayToggle");
+  if (!button) return;
+  const isSimple = serviceDisplayMode === "simple";
+  button.textContent = isSimple ? "Exibir completo" : "Exibir simples";
+  button.classList.toggle("active", isSimple);
+  button.setAttribute("aria-pressed", String(isSimple));
 }
 
 function renderServiceRequests() {
@@ -6142,6 +6174,11 @@ document.addEventListener("click", (event) => {
   document.getElementById("serviceEndDate").value = week.endDate;
   renderServices();
 });
+document.getElementById("serviceDisplayToggle").addEventListener("click", () => {
+  serviceDisplayMode = serviceDisplayMode === "simple" ? "full" : "simple";
+  localStorage.setItem(SERVICE_DISPLAY_KEY, serviceDisplayMode);
+  renderServices();
+});
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("input", syncServiceClientSelection);
 document.querySelector('#serviceForm input[name="clientSearch"]').addEventListener("change", syncServiceClientSelection);
 document.querySelector('#serviceForm input[name="hasRequester"]').addEventListener("change", toggleServiceRequesterSection);
@@ -6550,7 +6587,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=171").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=172").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

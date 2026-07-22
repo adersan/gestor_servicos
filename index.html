@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=127">
+  <link rel="stylesheet" href="styles.css?v=128">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -267,6 +267,7 @@
         <input id="serviceEndDate" type="date" aria-label="Data final">
         <input id="serviceSearch" type="search" placeholder="Buscar cliente, placa ou serviço">
       </div>
+      <button id="serviceDisplayToggle" class="table-action service-display-toggle" type="button" aria-pressed="false">Exibir simples</button>
       <div id="serviceList" class="timeline"></div>
     </section>
 
@@ -2112,7 +2113,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=47"></script>
-  <script src="app.js?v=160"></script>
+  <script src="app.js?v=161"></script>
   <script src="supplier.js?v=64"></script>
 </body>
 </html>
