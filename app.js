@@ -1677,7 +1677,7 @@ function renderServices() {
     .filter((item) => !clientNameFilter || matchesSearch(clientNameFilter, clientById(item.clientId)?.name))
     .filter((item) => searchAcrossHistory || !startDate || item.date >= startDate)
     .filter((item) => searchAcrossHistory || !endDate || item.date <= endDate);
-  const matchingGroupKeys = new Set(generallyEligible
+  const matchingItems = generallyEligible
     .filter((item) => !statusFilter || item.status === statusFilter)
     .filter((item) => matchesSearch(
       search,
@@ -1686,8 +1686,15 @@ function renderServices() {
       item.requestedBy,
       clientById(item.clientId)?.name,
       serviceStatusLabel(item.status)
-    ))
-    .map(groupKey));
+    ));
+  const matchingGroupKeys = new Set(matchingItems.map(groupKey));
+  const matchingPrimaryCount = matchingItems.filter((item) => !item.isSecondary).length;
+  const resultsCountLabel = document.getElementById("serviceResultsCount");
+  if (resultsCountLabel) {
+    resultsCountLabel.textContent = matchingPrimaryCount
+      ? `${matchingPrimaryCount} lançamento(s) encontrado(s)`
+      : "Nenhum lançamento encontrado";
+  }
   const groupedItems = Object.values(generallyEligible.reduce((groups, item) => {
     const key = groupKey(item);
     if (!matchingGroupKeys.has(key)) return groups;
@@ -6543,7 +6550,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=170").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=171").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

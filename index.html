@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=126">
+  <link rel="stylesheet" href="styles.css?v=127">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -246,7 +246,7 @@
         </div>
       </div>
       <div class="supplier-entry-period">
-        <div><span class="eyebrow">Período exibido</span><strong id="serviceEntryPeriodLabel"></strong></div>
+        <div><span class="eyebrow">Período exibido</span><strong id="serviceEntryPeriodLabel"></strong><span id="serviceResultsCount" class="entry-results-count"></span></div>
         <button class="table-action" type="button" data-service-current-week>Voltar para semana atual</button>
       </div>
       <button class="mobile-filter-toggle" type="button" data-toggle-service-filters aria-expanded="false">
@@ -2112,7 +2112,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=47"></script>
-  <script src="app.js?v=159"></script>
+  <script src="app.js?v=160"></script>
   <script src="supplier.js?v=64"></script>
 </body>
 </html>
