@@ -60,7 +60,11 @@ export async function getPayment(paymentId) {
 }
 
 // Formato de assinatura documentado pelo Mercado Pago (header x-signature: "ts=...,v1=...").
-// Confirmar contra a documentação atual ao testar com um webhook real antes de confiar em producao.
+// O dataId recebido aqui precisa ser o mesmo data.id da URL da notificação, nao do corpo do
+// POST (e a exigencia documentada pelo Mercado Pago para montar o manifest) - o chamador
+// priorizava o data.id do corpo, e um pagamento real em producao ficou com a assinatura
+// invalida em toda tentativa recebida (topic payment, dataId presente, sempre invalido).
+// Corrigido priorizando a URL; acompanhar o proximo pagamento real para confirmar de vez.
 export function verifyMercadoPagoSignature(incomingRequest, dataId) {
   const signatureHeader = incomingRequest.headers.get("x-signature") || "";
   const requestId = incomingRequest.headers.get("x-request-id") || "";

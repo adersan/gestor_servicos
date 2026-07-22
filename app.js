@@ -35,7 +35,8 @@ const initialState = {
   supplierPayables: [],
   supplierPayments: [],
   clientRequesters: [],
-  serviceRequests: []
+  serviceRequests: [],
+  paymentLinks: []
 };
 
 let state = loadState();
@@ -1829,7 +1830,31 @@ function renderServiceRequests() {
   }).join("") : emptyMarkup();
 }
 
+function renderPaymentLinksPending() {
+  const container = document.getElementById("paymentLinksPending");
+  if (!container) return;
+  const pending = (state.paymentLinks || [])
+    .filter((item) => item.status === "pending")
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  if (!pending.length) {
+    container.classList.add("hidden");
+    container.innerHTML = "";
+    return;
+  }
+  container.classList.remove("hidden");
+  const rows = pending.map((item) => `
+    <div class="payment-link-pending-row">
+      <span>${escapeHtml(clientById(item.clientId)?.name || "Cliente")}</span>
+      <strong>${money.format(item.amount)}</strong>
+      <span class="meta">${item.createdAt ? new Date(item.createdAt).toLocaleString("pt-BR") : ""}</span>
+    </div>`).join("");
+  container.innerHTML = `
+    <div class="payment-link-pending-heading">🔗 ${pending.length} pagamento${pending.length > 1 ? "s" : ""} por link pendente${pending.length > 1 ? "s" : ""}</div>
+    <div class="payment-link-pending-list">${rows}</div>`;
+}
+
 function renderPayments() {
+  renderPaymentLinksPending();
   const period = ensureFinancePeriod();
   const clientFilter = document.getElementById("paymentClientFilter").value;
   const startFilter = document.getElementById("paymentStartFilter").value;
@@ -6722,7 +6747,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=173").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=174").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

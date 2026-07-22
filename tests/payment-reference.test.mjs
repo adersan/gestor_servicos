@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { parsePaymentReference } from "../netlify/functions/_shared/server.mjs";
 
 assert.deepEqual(
-  parsePaymentReference("advance:client-123"),
-  { type: "advance", clientId: "client-123" },
+  parsePaymentReference("advance:link-123"),
+  { type: "advance", linkId: "link-123" },
   "must parse an advance payment reference"
 );
 
@@ -15,10 +15,10 @@ assert.deepEqual(
 
 assert.equal(parsePaymentReference(""), null, "empty reference must return null");
 assert.equal(parsePaymentReference(null), null, "missing reference must return null");
-assert.equal(parsePaymentReference("advance:"), null, "advance reference without a client id must return null");
+assert.equal(parsePaymentReference("advance:"), null, "advance reference without a link id must return null");
 assert.deepEqual(
-  parsePaymentReference("  advance:client-9  "),
-  { type: "advance", clientId: "client-9" },
+  parsePaymentReference("  advance:link-9  "),
+  { type: "advance", linkId: "link-9" },
   "must trim surrounding whitespace before parsing an advance reference"
 );
 assert.deepEqual(

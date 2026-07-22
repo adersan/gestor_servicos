@@ -259,6 +259,12 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .filters-compact { grid-template-columns: minmax(240px, 520px); }
 .payment-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
 #financeSummaryTotals.payment-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.payment-links-pending { margin-bottom: 16px; padding: 12px 14px; border: 1px solid #e6cf9a; border-radius: 14px; background: #fffdf4; }
+.payment-links-pending.hidden { display: none; }
+.payment-link-pending-heading { margin-bottom: 8px; color: #8a5a00; font-size: 13px; font-weight: 800; }
+.payment-link-pending-list { display: grid; gap: 6px; }
+.payment-link-pending-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 10px; background: white; font-size: 13px; }
+.payment-link-pending-row .meta { color: var(--muted); font-size: 11px; }
 .request-summary { margin-bottom: 16px; }
 .request-card-new { border-top: 4px solid #d9902f; background: #fff7eb; }
 .request-card-value { border-top: 4px solid #2d72c4; background: #eef6ff; }

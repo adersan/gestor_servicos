@@ -17,18 +17,34 @@ export default async (request) => {
     const client = clients[0];
     if (!client) return json(404, { error: "Cliente não encontrado." });
 
-    const origin = new URL(request.url).origin;
-    const preference = await createPreference({
-      title: `Pagamento antecipado - ${client.name}`,
-      amount: parsedAmount,
-      externalReference: `advance:${client.id}`,
-      backUrls: {
-        success: `${origin}/cliente.html?payment=success`,
-        pending: `${origin}/cliente.html?payment=pending`,
-        failure: `${origin}/cliente.html?payment=failure`
-      },
-      notificationUrl: `${origin}/.netlify/functions/mercadopago-webhook`
+    const linkId = crypto.randomUUID();
+    await supabase("/rest/v1/payment_links", {
+      method: "POST",
+      prefer: "return=minimal",
+      body: JSON.stringify({ id: linkId, client_id: client.id, amount: parsedAmount, status: "pending" })
     });
+
+    const origin = new URL(request.url).origin;
+    let preference;
+    try {
+      preference = await createPreference({
+        title: `Pagamento antecipado - ${client.name}`,
+        amount: parsedAmount,
+        externalReference: `advance:${linkId}`,
+        backUrls: {
+          success: `${origin}/cliente.html?payment=success`,
+          pending: `${origin}/cliente.html?payment=pending`,
+          failure: `${origin}/cliente.html?payment=failure`
+        },
+        notificationUrl: `${origin}/.netlify/functions/mercadopago-webhook`
+      });
+    } catch (error) {
+      await supabase(`/rest/v1/payment_links?id=eq.${encodeURIComponent(linkId)}`, {
+        method: "DELETE",
+        prefer: "return=minimal"
+      }).catch(() => {});
+      throw error;
+    }
 
     return json(200, { initPoint: preference.init_point });
   } catch (error) {

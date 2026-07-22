@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=129">
+  <link rel="stylesheet" href="styles.css?v=130">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -331,6 +331,7 @@
         <div class="finance-period-info"><span>Período exibido</span><strong id="paymentPeriodLabel"></strong></div>
       </section>
       <div id="paymentSummary" class="dashboard-grid payment-summary"></div>
+      <div id="paymentLinksPending" class="payment-links-pending hidden"></div>
       <button class="mobile-filter-toggle" type="button" data-toggle-finance-filters="payments" aria-expanded="false">
         <span>Filtros financeiros</span><strong>Mostrar</strong>
       </button>
@@ -2156,8 +2157,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=47"></script>
-  <script src="app.js?v=162"></script>
+  <script src="data.js?v=48"></script>
+  <script src="app.js?v=163"></script>
   <script src="supplier.js?v=64"></script>
 </body>
 </html>

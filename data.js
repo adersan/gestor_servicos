@@ -72,6 +72,14 @@
     } else {
       clientRequestersResult = requestersResult;
     }
+    let paymentLinksResult = { data: [] };
+    const linksResult = await client.from("payment_links").select("*").order("created_at", { ascending: false });
+    if (linksResult.error) {
+      const message = linksResult.error.message || "";
+      if (!/payment_links|schema cache|does not exist|Could not find/i.test(message)) throw linksResult.error;
+    } else {
+      paymentLinksResult = linksResult;
+    }
 
     const priceTables = priceTablesResult.data;
     const tableById = Object.fromEntries(priceTables.map((table) => [table.id, table.name]));
@@ -240,6 +248,15 @@
         importedAt: item.imported_at || null,
         createdAt: item.created_at,
         updatedAt: item.updated_at
+      })),
+      paymentLinks: paymentLinksResult.data.map((item) => ({
+        id: item.id,
+        clientId: item.client_id,
+        amount: Number(item.amount),
+        status: item.status,
+        paymentId: item.payment_id || "",
+        createdAt: item.created_at,
+        paidAt: item.paid_at || null
       }))
     };
   }

@@ -891,6 +891,20 @@ function announcePaymentReturn(status) {
   if (status !== "failure") setTimeout(() => refreshClientPortal(), 3000);
 }
 
+function showStandalonePaymentReturn(status) {
+  const texts = {
+    success: { title: "Pagamento confirmado", text: "Recebemos seu pagamento com sucesso. Obrigado! Você já pode fechar esta janela." },
+    pending: { title: "Pagamento em processamento", text: "Seu pagamento está sendo processado. A confirmação pode levar alguns instantes; você já pode fechar esta janela." },
+    failure: { title: "Pagamento não aprovado", text: "Não foi possível concluir o pagamento. Tente novamente ou fale com quem enviou o link." }
+  };
+  const content = texts[status];
+  if (!content) return;
+  document.getElementById("loginPanel").classList.add("hidden");
+  document.getElementById("paymentConfirmationTitle").textContent = content.title;
+  document.getElementById("paymentConfirmationText").textContent = content.text;
+  document.getElementById("paymentConfirmationPanel").classList.remove("hidden");
+}
+
 const paymentReturnStatus = new URLSearchParams(location.search).get("payment");
 if (paymentReturnStatus) history.replaceState({}, "", `${location.pathname}${location.hash}`);
 
@@ -898,8 +912,10 @@ loginFromAutomaticLink().then((loggedIn) => {
   if (!loggedIn) {
     loadStatement().then((loaded) => {
       if (loaded && paymentReturnStatus) announcePaymentReturn(paymentReturnStatus);
+      else if (!loaded && paymentReturnStatus) showStandalonePaymentReturn(paymentReturnStatus);
     }).catch((error) => {
       document.getElementById("loginError").textContent = error.message;
+      if (paymentReturnStatus) showStandalonePaymentReturn(paymentReturnStatus);
     });
   } else if (paymentReturnStatus) {
     announcePaymentReturn(paymentReturnStatus);
@@ -909,4 +925,4 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshClientPortal();
 });
 setInterval(refreshClientPortal, 20000);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=71").then((registration) => registration.update());
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=72").then((registration) => registration.update());

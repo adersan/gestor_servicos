@@ -119,24 +119,29 @@ async function findDuplicatePayment(externalId) {
   return duplicate[0] || null;
 }
 
-// external_reference do Mercado Pago: "advance:<clientId>" para pagamento antecipado
-// (gerado antes de existir cobrança, vira credito/solto) ou o proprio billingId (fluxo de cobrança).
+// external_reference do Mercado Pago: "advance:<linkId>" para pagamento antecipado (gerado
+// antes de existir cobrança, vira credito/solto; linkId aponta pra payment_links) ou o proprio
+// billingId (fluxo de cobrança).
 export function parsePaymentReference(reference) {
   const trimmed = String(reference || "").trim();
   if (!trimmed) return null;
   if (trimmed.startsWith("advance:")) {
-    const clientId = trimmed.slice("advance:".length).trim();
-    return clientId ? { type: "advance", clientId } : null;
+    const linkId = trimmed.slice("advance:".length).trim();
+    return linkId ? { type: "advance", linkId } : null;
   }
   return { type: "billing", billingId: trimmed };
 }
 
-export async function applyAdvancePayment({ clientId, amount, date, method, note, source, externalId }) {
+export async function applyAdvancePayment({ linkId, amount, date, method, note, source, externalId }) {
   const duplicate = await findDuplicatePayment(externalId);
   if (duplicate) return { processed: false, duplicate: true, paymentId: duplicate.id };
 
-  const clients = await supabase(`/rest/v1/clients?id=eq.${encodeURIComponent(clientId)}&select=id&limit=1`);
-  if (!clients.length) throw new BillingPaymentError(404, "Cliente não encontrado.");
+  const links = await supabase(`/rest/v1/payment_links?id=eq.${encodeURIComponent(linkId)}&select=id,client_id,status&limit=1`);
+  const link = links[0];
+  if (!link) throw new BillingPaymentError(404, "Link de pagamento não encontrado.");
+  if (link.status !== "pending") {
+    return { processed: false, duplicate: true, reason: "Link de pagamento já processado." };
+  }
 
   const paymentId = crypto.randomUUID();
   await supabase("/rest/v1/payments", {
@@ -144,7 +149,7 @@ export async function applyAdvancePayment({ clientId, amount, date, method, note
     prefer: "return=minimal",
     body: JSON.stringify({
       id: paymentId,
-      client_id: clientId,
+      client_id: link.client_id,
       billing_id: null,
       payment_date: date,
       amount,
@@ -155,7 +160,13 @@ export async function applyAdvancePayment({ clientId, amount, date, method, note
     })
   });
 
-  return { processed: true, paymentId, clientId, billingId: null };
+  await supabase(`/rest/v1/payment_links?id=eq.${encodeURIComponent(linkId)}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: JSON.stringify({ status: "paid", payment_id: paymentId, paid_at: new Date().toISOString() })
+  });
+
+  return { processed: true, paymentId, clientId: link.client_id, billingId: null };
 }
 
 export async function applyPaymentToBilling({ billingId, amount, date, method, note, source, externalId, capExcessAsFee = false }) {
