@@ -347,6 +347,16 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 #serviceQuickViewDialog .mobile-service-more { display: none; }
 #serviceQuickViewDialog .linked-service-group { gap: 14px; padding: 7px; border-radius: 14px; }
 #serviceQuickViewDialog .linked-service-entry + .linked-service-entry::before { top: -20px; width: 20px; height: 20px; font-size: 12px; }
+#supplierEntryQuickViewDialog .supplier-entry-row { grid-template-columns: 1fr auto; gap: 8px 12px; padding: 12px; border-radius: 13px; }
+#supplierEntryQuickViewDialog .supplier-entry-row > time { grid-column: 1 / -1; color: var(--muted); font-size: 10px; font-weight: 750; text-transform: uppercase; }
+#supplierEntryQuickViewDialog .supplier-entry-row h3 { font-size: 15px; }
+#supplierEntryQuickViewDialog .service-card-reference { margin: 3px 0 5px; padding: 4px 8px; font-size: 14px; }
+#supplierEntryQuickViewDialog .service-card-context { margin-bottom: 6px; font-size: 11px; }
+#supplierEntryQuickViewDialog .supplier-entry-row > div:nth-child(3) { align-self: start; }
+#supplierEntryQuickViewDialog .supplier-entry-row > div:nth-child(3) strong { font-size: 14px; }
+#supplierEntryQuickViewDialog .service-actions { grid-column: 1 / -1; width: 100%; justify-items: stretch; min-width: 0; }
+#supplierEntryQuickViewDialog .service-actions .row-actions, #supplierEntryQuickViewDialog .status-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#supplierEntryQuickViewDialog .service-actions button { width: 100%; }
 #paymentDetailDialog .dialog-actions, #supplierPaymentDetailDialog .dialog-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .filters input, .filters select, label input, label select, label textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); }
 .timeline { display: grid; gap: 10px; }
