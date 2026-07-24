@@ -9,6 +9,9 @@
   let activeSupplierReportId = "";
   let supplierRequestShareResolver = null;
   let selectedSupplierPaymentId = null;
+  const SUPPLIER_ENTRY_DISPLAY_KEY = "gestor-servicos-supplier-entry-display-v1";
+  const SUPPLIER_ENTRY_SIMPLE_STATUS_INITIALS = { "A fazer": "AF", Feito: "F", Entregue: "E", Cancelado: "C" };
+  let supplierEntryDisplayMode = localStorage.getItem(SUPPLIER_ENTRY_DISPLAY_KEY) === "simple" ? "simple" : "full";
 
   const byId = (id) => document.getElementById(id);
   const today = () => new Date().toISOString().slice(0, 10);
@@ -311,7 +314,66 @@
     byId("supplierServicesDialog").showModal();
   }
 
+  function supplierEntryItemMarkup(item) {
+    return `
+      <article class="supplier-entry-row ${item.payableId ? "supplier-entry-closed" : ""}">
+        <time>${formatDate(item.date)}</time>
+        <div>
+          <span class="eyebrow">${escapeHtml(supplierById(item.supplierId)?.name || "")}</span>
+          <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
+          <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
+          ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
+          <p class="meta service-card-context">${item.clientId ? escapeHtml(clientName(item.clientId)) : "Sem cliente vinculado"} · ${escapeHtml(item.source)}</p>
+          ${item.lastChangedBy === "Fornecedor" ? `<span class="supplier-change-label">Alterado pelo fornecedor</span>` : ""}
+          ${supplierEntryStatusDates(item) ? `<p class="service-status-dates">${supplierEntryStatusDates(item)}</p>` : ""}
+          ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Custo anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
+        </div>
+        <div><span class="status status-${normalized(item.status).replace(/\s/g, "-")}">${item.status}</span><strong>${money.format(item.amount)}</strong></div>
+        <div class="service-actions">
+          ${item.status !== "Cancelado" ? `<div class="status-actions">
+            ${item.status === "A fazer" ? `<button class="table-action success" data-supplier-entry-status="Feito" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Marcar feito</button>` : ""}
+            ${item.status === "Feito" ? `<button class="table-action success" data-supplier-entry-status="Entregue" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Marcar entregue</button><button class="table-action" data-supplier-entry-status="A fazer" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Voltar para A fazer</button>` : ""}
+            ${item.status === "Entregue" ? `<button class="table-action" data-supplier-entry-status="Feito" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Voltar para Feito</button>` : ""}
+          </div>` : ""}
+          <div class="row-actions">
+            ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Editar</button><button class="table-action danger" data-cancel-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Cancelar</button>` : ""}
+            <button class="table-action danger" data-delete-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Excluir</button>
+          </div>
+        </div>
+      </article>`;
+  }
+
+  function supplierEntrySimpleRowMarkup(item) {
+    const statusClass = normalized(item.status).replace(/\s/g, "-");
+    const statusInitial = SUPPLIER_ENTRY_SIMPLE_STATUS_INITIALS[item.status] || item.status;
+    return `<tr data-view-supplier-entry="${item.id}">
+      <td>${shortDateFormat.format(new Date(`${item.date}T00:00:00Z`))}</td>
+      <td><strong>${escapeHtml(item.reference || "Sem referência")}</strong></td>
+      <td>${escapeHtml(supplierById(item.supplierId)?.name || "")}</td>
+      <td class="service-simple-truncate">${escapeHtml(item.description)}</td>
+      <td><span class="status status-${statusClass} service-simple-full">${escapeHtml(item.status)}</span><span class="status status-${statusClass} service-simple-compact">${escapeHtml(statusInitial)}</span></td>
+      <td class="service-simple-amount">${money.format(item.amount)}</td>
+    </tr>`;
+  }
+
+  function updateSupplierEntryDisplayToggleButton() {
+    const button = byId("supplierEntryDisplayToggle");
+    if (!button) return;
+    const isSimple = supplierEntryDisplayMode === "simple";
+    button.textContent = isSimple ? "Exibir completo" : "Exibir simples";
+    button.classList.toggle("active", isSimple);
+    button.setAttribute("aria-pressed", String(isSimple));
+  }
+
+  function openSupplierEntryQuickView(id) {
+    const entry = state.supplierEntries.find((item) => item.id === id);
+    if (!entry) return;
+    byId("supplierEntryQuickViewContent").innerHTML = supplierEntryItemMarkup(entry);
+    byId("supplierEntryQuickViewDialog").showModal();
+  }
+
   function renderEntries() {
+    updateSupplierEntryDisplayToggleButton();
     const supplierId = byId("supplierEntrySupplierFilter").value;
     const clientId = byId("supplierEntryClientFilter").value;
     const status = byId("supplierEntryStatusFilter").value;
@@ -342,32 +404,14 @@
         ? `${entries.length} lançamento(s) encontrado(s)`
         : "Nenhum lançamento encontrado";
     }
-    byId("supplierEntryList").innerHTML = entries.length ? entries.map((item) => `
-      <article class="supplier-entry-row ${item.payableId ? "supplier-entry-closed" : ""}">
-        <time>${formatDate(item.date)}</time>
-        <div>
-          <span class="eyebrow">${escapeHtml(supplierById(item.supplierId)?.name || "")}</span>
-          <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
-          <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
-          ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
-          <p class="meta service-card-context">${item.clientId ? escapeHtml(clientName(item.clientId)) : "Sem cliente vinculado"} · ${escapeHtml(item.source)}</p>
-          ${item.lastChangedBy === "Fornecedor" ? `<span class="supplier-change-label">Alterado pelo fornecedor</span>` : ""}
-          ${supplierEntryStatusDates(item) ? `<p class="service-status-dates">${supplierEntryStatusDates(item)}</p>` : ""}
-          ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Custo anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
-        </div>
-        <div><span class="status status-${normalized(item.status).replace(/\s/g, "-")}">${item.status}</span><strong>${money.format(item.amount)}</strong></div>
-        <div class="service-actions">
-          ${item.status !== "Cancelado" ? `<div class="status-actions">
-            ${item.status === "A fazer" ? `<button class="table-action success" data-supplier-entry-status="Feito" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Marcar feito</button>` : ""}
-            ${item.status === "Feito" ? `<button class="table-action success" data-supplier-entry-status="Entregue" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Marcar entregue</button><button class="table-action" data-supplier-entry-status="A fazer" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Voltar para A fazer</button>` : ""}
-            ${item.status === "Entregue" ? `<button class="table-action" data-supplier-entry-status="Feito" data-entry-id="${item.id}" ${item.payableId ? "disabled" : ""}>Voltar para Feito</button>` : ""}
-          </div>` : ""}
-          <div class="row-actions">
-            ${item.status !== "Cancelado" ? `<button class="table-action" data-edit-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Editar</button><button class="table-action danger" data-cancel-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Cancelar</button>` : ""}
-            <button class="table-action danger" data-delete-supplier-entry="${item.id}" ${item.payableId ? "disabled" : ""}>Excluir</button>
-          </div>
-        </div>
-      </article>`).join("") : empty();
+    byId("supplierEntryList").innerHTML = !entries.length
+      ? empty()
+      : supplierEntryDisplayMode === "simple"
+      ? `<div class="service-simple-wrap"><table class="service-simple-table">
+          <thead><tr><th>Data</th><th><span class="service-simple-full">Referência</span><span class="service-simple-compact">REF</span></th><th>Fornecedor</th><th>Serviço</th><th>Status</th><th>Valor</th></tr></thead>
+          <tbody>${entries.map(supplierEntrySimpleRowMarkup).join("")}</tbody>
+        </table></div>`
+      : entries.map(supplierEntryItemMarkup).join("");
   }
 
   function renderPayables() {
@@ -2082,6 +2126,8 @@
       }
     }
     const editSupplier = event.target.closest("[data-edit-supplier]"); if (editSupplier) openSupplier(supplierById(editSupplier.dataset.editSupplier));
+    const viewSupplierEntry = event.target.closest("[data-view-supplier-entry]");
+    if (viewSupplierEntry) openSupplierEntryQuickView(viewSupplierEntry.dataset.viewSupplierEntry);
     const editEntry = event.target.closest("[data-edit-supplier-entry]"); if (editEntry) openSupplierEntry(state.supplierEntries.find((item) => item.id === editEntry.dataset.editSupplierEntry));
     const entryStatus = event.target.closest("[data-supplier-entry-status]");
     if (entryStatus) {
@@ -2249,6 +2295,16 @@
   byId("supplierRequestShareDialog").addEventListener("cancel", (event) => {
     event.preventDefault();
     closeSupplierRequestShare();
+  });
+  byId("supplierEntryDisplayToggle").addEventListener("click", () => {
+    supplierEntryDisplayMode = supplierEntryDisplayMode === "simple" ? "full" : "simple";
+    localStorage.setItem(SUPPLIER_ENTRY_DISPLAY_KEY, supplierEntryDisplayMode);
+    renderEntries();
+  });
+  byId("supplierEntryQuickViewDialog").addEventListener("click", (event) => {
+    if (event.target.closest("[data-edit-supplier-entry], [data-cancel-supplier-entry], [data-delete-supplier-entry], [data-supplier-entry-status]")) {
+      byId("supplierEntryQuickViewDialog").close();
+    }
   });
   render();
 })();

@@ -520,6 +520,7 @@
           <input id="supplierEntryEnd" type="date" aria-label="Data final">
           <input id="supplierEntrySearch" type="search" placeholder="Buscar serviço, cliente ou referência">
         </div>
+        <button id="supplierEntryDisplayToggle" class="table-action service-display-toggle" type="button" aria-pressed="false">Exibir simples</button>
         <div id="supplierEntryList" class="timeline"></div>
       </div>
       <div id="supplierPayablesPanel" class="supplier-panel hidden">
@@ -1125,6 +1126,15 @@
       <div class="dialog-heading"><h2>Detalhes do lançamento</h2><button class="icon-button" type="button" data-close-dialog>×</button></div>
       <div class="service-quick-view-scroll">
         <div id="serviceQuickViewContent"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="supplierEntryQuickViewDialog">
+    <div class="service-quick-view-content">
+      <div class="dialog-heading"><h2>Detalhes do lançamento</h2><button class="icon-button" type="button" data-close-dialog>×</button></div>
+      <div class="service-quick-view-scroll">
+        <div id="supplierEntryQuickViewContent"></div>
       </div>
     </div>
   </dialog>
