@@ -336,6 +336,12 @@
       if (dateDifference) return dateDifference;
       return String(b.createdAt || b.updatedAt || "").localeCompare(String(a.createdAt || a.updatedAt || ""));
     });
+    const resultsCountLabel = byId("supplierEntryResultsCount");
+    if (resultsCountLabel) {
+      resultsCountLabel.textContent = entries.length
+        ? `${entries.length} lançamento(s) encontrado(s)`
+        : "Nenhum lançamento encontrado";
+    }
     byId("supplierEntryList").innerHTML = entries.length ? entries.map((item) => `
       <article class="supplier-entry-row ${item.payableId ? "supplier-entry-closed" : ""}">
         <time>${formatDate(item.date)}</time>
