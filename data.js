@@ -80,6 +80,14 @@
     } else {
       paymentLinksResult = linksResult;
     }
+    let appSettingsResult = { data: [] };
+    const appSettingsQuery = await client.from("app_settings").select("*").eq("id", "default");
+    if (appSettingsQuery.error) {
+      const message = appSettingsQuery.error.message || "";
+      if (!/app_settings|schema cache|does not exist|Could not find/i.test(message)) throw appSettingsQuery.error;
+    } else {
+      appSettingsResult = appSettingsQuery;
+    }
 
     const priceTables = priceTablesResult.data;
     const tableById = Object.fromEntries(priceTables.map((table) => [table.id, table.name]));
@@ -258,7 +266,12 @@
         paymentId: item.payment_id || "",
         createdAt: item.created_at,
         paidAt: item.paid_at || null
-      }))
+      })),
+      periodSettings: appSettingsResult.data[0] ? {
+        periodMode: appSettingsResult.data[0].period_mode === "month" ? "month" : "week",
+        weekStartDay: Number(appSettingsResult.data[0].week_start_day ?? 0),
+        weekEndDay: Number(appSettingsResult.data[0].week_end_day ?? 5)
+      } : null
     };
   }
 
@@ -579,6 +592,18 @@
       const result = await client.from("client_service_requests").upsert(rows, { onConflict: "id" });
       if (result.error && !/client_service_requests|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
         console.warn("Falha ao sincronizar pedidos recebidos:", result.error.message || result.error);
+      }
+    }
+    if (state.periodSettings) {
+      const result = await client.from("app_settings").upsert({
+        id: "default",
+        period_mode: state.periodSettings.periodMode === "month" ? "month" : "week",
+        week_start_day: Number(state.periodSettings.weekStartDay ?? 0),
+        week_end_day: Number(state.periodSettings.weekEndDay ?? 5),
+        updated_at: new Date().toISOString()
+      });
+      if (result.error && !/app_settings|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
+        throw result.error;
       }
     }
 

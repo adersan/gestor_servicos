@@ -38,7 +38,8 @@ const initialState = {
   supplierPayments: [],
   clientRequesters: [],
   serviceRequests: [],
-  paymentLinks: []
+  paymentLinks: [],
+  periodSettings: null
 };
 
 let state = loadState();
@@ -111,6 +112,25 @@ function saveSystemSettings() {
   localStorage.setItem(SYSTEM_SETTINGS_KEY, JSON.stringify(systemSettings));
 }
 
+function applyRemotePeriodSettings(remoteState) {
+  const incoming = remoteState.periodSettings;
+  if (!incoming) return false;
+  const normalized = {
+    periodMode: incoming.periodMode === "month" ? "month" : "week",
+    weekStartDay: Number.isInteger(Number(incoming.weekStartDay)) ? Number(incoming.weekStartDay) : 0,
+    weekEndDay: Number.isInteger(Number(incoming.weekEndDay)) ? Number(incoming.weekEndDay) : 5
+  };
+  const changed = systemSettings.periodMode !== normalized.periodMode
+    || systemSettings.weekStartDay !== normalized.weekStartDay
+    || systemSettings.weekEndDay !== normalized.weekEndDay;
+  if (!changed) return false;
+  systemSettings = { ...systemSettings, ...normalized };
+  saveSystemSettings();
+  financePeriod = null;
+  dashboardPeriod = null;
+  return true;
+}
+
 function applyTheme() {
   const theme = systemSettings.theme || "verde";
   if (theme === "verde") delete document.documentElement.dataset.theme;
@@ -178,6 +198,7 @@ async function initializeRemoteState(force = false) {
     } else {
       await window.dataStore.upsertState(state);
     }
+    applyRemotePeriodSettings(state);
 
     const rolloversMigrated = normalizeBillingRollovers();
     updateBillingStatuses();
@@ -224,6 +245,7 @@ async function refreshRemoteState() {
     notifyNewClientRequests(remoteState);
     state = remoteState;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    applyRemotePeriodSettings(state);
     render();
   } catch (error) {
     console.error("Falha ao atualizar dados do Supabase:", error.code, error.message);
@@ -6442,6 +6464,14 @@ document.querySelector('#billingForm input[name="clientSearch"]').addEventListen
     renderDashboardV2();
   });
 });
+function syncPeriodSettingsToRemote() {
+  state.periodSettings = {
+    periodMode: systemSettings.periodMode,
+    weekStartDay: systemSettings.weekStartDay,
+    weekEndDay: systemSettings.weekEndDay
+  };
+  saveState();
+}
 ["weekStartDay", "weekEndDay"].forEach((id) => {
   document.getElementById(id)?.addEventListener("change", () => {
     systemSettings = {
@@ -6450,11 +6480,14 @@ document.querySelector('#billingForm input[name="clientSearch"]').addEventListen
       weekEndDay: Number(document.getElementById("weekEndDay").value)
     };
     saveSystemSettings();
+    syncPeriodSettingsToRemote();
     dashboardPeriod = currentOperationalWeek();
     document.querySelectorAll("[data-dashboard-period]").forEach((button) => {
       button.classList.toggle("active", button.dataset.dashboardPeriod === "week");
     });
     renderDashboardV2();
+    setFinancePeriod(defaultPeriod(), "week");
+    refreshFinanceViews();
     showToast("Período padrão atualizado.");
   });
 });
@@ -6462,6 +6495,7 @@ document.getElementById("periodMode")?.addEventListener("change", (event) => {
   const periodMode = event.currentTarget.value === "month" ? "month" : "week";
   systemSettings = { ...systemSettings, periodMode };
   saveSystemSettings();
+  syncPeriodSettingsToRemote();
   document.getElementById("weekStartDay").disabled = periodMode === "month";
   document.getElementById("weekEndDay").disabled = periodMode === "month";
   dashboardPeriod = defaultPeriod();
@@ -6803,7 +6837,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=178").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=179").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
