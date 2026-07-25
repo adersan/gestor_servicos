@@ -924,5 +924,8 @@ loginFromAutomaticLink().then((loggedIn) => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshClientPortal();
 });
-setInterval(refreshClientPortal, 20000);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=72").then((registration) => registration.update());
+setInterval(() => {
+  if (document.hidden) return;
+  refreshClientPortal();
+}, 20000);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=73").then((registration) => registration.update());

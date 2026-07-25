@@ -1237,6 +1237,9 @@ document.getElementById("trackingRequestForm").addEventListener("submit", async 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshTracking();
 });
-setInterval(refreshTracking, 20000);
+setInterval(() => {
+  if (document.hidden) return;
+  refreshTracking();
+}, 20000);
 
 loadTracking().catch(showError);
