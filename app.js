@@ -6837,7 +6837,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=179").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=180").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
@@ -6856,4 +6856,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshRemoteState();
   else window.dataStore?.flushSave?.();
 });
-setInterval(refreshRemoteState, 8000);
+setInterval(() => {
+  if (document.hidden) return;
+  refreshRemoteState();
+}, 20000);
