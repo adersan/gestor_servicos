@@ -58,6 +58,8 @@ let selectedPaymentId = null;
 const serviceGroupsById = new Map();
 let remoteRefreshInProgress = false;
 let remoteLoadInProgress = false;
+let lastRemoteRefreshAt = 0;
+const AUTO_REFRESH_MIN_GAP_MS = 20 * 60 * 60 * 1000;
 let localStateRevision = 0;
 let knownPendingRequestIds = null;
 let alertMessages = loadAlertMessages();
@@ -204,6 +206,7 @@ async function initializeRemoteState(force = false) {
     updateBillingStatuses();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     remoteReady = true;
+    lastRemoteRefreshAt = Date.now();
     closeRemoteLoadError();
     knownPendingRequestIds = new Set((state.serviceRequests || []).filter((item) => item.status === "Novo").map((item) => item.id));
     render();
@@ -227,11 +230,16 @@ async function initializeRemoteState(force = false) {
   }
 }
 
-async function refreshRemoteState() {
-  if (remoteRefreshInProgress || !remoteReady || !window.dataStore || document.querySelector("dialog[open]")) return;
+async function refreshRemoteState(force = false) {
+  if (remoteRefreshInProgress || !remoteReady || !window.dataStore) return false;
+  if (document.querySelector("dialog[open]")) {
+    if (force) showToast("Feche a janela aberta antes de atualizar.");
+    return false;
+  }
+  if (!force && Date.now() - lastRemoteRefreshAt < AUTO_REFRESH_MIN_GAP_MS) return false;
   if (window.dataStore.hasUnsyncedChanges?.() || window.dataStore.hasPendingSave?.()) {
     await window.dataStore.flushSave?.();
-    return;
+    return false;
   }
   remoteRefreshInProgress = true;
   const revisionAtStart = localStateRevision;
@@ -241,14 +249,18 @@ async function refreshRemoteState() {
       revisionAtStart !== localStateRevision
       || window.dataStore.hasUnsyncedChanges?.()
       || window.dataStore.hasPendingSave?.()
-    ) return;
+    ) return false;
     notifyNewClientRequests(remoteState);
     state = remoteState;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     applyRemotePeriodSettings(state);
+    lastRemoteRefreshAt = Date.now();
     render();
+    return true;
   } catch (error) {
     console.error("Falha ao atualizar dados do Supabase:", error.code, error.message);
+    if (force) showAppAlert("Não foi possível atualizar agora. Tente novamente em instantes.", { type: "error" });
+    return false;
   } finally {
     remoteRefreshInProgress = false;
   }
@@ -6837,7 +6849,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=180").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=181").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
@@ -6851,12 +6863,18 @@ window.addEventListener("app-authenticated", (event) => {
   initializeRemoteState();
   refreshPushSubscriptionIfEnabled();
 });
-window.addEventListener("focus", refreshRemoteState);
+window.addEventListener("focus", () => refreshRemoteState());
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshRemoteState();
   else window.dataStore?.flushSave?.();
 });
-setInterval(() => {
-  if (document.hidden) return;
-  refreshRemoteState();
-}, 20000);
+document.getElementById("refreshDataButton")?.addEventListener("click", async () => {
+  const button = document.getElementById("refreshDataButton");
+  if (button.disabled) return;
+  button.disabled = true;
+  button.classList.add("spinning");
+  const ok = await refreshRemoteState(true);
+  button.disabled = false;
+  button.classList.remove("spinning");
+  if (ok) showToast("Dados atualizados.");
+});
