@@ -936,7 +936,12 @@ function addCurrentTrackingReference() {
   const input = form.elements.referenceInput;
   const value = input.value.trim().toUpperCase();
   if (!value) return false;
-  if (!trackingRequestReferenceValues.includes(value)) trackingRequestReferenceValues.push(value);
+  const message = document.getElementById("trackingRequestMessage");
+  if (!trackingRequestReferenceValues.includes(value)) {
+    trackingRequestReferenceValues.push(value);
+  } else {
+    message.textContent = `Referência já está na lista: ${value}. Confira se não foi digitação errada (ex.: "O" e "0").`;
+  }
   input.value = "";
   renderTrackingReferenceList();
   return true;

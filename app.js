@@ -2438,12 +2438,17 @@ function addCurrentReference() {
     .map((reference) => reference.trim().toUpperCase())
     .filter(Boolean);
   if (!references.length) return false;
+  const duplicates = [];
   references.forEach((reference) => {
     if (!serviceReferenceValues.includes(reference)) serviceReferenceValues.push(reference);
+    else duplicates.push(reference);
   });
   input.value = "";
   renderReferenceList();
   input.focus();
+  if (duplicates.length) {
+    showAppAlert(`Referência já está na lista deste lançamento: ${duplicates.join(", ")}. Confira se não foi digitação errada (ex.: "O" e "0").`, { type: "warning" });
+  }
   return true;
 }
 
@@ -6849,7 +6854,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=181").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=182").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
