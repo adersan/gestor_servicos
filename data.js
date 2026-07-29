@@ -6,6 +6,40 @@
     return window.supabaseClient;
   }
 
+  // IDs que este aparelho confirmou existir no banco na última leitura/gravação bem-sucedida.
+  // upsertState só apaga do banco um ID que já esteja aqui — assim, um registro criado por
+  // OUTRO aparelho e ainda não visto por este (por causa do intervalo de atualização automática)
+  // nunca é confundido com "foi excluído localmente" e apagado por engano.
+  const knownRemoteIds = {
+    services: new Set(),
+    payments: new Set(),
+    supplierEntries: new Set(),
+    billings: new Set(),
+    paymentMethods: new Set(),
+    supplierPayments: new Set(),
+    supplierPayables: new Set(),
+    supplierServices: new Set(),
+    suppliers: new Set(),
+    clients: new Set(),
+    catalog: new Set(),
+    priceTableNames: new Set()
+  };
+
+  function rememberKnownIds(source) {
+    knownRemoteIds.services = new Set((source.services || []).map((item) => item.id));
+    knownRemoteIds.payments = new Set((source.payments || []).map((item) => item.id));
+    knownRemoteIds.supplierEntries = new Set((source.supplierEntries || []).map((item) => item.id));
+    knownRemoteIds.billings = new Set((source.billings || []).map((item) => item.id));
+    knownRemoteIds.paymentMethods = new Set((source.paymentMethods || []).map((item) => item.id));
+    knownRemoteIds.supplierPayments = new Set((source.supplierPayments || []).map((item) => item.id));
+    knownRemoteIds.supplierPayables = new Set((source.supplierPayables || []).map((item) => item.id));
+    knownRemoteIds.supplierServices = new Set((source.supplierServices || []).map((item) => item.id));
+    knownRemoteIds.suppliers = new Set((source.suppliers || []).map((item) => item.id));
+    knownRemoteIds.clients = new Set((source.clients || []).map((item) => item.id));
+    knownRemoteIds.catalog = new Set((source.catalog || []).map((item) => item.id));
+    knownRemoteIds.priceTableNames = new Set(source.priceTables || []);
+  }
+
   async function fetchAll() {
     const client = requireClient();
     const [
@@ -97,7 +131,7 @@
       pricesByService[price.service_id][tableById[price.price_table_id]] = Number(price.amount);
     });
 
-    return {
+    const payload = {
       priceTables: priceTables.map((table) => table.name),
       clients: clientsResult.data.map((client) => ({
         id: client.id,
@@ -273,6 +307,9 @@
         weekEndDay: Number(appSettingsResult.data[0].week_end_day ?? 5)
       } : null
     };
+
+    rememberKnownIds(payload);
+    return payload;
   }
 
   async function fetchClientServiceRequests(client) {
@@ -607,38 +644,40 @@
       }
     }
 
-    async function deleteMissing(table, localIds) {
+    async function deleteMissing(table, localIds, knownIds) {
       const existing = await client.from(table).select("id");
       if (existing.error) throw existing.error;
       const localSet = new Set(localIds);
       const missingIds = existing.data
         .map((item) => item.id)
-        .filter((id) => !localSet.has(id));
+        .filter((id) => !localSet.has(id) && knownIds.has(id));
       if (!missingIds.length) return;
       const removed = await client.from(table).delete().in("id", missingIds);
       if (removed.error) throw removed.error;
     }
 
-    await deleteMissing("payments", state.payments.map((item) => item.id));
-    await deleteMissing("supplier_entries", (state.supplierEntries || []).map((item) => item.id));
-    await deleteMissing("service_entries", state.services.map((item) => item.id));
-    await deleteMissing("billings", state.billings.map((item) => item.id));
-    await deleteMissing("payment_methods", state.paymentMethods.map((item) => item.id));
-    await deleteMissing("supplier_payments", (state.supplierPayments || []).map((item) => item.id));
-    await deleteMissing("supplier_payables", (state.supplierPayables || []).map((item) => item.id));
-    await deleteMissing("supplier_services", (state.supplierServices || []).map((item) => item.id));
-    await deleteMissing("suppliers", (state.suppliers || []).map((item) => item.id));
-    await deleteMissing("clients", state.clients.map((item) => item.id));
-    await deleteMissing("service_catalog", state.catalog.map((item) => item.id));
+    await deleteMissing("payments", state.payments.map((item) => item.id), knownRemoteIds.payments);
+    await deleteMissing("supplier_entries", (state.supplierEntries || []).map((item) => item.id), knownRemoteIds.supplierEntries);
+    await deleteMissing("service_entries", state.services.map((item) => item.id), knownRemoteIds.services);
+    await deleteMissing("billings", state.billings.map((item) => item.id), knownRemoteIds.billings);
+    await deleteMissing("payment_methods", state.paymentMethods.map((item) => item.id), knownRemoteIds.paymentMethods);
+    await deleteMissing("supplier_payments", (state.supplierPayments || []).map((item) => item.id), knownRemoteIds.supplierPayments);
+    await deleteMissing("supplier_payables", (state.supplierPayables || []).map((item) => item.id), knownRemoteIds.supplierPayables);
+    await deleteMissing("supplier_services", (state.supplierServices || []).map((item) => item.id), knownRemoteIds.supplierServices);
+    await deleteMissing("suppliers", (state.suppliers || []).map((item) => item.id), knownRemoteIds.suppliers);
+    await deleteMissing("clients", state.clients.map((item) => item.id), knownRemoteIds.clients);
+    await deleteMissing("service_catalog", state.catalog.map((item) => item.id), knownRemoteIds.catalog);
 
     const activeTableNames = new Set(state.priceTables);
     const removedTableIds = existingTables.data
-      .filter((table) => !activeTableNames.has(table.name))
+      .filter((table) => !activeTableNames.has(table.name) && knownRemoteIds.priceTableNames.has(table.name))
       .map((table) => table.id);
     if (removedTableIds.length) {
       const removedTables = await client.from("price_tables").delete().in("id", removedTableIds);
       if (removedTables.error) throw removedTables.error;
     }
+
+    rememberKnownIds(state);
   }
 
   let saveTimer;
