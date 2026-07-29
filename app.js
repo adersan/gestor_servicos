@@ -2472,6 +2472,13 @@ function historicalReferenceMatches({ entryId, references }) {
     );
 }
 
+function resolveReferenceDuplicateAction(entryReferences, duplicates, hasExistingEntry) {
+  const duplicateReferenceSet = new Set(duplicates.map((item) => normalizeServiceReference(item.reference)));
+  const remainingReferences = entryReferences.filter((reference) => !duplicateReferenceSet.has(normalizeServiceReference(reference)));
+  const allowRemoveDuplicates = !hasExistingEntry && remainingReferences.length > 0;
+  return { duplicateReferenceSet, remainingReferences, allowRemoveDuplicates };
+}
+
 function historicalReferenceDialogMarkup(matches) {
   return matches.map((item) => {
     const client = clientById(item.clientId);
@@ -2489,20 +2496,22 @@ function historicalReferenceDialogMarkup(matches) {
   }).join("\n");
 }
 
-function settleReferenceHistoryDialog(confirmed) {
+function settleReferenceHistoryDialog(action) {
   const resolver = referenceHistoryResolver;
   referenceHistoryResolver = null;
   const dialog = document.getElementById("referenceHistoryDialog");
   if (dialog.open) dialog.close();
-  if (resolver) resolver(confirmed);
+  if (resolver) resolver(action);
 }
 
-function confirmHistoricalReferenceReuse(matches) {
+function confirmHistoricalReferenceReuse(matches, { allowRemoveDuplicates = false } = {}) {
   const references = new Set(matches.map((item) => normalizeServiceReference(item.reference)));
   document.getElementById("referenceHistorySummary").innerHTML = `
     <strong>${references.size} referência(s) encontrada(s)</strong>
     <span>${matches.length} lançamento(s) no histórico</span>`;
   document.getElementById("referenceHistoryList").innerHTML = historicalReferenceDialogMarkup(matches);
+  document.getElementById("referenceHistoryRemoveDuplicates").classList.toggle("hidden", !allowRemoveDuplicates);
+  document.getElementById("referenceHistoryActions").classList.toggle("reference-history-actions-triple", allowRemoveDuplicates);
   const dialog = document.getElementById("referenceHistoryDialog");
   return new Promise((resolve) => {
     referenceHistoryResolver = resolve;
@@ -5577,9 +5586,16 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     entryId: existingEntry?.id || "",
     references: entryReferences
   });
+  let finalReferences = entryReferences;
   if (duplicates.length) {
-    const shouldContinue = await confirmHistoricalReferenceReuse(duplicates);
-    if (!shouldContinue) return;
+    const { duplicateReferenceSet, remainingReferences, allowRemoveDuplicates } =
+      resolveReferenceDuplicateAction(entryReferences, duplicates, Boolean(existingEntry));
+    const action = await confirmHistoricalReferenceReuse(duplicates, { allowRemoveDuplicates });
+    if (action === "cancel") return;
+    if (action === "remove") {
+      finalReferences = remainingReferences;
+      showToast(`${duplicateReferenceSet.size} referência(s) duplicada(s) removida(s). Lançando as demais.`);
+    }
   }
   const requestedBy = form.elements.hasRequester.checked
     ? String(data.get("requestedBy") || "").trim().replace(/\s+/g, " ")
@@ -5589,7 +5605,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     ? new Set(state.services.filter((service) => service.primaryEntryId === existingEntry.id && service.isSecondary).map((service) => service.id))
     : new Set();
   const createdEntries = [];
-  entryReferences.forEach((reference, referenceIndex) => {
+  finalReferences.forEach((reference, referenceIndex) => {
     const serviceGroupId = existingEntry?.serviceGroupId || crypto.randomUUID();
     const primaryEntryId = existingEntry && referenceIndex === 0
       ? existingEntry.id
@@ -6571,18 +6587,19 @@ document.querySelector("[data-close-service-dialog]").addEventListener("click", 
   event.preventDefault();
   closeServiceDialog();
 });
-document.getElementById("referenceHistoryCancel").addEventListener("click", () => settleReferenceHistoryDialog(false));
-document.getElementById("referenceHistoryClose").addEventListener("click", () => settleReferenceHistoryDialog(false));
-document.getElementById("referenceHistoryConfirm").addEventListener("click", () => settleReferenceHistoryDialog(true));
+document.getElementById("referenceHistoryCancel").addEventListener("click", () => settleReferenceHistoryDialog("cancel"));
+document.getElementById("referenceHistoryClose").addEventListener("click", () => settleReferenceHistoryDialog("cancel"));
+document.getElementById("referenceHistoryConfirm").addEventListener("click", () => settleReferenceHistoryDialog("keep"));
+document.getElementById("referenceHistoryRemoveDuplicates").addEventListener("click", () => settleReferenceHistoryDialog("remove"));
 document.getElementById("referenceHistoryDialog").addEventListener("cancel", (event) => {
   event.preventDefault();
-  settleReferenceHistoryDialog(false);
+  settleReferenceHistoryDialog("cancel");
 });
 document.getElementById("referenceHistoryDialog").addEventListener("close", () => {
   if (!referenceHistoryResolver) return;
   const resolver = referenceHistoryResolver;
   referenceHistoryResolver = null;
-  resolver(false);
+  resolver("cancel");
 });
 document.getElementById("continueEntryDialog").addEventListener("cancel", (event) => {
   event.preventDefault();

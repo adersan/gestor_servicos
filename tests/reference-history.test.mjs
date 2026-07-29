@@ -82,4 +82,60 @@ assert.match(markup, /18\/06\/2026/);
 assert.match(markup, /Cliente A/);
 assert.match(markup, /Entregue/);
 
+const partialDuplicates = context.historicalReferenceMatches({
+  entryId: "",
+  references: ["ABC 123", "NEW-REF"]
+});
+const partialAction = context.resolveReferenceDuplicateAction(
+  ["ABC 123", "NEW-REF"],
+  partialDuplicates,
+  false
+);
+assert.deepEqual(
+  [...partialAction.duplicateReferenceSet],
+  ["ABC 123"],
+  "must identify only the reference that actually collided"
+);
+assert.deepEqual(
+  partialAction.remainingReferences,
+  ["NEW-REF"],
+  "must keep the non-duplicated reference for launch"
+);
+assert.equal(
+  partialAction.allowRemoveDuplicates,
+  true,
+  "must offer 'remove duplicates and continue' when something would still be launched"
+);
+
+const allDuplicatesAction = context.resolveReferenceDuplicateAction(
+  ["ABC 123"],
+  partialDuplicates.filter((item) => normalizeMatch(item.reference) === "ABC 123"),
+  false
+);
+assert.equal(
+  allDuplicatesAction.remainingReferences.length,
+  0,
+  "removing the only reference must leave nothing to launch"
+);
+assert.equal(
+  allDuplicatesAction.allowRemoveDuplicates,
+  false,
+  "must not offer 'remove duplicates' when it would launch nothing"
+);
+
+const editingAction = context.resolveReferenceDuplicateAction(
+  ["ABC 123"],
+  partialDuplicates.filter((item) => normalizeMatch(item.reference) === "ABC 123"),
+  true
+);
+assert.equal(
+  editingAction.allowRemoveDuplicates,
+  false,
+  "editing an existing entry must never offer 'remove duplicates' (there is only one reference)"
+);
+
+function normalizeMatch(reference) {
+  return String(reference || "").trim().replace(/\s+/g, " ").toUpperCase();
+}
+
 console.log("reference history test passed");
