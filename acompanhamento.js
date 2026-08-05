@@ -95,6 +95,10 @@ function requesterBadge(item) {
   return `<span class="tracking-requester-badge">Solicitante: ${escapeHtml(requesterName(item))}</span>`;
 }
 
+function complementNamesLabel(secondaries) {
+  return secondaries.map((item) => item.service_name).join(" + ");
+}
+
 function complementaryLabel(item) {
   return item.is_secondary
     ? `<span class="secondary-label">Complementar vinculado ao serviço original</span>`
@@ -453,7 +457,7 @@ function renderServiceItemCard({ primary, secondaries }) {
   return `<article class="tracking-item tracking-${status.className}">
     <time>${formatDate(item.service_date)}</time>
     <div>
-      <h4>${escapeHtml(item.service_name)}${secondaries.length ? `<span class="secondary-label">+ ${secondaries.length} complementar(es)</span>` : ""}</h4>
+      <h4>${escapeHtml(item.service_name)}${secondaries.length ? `<span class="secondary-label">+ ${escapeHtml(complementNamesLabel(secondaries))}</span>` : ""}</h4>
       ${secondaries.length ? `<div class="tracking-complement-list">${secondaries.map((secondary) => `<span>${escapeHtml(secondary.service_name)} · ${amountText(secondary.amount)}${originCancelledNote(secondary, item)}</span>`).join("")}</div>` : originCancelledNote(item)}
       <span class="tracking-requester-badge">Solicitante: ${escapeHtml(requesterName(item))}</span>
       <p class="tracking-reference">${escapeHtml(item.reference || "Sem referência")}</p>
@@ -468,7 +472,7 @@ function renderServiceSimpleRow({ primary, secondaries }) {
   const status = statusData(item.status);
   const statusInitial = SIMPLE_STATUS_INITIALS[status.className] || status.label;
   const total = [item, ...secondaries].reduce((sum, service) => sum + Number(service.amount), 0);
-  const fullServiceLabel = `${item.service_name}${secondaries.length ? ` + ${secondaries.length} complementar(es)` : ""}`;
+  const fullServiceLabel = `${item.service_name}${secondaries.length ? ` + ${complementNamesLabel(secondaries)}` : ""}`;
   const compactServiceLabel = `${item.service_name}${secondaries.length ? ` +${secondaries.length}` : ""}`;
   return `<tr>
     <td><span class="tracking-simple-full">${formatDate(item.service_date)}</span><span class="tracking-simple-compact">${formatServiceDay(item.service_date)}</span></td>
