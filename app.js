@@ -59,7 +59,9 @@ const serviceGroupsById = new Map();
 let remoteRefreshInProgress = false;
 let remoteLoadInProgress = false;
 let lastRemoteRefreshAt = 0;
-const AUTO_REFRESH_MIN_GAP_MS = 20 * 60 * 60 * 1000;
+const AUTO_REFRESH_MIN_GAP_MS = 5 * 60 * 1000;
+let realtimeSyncChannel = null;
+let realtimeSyncDebounceTimer = null;
 let localStateRevision = 0;
 let knownPendingRequestIds = null;
 let alertMessages = loadAlertMessages();
@@ -207,6 +209,7 @@ async function initializeRemoteState(force = false) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     remoteReady = true;
     lastRemoteRefreshAt = Date.now();
+    initializeRealtimeSync();
     closeRemoteLoadError();
     knownPendingRequestIds = new Set((state.serviceRequests || []).filter((item) => item.status === "Novo").map((item) => item.id));
     render();
@@ -230,10 +233,10 @@ async function initializeRemoteState(force = false) {
   }
 }
 
-async function refreshRemoteState(force = false) {
+async function refreshRemoteState(force = false, silent = false) {
   if (remoteRefreshInProgress || !remoteReady || !window.dataStore) return false;
   if (document.querySelector("dialog[open]")) {
-    if (force) showToast("Feche a janela aberta antes de atualizar.");
+    if (force && !silent) showToast("Feche a janela aberta antes de atualizar.");
     return false;
   }
   if (!force && Date.now() - lastRemoteRefreshAt < AUTO_REFRESH_MIN_GAP_MS) return false;
@@ -259,11 +262,37 @@ async function refreshRemoteState(force = false) {
     return true;
   } catch (error) {
     console.error("Falha ao atualizar dados do Supabase:", error.code, error.message);
-    if (force) showAppAlert("Não foi possível atualizar agora. Tente novamente em instantes.", { type: "error" });
+    if (force && !silent) showAppAlert("Não foi possível atualizar agora. Tente novamente em instantes.", { type: "error" });
     return false;
   } finally {
     remoteRefreshInProgress = false;
   }
+}
+
+// Mesma lista de tabelas de window.dataStore.fetchAll (data.js) — precisa estar
+// habilitada na publicação supabase_realtime (ver migration enable-realtime-admin-sync).
+const REALTIME_SYNC_TABLES = [
+  "price_tables", "clients", "service_catalog", "service_prices", "service_entries",
+  "payments", "payment_methods", "billings", "suppliers", "supplier_services",
+  "supplier_entries", "supplier_payables", "supplier_payments", "client_service_requests",
+  "client_requesters", "payment_links", "app_settings"
+];
+
+function scheduleRealtimeSyncRefresh() {
+  clearTimeout(realtimeSyncDebounceTimer);
+  realtimeSyncDebounceTimer = setTimeout(() => {
+    refreshRemoteState(true, true);
+  }, 2500);
+}
+
+function initializeRealtimeSync() {
+  if (realtimeSyncChannel || !window.supabaseClient) return;
+  let channel = window.supabaseClient.channel("admin-realtime-sync");
+  REALTIME_SYNC_TABLES.forEach((table) => {
+    channel = channel.on("postgres_changes", { event: "*", schema: "public", table }, scheduleRealtimeSyncRefresh);
+  });
+  channel.subscribe();
+  realtimeSyncChannel = channel;
 }
 
 function notifyNewClientRequests(nextState) {
@@ -6871,7 +6900,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=184").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=185").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
