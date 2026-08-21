@@ -583,6 +583,19 @@ function balanceFor(clientId, endDate = null) {
   return debits - credits;
 }
 
+// Divida antiga real do cliente: soma o saldo em aberto das cobrancas anteriores ainda nao quitadas.
+// Usa o valor JA GRAVADO de cada cobranca (nao recalcula servicos antigos), entao edicoes/cancelamentos
+// feitos DEPOIS que um servico ja foi cobrado (e talvez pago) nunca corrompem o valor de cobrancas futuras.
+function openPriorBalanceFor(clientId) {
+  return state.billings
+    .filter((billing) => billing.clientId === clientId)
+    .filter((billing) => {
+      const status = billingCurrentStatus(billing);
+      return status !== "Cancelada" && status !== "Consolidada";
+    })
+    .reduce((sum, billing) => sum + billingOpenAmount(billing), 0);
+}
+
 function availableAdvancePayments(clientId) {
   const today = localDateKey(new Date());
   return state.payments.filter((item) =>
@@ -6104,12 +6117,7 @@ document.getElementById("billingForm").addEventListener("submit", async (event) 
     ? structuredClone(state.payments)
     : JSON.parse(JSON.stringify(state.payments));
   const servicesTotal = services.reduce((sum, item) => sum + item.amount, 0);
-  const paymentsTotal = payments.reduce((sum, item) => sum + item.amount, 0);
-  const paymentsAfterPeriod = payments
-    .filter((item) => item.date > endDate)
-    .reduce((sum, item) => sum + item.amount, 0);
-  const rawBalance = balanceFor(clientId, endDate) - paymentsAfterPeriod;
-  const amount = Math.max(0, rawBalance + paymentsTotal);
+  const amount = Math.max(0, openPriorBalanceFor(clientId) + servicesTotal);
   const pendingServices = services.filter((item) => item.status === "A fazer");
   if (pendingServices.length) {
     const names = pendingServices.slice(0, 5)
@@ -6240,12 +6248,7 @@ document.getElementById("billingBatchForm").addEventListener("submit", async (ev
     const services = eligibleServices.filter((item) => item.clientId === clientId);
     const payments = availableAdvancePayments(clientId);
     const servicesTotal = services.reduce((sum, item) => sum + Number(item.amount), 0);
-    const paymentsTotal = payments.reduce((sum, item) => sum + Number(item.amount), 0);
-    const paymentsAfterPeriod = payments
-      .filter((item) => item.date > endDate)
-      .reduce((sum, item) => sum + Number(item.amount), 0);
-    const rawBalance = balanceFor(clientId, endDate) - paymentsAfterPeriod;
-    const amount = Math.max(0, rawBalance + paymentsTotal);
+    const amount = Math.max(0, openPriorBalanceFor(clientId) + servicesTotal);
     const billing = {
       id: crypto.randomUUID(), billingNumber: nextBatchBillingNumber++, clientId, startDate, endDate, amount,
       previousBalance: amount - servicesTotal, servicesTotal, paymentsTotal: 0,
@@ -6900,7 +6903,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=185").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=186").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
