@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Portal do fornecedor</title>
-  <link rel="stylesheet" href="fornecedor.css?v=24">
+  <link rel="stylesheet" href="fornecedor.css?v=25">
 </head>
 <body>
   <header class="portal-header">
@@ -37,6 +37,32 @@
     <section id="content" class="hidden">
       <div id="summary" class="summary"></div>
 
+      <section id="supplySummarySection" class="panel supply-summary-panel">
+        <div class="section-heading"><div><span class="eyebrow">Resumo final</span><h2>Resumo dos fornecimentos</h2></div><strong id="supplyGrandTotal"></strong></div>
+        <div id="supplySummary" class="supply-summary"></div>
+      </section>
+
+      <section id="paymentPreferencePanel" class="panel payment-preference-panel hidden">
+        <div class="section-heading"><div><span class="eyebrow">Recebimento seguro</span><h2>Como deseja receber?</h2><p class="meta">Informe os dados para o administrador realizar o pagamento. Nenhuma baixa é feita automaticamente. Você pode adicionar mais de uma forma, dividindo o valor entre elas.</p></div></div>
+        <div id="paymentPreferenceList" class="preference-list"></div>
+        <form id="paymentPreferenceForm" class="payment-preference-form">
+          <input name="payableId" type="hidden">
+          <label>Forma de recebimento<select name="method" required><option value="PIX">PIX</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option><option value="Outro">Outro</option></select></label>
+          <label data-pix-field>Chave PIX<input name="pixKey" autocomplete="off" placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória"></label>
+          <label>Nome do titular<input name="holder" placeholder="Titular da conta ou chave"></label>
+          <label>Valor solicitado<input name="amount" type="number" min="0.01" step="0.01" required></label>
+          <label class="preference-note">Observação<input name="note" placeholder="Informação adicional para o pagamento"></label>
+          <div class="payment-preference-security">Seus dados serão usados somente para esta solicitação de pagamento.</div>
+          <div class="dialog-actions"><button class="primary" type="submit">Adicionar forma de recebimento</button></div>
+          <p id="paymentPreferenceMessage" class="preference-message" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section id="payablesSection" class="panel panel-payables">
+        <div class="section-heading"><div><span class="eyebrow">Financeiro</span><h2>Pagamentos e fechamentos</h2></div></div>
+        <div id="payables"></div>
+      </section>
+
       <section class="dashboard-grid">
         <article class="panel chart-panel">
           <div class="section-heading"><div><span class="eyebrow">Visão geral</span><h2>Status dos serviços</h2></div></div>
@@ -53,35 +79,11 @@
           <div><span class="eyebrow">Período autorizado</span><h2>Todos os serviços</h2></div>
           <div class="services-tools">
             <input id="entrySearch" class="search-field" type="search" placeholder="Buscar placa ou serviço">
+            <button id="entryDisplayToggle" class="entry-display-toggle" type="button" aria-pressed="false">Exibir simples</button>
             <button id="openEntryEditor" class="primary hidden" type="button">Lançar serviço</button>
           </div>
         </div>
         <div id="entries" class="entry-list"></div>
-      </section>
-
-      <section id="payablesSection" class="panel panel-payables">
-        <div class="section-heading"><div><span class="eyebrow">Financeiro</span><h2>Pagamentos e fechamentos</h2></div></div>
-        <div id="payables"></div>
-      </section>
-
-      <section id="paymentPreferencePanel" class="panel payment-preference-panel hidden">
-        <div class="section-heading"><div><span class="eyebrow">Recebimento seguro</span><h2>Como deseja receber?</h2><p class="meta">Informe os dados para o administrador realizar o pagamento. Nenhuma baixa é feita automaticamente.</p></div></div>
-        <form id="paymentPreferenceForm" class="payment-preference-form">
-          <input name="payableId" type="hidden">
-          <label>Forma de recebimento<select name="method" required><option value="PIX">PIX</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option><option value="Outro">Outro</option></select></label>
-          <label data-pix-field>Chave PIX<input name="pixKey" autocomplete="off" placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória"></label>
-          <label>Nome do titular<input name="holder" placeholder="Titular da conta ou chave"></label>
-          <label>Valor solicitado<input name="amount" type="number" min="0.01" step="0.01" required></label>
-          <label class="preference-note">Observação<input name="note" placeholder="Informação adicional para o pagamento"></label>
-          <div class="payment-preference-security">Seus dados serão usados somente para esta solicitação de pagamento.</div>
-          <div class="dialog-actions"><button class="primary" type="submit">Salvar forma de recebimento</button></div>
-          <p id="paymentPreferenceMessage" class="preference-message" aria-live="polite"></p>
-        </form>
-      </section>
-
-      <section id="supplySummarySection" class="panel supply-summary-panel">
-        <div class="section-heading"><div><span class="eyebrow">Resumo final</span><h2>Resumo dos fornecimentos</h2></div><strong id="supplyGrandTotal"></strong></div>
-        <div id="supplySummary" class="supply-summary"></div>
       </section>
     </section>
   </main>
@@ -135,6 +137,11 @@
     </div>
   </dialog>
 
+  <dialog id="entryQuickViewDialog">
+    <div class="dialog-heading"><h2>Detalhes do serviço</h2><button class="icon-button" type="button" data-close-quick-view>×</button></div>
+    <div id="entryQuickViewBody" class="entry-list"></div>
+  </dialog>
+
   <dialog id="cancelDialog">
     <form id="cancelForm" method="dialog">
       <div class="dialog-heading"><h2>Cancelar serviço</h2><button class="icon-button" value="cancel">×</button></div>
@@ -160,6 +167,6 @@
     </div>
   </dialog>
 
-  <script src="fornecedor.js?v=28"></script>
+  <script src="fornecedor.js?v=29"></script>
 </body>
 </html>

@@ -57,6 +57,11 @@
     return Math.max(0, Number(payable.amount) - payablePaid(payable));
   }
 
+  function supplierPreferencesOf(payable) {
+    return payable?.snapshot?.paymentPreferences
+      || (payable?.snapshot?.paymentPreference ? [{ id: "legacy", ...payable.snapshot.paymentPreference }] : []);
+  }
+
   function payableStatus(payable) {
     if (payable.status === "Cancelada") return "Cancelada";
     const paid = payablePaid(payable);
@@ -445,7 +450,7 @@
         <div class="receivable-heading"><div><span class="eyebrow">${formatDate(item.startDate)} a ${formatDate(item.endDate)}</span><h3>${escapeHtml(supplierById(item.supplierId)?.name || "")}</h3></div><span class="billing-status billing-${payableStatus(item).toLowerCase()}">${payableStatus(item)}</span></div>
         <div class="receivable-values"><span>Valor original<strong>${money.format(item.amount)}</strong></span><span>Pago<strong>${money.format(payablePaid(item))}</strong></span><span>Saldo<strong>${money.format(payableOpen(item))}</strong></span></div>
         <p class="meta">${entryCount} serviço(s) nesta conta${item.createdAt ? ` · Gerada em ${new Date(item.createdAt).toLocaleDateString("pt-BR")}` : ""}</p>
-        ${item.snapshot?.paymentPreference ? `<p class="supplier-preference-badge">Recebimento informado: <strong>${escapeHtml(item.snapshot.paymentPreference.method)}</strong> · ${money.format(Number(item.snapshot.paymentPreference.amount || 0))}</p>` : ""}
+        ${supplierPreferencesOf(item).length ? `<p class="supplier-preference-badge">Recebimento informado: ${supplierPreferencesOf(item).map((preference) => `<strong>${escapeHtml(preference.method)}</strong> · ${money.format(Number(preference.amount || 0))}`).join(" + ")}</p>` : ""}
         <div class="supplier-payable-buttons">
           <button class="table-action" data-supplier-report="${item.id}">Abrir conta</button>
           <button class="table-action whatsapp-action" data-supplier-share="${item.id}">Compartilhar</button>
@@ -1478,20 +1483,23 @@
     if (!payable) return;
     activeSupplierReportId = payable.id;
     const { supplier, entries, payments } = supplierReportData(payable);
-    const preference = payable.snapshot?.paymentPreference;
+    const preferences = supplierPreferencesOf(payable);
     const entryRows = entries.map((item) => `<tr class="${item.status === "Cancelado" ? "supplier-report-cancelled" : ""}">
       <td>${formatDate(item.date)}</td><td>${escapeHtml(item.description)}</td><td><strong>${escapeHtml(item.reference || "-")}</strong></td>
       <td>${escapeHtml(item.status)}</td><td>${money.format(item.amount)}</td>
       <td>${escapeHtml(item.status === "Cancelado" ? item.cancellationReason || item.notes || "Cancelado" : item.notes || "-")}</td>
     </tr>`).join("");
     const paymentRows = payments.map((item) => `<tr><td>${formatDate(item.date)}</td><td>${escapeHtml(item.method || "Não informada")}</td><td>${escapeHtml(item.note || "-")}</td><td>${money.format(item.amount)}</td></tr>`).join("");
+    const preferenceSections = preferences.length
+      ? preferences.map((preference, index) => `<section class="supplier-payment-request"><div><span class="eyebrow">Informado pelo fornecedor</span><h3>Solicitação de recebimento${preferences.length > 1 ? ` (${index + 1}/${preferences.length})` : ""}</h3><p>${preference.updatedAt ? `Atualizado em ${new Date(preference.updatedAt).toLocaleString("pt-BR")}` : ""}</p></div><span><small>Forma</small><strong>${escapeHtml(preference.method)}</strong></span><span><small>Titular</small><strong>${escapeHtml(preference.holder || "Não informado")}</strong></span><span><small>Valor solicitado</small><strong>${money.format(Number(preference.amount || 0))}</strong></span>${preference.pixKey ? `<span class="supplier-pix-data"><small>Chave PIX</small><strong>${escapeHtml(preference.pixKey)}</strong><button class="table-action" type="button" data-copy-supplier-pix="${escapeHtml(preference.pixKey)}">Copiar PIX</button></span>` : ""}${preference.note ? `<p>${escapeHtml(preference.note)}</p>` : ""}</section>`).join("")
+      : `<section class="supplier-payment-request empty-request"><strong>O fornecedor ainda não informou como deseja receber.</strong></section>`;
     byId("supplierReportContent").innerHTML = `
       <header class="supplier-report-header"><div><span class="eyebrow">Gestor de Serviços</span><h2>Demonstrativo do fornecedor</h2><p>${escapeHtml(supplier?.name || "Fornecedor")}</p></div><div><strong>${payableStatus(payable)}</strong><span>${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}</span></div></header>
       <section class="supplier-report-identification"><span><small>Fornecedor</small><strong>${escapeHtml(supplier?.name || "-")}</strong></span><span><small>Documento</small><strong>${escapeHtml(supplier?.document || "Não informado")}</strong></span><span><small>Contato</small><strong>${escapeHtml(supplier?.phone || "Não informado")}</strong></span></section>
       <section class="supplier-report-summary"><article><span>Total da conta</span><strong>${money.format(payable.amount)}</strong></article><article><span>Total pago</span><strong>${money.format(payablePaid(payable))}</strong></article><article><span>Saldo</span><strong>${money.format(payableOpen(payable))}</strong></article><article><span>Lançamentos</span><strong>${entries.length}</strong></article></section>
-      ${preference ? `<section class="supplier-payment-request"><div><span class="eyebrow">Informado pelo fornecedor</span><h3>Solicitação de recebimento</h3><p>Atualizado em ${new Date(preference.updatedAt).toLocaleString("pt-BR")}</p></div><span><small>Forma</small><strong>${escapeHtml(preference.method)}</strong></span><span><small>Titular</small><strong>${escapeHtml(preference.holder || "Não informado")}</strong></span><span><small>Valor solicitado</small><strong>${money.format(Number(preference.amount || 0))}</strong></span>${preference.pixKey ? `<span class="supplier-pix-data"><small>Chave PIX</small><strong>${escapeHtml(preference.pixKey)}</strong><button class="table-action" type="button" data-copy-supplier-pix="${escapeHtml(preference.pixKey)}">Copiar PIX</button></span>` : ""}${preference.note ? `<p>${escapeHtml(preference.note)}</p>` : ""}</section>` : `<section class="supplier-payment-request empty-request"><strong>O fornecedor ainda não informou como deseja receber.</strong></section>`}
+      ${preferenceSections}
       <section class="supplier-report-section"><div class="subsection-heading"><div><span class="eyebrow">Composição</span><h3>Lançamentos incluídos</h3></div></div><div class="catalog-table-wrap"><table class="catalog-table supplier-report-table"><thead><tr><th>Data</th><th>Serviço</th><th>Referência</th><th>Status</th><th>Valor</th><th>Observação</th></tr></thead><tbody>${entryRows || `<tr><td colspan="6">Nenhum lançamento.</td></tr>`}</tbody></table></div></section>
-      ${payable.snapshot?.portalUrl ? `<section class="supplier-report-portal"><div><span class="eyebrow">Acesso semanal</span><h3>Link do fornecedor</h3><p>${payable.snapshot.showEntries === false ? "Somente resumo, cards e gráficos" : "Resumo completo com lista de serviços"}</p></div><a href="${escapeHtml(payable.snapshot.portalUrl)}" target="_blank" rel="noopener">Abrir portal</a><button class="secondary" type="button" data-copy-payable-portal="${escapeHtml(payable.snapshot.portalUrl)}">Copiar link</button></section>` : ""}
+      ${payable.snapshot?.portalUrl ? `<section class="supplier-report-portal"><div><span class="eyebrow">Acesso semanal</span><h3>Link do fornecedor</h3><p>${payable.snapshot.showEntries === false ? "Somente resumo, cards e gráficos" : "Resumo completo com lista de serviços"}</p></div><div class="tracking-access-credentials"><span><small>Link</small><strong>${escapeHtml(payable.snapshot.portalUrl)}</strong></span>${payable.snapshot.portalIdentifier ? `<span><small>Identificador</small><strong>${escapeHtml(payable.snapshot.portalIdentifier)}</strong></span>` : ""}${payable.snapshot.portalPassword ? `<span><small>Senha</small><strong>${escapeHtml(payable.snapshot.portalPassword)}</strong></span>` : ""}</div><div class="tracking-access-actions"><button class="secondary" type="button" data-copy-supplier-link="${escapeHtml(payable.snapshot.portalUrl)}">Copiar link</button>${payable.snapshot.portalIdentifier ? `<button class="secondary" type="button" data-copy-supplier-link-identifier="${escapeHtml(payable.snapshot.portalIdentifier)}">Copiar identificador</button>` : ""}${payable.snapshot.portalPassword ? `<button class="secondary" type="button" data-copy-supplier-link-password="${escapeHtml(payable.snapshot.portalPassword)}">Copiar senha</button>` : ""}<a href="${escapeHtml(payable.snapshot.portalUrl)}" target="_blank" rel="noopener">Abrir portal</a></div></section>` : ""}
       <section class="supplier-report-section"><div class="subsection-heading"><div><span class="eyebrow">Financeiro</span><h3>Pagamentos realizados</h3></div></div><div class="catalog-table-wrap"><table class="catalog-table supplier-report-table"><thead><tr><th>Data</th><th>Forma</th><th>Observação</th><th>Valor pago</th></tr></thead><tbody>${paymentRows || `<tr><td colspan="4">Nenhum pagamento registrado.</td></tr>`}</tbody><tfoot><tr><th colspan="3">Total pago</th><th>${money.format(payablePaid(payable))}</th></tr></tfoot></table></div></section>`;
     byId("supplierReportDialog").showModal();
   }
@@ -1542,9 +1550,9 @@
     write(`Saldo: ${money.format(payableOpen(payable))}`, 400, 11, true, "0.75 0.32 0.08");
     y -= 35;
 
-    const preference = payable.snapshot?.paymentPreference;
-    if (preference) {
-      heading("Solicitação de recebimento do fornecedor");
+    const preferences = supplierPreferencesOf(payable);
+    preferences.forEach((preference, index) => {
+      heading(`Solicitação de recebimento do fornecedor${preferences.length > 1 ? ` (${index + 1}/${preferences.length})` : ""}`);
       write(`Forma: ${preference.method || "-"}`, 42, 9, true);
       write(`Valor solicitado: ${money.format(Number(preference.amount || 0))}`, 300, 9, true);
       y -= 16;
@@ -1553,7 +1561,7 @@
       y -= 16;
       write(`Observação: ${String(preference.note || "-").slice(0, 80)}`, 42, 8);
       y -= 24;
-    }
+    });
 
     heading(`Lançamentos incluídos (${entries.length})`);
     entries.forEach((item) => {
@@ -1784,9 +1792,15 @@
           showEntries: data.get("showEntries") === "on",
           replaceExisting: false
         });
-        payable.snapshot = { ...payable.snapshot, portalUrl: issued.url, showEntries: data.get("showEntries") === "on" };
+        payable.snapshot = {
+          ...payable.snapshot,
+          portalUrl: issued.url,
+          portalIdentifier: issued.identifier,
+          portalPassword: issued.password,
+          showEntries: data.get("showEntries") === "on"
+        };
         generatedSupplierAccessUrl = issued.url;
-        generatedSupplierAccessText = `Olá, ${issued.supplierName}. Consulte o resumo de ${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}:\n${issued.url}`;
+        generatedSupplierAccessText = `Olá, ${issued.supplierName}. Consulte o resumo de ${formatDate(payable.startDate)} a ${formatDate(payable.endDate)}:\n${issued.url}\n\nSem senha: só o resumo, sem valores.\nCom senha (acesso completo, incluindo contas a pagar):\nIdentificador: ${issued.identifier}\nSenha: ${issued.password}`;
         await window.persistStateNow();
       } catch (error) {
         console.error(error);
@@ -2168,12 +2182,15 @@
     if (pay) {
       const payable = state.supplierPayables.find((item) => item.id === pay.dataset.paySupplier);
       const form = byId("supplierPaymentForm"); form.reset(); form.elements.payableId.value = payable.id; form.elements.supplierId.value = payable.supplierId; form.elements.date.value = today();
-      const preference = payable.snapshot?.paymentPreference;
+      const preferences = supplierPreferencesOf(payable);
+      const preferenceTotal = preferences.reduce((sum, item) => sum + Number(item.amount || 0), 0);
       form.elements.amount.value = pay.dataset.mode === "full"
         ? payableOpen(payable).toFixed(2)
-        : preference?.amount ? Math.min(Number(preference.amount), payableOpen(payable)).toFixed(2) : "";
-      if (preference?.method && [...form.elements.method.options].some((option) => option.value === preference.method)) form.elements.method.value = preference.method;
-      if (preference) form.elements.note.value = [`Solicitado pelo fornecedor`, preference.holder && `Titular: ${preference.holder}`, preference.pixKey && `PIX: ${preference.pixKey}`, preference.note].filter(Boolean).join(" | ");
+        : preferenceTotal ? Math.min(preferenceTotal, payableOpen(payable)).toFixed(2) : "";
+      if (preferences.length === 1 && [...form.elements.method.options].some((option) => option.value === preferences[0].method)) form.elements.method.value = preferences[0].method;
+      if (preferences.length) form.elements.note.value = preferences.map((preference) =>
+        [`Solicitado pelo fornecedor (${preference.method})`, `Valor: ${money.format(Number(preference.amount || 0))}`, preference.holder && `Titular: ${preference.holder}`, preference.pixKey && `PIX: ${preference.pixKey}`, preference.note].filter(Boolean).join(" | ")
+      ).join("\n");
       supplierPaymentWizard.activate(window.matchMedia("(max-width: 1024px)").matches);
       byId("supplierPaymentDialog").showModal();
     }

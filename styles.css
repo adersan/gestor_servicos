@@ -760,7 +760,7 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .supplier-report-table { min-width: 850px; }
 .supplier-report-table tfoot { background: #edf9f2; }
 .supplier-report-cancelled { color: #9b615c; background: #fff0ee; }
-.supplier-report-portal { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; margin: 18px 0; padding: 16px; border: 1px solid #b9d9ca; border-radius: 14px; background: #f2faf6; }
+.supplier-report-portal { display: grid; gap: 12px; margin: 18px 0; padding: 16px; border: 1px solid #b9d9ca; border-radius: 14px; background: #f2faf6; }
 .supplier-report-portal h3, .supplier-report-portal p { margin: 3px 0; }
 .supplier-report-portal a { color: var(--brand-ink); font-weight: 800; }
 .supplier-payment-request { display: grid; grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(130px, auto)); gap: 12px; align-items: center; margin: 18px 0; padding: 16px; border: 1px solid #d8c28e; border-left: 5px solid #d99c39; border-radius: 14px; background: #fffbf2; }

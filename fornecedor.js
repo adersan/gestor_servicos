@@ -13,10 +13,13 @@
   const SUPPLIER_CHOICE_KEY = "supplier-access-choice";
   const SUPPLIER_IDENTIFIER_KEY = "supplier-access-identifier";
   const SUPPLIER_PASSWORD_KEY = "supplier-access-password";
+  const ENTRY_DISPLAY_KEY = "supplier-portal-entry-display";
+  const SIMPLE_STATUS_INITIALS = { "A fazer": "AF", "Feito": "F", "Cancelado": "C" };
   let data;
   let search = "";
   let refreshInProgress = false;
   let pendingRestrictedData = null;
+  let entryDisplayMode = localStorage.getItem(ENTRY_DISPLAY_KEY) === "simple" ? "simple" : "full";
 
   const amountText = (value) => data?.includeFinancial === false ? "Valor sob consulta" : money.format(Number(value || 0));
 
@@ -215,6 +218,40 @@
     </article>`;
   }
 
+  function entrySimpleRowMarkup(item) {
+    const statusInitial = SIMPLE_STATUS_INITIALS[item.status] || item.status;
+    return `<tr data-quick-view="${item.id}">
+      <td>${date(item.service_date)}</td>
+      <td><strong>${escape(item.reference || "Sem referência")}</strong></td>
+      <td class="supplier-simple-truncate">${escape(item.service_name)}</td>
+      <td><span class="status ${normalized(item.status).replace(/\s/g, "-")}">${escape(statusInitial)}</span></td>
+      <td class="supplier-simple-amount">${amountText(item.amount)}</td>
+    </tr>`;
+  }
+
+  function updateEntryDisplayToggleButton() {
+    const button = document.getElementById("entryDisplayToggle");
+    if (!button) return;
+    const isSimple = entryDisplayMode === "simple";
+    button.textContent = isSimple ? "Exibir completo" : "Exibir simples";
+    button.classList.toggle("active", isSimple);
+    button.setAttribute("aria-pressed", String(isSimple));
+  }
+
+  function renderEntryList(filtered) {
+    if (!filtered.length) return `<div class="empty">Nenhum serviço encontrado.</div>`;
+    if (entryDisplayMode !== "simple") return filtered.map(entryMarkup).join("");
+    return `<div class="supplier-simple-wrap"><table class="supplier-simple-table">
+      <thead><tr><th>Data</th><th>Referência</th><th>Serviço</th><th>Status</th><th>Valor</th></tr></thead>
+      <tbody>${filtered.map(entrySimpleRowMarkup).join("")}</tbody>
+    </table></div>`;
+  }
+
+  function openEntryQuickView(item) {
+    document.getElementById("entryQuickViewBody").innerHTML = entryMarkup(item);
+    document.getElementById("entryQuickViewDialog").showModal();
+  }
+
   function renderCharts(active, cancelled) {
     const pending = active.filter((item) => item.status === "A fazer").length;
     const done = active.filter((item) => item.status === "Feito").length;
@@ -300,25 +337,47 @@
     form.elements.pixKey.required = isPix;
   }
 
+  function supplierPreferencesOf(payable) {
+    return payable?.snapshot?.paymentPreferences
+      || (payable?.snapshot?.paymentPreference ? [{ id: "legacy", ...payable.snapshot.paymentPreference }] : []);
+  }
+
+  function preferenceRowMarkup(preference, payableId) {
+    const details = [
+      preference.holder && `Titular: ${preference.holder}`,
+      preference.pixKey && `PIX: ${preference.pixKey}`,
+      preference.note
+    ].filter(Boolean).join(" · ");
+    return `<div class="preference-row">
+      <div><strong>${escape(preference.method)} · ${money.format(Number(preference.amount || 0))}</strong>${details ? `<span>${escape(details)}</span>` : ""}</div>
+      <span>${preference.updatedAt ? new Date(preference.updatedAt).toLocaleDateString("pt-BR") : ""}</span>
+      <button class="danger" type="button" data-remove-preference="${escape(preference.id)}" data-remove-preference-payable="${escape(payableId)}">Remover</button>
+    </div>`;
+  }
+
   function renderPaymentPreference() {
     const panel = document.getElementById("paymentPreferencePanel");
     const payable = data.payables.find((item) => openForPayable(item) > 0.001) || data.payables[0];
     panel.classList.toggle("hidden", !payable);
     if (!payable) return;
-    const preference = payable.snapshot?.paymentPreference || {};
+    const preferences = supplierPreferencesOf(payable);
     const openAmount = openForPayable(payable);
+    const requestedTotal = preferences.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const remaining = Math.max(0, openAmount - requestedTotal);
+    document.getElementById("paymentPreferenceList").innerHTML = preferences
+      .map((item) => preferenceRowMarkup(item, payable.id)).join("");
     const form = document.getElementById("paymentPreferenceForm");
     form.elements.payableId.value = payable.id;
-    form.elements.method.value = preference.method || "PIX";
-    form.elements.pixKey.value = preference.pixKey || "";
-    form.elements.holder.value = preference.holder || "";
-    form.elements.amount.value = Number(preference.amount || openAmount).toFixed(2);
-    form.elements.amount.max = openAmount.toFixed(2);
-    form.elements.note.value = preference.note || "";
-    form.querySelector('button[type="submit"]').disabled = openAmount <= 0.001;
-    document.getElementById("paymentPreferenceMessage").textContent = preference.updatedAt
-      ? `Dados atualizados em ${new Date(preference.updatedAt).toLocaleString("pt-BR")}. Valor solicitado: ${money.format(Number(preference.amount || 0))}.`
-      : openAmount > 0.001 ? `Saldo disponível para solicitação: ${money.format(openAmount)}.` : "Esta conta já está quitada.";
+    form.elements.method.value = "PIX";
+    form.elements.pixKey.value = "";
+    form.elements.holder.value = "";
+    form.elements.amount.value = remaining > 0.001 ? remaining.toFixed(2) : "";
+    form.elements.amount.max = remaining.toFixed(2);
+    form.elements.note.value = "";
+    form.querySelector('button[type="submit"]').disabled = remaining <= 0.001;
+    document.getElementById("paymentPreferenceMessage").textContent = remaining > 0.001
+      ? `Saldo ainda disponível para solicitação: ${money.format(remaining)}.`
+      : preferences.length ? "Todo o saldo já foi distribuído entre as formas informadas." : "Esta conta já está quitada.";
     syncPixField();
   }
 
@@ -326,6 +385,7 @@
     const permissions = data.permissions || {};
     document.getElementById("message").classList.add("hidden");
     document.getElementById("content").classList.remove("hidden");
+    updateEntryDisplayToggleButton();
     document.querySelector("h1").textContent = data.supplier.name;
     document.getElementById("period").textContent = `${date(data.period.startDate)} a ${date(data.period.endDate)}`;
     const permissionLabels = [
@@ -378,12 +438,12 @@
       if (dateDifference) return dateDifference;
       return String(b.updated_at || "").localeCompare(String(a.updated_at || ""));
     });
-    document.getElementById("entries").innerHTML = permissions.showEntries && filtered.length
-      ? filtered.map(entryMarkup).join("")
-      : permissions.showEntries ? `<div class="empty">Nenhum serviço encontrado.</div>` : "";
-    document.getElementById("payables").innerHTML = data.payables.length ? data.payables.map((item) =>
-      `<div class="payable payable-detail"><div><strong>${date(item.period_start)} a ${date(item.period_end)}</strong><span>${escape(openForPayable(item) <= 0.001 ? "Paga" : paidForPayable(item.id) > 0 ? "Parcial" : item.status)}</span>${item.snapshot?.paymentPreference ? `<small>Forma informada: ${escape(item.snapshot.paymentPreference.method)} · ${money.format(Number(item.snapshot.paymentPreference.amount || 0))}</small>` : ""}</div><span>Total<strong>${money.format(Number(item.total_due))}</strong></span><span>Pago<strong>${money.format(paidForPayable(item.id))}</strong></span><span>Saldo<strong>${money.format(openForPayable(item))}</strong></span></div>`
-    ).join("") : `<div class="empty">Nenhum fechamento no período.</div>`;
+    document.getElementById("entries").innerHTML = permissions.showEntries ? renderEntryList(filtered) : "";
+    document.getElementById("payables").innerHTML = data.payables.length ? data.payables.map((item) => {
+      const preferences = supplierPreferencesOf(item);
+      const preferenceLabel = preferences.map((preference) => `${preference.method} · ${money.format(Number(preference.amount || 0))}`).join(" + ");
+      return `<div class="payable payable-detail"><div><strong>${date(item.period_start)} a ${date(item.period_end)}</strong><span>${escape(openForPayable(item) <= 0.001 ? "Paga" : paidForPayable(item.id) > 0 ? "Parcial" : item.status)}</span>${preferences.length ? `<small>Forma informada: ${escape(preferenceLabel)}</small>` : ""}</div><span>Total<strong>${money.format(Number(item.total_due))}</strong></span><span>Pago<strong>${money.format(paidForPayable(item.id))}</strong></span><span>Saldo<strong>${money.format(openForPayable(item))}</strong></span></div>`;
+    }).join("") : `<div class="empty">Nenhum fechamento no período.</div>`;
     renderSupplySummary(data.entries);
     renderPaymentPreference();
   }
@@ -493,6 +553,21 @@
     search = event.target.value;
     render();
   });
+  document.getElementById("entryDisplayToggle").addEventListener("click", () => {
+    entryDisplayMode = entryDisplayMode === "simple" ? "full" : "simple";
+    localStorage.setItem(ENTRY_DISPLAY_KEY, entryDisplayMode);
+    render();
+  });
+  document.getElementById("entries").addEventListener("click", (event) => {
+    const row = event.target.closest("[data-quick-view]");
+    if (!row) return;
+    const item = data.entries.find((entry) => entry.id === row.dataset.quickView);
+    if (item) openEntryQuickView(item);
+  });
+  document.getElementById("entryQuickViewDialog").addEventListener("click", (event) => {
+    if (event.target.closest("[data-close-quick-view]")) document.getElementById("entryQuickViewDialog").close();
+    else if (event.target.closest("button[data-mark-done], button[data-edit], button[data-cancel]")) document.getElementById("entryQuickViewDialog").close();
+  });
   document.getElementById("refreshData").addEventListener("click", refresh);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && !document.querySelector("dialog[open]")) refresh();
@@ -527,13 +602,30 @@
     button.textContent = "Salvando...";
     try {
       await request({ action: "payment_preference", ...Object.fromEntries(new FormData(form)) });
-      message.textContent = "Forma de recebimento salva com segurança.";
+      message.textContent = "Forma de recebimento adicionada com segurança.";
       await load();
     } catch (error) {
       message.textContent = error.message;
-    } finally {
       button.disabled = false;
-      button.textContent = "Salvar forma de recebimento";
+    } finally {
+      button.textContent = "Adicionar forma de recebimento";
+    }
+  });
+  document.getElementById("paymentPreferenceList").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-remove-preference]");
+    if (!button) return;
+    if (!(await showAppConfirm("Remover esta forma de recebimento?"))) return;
+    button.disabled = true;
+    try {
+      await request({
+        action: "payment_preference_remove",
+        payableId: button.dataset.removePreferencePayable,
+        preferenceId: button.dataset.removePreference
+      });
+      await load();
+    } catch (error) {
+      showAppAlert(error.message, { type: "error" });
+      button.disabled = false;
     }
   });
   document.getElementById("entryForm").addEventListener("submit", async (event) => {
