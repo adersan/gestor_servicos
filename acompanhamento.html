@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=35">
+  <link rel="stylesheet" href="acompanhamento.css?v=36">
 </head>
 <body>
   <header class="tracking-header">
@@ -32,7 +32,13 @@
     </section>
     <section id="trackingPanel" class="hidden">
       <div class="tracking-intro">
-        <div><span class="eyebrow">Consulta somente leitura</span><h2 id="clientName"></h2><p id="periodText"></p></div>
+        <div><span class="eyebrow">Consulta somente leitura</span><h2 id="clientName"></h2>
+          <div class="tracking-period-nav">
+            <button id="trackingPeriodPrev" class="tracking-period-nav-btn" type="button" aria-label="Semana anterior">‹</button>
+            <p id="periodText"></p>
+            <button id="trackingPeriodNext" class="tracking-period-nav-btn" type="button" aria-label="Próxima semana">›</button>
+          </div>
+        </div>
         <div class="updated-box"><span>Atualizado em</span><strong id="updatedAt"></strong></div>
       </div>
       <button id="switchToFullAccessButton" class="tracking-link-button hidden" type="button">Tenho senha, quero acesso completo</button>
@@ -158,6 +164,6 @@
       <button type="button" class="tracking-primary" data-wizard-next>Continuar</button>
     </div>
   </dialog>
-  <script src="acompanhamento.js?v=48"></script>
+  <script src="acompanhamento.js?v=49"></script>
 </body>
 </html>

@@ -273,6 +273,53 @@ export function resolveTrackingTier(link, credentials = {}) {
   return "restricted";
 }
 
+const BUSINESS_TIMEZONE = "America/Sao_Paulo";
+
+// "Hoje" no fuso do negocio (Brasil), independente do fuso do servidor da Netlify (normalmente UTC) -
+// evita a semana operacional virar um dia adiantada durante a noite (horario de Brasilia).
+export function todayInBusinessTimezone() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: BUSINESS_TIMEZONE }).format(new Date());
+}
+
+// Mesma logica de currentOperationalWeek()/previousFinancePeriod() do app.js (painel admin),
+// reescrita aqui porque as Netlify Functions rodam num contexto separado do navegador.
+// Trabalha só com datas (strings "AAAA-MM-DD"), ancorando em meio-dia UTC pra nao sofrer
+// deslocamento de fuso horario na aritmetica de dias.
+export function operationalWeekFor(dateKey, weekStartDay = 0, weekEndDay = 5) {
+  const start = new Date(`${dateKey}T12:00:00Z`);
+  const daysFromStart = (start.getUTCDay() - weekStartDay + 7) % 7;
+  start.setUTCDate(start.getUTCDate() - daysFromStart);
+  const end = new Date(start);
+  const weekLength = (weekEndDay - weekStartDay + 7) % 7;
+  end.setUTCDate(start.getUTCDate() + weekLength);
+  const toKey = (date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+  return { startDate: toKey(start), endDate: toKey(end) };
+}
+
+export async function currentAppPeriodSettings() {
+  try {
+    const rows = await supabase("/rest/v1/app_settings?id=eq.default&select=week_start_day,week_end_day&limit=1");
+    const settings = rows[0];
+    return {
+      weekStartDay: Number.isInteger(settings?.week_start_day) ? settings.week_start_day : 0,
+      weekEndDay: Number.isInteger(settings?.week_end_day) ? settings.week_end_day : 5
+    };
+  } catch {
+    return { weekStartDay: 0, weekEndDay: 5 };
+  }
+}
+
+// Semana operacional atual deslocada N semanas (weekOffset <= 0, 0 = semana atual, -1 = anterior...).
+export function operationalWeekWithOffset(weekStartDay, weekEndDay, weekOffset = 0) {
+  const today = todayInBusinessTimezone();
+  const currentWeek = operationalWeekFor(today, weekStartDay, weekEndDay);
+  if (!weekOffset) return currentWeek;
+  const reference = new Date(`${currentWeek.startDate}T12:00:00Z`);
+  reference.setUTCDate(reference.getUTCDate() + weekOffset * 7);
+  const referenceKey = `${reference.getUTCFullYear()}-${String(reference.getUTCMonth() + 1).padStart(2, "0")}-${String(reference.getUTCDate()).padStart(2, "0")}`;
+  return operationalWeekFor(referenceKey, weekStartDay, weekEndDay);
+}
+
 function encode(value) {
   return Buffer.from(value).toString("base64url");
 }

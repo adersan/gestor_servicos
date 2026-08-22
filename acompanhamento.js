@@ -10,6 +10,7 @@ let trackingData = null;
 let pendingRestrictedData = null;
 let activeTrackingView = "services";
 let serviceDisplayMode = localStorage.getItem(trackingServiceDisplayKey) === "simple" ? "simple" : "full";
+let trackingWeekOffset = 0;
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -352,7 +353,7 @@ async function requestData(accessCode, credentials = {}) {
   const response = await fetch("/.netlify/functions/service-tracking-data", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accessCode, ...credentials })
+    body: JSON.stringify({ accessCode, weekOffset: trackingWeekOffset, ...credentials })
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "Não foi possível abrir o acompanhamento.");
@@ -649,7 +650,11 @@ function render(data) {
   };
   const total = services.reduce((sum, item) => sum + Number(item.amount), 0);
   document.getElementById("clientName").textContent = data.client.name;
-  document.getElementById("periodText").textContent = `${formatDate(data.period.startDate)} a ${formatDate(data.period.endDate)}`;
+  trackingWeekOffset = Number.isInteger(data.weekOffset) ? data.weekOffset : 0;
+  const periodSuffix = trackingWeekOffset === 0 ? " · Semana atual" : "";
+  document.getElementById("periodText").textContent = `${formatDate(data.period.startDate)} a ${formatDate(data.period.endDate)}${periodSuffix}`;
+  document.getElementById("trackingPeriodPrev").disabled = data.canGoBack === false;
+  document.getElementById("trackingPeriodNext").disabled = data.canGoForward === false;
   document.getElementById("updatedAt").textContent = new Date(data.updatedAt).toLocaleString("pt-BR");
   const search = searchableText(document.getElementById("trackingServiceSearch")?.value || "");
   const requesterSelect = document.getElementById("trackingRequesterFilter");
@@ -770,6 +775,20 @@ async function loadTracking() {
   render(data);
 }
 
+async function navigateTrackingWeek(delta) {
+  if (refreshInProgress) return;
+  trackingWeekOffset += delta;
+  refreshInProgress = true;
+  try {
+    await loadTracking();
+  } catch (error) {
+    trackingWeekOffset -= delta;
+    showError(error);
+  } finally {
+    refreshInProgress = false;
+  }
+}
+
 async function refreshTracking() {
   if (refreshInProgress) return;
   refreshInProgress = true;
@@ -808,6 +827,8 @@ async function enterFullAccess(credentials) {
 }
 
 document.getElementById("refreshButton").addEventListener("click", refreshTracking);
+document.getElementById("trackingPeriodPrev").addEventListener("click", () => navigateTrackingWeek(-1));
+document.getElementById("trackingPeriodNext").addEventListener("click", () => navigateTrackingWeek(1));
 document.getElementById("enterWithoutPasswordButton").addEventListener("click", enterRestricted);
 document.getElementById("showPasswordFormButton").addEventListener("click", () => {
   document.getElementById("trackingAccessButtons").classList.add("hidden");

@@ -18,6 +18,9 @@ label { display:grid; gap:6px; color:var(--muted); font-size:12px; font-weight:7
 .updated-box { padding:12px 14px; border-radius:12px; background:#eaf3ef; text-align:right; }
 .updated-box span { display:block; color:var(--muted); font-size:11px; }
 .updated-box strong { display:block; margin-top:4px; font-size:13px; }
+.tracking-period-nav { display:flex; align-items:center; gap:8px; }
+.tracking-period-nav-btn { flex:0 0 auto; width:30px; height:30px; padding:0; border-color:var(--line); color:var(--brand); background:white; font-size:16px; line-height:1; }
+.tracking-period-nav-btn:disabled { color:var(--muted); background:#f3f4f2; cursor:not-allowed; opacity:.6; }
 .tracking-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:18px; }
 .summary-item { padding:16px; border-radius:14px; background:white; border:1px solid var(--line); box-shadow:inset 0 4px 0 var(--card-color); }
 .summary-item span { display:block; color:var(--muted); font-size:12px; }

@@ -5737,28 +5737,31 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
     : (editedSupplierSelections.length
       ? window.supplierModule?.createForClientEntries([createdEntries[0]], editedSupplierSelections) || []
       : []);
-  try {
-    if (sourceRequest && !existingEntry) {
-      await window.dataStore?.updateClientServiceRequest?.(sourceRequest.id, {
-        status: "Importado",
-        imported_entry_ids: sourceRequest.importedEntryIds,
-        imported_at: sourceRequest.importedAt,
-        updated_at: sourceRequest.updatedAt
-      });
+  render();
+  const persisted = (async () => {
+    try {
+      if (sourceRequest && !existingEntry) {
+        await window.dataStore?.updateClientServiceRequest?.(sourceRequest.id, {
+          status: "Importado",
+          imported_entry_ids: sourceRequest.importedEntryIds,
+          imported_at: sourceRequest.importedAt,
+          updated_at: sourceRequest.updatedAt
+        });
+      }
+      await persistStateNow();
+      showAppAlert(existingEntry ? "Lançamento atualizado com sucesso." : "Lançamento salvo com sucesso.", { type: "success" });
+    } catch (error) {
+      console.error("Falha ao sincronizar o lançamento:", error);
+      showAppAlert("O lançamento ficou salvo neste aparelho, mas a sincronização online falhou. O sistema tentará novamente.", { type: "error" });
+      saveState();
     }
-    await persistStateNow();
-    render();
-    showAppAlert(existingEntry ? "Lançamento atualizado com sucesso." : "Lançamento salvo com sucesso.", { type: "success" });
-  } catch (error) {
-    console.error("Falha ao sincronizar o lançamento:", error);
-    showAppAlert("O lançamento ficou salvo neste aparelho, mas a sincronização online falhou. O sistema tentará novamente.", { type: "error" });
-    saveState();
-  }
-  if (existingEntry) return;
+  })();
+  if (existingEntry) { await persisted; return; }
 
   if (systemSettings.offerSupplierShare !== false) {
     await window.supplierModule?.offerSupplierRequestShare(createdSupplierEntries);
   }
+  await persisted;
   if (systemSettings.askEntryContinuation === false) return;
   const next = await askEntryContinuation();
   if (next === "same") openEntryForm(null, savedClientId);
@@ -6903,7 +6906,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=187").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=188").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

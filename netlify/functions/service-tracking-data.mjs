@@ -1,11 +1,20 @@
 import {
   accessCodeHash,
   billingOpenAmount,
+  currentAppPeriodSettings,
   json,
+  operationalWeekFor,
+  operationalWeekWithOffset,
   resolveTrackingTier,
   selectBillingPaymentMethods,
   supabase
 } from "./_shared/server.mjs";
+
+const WEEK_MS = 7 * 86400000;
+
+function weeksBetween(fromDateKey, toDateKey) {
+  return Math.round((new Date(`${fromDateKey}T12:00:00Z`) - new Date(`${toDateKey}T12:00:00Z`)) / WEEK_MS);
+}
 
 function visibleServiceFilter(visibleServiceIds) {
   if (!Array.isArray(visibleServiceIds) || !visibleServiceIds.length) return "";
@@ -17,7 +26,7 @@ export default async (request) => {
   if (request.method !== "POST") return json(405, { error: "Método não permitido." });
 
   try {
-    const { accessCode, fullAccessCode, identifier, password } = await request.json();
+    const { accessCode, fullAccessCode, identifier, password, weekOffset: requestedWeekOffset } = await request.json();
     if (!accessCode || String(accessCode).length < 32) {
       return json(400, { error: "Link de acompanhamento inválido." });
     }
@@ -55,6 +64,19 @@ export default async (request) => {
     const visibleServiceIds = Array.isArray(link.visible_service_ids) ? link.visible_service_ids : [];
     const serviceFilter = visibleServiceFilter(visibleServiceIds);
 
+    // A janela de servicos exibida e sempre a semana operacional atual (ou uma anterior navegada
+    // pelo cliente), nao mais o periodo fixo gravado na criacao do link - assim um link com 30 dias
+    // de validade acompanha as semanas reais em vez de ficar preso pra sempre na semana em que foi gerado.
+    const { weekStartDay, weekEndDay } = await currentAppPeriodSettings();
+    const currentWeek = operationalWeekWithOffset(weekStartDay, weekEndDay, 0);
+    const earliestWeek = operationalWeekFor(link.period_start, weekStartDay, weekEndDay);
+    const earliestOffset = weeksBetween(earliestWeek.startDate, currentWeek.startDate);
+    let weekOffset = Math.trunc(Number(requestedWeekOffset)) || 0;
+    weekOffset = Math.min(0, Math.max(weekOffset, earliestOffset));
+    const period = operationalWeekWithOffset(weekStartDay, weekEndDay, weekOffset);
+    const canGoForward = weekOffset < 0;
+    const canGoBack = weekOffset > earliestOffset;
+
     const legacyFinancial = tier === "full-legacy" && link.show_amounts !== false;
     const includeCurrentServices = legacyFinancial || (tier === "full" && link.full_show_financial !== false);
     const includeBilling = legacyFinancial || (tier === "full" && link.full_show_billing !== false);
@@ -63,7 +85,7 @@ export default async (request) => {
     const [clients, services] = await Promise.all([
       supabase(`/rest/v1/clients?id=eq.${clientId}&active=eq.true&select=id,name,price_table_id&limit=1`),
       supabase(
-        `/rest/v1/service_entries?client_id=eq.${clientId}&service_date=gte.${link.period_start}&service_date=lte.${link.period_end}&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,updated_at,billing_id,service_id,delivered_at${serviceFilter}&order=service_date.desc`
+        `/rest/v1/service_entries?client_id=eq.${clientId}&service_date=gte.${period.startDate}&service_date=lte.${period.endDate}&select=id,service_name,requested_by,reference,service_date,amount,status,is_secondary,primary_entry_id,notes,cancellation_reason,updated_at,billing_id,service_id,delivered_at${serviceFilter}&order=service_date.desc`
       )
     ]);
     if (!clients.length) return json(404, { error: "Cliente não encontrado." });
@@ -124,7 +146,10 @@ export default async (request) => {
 
     return json(200, {
       client,
-      period: { startDate: link.period_start, endDate: link.period_end },
+      period,
+      weekOffset,
+      canGoBack,
+      canGoForward,
       expiresAt: link.expires_at,
       allowRequests: Boolean(link.allow_requests),
       showAmounts: includeCurrentServices,
