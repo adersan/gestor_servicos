@@ -5711,6 +5711,16 @@ document.getElementById("serviceForm").addEventListener("submit", async (event) 
         service.date = createdEntries[0].date;
         service.updatedAt = now;
       });
+    // Servicos de fornecedor ja gerados a partir deste lancamento guardam sua propria copia de
+    // referencia/data, feita no momento da criacao (createForClientEntries) - sem isso, editar a
+    // placa/referencia do lancamento do cliente depois nao refletia no lancamento do fornecedor.
+    state.supplierEntries.forEach((entry) => {
+      if (entry.clientServiceEntryId === existingEntry.id) {
+        entry.reference = createdEntries[0].reference;
+        entry.date = createdEntries[0].date;
+        entry.updatedAt = now;
+      }
+    });
     editedSupplierSelections = window.supplierModule?.currentClientSupplierServiceSelections() || [];
     const keptSupplierLinkIds = new Set(editedSupplierSelections.filter((selection) => selection.id).map((selection) => selection.id));
     const supplierLinkIdsToRemove = new Set(
@@ -6906,7 +6916,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=188").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=189").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
