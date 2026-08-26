@@ -6960,7 +6960,7 @@ async function extrasHandleFile(file) {
     if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
     const formData = new FormData();
     formData.append("imagem", file, file.name || "imagem.png");
-    const response = await fetch("/.netlify/functions/remove-background", {
+    const response = await fetch("/.netlify/functions/remove-bg", {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
       body: formData
