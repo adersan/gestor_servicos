@@ -7425,6 +7425,17 @@ function initializeExtrasTools() {
   window.addEventListener("resize", () => {
     if (extrasState.cropping) extrasExitCropMode();
   });
+
+  document.addEventListener("paste", (event) => {
+    if (!document.getElementById("extras")?.classList.contains("active")) return;
+    if (document.getElementById("extrasUploadPanel")?.classList.contains("hidden")) return;
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    const imageItem = [...items].find((item) => item.type.startsWith("image/"));
+    if (!imageItem) return;
+    event.preventDefault();
+    extrasHandleFile(imageItem.getAsFile());
+  });
 }
 
 if ("serviceWorker" in navigator) {
