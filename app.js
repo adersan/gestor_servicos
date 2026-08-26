@@ -6922,6 +6922,9 @@ const extrasState = {
   brushSize: 30,
   backgroundColor: "",
   cropping: false,
+  zoom: 1,
+  markerColor: "#e5342b",
+  markerShape: "round",
   originalImageData: null,
   pristineImageData: null,
   undoStack: []
@@ -6931,6 +6934,8 @@ let extrasCropBounds = null;
 let extrasDrawing = false;
 let extrasLastPoint = null;
 let extrasStrokeFrame = null;
+let extrasLastCursorEvent = null;
+let extrasBaseScale = 1;
 
 function extrasClamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -6972,6 +6977,7 @@ async function extrasHandleFile(file) {
     const blob = await response.blob();
     await extrasLoadResultBlob(blob);
     extrasShowPanel("editor");
+    extrasApplyZoomStyle();
   } catch (error) {
     document.getElementById("extrasErrorMessage").textContent = error.message;
     extrasShowPanel("error");
@@ -7000,9 +7006,18 @@ function extrasResetToolsUI() {
   document.getElementById("extrasContrast").value = 100;
   extrasState.tool = "erase";
   extrasState.brushSize = 30;
+  extrasState.zoom = 1;
+  extrasState.markerColor = "#e5342b";
+  extrasState.markerShape = "round";
   document.querySelectorAll("#extrasToolOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === "erase"));
+  document.getElementById("extrasMarkerOptions")?.classList.add("hidden");
+  document.querySelectorAll("#extrasMarkerShapeOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasMarkerShape === "round"));
+  document.querySelectorAll("#extrasMarkerColorOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasMarkerColor === extrasState.markerColor));
+  const markerColorInput = document.getElementById("extrasMarkerColorInput");
+  if (markerColorInput) markerColorInput.value = extrasState.markerColor;
   document.getElementById("extrasBackgroundColorInput").value = "#ffffff";
   extrasSetBackground("");
+  extrasApplyZoomStyle();
 }
 
 function extrasSetBackground(color) {
@@ -7019,11 +7034,43 @@ function extrasCanvasPoint(event) {
   return { x: (event.clientX - rect.left) * scaleX, y: (event.clientY - rect.top) * scaleY };
 }
 
+function extrasCursorContentPosition(event) {
+  const canvas = document.getElementById("extrasCanvas");
+  const rect = canvas.getBoundingClientRect();
+  return { x: canvas.offsetLeft + (event.clientX - rect.left), y: canvas.offsetTop + (event.clientY - rect.top) };
+}
+
+function extrasUpdateBrushCursor(event) {
+  const cursor = document.getElementById("extrasBrushCursor");
+  const canvas = document.getElementById("extrasCanvas");
+  if (!cursor || extrasState.cropping) return;
+  const rect = canvas.getBoundingClientRect();
+  const displayScale = rect.width / canvas.width;
+  const size = Math.max(4, extrasState.brushSize * displayScale);
+  const pos = extrasCursorContentPosition(event);
+  cursor.style.left = `${pos.x}px`;
+  cursor.style.top = `${pos.y}px`;
+  cursor.style.width = `${size}px`;
+  cursor.style.height = `${size}px`;
+  cursor.classList.toggle("extras-brush-cursor-square", extrasState.tool === "marker" && extrasState.markerShape === "square");
+}
+
+function extrasHexToRgb(hex) {
+  const value = String(hex || "#000000").replace("#", "");
+  return [
+    parseInt(value.substring(0, 2), 16) || 0,
+    parseInt(value.substring(2, 4), 16) || 0,
+    parseInt(value.substring(4, 6), 16) || 0
+  ];
+}
+
 function extrasStampBrush(frame, cx, cy) {
   const radius = extrasState.brushSize / 2;
-  const restoring = extrasState.tool === "restore";
+  const tool = extrasState.tool;
   const pristine = extrasState.pristineImageData;
-  if (restoring && (!pristine || pristine.width !== frame.width || pristine.height !== frame.height)) return;
+  if (tool === "restore" && (!pristine || pristine.width !== frame.width || pristine.height !== frame.height)) return;
+  const square = tool === "marker" && extrasState.markerShape === "square";
+  const markerRgb = tool === "marker" ? extrasHexToRgb(extrasState.markerColor) : null;
   const minX = Math.max(0, Math.floor(cx - radius));
   const maxX = Math.min(frame.width - 1, Math.ceil(cx + radius));
   const minY = Math.max(0, Math.floor(cy - radius));
@@ -7033,13 +7080,22 @@ function extrasStampBrush(frame, cx, cy) {
     for (let x = minX; x <= maxX; x++) {
       const dx = x - cx;
       const dy = y - cy;
-      if (dx * dx + dy * dy > radiusSq) continue;
+      if (square) {
+        if (Math.abs(dx) > radius || Math.abs(dy) > radius) continue;
+      } else if (dx * dx + dy * dy > radiusSq) {
+        continue;
+      }
       const idx = (y * frame.width + x) * 4;
-      if (restoring) {
+      if (tool === "restore") {
         frame.data[idx] = pristine.data[idx];
         frame.data[idx + 1] = pristine.data[idx + 1];
         frame.data[idx + 2] = pristine.data[idx + 2];
         frame.data[idx + 3] = pristine.data[idx + 3];
+      } else if (tool === "marker") {
+        frame.data[idx] = markerRgb[0];
+        frame.data[idx + 1] = markerRgb[1];
+        frame.data[idx + 2] = markerRgb[2];
+        frame.data[idx + 3] = 255;
       } else {
         frame.data[idx + 3] = 0;
       }
@@ -7104,6 +7160,7 @@ function extrasUndo() {
   canvas.height = entry.height;
   canvas.getContext("2d").putImageData(entry.data, 0, 0);
   extrasState.pristineImageData = entry.pristine;
+  extrasApplyZoomStyle();
 }
 
 function extrasImageDataToCanvas(imageData) {
@@ -7154,19 +7211,40 @@ function extrasRotate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(temp, 0, 0);
   if (extrasState.pristineImageData) extrasState.pristineImageData = extrasRotateImageData(extrasState.pristineImageData);
+  extrasApplyZoomStyle();
 }
 
-function extrasCanvasBoundsInWrap() {
+function extrasCanvasBoundsInScroll() {
   const canvas = document.getElementById("extrasCanvas");
-  const wrap = document.getElementById("extrasCanvasWrap");
-  const canvasRect = canvas.getBoundingClientRect();
-  const wrapRect = wrap.getBoundingClientRect();
   return {
-    left: canvasRect.left - wrapRect.left,
-    top: canvasRect.top - wrapRect.top,
-    right: canvasRect.left - wrapRect.left + canvasRect.width,
-    bottom: canvasRect.top - wrapRect.top + canvasRect.height
+    left: canvas.offsetLeft,
+    top: canvas.offsetTop,
+    right: canvas.offsetLeft + canvas.offsetWidth,
+    bottom: canvas.offsetTop + canvas.offsetHeight
   };
+}
+
+function extrasComputeBaseScale() {
+  const canvas = document.getElementById("extrasCanvas");
+  const scroll = document.getElementById("extrasCanvasScroll");
+  const availableWidth = Math.max(80, scroll.clientWidth - 32);
+  const availableHeight = Math.max(80, Math.min(window.innerHeight * 0.55, 560));
+  return Math.min(1, availableWidth / canvas.width, availableHeight / canvas.height);
+}
+
+function extrasApplyZoomStyle() {
+  const canvas = document.getElementById("extrasCanvas");
+  extrasBaseScale = extrasComputeBaseScale();
+  const scale = extrasBaseScale * extrasState.zoom;
+  canvas.style.width = `${canvas.width * scale}px`;
+  canvas.style.height = `${canvas.height * scale}px`;
+  const label = document.getElementById("extrasZoomLabel");
+  if (label) label.textContent = `${Math.round(extrasState.zoom * 100)}%`;
+}
+
+function extrasSetZoom(value) {
+  extrasState.zoom = extrasClamp(value, 0.5, 4);
+  extrasApplyZoomStyle();
 }
 
 function extrasRenderCropOverlay() {
@@ -7183,7 +7261,8 @@ function extrasToggleCrop() {
     return;
   }
   extrasState.cropping = true;
-  extrasCropBounds = extrasCanvasBoundsInWrap();
+  document.getElementById("extrasBrushCursor").classList.add("hidden");
+  extrasCropBounds = extrasCanvasBoundsInScroll();
   const w = (extrasCropBounds.right - extrasCropBounds.left) * 0.8;
   const h = (extrasCropBounds.bottom - extrasCropBounds.top) * 0.8;
   extrasCropRect = {
@@ -7211,7 +7290,7 @@ function extrasExitCropMode() {
 function extrasApplyCrop() {
   if (!extrasCropRect) return;
   const canvas = document.getElementById("extrasCanvas");
-  const canvasBox = extrasCanvasBoundsInWrap();
+  const canvasBox = extrasCanvasBoundsInScroll();
   const scaleX = canvas.width / (canvasBox.right - canvasBox.left);
   const scaleY = canvas.height / (canvasBox.bottom - canvasBox.top);
   const x = extrasClamp(Math.round((extrasCropRect.left - canvasBox.left) * scaleX), 0, canvas.width - 1);
@@ -7234,6 +7313,7 @@ function extrasApplyCrop() {
   ctx.drawImage(temp, 0, 0);
   if (extrasState.pristineImageData) extrasState.pristineImageData = extrasCropImageData(extrasState.pristineImageData, { x, y, w, h });
   extrasExitCropMode();
+  extrasApplyZoomStyle();
 }
 
 function extrasApplyAdjust() {
@@ -7313,6 +7393,9 @@ function extrasHandleAction(action) {
     case "reset": extrasReset(); break;
     case "new": extrasNewImage(); break;
     case "download": extrasDownload(); break;
+    case "zoom-in": extrasSetZoom(extrasState.zoom * 1.25); break;
+    case "zoom-out": extrasSetZoom(extrasState.zoom / 1.25); break;
+    case "zoom-reset": extrasSetZoom(1); break;
     default: break;
   }
 }
@@ -7395,6 +7478,19 @@ function initializeExtrasTools() {
   const canvas = document.getElementById("extrasCanvas");
   canvas.addEventListener("pointerdown", extrasPointerDown);
   canvas.addEventListener("pointermove", extrasPointerMove);
+  canvas.addEventListener("pointermove", (event) => {
+    extrasLastCursorEvent = event;
+    extrasUpdateBrushCursor(event);
+  });
+  canvas.addEventListener("pointerenter", (event) => {
+    if (extrasState.cropping) return;
+    document.getElementById("extrasBrushCursor").classList.remove("hidden");
+    extrasLastCursorEvent = event;
+    extrasUpdateBrushCursor(event);
+  });
+  canvas.addEventListener("pointerleave", () => {
+    document.getElementById("extrasBrushCursor").classList.add("hidden");
+  });
   window.addEventListener("pointerup", extrasPointerUp);
 
   document.getElementById("extrasToolOptions").addEventListener("click", (event) => {
@@ -7402,10 +7498,31 @@ function initializeExtrasTools() {
     if (!button) return;
     extrasState.tool = button.dataset.extrasTool;
     document.querySelectorAll("#extrasToolOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
+    document.getElementById("extrasMarkerOptions").classList.toggle("hidden", extrasState.tool !== "marker");
+    if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
   });
 
   document.getElementById("extrasBrushSize").addEventListener("input", (event) => {
     extrasState.brushSize = Number(event.target.value);
+    if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
+  });
+
+  document.getElementById("extrasMarkerShapeOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-marker-shape]");
+    if (!button) return;
+    extrasState.markerShape = button.dataset.extrasMarkerShape;
+    document.querySelectorAll("#extrasMarkerShapeOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
+    if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
+  });
+  document.getElementById("extrasMarkerColorOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-marker-color]");
+    if (!button) return;
+    extrasState.markerColor = button.dataset.extrasMarkerColor;
+    document.querySelectorAll("#extrasMarkerColorOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
+  });
+  document.getElementById("extrasMarkerColorInput").addEventListener("input", (event) => {
+    extrasState.markerColor = event.target.value;
+    document.querySelectorAll("#extrasMarkerColorOptions button").forEach((btn) => btn.classList.remove("active"));
   });
 
   document.getElementById("extrasBackgroundOptions").addEventListener("click", (event) => {
@@ -7424,6 +7541,16 @@ function initializeExtrasTools() {
   extrasInitCropHandlers();
   window.addEventListener("resize", () => {
     if (extrasState.cropping) extrasExitCropMode();
+    if (!document.getElementById("extrasEditorPanel")?.classList.contains("hidden")) extrasApplyZoomStyle();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (!document.getElementById("extras")?.classList.contains("active")) return;
+    if (document.getElementById("extrasEditorPanel")?.classList.contains("hidden")) return;
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      extrasUndo();
+    }
   });
 
   document.addEventListener("paste", (event) => {

@@ -740,9 +740,18 @@
 
       <div id="extrasEditorPanel" class="extras-editor hidden">
         <div class="extras-canvas-wrap" id="extrasCanvasWrap">
-          <canvas id="extrasCanvas"></canvas>
-          <div id="extrasCropOverlay" class="extras-crop-overlay hidden">
-            <div id="extrasCropHandle" class="extras-crop-handle"></div>
+          <div class="extras-zoom-controls">
+            <button type="button" data-extras-action="zoom-out" aria-label="Diminuir zoom">−</button>
+            <span id="extrasZoomLabel">100%</span>
+            <button type="button" data-extras-action="zoom-in" aria-label="Aumentar zoom">+</button>
+            <button type="button" class="table-action" data-extras-action="zoom-reset">Ajustar zoom</button>
+          </div>
+          <div class="extras-canvas-scroll" id="extrasCanvasScroll">
+            <canvas id="extrasCanvas"></canvas>
+            <div id="extrasBrushCursor" class="extras-brush-cursor hidden"></div>
+            <div id="extrasCropOverlay" class="extras-crop-overlay hidden">
+              <div id="extrasCropHandle" class="extras-crop-handle"></div>
+            </div>
           </div>
         </div>
 
@@ -752,10 +761,32 @@
             <div class="extras-choice-options" id="extrasToolOptions">
               <button type="button" data-extras-tool="erase" class="active">Apagar</button>
               <button type="button" data-extras-tool="restore">Restaurar</button>
+              <button type="button" data-extras-tool="marker">Marcador</button>
             </div>
             <label class="extras-range-label">Tamanho do pincel
-              <input type="range" id="extrasBrushSize" min="8" max="120" value="30">
+              <input type="range" id="extrasBrushSize" min="4" max="120" value="30">
             </label>
+            <div class="extras-tool-group hidden" id="extrasMarkerOptions">
+              <span class="extras-subeyebrow">Tipo de marcador</span>
+              <div class="extras-choice-options" id="extrasMarkerShapeOptions">
+                <button type="button" data-extras-marker-shape="round" class="active">Redonda</button>
+                <button type="button" data-extras-marker-shape="square">Quadrada</button>
+              </div>
+              <span class="extras-subeyebrow">Cor do marcador</span>
+              <div class="extras-choice-options extras-color-options" id="extrasMarkerColorOptions">
+                <button type="button" data-extras-marker-color="#e5342b" class="active" style="background:#e5342b" aria-label="Vermelho"></button>
+                <button type="button" data-extras-marker-color="#f2a20c" style="background:#f2a20c" aria-label="Laranja"></button>
+                <button type="button" data-extras-marker-color="#f6e02f" style="background:#f6e02f" aria-label="Amarelo"></button>
+                <button type="button" data-extras-marker-color="#2fae4e" style="background:#2fae4e" aria-label="Verde"></button>
+                <button type="button" data-extras-marker-color="#2f7de1" style="background:#2f7de1" aria-label="Azul"></button>
+                <button type="button" data-extras-marker-color="#9b4fe0" style="background:#9b4fe0" aria-label="Roxo"></button>
+                <button type="button" data-extras-marker-color="#000000" style="background:#000000" aria-label="Preto"></button>
+                <button type="button" data-extras-marker-color="#ffffff" style="background:#ffffff" aria-label="Branco"></button>
+              </div>
+              <label class="extras-range-label">Outra cor
+                <input type="color" id="extrasMarkerColorInput" value="#e5342b">
+              </label>
+            </div>
           </div>
 
           <div class="extras-tool-group">
@@ -772,11 +803,16 @@
 
           <div class="extras-tool-group">
             <span class="eyebrow">Fundo</span>
-            <div class="extras-choice-options" id="extrasBackgroundOptions">
-              <button type="button" data-extras-bg="" class="active">Sem fundo</button>
-              <button type="button" data-extras-bg="#ffffff">Branco</button>
-              <button type="button" data-extras-bg="#000000">Preto</button>
-              <button type="button" data-extras-bg="#e7efeb">Cinza claro</button>
+            <div class="extras-choice-options extras-color-options" id="extrasBackgroundOptions">
+              <button type="button" data-extras-bg="" class="active extras-bg-none" aria-label="Sem fundo"></button>
+              <button type="button" data-extras-bg="#ffffff" style="background:#ffffff" aria-label="Branco"></button>
+              <button type="button" data-extras-bg="#000000" style="background:#000000" aria-label="Preto"></button>
+              <button type="button" data-extras-bg="#e7efeb" style="background:#e7efeb" aria-label="Cinza claro"></button>
+              <button type="button" data-extras-bg="#7a8892" style="background:#7a8892" aria-label="Cinza escuro"></button>
+              <button type="button" data-extras-bg="#2f7de1" style="background:#2f7de1" aria-label="Azul"></button>
+              <button type="button" data-extras-bg="#e5342b" style="background:#e5342b" aria-label="Vermelho"></button>
+              <button type="button" data-extras-bg="#2fae4e" style="background:#2fae4e" aria-label="Verde"></button>
+              <button type="button" data-extras-bg="#f2a20c" style="background:#f2a20c" aria-label="Amarelo"></button>
             </div>
             <label class="extras-range-label">Outra cor
               <input type="color" id="extrasBackgroundColorInput" value="#ffffff">
@@ -795,7 +831,7 @@
           </div>
 
           <div class="extras-tool-group extras-tool-actions">
-            <button type="button" class="table-action" data-extras-action="undo">Desfazer</button>
+            <button type="button" class="table-action" data-extras-action="undo" title="Ctrl+Z">Desfazer</button>
             <button type="button" class="table-action" data-extras-action="reset">Reiniciar</button>
             <button type="button" class="secondary" data-extras-action="new">Nova imagem</button>
             <button type="button" class="primary" data-extras-action="download">Baixar PNG</button>
