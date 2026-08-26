@@ -709,6 +709,7 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .supplier-panel { min-height: 260px; }
 
 .extras-upload-panel, .extras-loading-panel, .extras-error-panel { display: grid; justify-items: center; gap: 8px; padding: 40px 20px; text-align: center; }
+.extras-upload-panel.hidden, .extras-loading-panel.hidden, .extras-error-panel.hidden, .extras-editor.hidden { display: none; }
 .extras-dropzone { display: grid; justify-items: center; gap: 8px; width: 100%; padding: 40px 20px; border: 2px dashed var(--line); border-radius: 16px; cursor: pointer; color: var(--ink); background: none; }
 .extras-dropzone:hover, .extras-dropzone:focus-visible, .extras-dropzone.dragover { border-color: var(--brand-ink); background: var(--brand-soft); outline: none; }
 .extras-dropzone-icon { font-size: 40px; line-height: 1; }
