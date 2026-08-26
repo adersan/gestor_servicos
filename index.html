@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=136">
+  <link rel="stylesheet" href="styles.css?v=137">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -54,6 +54,7 @@
     <button class="tab" data-view="suppliers">Fornecedores</button>
     <button class="tab" data-view="payments">Financeiro</button>
     <button class="tab" data-view="settings">Configurações</button>
+    <button class="tab" data-view="extras">Extras</button>
     <button class="tab" data-view="help">Ajuda</button>
     <div class="mobile-nav-actions">
       <button id="mobileInstallButton" class="hidden" type="button">Instalar aplicativo</button>
@@ -708,6 +709,98 @@
             </div>
           </div>
         </article>
+      </div>
+    </section>
+
+    <section id="extras" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Ferramentas</span><h2>Extras</h2><p class="meta">Remova o fundo de uma foto com IA e ajuste o resultado antes de baixar.</p></div>
+      </div>
+
+      <div id="extrasUploadPanel" class="panel extras-upload-panel">
+        <div id="extrasDropzone" class="extras-dropzone" tabindex="0" role="button" aria-label="Escolher ou soltar uma imagem">
+          <span class="extras-dropzone-icon" aria-hidden="true">🖼</span>
+          <strong>Toque para escolher uma imagem</strong>
+          <span class="meta">ou arraste e solte aqui — PNG ou JPG, até 10MB</span>
+          <input type="file" id="extrasFileInput" accept="image/png,image/jpeg,image/webp" hidden>
+        </div>
+      </div>
+
+      <div id="extrasLoadingPanel" class="panel extras-loading-panel hidden">
+        <span class="extras-spinner" aria-hidden="true"></span>
+        <strong>Removendo o fundo da imagem…</strong>
+        <span class="meta">Isso leva alguns segundos.</span>
+      </div>
+
+      <div id="extrasErrorPanel" class="panel extras-error-panel hidden">
+        <strong>Não foi possível remover o fundo</strong>
+        <p class="meta" id="extrasErrorMessage"></p>
+        <button class="secondary" type="button" data-extras-action="retry">Tentar novamente</button>
+      </div>
+
+      <div id="extrasEditorPanel" class="extras-editor hidden">
+        <div class="extras-canvas-wrap" id="extrasCanvasWrap">
+          <canvas id="extrasCanvas"></canvas>
+          <div id="extrasCropOverlay" class="extras-crop-overlay hidden">
+            <div id="extrasCropHandle" class="extras-crop-handle"></div>
+          </div>
+        </div>
+
+        <div class="extras-toolbar panel">
+          <div class="extras-tool-group">
+            <span class="eyebrow">Retoque</span>
+            <div class="extras-choice-options" id="extrasToolOptions">
+              <button type="button" data-extras-tool="erase" class="active">Apagar</button>
+              <button type="button" data-extras-tool="restore">Restaurar</button>
+            </div>
+            <label class="extras-range-label">Tamanho do pincel
+              <input type="range" id="extrasBrushSize" min="8" max="120" value="30">
+            </label>
+          </div>
+
+          <div class="extras-tool-group">
+            <span class="eyebrow">Ajustar</span>
+            <div class="extras-inline-actions">
+              <button type="button" class="table-action" data-extras-action="rotate">Girar 90°</button>
+              <button type="button" class="table-action" id="extrasCropToggle" data-extras-action="crop-toggle">Recortar</button>
+            </div>
+            <div class="extras-inline-actions hidden" id="extrasCropActions">
+              <button type="button" class="primary" data-extras-action="crop-apply">Aplicar corte</button>
+              <button type="button" class="secondary" data-extras-action="crop-cancel">Cancelar</button>
+            </div>
+          </div>
+
+          <div class="extras-tool-group">
+            <span class="eyebrow">Fundo</span>
+            <div class="extras-choice-options" id="extrasBackgroundOptions">
+              <button type="button" data-extras-bg="" class="active">Sem fundo</button>
+              <button type="button" data-extras-bg="#ffffff">Branco</button>
+              <button type="button" data-extras-bg="#000000">Preto</button>
+              <button type="button" data-extras-bg="#e7efeb">Cinza claro</button>
+            </div>
+            <label class="extras-range-label">Outra cor
+              <input type="color" id="extrasBackgroundColorInput" value="#ffffff">
+            </label>
+          </div>
+
+          <div class="extras-tool-group">
+            <span class="eyebrow">Brilho e contraste</span>
+            <label class="extras-range-label">Brilho
+              <input type="range" id="extrasBrightness" min="50" max="150" value="100">
+            </label>
+            <label class="extras-range-label">Contraste
+              <input type="range" id="extrasContrast" min="50" max="150" value="100">
+            </label>
+            <button type="button" class="table-action" data-extras-action="apply-adjust">Aplicar ajuste</button>
+          </div>
+
+          <div class="extras-tool-group extras-tool-actions">
+            <button type="button" class="table-action" data-extras-action="undo">Desfazer</button>
+            <button type="button" class="table-action" data-extras-action="reset">Reiniciar</button>
+            <button type="button" class="secondary" data-extras-action="new">Nova imagem</button>
+            <button type="button" class="primary" data-extras-action="download">Baixar PNG</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -2179,7 +2272,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=52"></script>
-  <script src="app.js?v=176"></script>
+  <script src="app.js?v=177"></script>
   <script src="supplier.js?v=65"></script>
 </body>
 </html>

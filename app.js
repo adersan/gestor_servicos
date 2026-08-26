@@ -6915,11 +6915,524 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") setMobileMenuOpen(false);
 });
 
+const EXTRAS_MAX_BYTES = 10 * 1024 * 1024;
+const EXTRAS_UNDO_LIMIT = 20;
+const extrasState = {
+  tool: "erase",
+  brushSize: 30,
+  backgroundColor: "",
+  cropping: false,
+  originalImageData: null,
+  pristineImageData: null,
+  undoStack: []
+};
+let extrasCropRect = null;
+let extrasCropBounds = null;
+let extrasDrawing = false;
+let extrasLastPoint = null;
+let extrasStrokeFrame = null;
+
+function extrasClamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function extrasShowPanel(name) {
+  document.getElementById("extrasUploadPanel").classList.toggle("hidden", name !== "upload");
+  document.getElementById("extrasLoadingPanel").classList.toggle("hidden", name !== "loading");
+  document.getElementById("extrasErrorPanel").classList.toggle("hidden", name !== "error");
+  document.getElementById("extrasEditorPanel").classList.toggle("hidden", name !== "editor");
+}
+
+async function extrasHandleFile(file) {
+  if (!file) return;
+  if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) {
+    showAppAlert("Envie uma imagem PNG, JPG ou WEBP.", { type: "warning" });
+    return;
+  }
+  if (file.size > EXTRAS_MAX_BYTES) {
+    showAppAlert("Imagem muito grande. O limite é 10MB.", { type: "warning" });
+    return;
+  }
+  extrasShowPanel("loading");
+  try {
+    const { data } = await window.supabaseClient.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+    const formData = new FormData();
+    formData.append("imagem", file, file.name || "imagem.png");
+    const response = await fetch("/.netlify/functions/remove-background", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: formData
+    });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.error || "Não foi possível remover o fundo da imagem.");
+    }
+    const blob = await response.blob();
+    await extrasLoadResultBlob(blob);
+    extrasShowPanel("editor");
+  } catch (error) {
+    document.getElementById("extrasErrorMessage").textContent = error.message;
+    extrasShowPanel("error");
+  }
+}
+
+async function extrasLoadResultBlob(blob) {
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.getElementById("extrasCanvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, 0, 0);
+  const original = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  extrasState.originalImageData = original;
+  extrasState.pristineImageData = new ImageData(new Uint8ClampedArray(original.data), original.width, original.height);
+  extrasState.undoStack = [];
+  extrasExitCropMode();
+  extrasResetToolsUI();
+}
+
+function extrasResetToolsUI() {
+  document.getElementById("extrasBrushSize").value = 30;
+  document.getElementById("extrasBrightness").value = 100;
+  document.getElementById("extrasContrast").value = 100;
+  extrasState.tool = "erase";
+  extrasState.brushSize = 30;
+  document.querySelectorAll("#extrasToolOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === "erase"));
+  document.getElementById("extrasBackgroundColorInput").value = "#ffffff";
+  extrasSetBackground("");
+}
+
+function extrasSetBackground(color) {
+  extrasState.backgroundColor = color || "";
+  document.getElementById("extrasCanvas").style.backgroundColor = color || "transparent";
+  document.querySelectorAll("#extrasBackgroundOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasBg || "") === (color || "")));
+}
+
+function extrasCanvasPoint(event) {
+  const canvas = document.getElementById("extrasCanvas");
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return { x: (event.clientX - rect.left) * scaleX, y: (event.clientY - rect.top) * scaleY };
+}
+
+function extrasStampBrush(frame, cx, cy) {
+  const radius = extrasState.brushSize / 2;
+  const restoring = extrasState.tool === "restore";
+  const pristine = extrasState.pristineImageData;
+  if (restoring && (!pristine || pristine.width !== frame.width || pristine.height !== frame.height)) return;
+  const minX = Math.max(0, Math.floor(cx - radius));
+  const maxX = Math.min(frame.width - 1, Math.ceil(cx + radius));
+  const minY = Math.max(0, Math.floor(cy - radius));
+  const maxY = Math.min(frame.height - 1, Math.ceil(cy + radius));
+  const radiusSq = radius * radius;
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      if (dx * dx + dy * dy > radiusSq) continue;
+      const idx = (y * frame.width + x) * 4;
+      if (restoring) {
+        frame.data[idx] = pristine.data[idx];
+        frame.data[idx + 1] = pristine.data[idx + 1];
+        frame.data[idx + 2] = pristine.data[idx + 2];
+        frame.data[idx + 3] = pristine.data[idx + 3];
+      } else {
+        frame.data[idx + 3] = 0;
+      }
+    }
+  }
+}
+
+function extrasStrokeLine(frame, from, to) {
+  const distance = Math.hypot(to.x - from.x, to.y - from.y);
+  const steps = Math.max(1, Math.ceil(distance / Math.max(4, extrasState.brushSize / 4)));
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    extrasStampBrush(frame, from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
+  }
+}
+
+function extrasPointerDown(event) {
+  if (extrasState.cropping) return;
+  event.preventDefault();
+  const canvas = document.getElementById("extrasCanvas");
+  canvas.setPointerCapture(event.pointerId);
+  extrasPushUndo();
+  extrasDrawing = true;
+  const ctx = canvas.getContext("2d");
+  extrasStrokeFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const point = extrasCanvasPoint(event);
+  extrasStampBrush(extrasStrokeFrame, point.x, point.y);
+  ctx.putImageData(extrasStrokeFrame, 0, 0);
+  extrasLastPoint = point;
+}
+
+function extrasPointerMove(event) {
+  if (!extrasDrawing || !extrasStrokeFrame) return;
+  const point = extrasCanvasPoint(event);
+  extrasStrokeLine(extrasStrokeFrame, extrasLastPoint, point);
+  document.getElementById("extrasCanvas").getContext("2d").putImageData(extrasStrokeFrame, 0, 0);
+  extrasLastPoint = point;
+}
+
+function extrasPointerUp() {
+  extrasDrawing = false;
+  extrasStrokeFrame = null;
+  extrasLastPoint = null;
+}
+
+function extrasPushUndo() {
+  const canvas = document.getElementById("extrasCanvas");
+  extrasState.undoStack.push({
+    width: canvas.width,
+    height: canvas.height,
+    data: canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height),
+    pristine: extrasState.pristineImageData
+  });
+  if (extrasState.undoStack.length > EXTRAS_UNDO_LIMIT) extrasState.undoStack.shift();
+}
+
+function extrasUndo() {
+  const entry = extrasState.undoStack.pop();
+  if (!entry) return;
+  const canvas = document.getElementById("extrasCanvas");
+  canvas.width = entry.width;
+  canvas.height = entry.height;
+  canvas.getContext("2d").putImageData(entry.data, 0, 0);
+  extrasState.pristineImageData = entry.pristine;
+}
+
+function extrasImageDataToCanvas(imageData) {
+  const canvas = document.createElement("canvas");
+  canvas.width = imageData.width;
+  canvas.height = imageData.height;
+  canvas.getContext("2d").putImageData(imageData, 0, 0);
+  return canvas;
+}
+
+function extrasRotateImageData(imageData) {
+  const src = extrasImageDataToCanvas(imageData);
+  const dst = document.createElement("canvas");
+  dst.width = imageData.height;
+  dst.height = imageData.width;
+  const dctx = dst.getContext("2d");
+  dctx.translate(dst.width / 2, dst.height / 2);
+  dctx.rotate(Math.PI / 2);
+  dctx.drawImage(src, -src.width / 2, -src.height / 2);
+  return dctx.getImageData(0, 0, dst.width, dst.height);
+}
+
+function extrasCropImageData(imageData, rect) {
+  const src = extrasImageDataToCanvas(imageData);
+  const dst = document.createElement("canvas");
+  dst.width = rect.w;
+  dst.height = rect.h;
+  dst.getContext("2d").drawImage(src, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h);
+  return dst.getContext("2d").getImageData(0, 0, rect.w, rect.h);
+}
+
+function extrasRotate() {
+  extrasExitCropMode();
+  const canvas = document.getElementById("extrasCanvas");
+  extrasPushUndo();
+  const w = canvas.width;
+  const h = canvas.height;
+  const temp = document.createElement("canvas");
+  temp.width = h;
+  temp.height = w;
+  const tctx = temp.getContext("2d");
+  tctx.translate(h / 2, w / 2);
+  tctx.rotate(Math.PI / 2);
+  tctx.drawImage(canvas, -w / 2, -h / 2);
+  canvas.width = h;
+  canvas.height = w;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(temp, 0, 0);
+  if (extrasState.pristineImageData) extrasState.pristineImageData = extrasRotateImageData(extrasState.pristineImageData);
+}
+
+function extrasCanvasBoundsInWrap() {
+  const canvas = document.getElementById("extrasCanvas");
+  const wrap = document.getElementById("extrasCanvasWrap");
+  const canvasRect = canvas.getBoundingClientRect();
+  const wrapRect = wrap.getBoundingClientRect();
+  return {
+    left: canvasRect.left - wrapRect.left,
+    top: canvasRect.top - wrapRect.top,
+    right: canvasRect.left - wrapRect.left + canvasRect.width,
+    bottom: canvasRect.top - wrapRect.top + canvasRect.height
+  };
+}
+
+function extrasRenderCropOverlay() {
+  const overlay = document.getElementById("extrasCropOverlay");
+  overlay.style.left = `${extrasCropRect.left}px`;
+  overlay.style.top = `${extrasCropRect.top}px`;
+  overlay.style.width = `${extrasCropRect.width}px`;
+  overlay.style.height = `${extrasCropRect.height}px`;
+}
+
+function extrasToggleCrop() {
+  if (extrasState.cropping) {
+    extrasExitCropMode();
+    return;
+  }
+  extrasState.cropping = true;
+  extrasCropBounds = extrasCanvasBoundsInWrap();
+  const w = (extrasCropBounds.right - extrasCropBounds.left) * 0.8;
+  const h = (extrasCropBounds.bottom - extrasCropBounds.top) * 0.8;
+  extrasCropRect = {
+    left: extrasCropBounds.left + (extrasCropBounds.right - extrasCropBounds.left - w) / 2,
+    top: extrasCropBounds.top + (extrasCropBounds.bottom - extrasCropBounds.top - h) / 2,
+    width: w,
+    height: h
+  };
+  document.getElementById("extrasCropOverlay").classList.remove("hidden");
+  document.getElementById("extrasCropToggle").textContent = "Cancelar recorte";
+  document.getElementById("extrasCropActions").classList.remove("hidden");
+  extrasRenderCropOverlay();
+}
+
+function extrasExitCropMode() {
+  extrasState.cropping = false;
+  extrasCropRect = null;
+  extrasCropBounds = null;
+  document.getElementById("extrasCropOverlay")?.classList.add("hidden");
+  const toggle = document.getElementById("extrasCropToggle");
+  if (toggle) toggle.textContent = "Recortar";
+  document.getElementById("extrasCropActions")?.classList.add("hidden");
+}
+
+function extrasApplyCrop() {
+  if (!extrasCropRect) return;
+  const canvas = document.getElementById("extrasCanvas");
+  const canvasBox = extrasCanvasBoundsInWrap();
+  const scaleX = canvas.width / (canvasBox.right - canvasBox.left);
+  const scaleY = canvas.height / (canvasBox.bottom - canvasBox.top);
+  const x = extrasClamp(Math.round((extrasCropRect.left - canvasBox.left) * scaleX), 0, canvas.width - 1);
+  const y = extrasClamp(Math.round((extrasCropRect.top - canvasBox.top) * scaleY), 0, canvas.height - 1);
+  const w = extrasClamp(Math.round(extrasCropRect.width * scaleX), 1, canvas.width - x);
+  const h = extrasClamp(Math.round(extrasCropRect.height * scaleY), 1, canvas.height - y);
+  if (w < 4 || h < 4) {
+    extrasExitCropMode();
+    return;
+  }
+  extrasPushUndo();
+  const temp = document.createElement("canvas");
+  temp.width = w;
+  temp.height = h;
+  temp.getContext("2d").drawImage(canvas, x, y, w, h, 0, 0, w, h);
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(temp, 0, 0);
+  if (extrasState.pristineImageData) extrasState.pristineImageData = extrasCropImageData(extrasState.pristineImageData, { x, y, w, h });
+  extrasExitCropMode();
+}
+
+function extrasApplyAdjust() {
+  const brightness = Number(document.getElementById("extrasBrightness").value);
+  const contrast = Number(document.getElementById("extrasContrast").value);
+  if (brightness === 100 && contrast === 100) return;
+  extrasPushUndo();
+  const canvas = document.getElementById("extrasCanvas");
+  const temp = document.createElement("canvas");
+  temp.width = canvas.width;
+  temp.height = canvas.height;
+  const tctx = temp.getContext("2d");
+  tctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+  tctx.drawImage(canvas, 0, 0);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(temp, 0, 0);
+  document.getElementById("extrasBrightness").value = 100;
+  document.getElementById("extrasContrast").value = 100;
+}
+
+function extrasReset() {
+  if (!extrasState.originalImageData) return;
+  extrasExitCropMode();
+  const canvas = document.getElementById("extrasCanvas");
+  const original = extrasState.originalImageData;
+  canvas.width = original.width;
+  canvas.height = original.height;
+  canvas.getContext("2d").putImageData(original, 0, 0);
+  extrasState.pristineImageData = new ImageData(new Uint8ClampedArray(original.data), original.width, original.height);
+  extrasState.undoStack = [];
+  extrasResetToolsUI();
+}
+
+function extrasNewImage() {
+  extrasExitCropMode();
+  extrasState.originalImageData = null;
+  extrasState.pristineImageData = null;
+  extrasState.undoStack = [];
+  extrasShowPanel("upload");
+}
+
+function extrasDownload() {
+  const canvas = document.getElementById("extrasCanvas");
+  const output = document.createElement("canvas");
+  output.width = canvas.width;
+  output.height = canvas.height;
+  const octx = output.getContext("2d");
+  if (extrasState.backgroundColor) {
+    octx.fillStyle = extrasState.backgroundColor;
+    octx.fillRect(0, 0, output.width, output.height);
+  }
+  octx.drawImage(canvas, 0, 0);
+  output.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `extras-sem-fundo-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }, "image/png");
+}
+
+function extrasHandleAction(action) {
+  if (extrasState.cropping && !["crop-apply", "crop-cancel", "crop-toggle"].includes(action)) extrasExitCropMode();
+  switch (action) {
+    case "retry": extrasShowPanel("upload"); break;
+    case "rotate": extrasRotate(); break;
+    case "crop-toggle": extrasToggleCrop(); break;
+    case "crop-apply": extrasApplyCrop(); break;
+    case "crop-cancel": extrasExitCropMode(); break;
+    case "apply-adjust": extrasApplyAdjust(); break;
+    case "undo": extrasUndo(); break;
+    case "reset": extrasReset(); break;
+    case "new": extrasNewImage(); break;
+    case "download": extrasDownload(); break;
+    default: break;
+  }
+}
+
+function extrasInitCropHandlers() {
+  const overlay = document.getElementById("extrasCropOverlay");
+  const handle = document.getElementById("extrasCropHandle");
+  if (!overlay || !handle) return;
+  let dragMode = null;
+  let dragStart = null;
+  let rectStart = null;
+
+  overlay.addEventListener("pointerdown", (event) => {
+    if (event.target === handle || !extrasCropRect) return;
+    dragMode = "move";
+    dragStart = { x: event.clientX, y: event.clientY };
+    rectStart = { ...extrasCropRect };
+    overlay.setPointerCapture(event.pointerId);
+  });
+  handle.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+    if (!extrasCropRect) return;
+    dragMode = "resize";
+    dragStart = { x: event.clientX, y: event.clientY };
+    rectStart = { ...extrasCropRect };
+    handle.setPointerCapture(event.pointerId);
+  });
+  window.addEventListener("pointermove", (event) => {
+    if (!dragMode || !extrasCropRect || !extrasCropBounds) return;
+    const dx = event.clientX - dragStart.x;
+    const dy = event.clientY - dragStart.y;
+    if (dragMode === "move") {
+      extrasCropRect.left = extrasClamp(rectStart.left + dx, extrasCropBounds.left, extrasCropBounds.right - extrasCropRect.width);
+      extrasCropRect.top = extrasClamp(rectStart.top + dy, extrasCropBounds.top, extrasCropBounds.bottom - extrasCropRect.height);
+    } else if (dragMode === "resize") {
+      extrasCropRect.width = extrasClamp(rectStart.width + dx, 30, extrasCropBounds.right - extrasCropRect.left);
+      extrasCropRect.height = extrasClamp(rectStart.height + dy, 30, extrasCropBounds.bottom - extrasCropRect.top);
+    }
+    extrasRenderCropOverlay();
+  });
+  window.addEventListener("pointerup", () => {
+    dragMode = null;
+  });
+}
+
+function initializeExtrasTools() {
+  const dropzone = document.getElementById("extrasDropzone");
+  const fileInput = document.getElementById("extrasFileInput");
+  if (!dropzone || !fileInput) return;
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  dropzone.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      fileInput.click();
+    }
+  });
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = "";
+    extrasHandleFile(file);
+  });
+  ["dragenter", "dragover"].forEach((eventName) => {
+    dropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+  });
+  ["dragleave", "drop"].forEach((eventName) => {
+    dropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropzone.classList.remove("dragover");
+    });
+  });
+  dropzone.addEventListener("drop", (event) => {
+    const file = event.dataTransfer?.files?.[0];
+    extrasHandleFile(file);
+  });
+
+  const canvas = document.getElementById("extrasCanvas");
+  canvas.addEventListener("pointerdown", extrasPointerDown);
+  canvas.addEventListener("pointermove", extrasPointerMove);
+  window.addEventListener("pointerup", extrasPointerUp);
+
+  document.getElementById("extrasToolOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-tool]");
+    if (!button) return;
+    extrasState.tool = button.dataset.extrasTool;
+    document.querySelectorAll("#extrasToolOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
+  });
+
+  document.getElementById("extrasBrushSize").addEventListener("input", (event) => {
+    extrasState.brushSize = Number(event.target.value);
+  });
+
+  document.getElementById("extrasBackgroundOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-bg]");
+    if (!button) return;
+    extrasSetBackground(button.dataset.extrasBg);
+  });
+  document.getElementById("extrasBackgroundColorInput").addEventListener("input", (event) => {
+    extrasSetBackground(event.target.value);
+  });
+
+  document.querySelectorAll("#extras [data-extras-action]").forEach((button) => {
+    button.addEventListener("click", () => extrasHandleAction(button.dataset.extrasAction));
+  });
+
+  extrasInitCropHandlers();
+  window.addEventListener("resize", () => {
+    if (extrasState.cropping) extrasExitCropMode();
+  });
+}
+
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=189").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=190").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
+initializeExtrasTools();
 render();
 window.addEventListener("app-authenticated", (event) => {
   const user = event.detail?.user;
