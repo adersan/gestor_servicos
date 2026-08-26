@@ -6917,14 +6917,22 @@ document.addEventListener("keydown", (event) => {
 
 const EXTRAS_MAX_BYTES = 10 * 1024 * 1024;
 const EXTRAS_UNDO_LIMIT = 20;
+const EXTRAS_BRUSH_TOOLS = new Set(["erase", "restore", "marker", "pencil", "signature"]);
+const EXTRAS_TIP_TOOLS = new Set(["marker", "pencil", "signature"]);
+const EXTRAS_PAINT_TOOLS = new Set(["marker", "pencil", "signature"]);
+const EXTRAS_COLOR_TOOLS = new Set(["marker", "pencil", "signature", "rect", "ellipse", "text"]);
+const EXTRAS_OPACITY_TOOLS = new Set(["marker"]);
+const EXTRAS_FILL_TOOLS = new Set(["rect", "ellipse"]);
 const extrasState = {
   tool: "erase",
   brushSize: 30,
+  tipShape: "round",
+  drawColor: "#e5342b",
+  opacity: 60,
+  shapeFill: "filled",
   backgroundColor: "",
   cropping: false,
   zoom: 1,
-  markerColor: "#e5342b",
-  markerShape: "round",
   originalImageData: null,
   pristineImageData: null,
   undoStack: []
@@ -6936,6 +6944,10 @@ let extrasLastPoint = null;
 let extrasStrokeFrame = null;
 let extrasLastCursorEvent = null;
 let extrasBaseScale = 1;
+let extrasPanActive = false;
+let extrasPanStart = null;
+let extrasPanScrollStart = null;
+let extrasShapeStart = null;
 
 function extrasClamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -6948,7 +6960,7 @@ function extrasShowPanel(name) {
   document.getElementById("extrasEditorPanel").classList.toggle("hidden", name !== "editor");
 }
 
-async function extrasHandleFile(file) {
+async function extrasHandleFile(file, options = {}) {
   if (!file) return;
   if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) {
     showAppAlert("Envie uma imagem PNG, JPG ou WEBP.", { type: "warning" });
@@ -6959,6 +6971,17 @@ async function extrasHandleFile(file) {
     return;
   }
   extrasShowPanel("loading");
+  if (options.skipRemoval) {
+    try {
+      await extrasLoadResultBlob(file);
+      extrasShowPanel("editor");
+      extrasApplyZoomStyle();
+    } catch (error) {
+      document.getElementById("extrasErrorMessage").textContent = "Não foi possível abrir essa imagem.";
+      extrasShowPanel("error");
+    }
+    return;
+  }
   try {
     const { data } = await window.supabaseClient.auth.getSession();
     const accessToken = data.session?.access_token;
@@ -7004,20 +7027,39 @@ function extrasResetToolsUI() {
   document.getElementById("extrasBrushSize").value = 30;
   document.getElementById("extrasBrightness").value = 100;
   document.getElementById("extrasContrast").value = 100;
+  document.getElementById("extrasOpacity").value = 60;
+  document.getElementById("extrasTextSize").value = 28;
   extrasState.tool = "erase";
   extrasState.brushSize = 30;
+  extrasState.tipShape = "round";
+  extrasState.drawColor = "#e5342b";
+  extrasState.opacity = 60;
+  extrasState.shapeFill = "filled";
   extrasState.zoom = 1;
-  extrasState.markerColor = "#e5342b";
-  extrasState.markerShape = "round";
+  document.getElementById("extrasCanvas").style.filter = "";
   document.querySelectorAll("#extrasToolOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === "erase"));
-  document.getElementById("extrasMarkerOptions")?.classList.add("hidden");
-  document.querySelectorAll("#extrasMarkerShapeOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasMarkerShape === "round"));
-  document.querySelectorAll("#extrasMarkerColorOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasMarkerColor === extrasState.markerColor));
-  const markerColorInput = document.getElementById("extrasMarkerColorInput");
-  if (markerColorInput) markerColorInput.value = extrasState.markerColor;
+  document.querySelectorAll("#extrasTipShapeOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTipShape === "round"));
+  document.querySelectorAll("#extrasFillOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasFill === "filled"));
+  document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasDrawColor === extrasState.drawColor));
+  const drawColorInput = document.getElementById("extrasDrawColorInput");
+  if (drawColorInput) drawColorInput.value = extrasState.drawColor;
   document.getElementById("extrasBackgroundColorInput").value = "#ffffff";
   extrasSetBackground("");
+  extrasSyncToolOptionsVisibility();
   extrasApplyZoomStyle();
+}
+
+function extrasSyncToolOptionsVisibility() {
+  const tool = extrasState.tool;
+  document.getElementById("extrasBrushSizeGroup").classList.toggle("hidden", !EXTRAS_BRUSH_TOOLS.has(tool));
+  document.getElementById("extrasTipShapeGroup").classList.toggle("hidden", !EXTRAS_TIP_TOOLS.has(tool));
+  document.getElementById("extrasOpacityGroup").classList.toggle("hidden", !EXTRAS_OPACITY_TOOLS.has(tool));
+  document.getElementById("extrasFillGroup").classList.toggle("hidden", !EXTRAS_FILL_TOOLS.has(tool));
+  document.getElementById("extrasColorGroup").classList.toggle("hidden", !EXTRAS_COLOR_TOOLS.has(tool));
+  document.getElementById("extrasTextSizeGroup").classList.toggle("hidden", tool !== "text");
+  const canvas = document.getElementById("extrasCanvas");
+  if (canvas) canvas.style.cursor = tool === "pan" ? "grab" : (tool === "rect" || tool === "ellipse" || tool === "text") ? "crosshair" : "none";
+  document.getElementById("extrasBrushCursor")?.classList.add("hidden");
 }
 
 function extrasSetBackground(color) {
@@ -7043,7 +7085,12 @@ function extrasCursorContentPosition(event) {
 function extrasUpdateBrushCursor(event) {
   const cursor = document.getElementById("extrasBrushCursor");
   const canvas = document.getElementById("extrasCanvas");
-  if (!cursor || extrasState.cropping) return;
+  if (!cursor) return;
+  if (extrasState.cropping || !EXTRAS_BRUSH_TOOLS.has(extrasState.tool)) {
+    cursor.classList.add("hidden");
+    return;
+  }
+  cursor.classList.remove("hidden");
   const rect = canvas.getBoundingClientRect();
   const displayScale = rect.width / canvas.width;
   const size = Math.max(4, extrasState.brushSize * displayScale);
@@ -7052,7 +7099,7 @@ function extrasUpdateBrushCursor(event) {
   cursor.style.top = `${pos.y}px`;
   cursor.style.width = `${size}px`;
   cursor.style.height = `${size}px`;
-  cursor.classList.toggle("extras-brush-cursor-square", extrasState.tool === "marker" && extrasState.markerShape === "square");
+  cursor.classList.toggle("extras-brush-cursor-square", EXTRAS_TIP_TOOLS.has(extrasState.tool) && extrasState.tipShape === "square");
 }
 
 function extrasHexToRgb(hex) {
@@ -7064,13 +7111,38 @@ function extrasHexToRgb(hex) {
   ];
 }
 
+function extrasBlendPixel(frame, idx, rgb, alpha01) {
+  if (alpha01 >= 1) {
+    frame.data[idx] = rgb[0];
+    frame.data[idx + 1] = rgb[1];
+    frame.data[idx + 2] = rgb[2];
+    frame.data[idx + 3] = 255;
+    return;
+  }
+  const er = frame.data[idx];
+  const eg = frame.data[idx + 1];
+  const eb = frame.data[idx + 2];
+  const ea = frame.data[idx + 3] / 255;
+  const outA = alpha01 + ea * (1 - alpha01);
+  if (outA <= 0) {
+    frame.data[idx + 3] = 0;
+    return;
+  }
+  frame.data[idx] = Math.round((rgb[0] * alpha01 + er * ea * (1 - alpha01)) / outA);
+  frame.data[idx + 1] = Math.round((rgb[1] * alpha01 + eg * ea * (1 - alpha01)) / outA);
+  frame.data[idx + 2] = Math.round((rgb[2] * alpha01 + eb * ea * (1 - alpha01)) / outA);
+  frame.data[idx + 3] = Math.round(outA * 255);
+}
+
 function extrasStampBrush(frame, cx, cy) {
   const radius = extrasState.brushSize / 2;
   const tool = extrasState.tool;
   const pristine = extrasState.pristineImageData;
   if (tool === "restore" && (!pristine || pristine.width !== frame.width || pristine.height !== frame.height)) return;
-  const square = tool === "marker" && extrasState.markerShape === "square";
-  const markerRgb = tool === "marker" ? extrasHexToRgb(extrasState.markerColor) : null;
+  const isPaintTool = EXTRAS_PAINT_TOOLS.has(tool);
+  const square = isPaintTool && extrasState.tipShape === "square";
+  const rgb = isPaintTool ? extrasHexToRgb(extrasState.drawColor) : null;
+  const alpha01 = tool === "marker" ? extrasState.opacity / 100 : 1;
   const minX = Math.max(0, Math.floor(cx - radius));
   const maxX = Math.min(frame.width - 1, Math.ceil(cx + radius));
   const minY = Math.max(0, Math.floor(cy - radius));
@@ -7091,11 +7163,8 @@ function extrasStampBrush(frame, cx, cy) {
         frame.data[idx + 1] = pristine.data[idx + 1];
         frame.data[idx + 2] = pristine.data[idx + 2];
         frame.data[idx + 3] = pristine.data[idx + 3];
-      } else if (tool === "marker") {
-        frame.data[idx] = markerRgb[0];
-        frame.data[idx + 1] = markerRgb[1];
-        frame.data[idx + 2] = markerRgb[2];
-        frame.data[idx + 3] = 255;
+      } else if (isPaintTool) {
+        extrasBlendPixel(frame, idx, rgb, alpha01);
       } else {
         frame.data[idx + 3] = 0;
       }
@@ -7112,8 +7181,137 @@ function extrasStrokeLine(frame, from, to) {
   }
 }
 
+function extrasPanPointerDown(event) {
+  event.preventDefault();
+  extrasPanActive = true;
+  extrasPanStart = { x: event.clientX, y: event.clientY };
+  const scroll = document.getElementById("extrasCanvasScroll");
+  extrasPanScrollStart = { left: scroll.scrollLeft, top: scroll.scrollTop };
+  document.getElementById("extrasCanvas").setPointerCapture(event.pointerId);
+  scroll.classList.add("extras-panning");
+}
+
+function extrasPanPointerMove(event) {
+  if (!extrasPanActive) return;
+  const scroll = document.getElementById("extrasCanvasScroll");
+  scroll.scrollLeft = extrasPanScrollStart.left - (event.clientX - extrasPanStart.x);
+  scroll.scrollTop = extrasPanScrollStart.top - (event.clientY - extrasPanStart.y);
+}
+
+function extrasPanPointerUp() {
+  extrasPanActive = false;
+  document.getElementById("extrasCanvasScroll")?.classList.remove("extras-panning");
+}
+
+function extrasShapePointerDown(event) {
+  event.preventDefault();
+  const pos = extrasCursorContentPosition(event);
+  extrasShapeStart = pos;
+  const preview = document.getElementById("extrasShapePreview");
+  preview.classList.remove("hidden");
+  preview.classList.toggle("extras-shape-ellipse", extrasState.tool === "ellipse");
+  preview.style.left = `${pos.x}px`;
+  preview.style.top = `${pos.y}px`;
+  preview.style.width = "0px";
+  preview.style.height = "0px";
+  document.getElementById("extrasCanvas").setPointerCapture(event.pointerId);
+}
+
+function extrasShapePointerMove(event) {
+  if (!extrasShapeStart) return;
+  const pos = extrasCursorContentPosition(event);
+  const preview = document.getElementById("extrasShapePreview");
+  preview.style.left = `${Math.min(extrasShapeStart.x, pos.x)}px`;
+  preview.style.top = `${Math.min(extrasShapeStart.y, pos.y)}px`;
+  preview.style.width = `${Math.abs(pos.x - extrasShapeStart.x)}px`;
+  preview.style.height = `${Math.abs(pos.y - extrasShapeStart.y)}px`;
+}
+
+function extrasShapePointerUp() {
+  if (!extrasShapeStart) return;
+  const preview = document.getElementById("extrasShapePreview");
+  const left = parseFloat(preview.style.left) || 0;
+  const top = parseFloat(preview.style.top) || 0;
+  const width = parseFloat(preview.style.width) || 0;
+  const height = parseFloat(preview.style.height) || 0;
+  preview.classList.add("hidden");
+  extrasShapeStart = null;
+  if (width < 4 || height < 4) return;
+  const canvas = document.getElementById("extrasCanvas");
+  const box = extrasCanvasBoundsInScroll();
+  const scaleX = canvas.width / (box.right - box.left);
+  const scaleY = canvas.height / (box.bottom - box.top);
+  const x = (left - box.left) * scaleX;
+  const y = (top - box.top) * scaleY;
+  const w = width * scaleX;
+  const h = height * scaleY;
+  extrasPushUndo();
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = extrasState.drawColor;
+  ctx.strokeStyle = extrasState.drawColor;
+  ctx.lineWidth = Math.max(2, extrasState.brushSize / 6);
+  const filled = extrasState.shapeFill === "filled";
+  if (extrasState.tool === "rect") {
+    if (filled) ctx.fillRect(x, y, w, h); else ctx.strokeRect(x, y, w, h);
+  } else {
+    ctx.beginPath();
+    ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+    if (filled) ctx.fill(); else ctx.stroke();
+  }
+}
+
+function extrasTextPointerDown(event) {
+  event.preventDefault();
+  const pos = extrasCursorContentPosition(event);
+  const overlay = document.getElementById("extrasTextInputOverlay");
+  overlay.style.left = `${pos.x}px`;
+  overlay.style.top = `${pos.y}px`;
+  overlay.dataset.x = pos.x;
+  overlay.dataset.y = pos.y;
+  overlay.value = "";
+  overlay.classList.remove("hidden");
+  overlay.focus();
+}
+
+function extrasCommitTextInput() {
+  const overlay = document.getElementById("extrasTextInputOverlay");
+  if (overlay.classList.contains("hidden")) return;
+  const value = overlay.value.trim();
+  overlay.classList.add("hidden");
+  if (!value) return;
+  const canvas = document.getElementById("extrasCanvas");
+  const box = extrasCanvasBoundsInScroll();
+  const scale = canvas.width / (box.right - box.left);
+  const x = (Number(overlay.dataset.x) - box.left) * scale;
+  const y = (Number(overlay.dataset.y) - box.top) * scale;
+  const fontSize = Number(document.getElementById("extrasTextSize").value) * scale;
+  extrasPushUndo();
+  const ctx = canvas.getContext("2d");
+  ctx.font = `${fontSize}px Arial, sans-serif`;
+  ctx.fillStyle = extrasState.drawColor;
+  ctx.textBaseline = "top";
+  ctx.fillText(value, x, y);
+}
+
+function extrasCancelTextInput() {
+  document.getElementById("extrasTextInputOverlay").classList.add("hidden");
+}
+
 function extrasPointerDown(event) {
   if (extrasState.cropping) return;
+  const tool = extrasState.tool;
+  if (tool === "pan") {
+    extrasPanPointerDown(event);
+    return;
+  }
+  if (tool === "rect" || tool === "ellipse") {
+    extrasShapePointerDown(event);
+    return;
+  }
+  if (tool === "text") {
+    extrasTextPointerDown(event);
+    return;
+  }
   event.preventDefault();
   const canvas = document.getElementById("extrasCanvas");
   canvas.setPointerCapture(event.pointerId);
@@ -7128,6 +7326,14 @@ function extrasPointerDown(event) {
 }
 
 function extrasPointerMove(event) {
+  if (extrasPanActive) {
+    extrasPanPointerMove(event);
+    return;
+  }
+  if (extrasShapeStart) {
+    extrasShapePointerMove(event);
+    return;
+  }
   if (!extrasDrawing || !extrasStrokeFrame) return;
   const point = extrasCanvasPoint(event);
   extrasStrokeLine(extrasStrokeFrame, extrasLastPoint, point);
@@ -7135,7 +7341,15 @@ function extrasPointerMove(event) {
   extrasLastPoint = point;
 }
 
-function extrasPointerUp() {
+function extrasPointerUp(event) {
+  if (extrasPanActive) {
+    extrasPanPointerUp();
+    return;
+  }
+  if (extrasShapeStart) {
+    extrasShapePointerUp(event);
+    return;
+  }
   extrasDrawing = false;
   extrasStrokeFrame = null;
   extrasLastPoint = null;
@@ -7316,6 +7530,12 @@ function extrasApplyCrop() {
   extrasApplyZoomStyle();
 }
 
+function extrasPreviewAdjust() {
+  const brightness = document.getElementById("extrasBrightness").value;
+  const contrast = document.getElementById("extrasContrast").value;
+  document.getElementById("extrasCanvas").style.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+}
+
 function extrasApplyAdjust() {
   const brightness = Number(document.getElementById("extrasBrightness").value);
   const contrast = Number(document.getElementById("extrasContrast").value);
@@ -7333,6 +7553,7 @@ function extrasApplyAdjust() {
   ctx.drawImage(temp, 0, 0);
   document.getElementById("extrasBrightness").value = 100;
   document.getElementById("extrasContrast").value = 100;
+  canvas.style.filter = "";
 }
 
 function extrasReset() {
@@ -7357,6 +7578,9 @@ function extrasNewImage() {
 }
 
 function extrasDownload() {
+  const brightness = Number(document.getElementById("extrasBrightness").value);
+  const contrast = Number(document.getElementById("extrasContrast").value);
+  if (brightness !== 100 || contrast !== 100) extrasApplyAdjust();
   const canvas = document.getElementById("extrasCanvas");
   const output = document.createElement("canvas");
   output.width = canvas.width;
@@ -7400,28 +7624,55 @@ function extrasHandleAction(action) {
   }
 }
 
+function extrasResizeCropRect(rectStart, key, dx, dy) {
+  let { left, top, width, height } = rectStart;
+  const minSize = 24;
+  const bounds = extrasCropBounds;
+  if (key.includes("w")) {
+    const newLeft = extrasClamp(left + dx, bounds.left, left + width - minSize);
+    width += left - newLeft;
+    left = newLeft;
+  }
+  if (key.includes("e")) {
+    width = extrasClamp(width + dx, minSize, bounds.right - left);
+  }
+  if (key.includes("n")) {
+    const newTop = extrasClamp(top + dy, bounds.top, top + height - minSize);
+    height += top - newTop;
+    top = newTop;
+  }
+  if (key.includes("s")) {
+    height = extrasClamp(height + dy, minSize, bounds.bottom - top);
+  }
+  return { left, top, width, height };
+}
+
 function extrasInitCropHandlers() {
   const overlay = document.getElementById("extrasCropOverlay");
-  const handle = document.getElementById("extrasCropHandle");
-  if (!overlay || !handle) return;
+  if (!overlay) return;
+  const handles = overlay.querySelectorAll("[data-extras-crop-handle]");
   let dragMode = null;
+  let dragKey = null;
   let dragStart = null;
   let rectStart = null;
 
   overlay.addEventListener("pointerdown", (event) => {
-    if (event.target === handle || !extrasCropRect) return;
+    if (event.target.closest("[data-extras-crop-handle]") || !extrasCropRect) return;
     dragMode = "move";
     dragStart = { x: event.clientX, y: event.clientY };
     rectStart = { ...extrasCropRect };
     overlay.setPointerCapture(event.pointerId);
   });
-  handle.addEventListener("pointerdown", (event) => {
-    event.stopPropagation();
-    if (!extrasCropRect) return;
-    dragMode = "resize";
-    dragStart = { x: event.clientX, y: event.clientY };
-    rectStart = { ...extrasCropRect };
-    handle.setPointerCapture(event.pointerId);
+  handles.forEach((handle) => {
+    handle.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+      if (!extrasCropRect) return;
+      dragMode = "resize";
+      dragKey = handle.dataset.extrasCropHandle;
+      dragStart = { x: event.clientX, y: event.clientY };
+      rectStart = { ...extrasCropRect };
+      handle.setPointerCapture(event.pointerId);
+    });
   });
   window.addEventListener("pointermove", (event) => {
     if (!dragMode || !extrasCropRect || !extrasCropBounds) return;
@@ -7431,13 +7682,17 @@ function extrasInitCropHandlers() {
       extrasCropRect.left = extrasClamp(rectStart.left + dx, extrasCropBounds.left, extrasCropBounds.right - extrasCropRect.width);
       extrasCropRect.top = extrasClamp(rectStart.top + dy, extrasCropBounds.top, extrasCropBounds.bottom - extrasCropRect.height);
     } else if (dragMode === "resize") {
-      extrasCropRect.width = extrasClamp(rectStart.width + dx, 30, extrasCropBounds.right - extrasCropRect.left);
-      extrasCropRect.height = extrasClamp(rectStart.height + dy, 30, extrasCropBounds.bottom - extrasCropRect.top);
+      const next = extrasResizeCropRect(rectStart, dragKey, dx, dy);
+      extrasCropRect.left = next.left;
+      extrasCropRect.top = next.top;
+      extrasCropRect.width = next.width;
+      extrasCropRect.height = next.height;
     }
     extrasRenderCropOverlay();
   });
   window.addEventListener("pointerup", () => {
     dragMode = null;
+    dragKey = null;
   });
 }
 
@@ -7475,6 +7730,15 @@ function initializeExtrasTools() {
     extrasHandleFile(file);
   });
 
+  const editOnlyButton = document.getElementById("extrasEditOnlyButton");
+  const editOnlyInput = document.getElementById("extrasEditOnlyFileInput");
+  editOnlyButton?.addEventListener("click", () => editOnlyInput.click());
+  editOnlyInput?.addEventListener("change", () => {
+    const file = editOnlyInput.files?.[0];
+    editOnlyInput.value = "";
+    extrasHandleFile(file, { skipRemoval: true });
+  });
+
   const canvas = document.getElementById("extrasCanvas");
   canvas.addEventListener("pointerdown", extrasPointerDown);
   canvas.addEventListener("pointermove", extrasPointerMove);
@@ -7483,8 +7747,6 @@ function initializeExtrasTools() {
     extrasUpdateBrushCursor(event);
   });
   canvas.addEventListener("pointerenter", (event) => {
-    if (extrasState.cropping) return;
-    document.getElementById("extrasBrushCursor").classList.remove("hidden");
     extrasLastCursorEvent = event;
     extrasUpdateBrushCursor(event);
   });
@@ -7496,9 +7758,10 @@ function initializeExtrasTools() {
   document.getElementById("extrasToolOptions").addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-tool]");
     if (!button) return;
+    extrasCancelTextInput();
     extrasState.tool = button.dataset.extrasTool;
     document.querySelectorAll("#extrasToolOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
-    document.getElementById("extrasMarkerOptions").classList.toggle("hidden", extrasState.tool !== "marker");
+    extrasSyncToolOptionsVisibility();
     if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
   });
 
@@ -7507,23 +7770,47 @@ function initializeExtrasTools() {
     if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
   });
 
-  document.getElementById("extrasMarkerShapeOptions").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-extras-marker-shape]");
+  document.getElementById("extrasOpacity").addEventListener("input", (event) => {
+    extrasState.opacity = Number(event.target.value);
+  });
+
+  document.getElementById("extrasTipShapeOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-tip-shape]");
     if (!button) return;
-    extrasState.markerShape = button.dataset.extrasMarkerShape;
-    document.querySelectorAll("#extrasMarkerShapeOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
+    extrasState.tipShape = button.dataset.extrasTipShape;
+    document.querySelectorAll("#extrasTipShapeOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
     if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
   });
-  document.getElementById("extrasMarkerColorOptions").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-extras-marker-color]");
+
+  document.getElementById("extrasFillOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-fill]");
     if (!button) return;
-    extrasState.markerColor = button.dataset.extrasMarkerColor;
-    document.querySelectorAll("#extrasMarkerColorOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
+    extrasState.shapeFill = button.dataset.extrasFill;
+    document.querySelectorAll("#extrasFillOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
   });
-  document.getElementById("extrasMarkerColorInput").addEventListener("input", (event) => {
-    extrasState.markerColor = event.target.value;
-    document.querySelectorAll("#extrasMarkerColorOptions button").forEach((btn) => btn.classList.remove("active"));
+
+  document.getElementById("extrasDrawColorOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-draw-color]");
+    if (!button) return;
+    extrasState.drawColor = button.dataset.extrasDrawColor;
+    document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
   });
+  document.getElementById("extrasDrawColorInput").addEventListener("input", (event) => {
+    extrasState.drawColor = event.target.value;
+    document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.remove("active"));
+  });
+
+  const textInputOverlay = document.getElementById("extrasTextInputOverlay");
+  textInputOverlay.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      extrasCommitTextInput();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      extrasCancelTextInput();
+    }
+  });
+  textInputOverlay.addEventListener("blur", () => extrasCommitTextInput());
 
   document.getElementById("extrasBackgroundOptions").addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-bg]");
@@ -7533,6 +7820,9 @@ function initializeExtrasTools() {
   document.getElementById("extrasBackgroundColorInput").addEventListener("input", (event) => {
     extrasSetBackground(event.target.value);
   });
+
+  document.getElementById("extrasBrightness").addEventListener("input", extrasPreviewAdjust);
+  document.getElementById("extrasContrast").addEventListener("input", extrasPreviewAdjust);
 
   document.querySelectorAll("#extras [data-extras-action]").forEach((button) => {
     button.addEventListener("click", () => extrasHandleAction(button.dataset.extrasAction));
@@ -7547,6 +7837,7 @@ function initializeExtrasTools() {
   document.addEventListener("keydown", (event) => {
     if (!document.getElementById("extras")?.classList.contains("active")) return;
     if (document.getElementById("extrasEditorPanel")?.classList.contains("hidden")) return;
+    if (document.activeElement === textInputOverlay) return;
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
       event.preventDefault();
       extrasUndo();
@@ -7563,6 +7854,8 @@ function initializeExtrasTools() {
     event.preventDefault();
     extrasHandleFile(imageItem.getAsFile());
   });
+
+  extrasSyncToolOptionsVisibility();
 }
 
 if ("serviceWorker" in navigator) {
