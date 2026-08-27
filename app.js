@@ -7268,12 +7268,17 @@ function extrasSyncToolOptionsVisibility() {
 }
 
 function extrasSelectTool(tool) {
-  extrasCancelTextInput();
-  extrasState.colorPickTarget = null;
   if (tool !== extrasState.tool) {
     if (extrasState.tool === "adjust") extrasCancelAdjust();
-    extrasResetLiveObjects();
+    if (EXTRAS_OBJECT_TOOLS.has(tool)) extrasSelectObject(null);
+    else extrasResetLiveObjects();
   }
+  extrasActivateToolForSelection(tool);
+}
+
+function extrasActivateToolForSelection(tool) {
+  extrasCancelTextInput();
+  extrasState.colorPickTarget = null;
   extrasState.tool = tool;
   document.querySelectorAll("[data-extras-tool]").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === tool));
   extrasSyncToolOptionsVisibility();
@@ -7324,12 +7329,13 @@ function extrasBBoxCorner(box, key) {
   return { x, y };
 }
 
-function extrasHitTestObjects(pt, tool) {
-  const wantType = tool === "text" ? "text" : tool === "rect" ? "rect" : tool === "ellipse" ? "ellipse" : "path";
+function extrasObjectToolOf(obj) {
+  return obj.type === "path" ? obj.tool : obj.type;
+}
+
+function extrasHitTestAnyObject(pt) {
   for (let i = extrasState.objects.length - 1; i >= 0; i--) {
     const obj = extrasState.objects[i];
-    if (obj.type !== wantType) continue;
-    if (obj.type === "path" && obj.tool !== tool) continue;
     const box = extrasObjectBBox(obj);
     const pad = obj.type === "path" ? Math.max(6, (obj.size || 10) / 2) : 2;
     if (pt.x >= box.x - pad && pt.x <= box.x + box.w + pad && pt.y >= box.y - pad && pt.y <= box.y + box.h + pad) return obj;
@@ -7648,6 +7654,30 @@ function extrasClientDeltaToCanvasPixels(startClient, event) {
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
   return { dx: (event.clientX - startClient.x) * scaleX, dy: (event.clientY - startClient.y) * scaleY };
+}
+
+function extrasDeleteSelectedObject() {
+  const obj = extrasFindObject(extrasState.selectedObjectId);
+  if (!obj) return;
+  extrasPushUndo();
+  extrasState.objects = extrasState.objects.filter((o) => o.id !== obj.id);
+  extrasSelectObject(null);
+  extrasRedrawObjectsLayer();
+}
+
+function extrasNudgeSelectedObject(dx, dy, isFirstStep) {
+  const obj = extrasFindObject(extrasState.selectedObjectId);
+  if (!obj) return;
+  if (isFirstStep) extrasPushUndo();
+  if (obj.type === "path") {
+    obj.points = obj.points.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+    Object.assign(obj, extrasPathBBox(obj.points));
+  } else {
+    obj.x += dx;
+    obj.y += dy;
+  }
+  extrasRedrawObjectsLayer();
+  extrasRenderObjectHandles();
 }
 
 function extrasBeginObjectDrag(obj, event, mode, key) {
@@ -8026,8 +8056,10 @@ function extrasPointerDown(event) {
   }
   if (EXTRAS_OBJECT_TOOLS.has(tool)) {
     const pt = extrasCanvasPoint(event);
-    const hit = extrasHitTestObjects(pt, tool);
+    const hit = extrasHitTestAnyObject(pt);
     if (hit) {
+      const hitTool = extrasObjectToolOf(hit);
+      if (hitTool !== tool) extrasActivateToolForSelection(hitTool);
       extrasBeginObjectDrag(hit, event, "move");
       return;
     }
@@ -8421,6 +8453,7 @@ function extrasHandleAction(action) {
     case "redo": extrasRedo(); break;
     case "reset": extrasReset(); break;
     case "clear": extrasClear(); break;
+    case "delete-object": extrasDeleteSelectedObject(); break;
     case "new": extrasNewImage(); break;
     case "download": extrasDownload(); break;
     case "zoom-in": extrasSetZoom(extrasState.zoom * 1.25); break;
@@ -8699,6 +8732,21 @@ function initializeExtrasTools() {
       extrasSyncToolOptionsVisibility();
       return;
     }
+    const activeTag = document.activeElement?.tagName;
+    const typingInField = activeTag === "INPUT" || activeTag === "SELECT" || activeTag === "TEXTAREA";
+    if (!typingInField && (event.key === "Delete" || event.key === "Backspace") && extrasFindObject(extrasState.selectedObjectId)) {
+      event.preventDefault();
+      extrasDeleteSelectedObject();
+      return;
+    }
+    if (!typingInField && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key) && extrasFindObject(extrasState.selectedObjectId)) {
+      event.preventDefault();
+      const step = event.shiftKey ? 10 : 1;
+      const dx = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
+      const dy = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
+      extrasNudgeSelectedObject(dx, dy, !event.repeat);
+      return;
+    }
     if (!(event.ctrlKey || event.metaKey)) return;
     const key = event.key.toLowerCase();
     if (key === "z" && event.shiftKey) {
@@ -8728,7 +8776,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=194").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=195").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
