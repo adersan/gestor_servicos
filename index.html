@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=138">
+  <link rel="stylesheet" href="styles.css?v=139">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -777,6 +777,16 @@
               <div class="extras-crop-handle" data-extras-crop-handle="sw"></div>
               <div class="extras-crop-handle" data-extras-crop-handle="w"></div>
             </div>
+            <div id="extrasObjectOverlay" class="extras-object-overlay hidden">
+              <div class="extras-object-handle" data-extras-object-handle="nw"></div>
+              <div class="extras-object-handle" data-extras-object-handle="n"></div>
+              <div class="extras-object-handle" data-extras-object-handle="ne"></div>
+              <div class="extras-object-handle" data-extras-object-handle="e"></div>
+              <div class="extras-object-handle" data-extras-object-handle="se"></div>
+              <div class="extras-object-handle" data-extras-object-handle="s"></div>
+              <div class="extras-object-handle" data-extras-object-handle="sw"></div>
+              <div class="extras-object-handle" data-extras-object-handle="w"></div>
+            </div>
           </div>
         </div>
 
@@ -792,13 +802,8 @@
             <button type="button" class="extras-icon-btn" data-extras-tool="text" title="Texto" aria-label="Texto"><b>T</b></button>
           </div>
           <div class="extras-icon-group">
-            <button type="button" class="extras-icon-btn" data-extras-action="rotate" title="Girar 90°" aria-label="Girar 90°">🔄</button>
-            <button type="button" class="extras-icon-btn" data-extras-tool="crop" title="Recortar" aria-label="Recortar">✂</button>
             <button type="button" class="extras-icon-btn" data-extras-tool="background" title="Fundo" aria-label="Fundo">🎨</button>
             <button type="button" class="extras-icon-btn" data-extras-tool="adjust" title="Brilho e contraste" aria-label="Brilho e contraste">🌓</button>
-          </div>
-          <div class="extras-icon-group extras-icon-group-right">
-            <button type="button" class="extras-icon-btn" data-extras-tool="zoom" title="Zoom" aria-label="Zoom">🔍</button>
           </div>
         </div>
 
@@ -896,6 +901,10 @@
           <button type="button" class="extras-icon-btn" data-extras-action="undo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↶</button>
           <button type="button" class="extras-icon-btn" data-extras-action="redo" title="Refazer (Ctrl+Y)" aria-label="Refazer">↷</button>
           <button type="button" class="extras-icon-btn" data-extras-action="reset" title="Reiniciar" aria-label="Reiniciar">🧹</button>
+          <button type="button" class="extras-icon-btn" data-extras-tool="zoom" title="Zoom" aria-label="Zoom">🔍</button>
+          <button type="button" class="extras-icon-btn" data-extras-tool="crop" title="Recortar" aria-label="Recortar">✂</button>
+          <button type="button" class="extras-icon-btn" data-extras-action="rotate" title="Girar 90°" aria-label="Girar 90°">🔄</button>
+          <button type="button" class="secondary" data-extras-action="clear">Limpar</button>
           <button type="button" class="secondary" data-extras-action="new">Nova imagem</button>
           <button type="button" class="primary" data-extras-action="download">Baixar PNG</button>
         </div>
@@ -2370,7 +2379,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=52"></script>
-  <script src="app.js?v=178"></script>
+  <script src="app.js?v=179"></script>
   <script src="supplier.js?v=65"></script>
 </body>
 </html>

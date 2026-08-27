@@ -6923,6 +6923,7 @@ const EXTRAS_PAINT_TOOLS = new Set(["marker", "pencil", "signature"]);
 const EXTRAS_COLOR_TOOLS = new Set(["marker", "pencil", "signature", "rect", "ellipse", "text"]);
 const EXTRAS_OPACITY_TOOLS = new Set(["marker"]);
 const EXTRAS_FILL_TOOLS = new Set(["rect", "ellipse"]);
+const EXTRAS_OBJECT_TOOLS = new Set(["text", "rect", "ellipse", "pencil", "signature"]);
 const EXTRAS_TOOL_LABELS = {
   erase: "Apagar",
   restore: "Restaurar",
@@ -6951,7 +6952,10 @@ const extrasState = {
   originalImageData: null,
   pristineImageData: null,
   undoStack: [],
-  redoStack: []
+  redoStack: [],
+  objects: [],
+  objectsBase: null,
+  selectedObjectId: null
 };
 let extrasCropRect = null;
 let extrasCropBounds = null;
@@ -6968,6 +6972,9 @@ let extrasPendingFile = null;
 let extrasRawResultCanvas = null;
 let extrasSensitivity = 0;
 let extrasPreviewObjectUrl = null;
+let extrasObjectSeq = 1;
+let extrasObjectDrag = null;
+let extrasPathPoints = null;
 
 function extrasClamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -7154,6 +7161,7 @@ async function extrasLoadResultBlob(blob) {
   extrasState.pristineImageData = new ImageData(new Uint8ClampedArray(original.data), original.width, original.height);
   extrasState.undoStack = [];
   extrasState.redoStack = [];
+  extrasResetLiveObjects();
   extrasExitCropMode();
   extrasResetToolsUI();
 }
@@ -7182,6 +7190,7 @@ function extrasResetToolsUI() {
   if (drawColorInput) drawColorInput.value = extrasState.drawColor;
   document.getElementById("extrasBackgroundColorInput").value = "#ffffff";
   extrasSetBackground("");
+  extrasResetLiveObjects();
   extrasSyncToolOptionsVisibility();
   extrasApplyZoomStyle();
 }
@@ -7217,10 +7226,309 @@ function extrasSyncToolOptionsVisibility() {
 
 function extrasSelectTool(tool) {
   extrasCancelTextInput();
+  if (tool !== extrasState.tool) extrasResetLiveObjects();
   extrasState.tool = tool;
   document.querySelectorAll("[data-extras-tool]").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === tool));
   extrasSyncToolOptionsVisibility();
   if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
+}
+
+function extrasResetLiveObjects() {
+  extrasState.objects = [];
+  extrasState.objectsBase = null;
+  extrasState.selectedObjectId = null;
+  extrasObjectDrag = null;
+  extrasRenderObjectHandles();
+}
+
+function extrasEnsureObjectsBase() {
+  if (extrasState.objectsBase) return;
+  const canvas = document.getElementById("extrasCanvas");
+  extrasState.objectsBase = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+}
+
+function extrasFindObject(id) {
+  return extrasState.objects.find((obj) => obj.id === id) || null;
+}
+
+function extrasObjectBBox(obj) {
+  const x = Math.min(obj.x, obj.x + obj.w);
+  const y = Math.min(obj.y, obj.y + obj.h);
+  return { x, y, w: Math.abs(obj.w), h: Math.abs(obj.h) };
+}
+
+function extrasPathBBox(points) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  points.forEach((p) => {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  });
+  return { x: minX, y: minY, w: Math.max(1, maxX - minX), h: Math.max(1, maxY - minY) };
+}
+
+function extrasBBoxCorner(box, key) {
+  const x = key.includes("w") ? box.x : box.x + box.w;
+  const y = key.includes("n") ? box.y : box.y + box.h;
+  return { x, y };
+}
+
+function extrasHitTestObjects(pt, tool) {
+  const wantType = tool === "text" ? "text" : tool === "rect" ? "rect" : tool === "ellipse" ? "ellipse" : "path";
+  for (let i = extrasState.objects.length - 1; i >= 0; i--) {
+    const obj = extrasState.objects[i];
+    if (obj.type !== wantType) continue;
+    if (obj.type === "path" && obj.tool !== tool) continue;
+    const box = extrasObjectBBox(obj);
+    const pad = obj.type === "path" ? Math.max(6, (obj.size || 10) / 2) : 2;
+    if (pt.x >= box.x - pad && pt.x <= box.x + box.w + pad && pt.y >= box.y - pad && pt.y <= box.y + box.h + pad) return obj;
+  }
+  return null;
+}
+
+function extrasDrawObjectInto(ctx, obj) {
+  ctx.save();
+  if (obj.type === "rect" || obj.type === "ellipse") {
+    const box = extrasObjectBBox(obj);
+    ctx.fillStyle = obj.color;
+    ctx.strokeStyle = obj.color;
+    ctx.lineWidth = obj.lineWidth;
+    if (obj.type === "rect") {
+      if (obj.fill === "filled") ctx.fillRect(box.x, box.y, box.w, box.h); else ctx.strokeRect(box.x, box.y, box.w, box.h);
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(box.x + box.w / 2, box.y + box.h / 2, box.w / 2, box.h / 2, 0, 0, Math.PI * 2);
+      if (obj.fill === "filled") ctx.fill(); else ctx.stroke();
+    }
+  } else if (obj.type === "text") {
+    ctx.font = `${obj.size}px Arial, sans-serif`;
+    ctx.fillStyle = obj.color;
+    ctx.textBaseline = "top";
+    ctx.fillText(obj.text, obj.x, obj.y);
+  }
+  ctx.restore();
+}
+
+function extrasStampPathObject(frame, obj) {
+  const prevTool = extrasState.tool;
+  const prevBrush = extrasState.brushSize;
+  const prevTip = extrasState.tipShape;
+  const prevColor = extrasState.drawColor;
+  extrasState.tool = obj.tool;
+  extrasState.brushSize = obj.size;
+  extrasState.tipShape = "round";
+  extrasState.drawColor = obj.color;
+  const pts = obj.points;
+  if (pts.length === 1) extrasStampBrush(frame, pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) extrasStrokeLine(frame, pts[i - 1], pts[i]);
+  extrasState.tool = prevTool;
+  extrasState.brushSize = prevBrush;
+  extrasState.tipShape = prevTip;
+  extrasState.drawColor = prevColor;
+}
+
+function extrasRedrawObjectsLayer() {
+  if (!extrasState.objectsBase) return;
+  const canvas = document.getElementById("extrasCanvas");
+  const ctx = canvas.getContext("2d");
+  ctx.putImageData(extrasState.objectsBase, 0, 0);
+  extrasState.objects.forEach((obj) => {
+    if (obj.type === "path") {
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      extrasStampPathObject(frame, obj);
+      ctx.putImageData(frame, 0, 0);
+    } else {
+      extrasDrawObjectInto(ctx, obj);
+    }
+  });
+}
+
+function extrasSelectObject(id) {
+  extrasState.selectedObjectId = id;
+  extrasRenderObjectHandles();
+}
+
+function extrasCanvasRectToScreen(rect) {
+  const canvas = document.getElementById("extrasCanvas");
+  const canvasBox = canvas.getBoundingClientRect();
+  const scaleX = canvasBox.width / canvas.width;
+  const scaleY = canvasBox.height / canvas.height;
+  return {
+    left: canvas.offsetLeft + rect.x * scaleX,
+    top: canvas.offsetTop + rect.y * scaleY,
+    width: rect.w * scaleX,
+    height: rect.h * scaleY
+  };
+}
+
+function extrasRenderObjectHandles() {
+  const overlay = document.getElementById("extrasObjectOverlay");
+  if (!overlay) return;
+  const obj = extrasFindObject(extrasState.selectedObjectId);
+  if (!obj) {
+    overlay.classList.add("hidden");
+    return;
+  }
+  const screen = extrasCanvasRectToScreen(extrasObjectBBox(obj));
+  overlay.style.left = `${screen.left}px`;
+  overlay.style.top = `${screen.top}px`;
+  overlay.style.width = `${screen.width}px`;
+  overlay.style.height = `${screen.height}px`;
+  overlay.classList.toggle("extras-object-overlay-corners-only", obj.type === "text" || obj.type === "path");
+  overlay.classList.remove("hidden");
+}
+
+function extrasApplyObjectMove(obj, origin, dx, dy) {
+  if (obj.type === "path") {
+    obj.points = origin.points.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+    Object.assign(obj, extrasPathBBox(obj.points));
+  } else {
+    obj.x = origin.x + dx;
+    obj.y = origin.y + dy;
+  }
+}
+
+function extrasResizeBBox(origin, key, dx, dy, minSize = 6) {
+  let { x, y, w, h } = origin;
+  if (key.includes("w")) {
+    const newX = x + dx;
+    const newW = w - dx;
+    if (newW >= minSize) { x = newX; w = newW; }
+  }
+  if (key.includes("e")) w = Math.max(minSize, w + dx);
+  if (key.includes("n")) {
+    const newY = y + dy;
+    const newH = h - dy;
+    if (newH >= minSize) { y = newY; h = newH; }
+  }
+  if (key.includes("s")) h = Math.max(minSize, h + dy);
+  return { x, y, w, h };
+}
+
+function extrasApplyTextResize(obj, origin, key, dx, dy) {
+  const opposite = { nw: "se", ne: "sw", se: "nw", sw: "ne" }[key];
+  const oppCorner = extrasBBoxCorner(origin, opposite);
+  const dragCorner = extrasBBoxCorner(origin, key);
+  const newDragCorner = { x: dragCorner.x + dx, y: dragCorner.y + dy };
+  const oldDist = Math.hypot(dragCorner.x - oppCorner.x, dragCorner.y - oppCorner.y) || 1;
+  const newDist = Math.hypot(newDragCorner.x - oppCorner.x, newDragCorner.y - oppCorner.y);
+  const scale = extrasClamp(newDist / oldDist, 0.2, 8);
+  obj.size = Math.max(6, origin.size * scale);
+  const ctx = document.getElementById("extrasCanvas").getContext("2d");
+  ctx.font = `${obj.size}px Arial, sans-serif`;
+  const metrics = ctx.measureText(obj.text);
+  obj.w = metrics.width;
+  obj.h = obj.size * 1.2;
+  if (opposite === "se") { obj.x = oppCorner.x; obj.y = oppCorner.y; }
+  else if (opposite === "sw") { obj.x = oppCorner.x - obj.w; obj.y = oppCorner.y; }
+  else if (opposite === "ne") { obj.x = oppCorner.x; obj.y = oppCorner.y - obj.h; }
+  else { obj.x = oppCorner.x - obj.w; obj.y = oppCorner.y - obj.h; }
+}
+
+function extrasApplyPathResize(obj, origin, key, dx, dy) {
+  const box = extrasPathBBox(origin.points);
+  const opposite = { nw: "se", ne: "sw", se: "nw", sw: "ne" }[key];
+  const oppCorner = extrasBBoxCorner(box, opposite);
+  const dragCorner = extrasBBoxCorner(box, key);
+  const newDragCorner = { x: dragCorner.x + dx, y: dragCorner.y + dy };
+  const oldDist = Math.hypot(dragCorner.x - oppCorner.x, dragCorner.y - oppCorner.y) || 1;
+  const newDist = Math.hypot(newDragCorner.x - oppCorner.x, newDragCorner.y - oppCorner.y);
+  const scale = extrasClamp(newDist / oldDist, 0.2, 8);
+  obj.points = origin.points.map((p) => ({
+    x: oppCorner.x + (p.x - oppCorner.x) * scale,
+    y: oppCorner.y + (p.y - oppCorner.y) * scale
+  }));
+  obj.size = Math.max(2, origin.size * scale);
+  Object.assign(obj, extrasPathBBox(obj.points));
+}
+
+function extrasApplyObjectResize(obj, origin, key, dx, dy) {
+  if (obj.type === "rect" || obj.type === "ellipse") Object.assign(obj, extrasResizeBBox(origin, key, dx, dy));
+  else if (obj.type === "text") extrasApplyTextResize(obj, origin, key, dx, dy);
+  else if (obj.type === "path") extrasApplyPathResize(obj, origin, key, dx, dy);
+}
+
+function extrasClientDeltaToCanvasPixels(startClient, event) {
+  const canvas = document.getElementById("extrasCanvas");
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return { dx: (event.clientX - startClient.x) * scaleX, dy: (event.clientY - startClient.y) * scaleY };
+}
+
+function extrasBeginObjectDrag(obj, event, mode, key) {
+  event.stopPropagation();
+  event.preventDefault();
+  event.currentTarget.setPointerCapture?.(event.pointerId);
+  extrasPushUndo();
+  extrasSelectObject(obj.id);
+  extrasObjectDrag = { mode, key: key || null, id: obj.id, start: { x: event.clientX, y: event.clientY }, origin: JSON.parse(JSON.stringify(obj)) };
+}
+
+function extrasInitObjectDragHandlers() {
+  const overlay = document.getElementById("extrasObjectOverlay");
+  if (!overlay) return;
+  overlay.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("[data-extras-object-handle]")) return;
+    const obj = extrasFindObject(extrasState.selectedObjectId);
+    if (!obj) return;
+    extrasBeginObjectDrag(obj, event, "move");
+  });
+  overlay.querySelectorAll("[data-extras-object-handle]").forEach((handle) => {
+    handle.addEventListener("pointerdown", (event) => {
+      const obj = extrasFindObject(extrasState.selectedObjectId);
+      if (!obj) return;
+      extrasBeginObjectDrag(obj, event, "resize", handle.dataset.extrasObjectHandle);
+    });
+  });
+  window.addEventListener("pointermove", (event) => {
+    if (!extrasObjectDrag) return;
+    const obj = extrasFindObject(extrasObjectDrag.id);
+    if (!obj) { extrasObjectDrag = null; return; }
+    const { dx, dy } = extrasClientDeltaToCanvasPixels(extrasObjectDrag.start, event);
+    if (extrasObjectDrag.mode === "move") extrasApplyObjectMove(obj, extrasObjectDrag.origin, dx, dy);
+    else extrasApplyObjectResize(obj, extrasObjectDrag.origin, extrasObjectDrag.key, dx, dy);
+    extrasRedrawObjectsLayer();
+    extrasRenderObjectHandles();
+  });
+  window.addEventListener("pointerup", () => { extrasObjectDrag = null; });
+}
+
+function extrasFinishPathObject() {
+  const points = extrasPathPoints;
+  extrasPathPoints = null;
+  if (!points || points.length < 1) return;
+  const obj = {
+    id: extrasObjectSeq++,
+    type: "path",
+    tool: extrasState.tool,
+    points,
+    color: extrasState.drawColor,
+    size: extrasState.brushSize,
+    ...extrasPathBBox(points)
+  };
+  extrasState.objects.push(obj);
+  extrasSelectObject(obj.id);
+}
+
+function extrasPathPointerDown(event) {
+  event.preventDefault();
+  const canvas = document.getElementById("extrasCanvas");
+  canvas.setPointerCapture(event.pointerId);
+  extrasEnsureObjectsBase();
+  extrasPushUndo();
+  extrasDrawing = true;
+  const ctx = canvas.getContext("2d");
+  extrasStrokeFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const point = extrasCanvasPoint(event);
+  extrasStampBrush(extrasStrokeFrame, point.x, point.y);
+  ctx.putImageData(extrasStrokeFrame, 0, 0);
+  extrasLastPoint = point;
+  extrasPathPoints = [point];
 }
 
 function extrasSetBackground(color) {
@@ -7408,19 +7716,19 @@ function extrasShapePointerUp() {
   const y = (top - box.top) * scaleY;
   const w = width * scaleX;
   const h = height * scaleY;
+  extrasEnsureObjectsBase();
   extrasPushUndo();
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = extrasState.drawColor;
-  ctx.strokeStyle = extrasState.drawColor;
-  ctx.lineWidth = Math.max(2, extrasState.brushSize / 6);
-  const filled = extrasState.shapeFill === "filled";
-  if (extrasState.tool === "rect") {
-    if (filled) ctx.fillRect(x, y, w, h); else ctx.strokeRect(x, y, w, h);
-  } else {
-    ctx.beginPath();
-    ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-    if (filled) ctx.fill(); else ctx.stroke();
-  }
+  const obj = {
+    id: extrasObjectSeq++,
+    type: extrasState.tool,
+    x, y, w, h,
+    fill: extrasState.shapeFill,
+    color: extrasState.drawColor,
+    lineWidth: Math.max(2, extrasState.brushSize / 6)
+  };
+  extrasState.objects.push(obj);
+  extrasDrawObjectInto(canvas.getContext("2d"), obj);
+  extrasSelectObject(obj.id);
 }
 
 function extrasTextPointerDown(event) {
@@ -7448,12 +7756,22 @@ function extrasCommitTextInput() {
   const x = (Number(overlay.dataset.x) - box.left) * scale;
   const y = (Number(overlay.dataset.y) - box.top) * scale;
   const fontSize = Number(document.getElementById("extrasTextSize").value) * scale;
+  extrasEnsureObjectsBase();
   extrasPushUndo();
   const ctx = canvas.getContext("2d");
   ctx.font = `${fontSize}px Arial, sans-serif`;
-  ctx.fillStyle = extrasState.drawColor;
-  ctx.textBaseline = "top";
-  ctx.fillText(value, x, y);
+  const metrics = ctx.measureText(value);
+  const obj = {
+    id: extrasObjectSeq++,
+    type: "text",
+    x, y, w: metrics.width, h: fontSize * 1.2,
+    text: value,
+    size: fontSize,
+    color: extrasState.drawColor
+  };
+  extrasState.objects.push(obj);
+  extrasDrawObjectInto(ctx, obj);
+  extrasSelectObject(obj.id);
 }
 
 function extrasCancelTextInput() {
@@ -7468,12 +7786,17 @@ function extrasPointerDown(event) {
     if (extrasState.zoomPanArmed) extrasPanPointerDown(event);
     return;
   }
-  if (tool === "rect" || tool === "ellipse") {
-    extrasShapePointerDown(event);
-    return;
-  }
-  if (tool === "text") {
-    extrasTextPointerDown(event);
+  if (EXTRAS_OBJECT_TOOLS.has(tool)) {
+    const pt = extrasCanvasPoint(event);
+    const hit = extrasHitTestObjects(pt, tool);
+    if (hit) {
+      extrasBeginObjectDrag(hit, event, "move");
+      return;
+    }
+    extrasSelectObject(null);
+    if (tool === "text") { extrasTextPointerDown(event); return; }
+    if (tool === "rect" || tool === "ellipse") { extrasShapePointerDown(event); return; }
+    extrasPathPointerDown(event);
     return;
   }
   event.preventDefault();
@@ -7494,6 +7817,7 @@ function extrasPointerMove(event) {
     extrasPanPointerMove(event);
     return;
   }
+  if (extrasObjectDrag) return;
   if (extrasShapeStart) {
     extrasShapePointerMove(event);
     return;
@@ -7503,6 +7827,7 @@ function extrasPointerMove(event) {
   extrasStrokeLine(extrasStrokeFrame, extrasLastPoint, point);
   document.getElementById("extrasCanvas").getContext("2d").putImageData(extrasStrokeFrame, 0, 0);
   extrasLastPoint = point;
+  if (extrasPathPoints) extrasPathPoints.push(point);
 }
 
 function extrasPointerUp(event) {
@@ -7510,10 +7835,12 @@ function extrasPointerUp(event) {
     extrasPanPointerUp();
     return;
   }
+  if (extrasObjectDrag) return;
   if (extrasShapeStart) {
     extrasShapePointerUp(event);
     return;
   }
+  if (extrasPathPoints) extrasFinishPathObject();
   extrasDrawing = false;
   extrasStrokeFrame = null;
   extrasLastPoint = null;
@@ -7535,6 +7862,7 @@ function extrasRestoreSnapshot(entry) {
   canvas.height = entry.height;
   canvas.getContext("2d").putImageData(entry.data, 0, 0);
   extrasState.pristineImageData = entry.pristine;
+  extrasResetLiveObjects();
   extrasApplyZoomStyle();
 }
 
@@ -7591,6 +7919,7 @@ function extrasCropImageData(imageData, rect) {
 
 function extrasRotate() {
   extrasExitCropMode();
+  extrasResetLiveObjects();
   const canvas = document.getElementById("extrasCanvas");
   extrasPushUndo();
   const w = canvas.width;
@@ -7642,6 +7971,7 @@ function extrasApplyZoomStyle() {
 function extrasSetZoom(value) {
   extrasState.zoom = extrasClamp(value, 0.5, 4);
   extrasApplyZoomStyle();
+  extrasRenderObjectHandles();
 }
 
 function extrasRenderCropOverlay() {
@@ -7690,6 +8020,7 @@ function extrasApplyCrop() {
     extrasExitCropMode();
     return;
   }
+  extrasResetLiveObjects();
   extrasPushUndo();
   const temp = document.createElement("canvas");
   temp.width = w;
@@ -7716,6 +8047,7 @@ function extrasApplyAdjust() {
   const brightness = Number(document.getElementById("extrasBrightness").value);
   const contrast = Number(document.getElementById("extrasContrast").value);
   if (brightness === 100 && contrast === 100) return;
+  extrasResetLiveObjects();
   extrasPushUndo();
   const canvas = document.getElementById("extrasCanvas");
   const temp = document.createElement("canvas");
@@ -7744,6 +8076,15 @@ function extrasReset() {
   extrasState.undoStack = [];
   extrasState.redoStack = [];
   extrasResetToolsUI();
+}
+
+function extrasClear() {
+  const canvas = document.getElementById("extrasCanvas");
+  if (!canvas.width || !canvas.height) return;
+  extrasExitCropMode();
+  extrasResetLiveObjects();
+  extrasPushUndo();
+  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
 }
 
 function extrasNewImage() {
@@ -7805,6 +8146,7 @@ function extrasHandleAction(action) {
     case "undo": extrasUndo(); break;
     case "redo": extrasRedo(); break;
     case "reset": extrasReset(); break;
+    case "clear": extrasClear(); break;
     case "new": extrasNewImage(); break;
     case "download": extrasDownload(); break;
     case "zoom-in": extrasSetZoom(extrasState.zoom * 1.25); break;
@@ -7951,7 +8293,7 @@ function initializeExtrasTools() {
   });
   window.addEventListener("pointerup", extrasPointerUp);
 
-  document.querySelector(".extras-icon-toolbar").addEventListener("click", (event) => {
+  document.getElementById("extrasEditorPanel").addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-tool]");
     if (!button) return;
     extrasSelectTool(button.dataset.extrasTool);
@@ -8021,9 +8363,13 @@ function initializeExtrasTools() {
   });
 
   extrasInitCropHandlers();
+  extrasInitObjectDragHandlers();
   window.addEventListener("resize", () => {
     if (extrasState.cropping) extrasExitCropMode();
-    if (!document.getElementById("extrasEditorPanel")?.classList.contains("hidden")) extrasApplyZoomStyle();
+    if (!document.getElementById("extrasEditorPanel")?.classList.contains("hidden")) {
+      extrasApplyZoomStyle();
+      extrasRenderObjectHandles();
+    }
   });
 
   document.addEventListener("keydown", (event) => {
@@ -8059,7 +8405,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=191").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=192").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
