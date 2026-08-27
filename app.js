@@ -6925,6 +6925,7 @@ const EXTRAS_OPACITY_TOOLS = new Set(["marker"]);
 const EXTRAS_FILL_TOOLS = new Set(["rect", "ellipse"]);
 const EXTRAS_OBJECT_TOOLS = new Set(["text", "rect", "ellipse", "pencil", "signature"]);
 const EXTRAS_TOOL_LABELS = {
+  select: "Seleção",
   erase: "Apagar",
   restore: "Restaurar",
   marker: "Marcador",
@@ -6983,6 +6984,7 @@ let extrasSensitivity = 0;
 let extrasPreviewObjectUrl = null;
 let extrasObjectSeq = 1;
 let extrasObjectDrag = null;
+let extrasLastClickInfo = null;
 let extrasPathPoints = null;
 
 function extrasClamp(value, min, max) {
@@ -7202,7 +7204,7 @@ function extrasResetToolsUI() {
   document.getElementById("extrasFontFamily").value = "Arial, sans-serif";
   document.getElementById("extrasStrokeWidth").value = 3;
   extrasCancelAdjust();
-  extrasState.tool = "erase";
+  extrasState.tool = "select";
   extrasState.brushSize = 30;
   extrasState.tipShape = "round";
   extrasState.drawColor = "#e5342b";
@@ -7218,7 +7220,7 @@ function extrasResetToolsUI() {
   extrasState.zoom = 1;
   extrasState.zoomPanArmed = false;
   document.getElementById("extrasZoomPanToggle").classList.remove("active");
-  document.querySelectorAll("[data-extras-tool]").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === "erase"));
+  document.querySelectorAll("[data-extras-tool]").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === "select"));
   document.querySelectorAll("#extrasTipShapeOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTipShape === "round"));
   document.querySelectorAll("#extrasFillOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasFill === "filled"));
   document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasDrawColor === extrasState.drawColor));
@@ -7251,6 +7253,7 @@ function extrasSyncToolOptionsVisibility() {
   document.getElementById("extrasBackgroundGroup").classList.toggle("hidden", tool !== "background");
   document.getElementById("extrasAdjustGroup").classList.toggle("hidden", tool !== "adjust");
   document.getElementById("extrasZoomGroup").classList.toggle("hidden", tool !== "zoom");
+  document.getElementById("extrasSelectGroup").classList.toggle("hidden", tool !== "select");
   if (tool === "crop") extrasEnterCropMode(); else if (extrasState.cropping) extrasExitCropMode();
   if (tool !== "zoom") {
     extrasState.zoomPanArmed = false;
@@ -7261,7 +7264,7 @@ function extrasSyncToolOptionsVisibility() {
     if (extrasState.colorPickTarget) canvas.style.cursor = "crosshair";
     else if (tool === "zoom") canvas.style.cursor = extrasState.zoomPanArmed ? "grab" : "default";
     else if (tool === "rect" || tool === "ellipse" || tool === "text") canvas.style.cursor = "crosshair";
-    else if (tool === "background" || tool === "adjust" || tool === "crop") canvas.style.cursor = "default";
+    else if (tool === "background" || tool === "adjust" || tool === "crop" || tool === "select") canvas.style.cursor = "default";
     else canvas.style.cursor = "none";
   }
   document.getElementById("extrasBrushCursor")?.classList.add("hidden");
@@ -7270,7 +7273,7 @@ function extrasSyncToolOptionsVisibility() {
 function extrasSelectTool(tool) {
   if (tool !== extrasState.tool) {
     if (extrasState.tool === "adjust") extrasCancelAdjust();
-    if (EXTRAS_OBJECT_TOOLS.has(tool)) extrasSelectObject(null);
+    if (tool === "select" || EXTRAS_OBJECT_TOOLS.has(tool)) extrasSelectObject(null);
     else extrasResetLiveObjects();
   }
   extrasActivateToolForSelection(tool);
@@ -7684,9 +7687,22 @@ function extrasBeginObjectDrag(obj, event, mode, key) {
   event.stopPropagation();
   event.preventDefault();
   event.currentTarget.setPointerCapture?.(event.pointerId);
-  extrasPushUndo();
   extrasSelectObject(obj.id);
-  extrasObjectDrag = { mode, key: key || null, id: obj.id, start: { x: event.clientX, y: event.clientY }, origin: JSON.parse(JSON.stringify(obj)) };
+  extrasObjectDrag = { mode, key: key || null, id: obj.id, start: { x: event.clientX, y: event.clientY }, origin: JSON.parse(JSON.stringify(obj)), moved: false };
+}
+
+function extrasTryBeginObjectInteraction(obj, event) {
+  const now = Date.now();
+  const isDoubleClick = extrasLastClickInfo && extrasLastClickInfo.objectId === obj.id && (now - extrasLastClickInfo.time) < 400;
+  extrasLastClickInfo = { objectId: obj.id, time: now };
+  if (isDoubleClick && obj.type === "text") {
+    event.preventDefault();
+    extrasSelectObject(obj.id);
+    extrasStartTextEdit(obj);
+    extrasLastClickInfo = null;
+    return;
+  }
+  extrasBeginObjectDrag(obj, event, "move");
 }
 
 function extrasInitObjectDragHandlers() {
@@ -7696,7 +7712,7 @@ function extrasInitObjectDragHandlers() {
     if (event.target.closest("[data-extras-object-handle]")) return;
     const obj = extrasFindObject(extrasState.selectedObjectId);
     if (!obj) return;
-    extrasBeginObjectDrag(obj, event, "move");
+    extrasTryBeginObjectInteraction(obj, event);
   });
   overlay.querySelectorAll("[data-extras-object-handle]").forEach((handle) => {
     handle.addEventListener("pointerdown", (event) => {
@@ -7709,6 +7725,10 @@ function extrasInitObjectDragHandlers() {
     if (!extrasObjectDrag) return;
     const obj = extrasFindObject(extrasObjectDrag.id);
     if (!obj) { extrasObjectDrag = null; return; }
+    if (!extrasObjectDrag.moved) {
+      extrasObjectDrag.moved = true;
+      extrasPushUndo();
+    }
     const { dx, dy } = extrasClientDeltaToCanvasPixels(extrasObjectDrag.start, event);
     if (extrasObjectDrag.mode === "move") extrasApplyObjectMove(obj, extrasObjectDrag.origin, dx, dy);
     else extrasApplyObjectResize(obj, extrasObjectDrag.origin, extrasObjectDrag.key, dx, dy);
@@ -7989,16 +8009,57 @@ function extrasTextPointerDown(event) {
   overlay.style.top = `${pos.y}px`;
   overlay.dataset.x = pos.x;
   overlay.dataset.y = pos.y;
+  delete overlay.dataset.editingId;
   overlay.value = "";
   overlay.classList.remove("hidden");
   overlay.focus();
+}
+
+function extrasStartTextEdit(obj) {
+  const canvas = document.getElementById("extrasCanvas");
+  const box = extrasCanvasBoundsInScroll();
+  const cssScale = (box.right - box.left) / canvas.width;
+  const screenX = box.left + obj.x * cssScale;
+  const screenY = box.top + obj.y * cssScale;
+  const overlay = document.getElementById("extrasTextInputOverlay");
+  overlay.style.left = `${screenX}px`;
+  overlay.style.top = `${screenY}px`;
+  overlay.dataset.x = screenX;
+  overlay.dataset.y = screenY;
+  overlay.dataset.editingId = obj.id;
+  overlay.value = obj.text;
+  overlay.classList.remove("hidden");
+  overlay.focus();
+  overlay.select();
 }
 
 function extrasCommitTextInput() {
   const overlay = document.getElementById("extrasTextInputOverlay");
   if (overlay.classList.contains("hidden")) return;
   const value = overlay.value.trim();
+  const editingId = overlay.dataset.editingId ? Number(overlay.dataset.editingId) : null;
   overlay.classList.add("hidden");
+  delete overlay.dataset.editingId;
+
+  if (editingId) {
+    const obj = extrasFindObject(editingId);
+    if (obj) {
+      if (!value) {
+        extrasPushUndo();
+        extrasState.objects = extrasState.objects.filter((o) => o.id !== editingId);
+        extrasSelectObject(null);
+        extrasRedrawObjectsLayer();
+      } else if (value !== obj.text) {
+        extrasPushUndo();
+        obj.text = value;
+        extrasRemeasureText(obj);
+        extrasRedrawObjectsLayer();
+        extrasRenderObjectHandles();
+      }
+    }
+    return;
+  }
+
   if (!value) return;
   const canvas = document.getElementById("extrasCanvas");
   const box = extrasCanvasBoundsInScroll();
@@ -8028,7 +8089,9 @@ function extrasCommitTextInput() {
 }
 
 function extrasCancelTextInput() {
-  document.getElementById("extrasTextInputOverlay").classList.add("hidden");
+  const overlay = document.getElementById("extrasTextInputOverlay");
+  delete overlay.dataset.editingId;
+  overlay.classList.add("hidden");
 }
 
 function extrasPointerDown(event) {
@@ -8054,19 +8117,20 @@ function extrasPointerDown(event) {
     if (extrasState.zoomPanArmed) extrasPanPointerDown(event);
     return;
   }
-  if (EXTRAS_OBJECT_TOOLS.has(tool)) {
+  if (tool === "select" || EXTRAS_OBJECT_TOOLS.has(tool)) {
     const pt = extrasCanvasPoint(event);
     const hit = extrasHitTestAnyObject(pt);
     if (hit) {
       const hitTool = extrasObjectToolOf(hit);
       if (hitTool !== tool) extrasActivateToolForSelection(hitTool);
-      extrasBeginObjectDrag(hit, event, "move");
+      extrasTryBeginObjectInteraction(hit, event);
       return;
     }
+    extrasLastClickInfo = null;
     extrasSelectObject(null);
     if (tool === "text") { extrasTextPointerDown(event); return; }
     if (tool === "rect" || tool === "ellipse") { extrasShapePointerDown(event); return; }
-    extrasPathPointerDown(event);
+    if (tool === "pencil" || tool === "signature") { extrasPathPointerDown(event); return; }
     return;
   }
   event.preventDefault();
@@ -8776,7 +8840,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=195").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=196").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

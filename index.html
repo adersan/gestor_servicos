@@ -792,7 +792,10 @@
 
         <div class="extras-icon-toolbar panel">
           <div class="extras-icon-group">
-            <button type="button" class="extras-icon-btn active" data-extras-tool="erase" title="Apagar" aria-label="Apagar">⌫</button>
+            <button type="button" class="extras-icon-btn active" data-extras-tool="select" title="Seleção" aria-label="Seleção">↖</button>
+          </div>
+          <div class="extras-icon-group">
+            <button type="button" class="extras-icon-btn" data-extras-tool="erase" title="Apagar" aria-label="Apagar">⌫</button>
             <button type="button" class="extras-icon-btn" data-extras-tool="restore" title="Restaurar" aria-label="Restaurar">🩹</button>
             <button type="button" class="extras-icon-btn" data-extras-tool="marker" title="Marcador" aria-label="Marcador">🖍️</button>
             <button type="button" class="extras-icon-btn" data-extras-tool="pencil" title="Lápis" aria-label="Lápis">✏️</button>
@@ -808,7 +811,9 @@
         </div>
 
         <div id="extrasToolProperties" class="extras-tool-properties panel">
-          <h3 id="extrasToolPropertiesTitle" class="extras-tool-title">Apagar</h3>
+          <h3 id="extrasToolPropertiesTitle" class="extras-tool-title">Seleção</h3>
+
+          <p id="extrasSelectGroup" class="meta">Clique em um objeto na imagem para selecionar e usar suas propriedades. Duplo clique em um texto edita o conteúdo.</p>
 
           <label class="extras-range-label" id="extrasBrushSizeGroup">Tamanho do pincel
             <input type="range" id="extrasBrushSize" min="2" max="120" value="30">
@@ -2448,7 +2453,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=52"></script>
-  <script src="app.js?v=182"></script>
+  <script src="app.js?v=183"></script>
   <script src="supplier.js?v=65"></script>
 </body>
 </html>
