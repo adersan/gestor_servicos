@@ -724,14 +724,28 @@
           <span class="meta">ou arraste e solte, ou cole com Ctrl+V — PNG ou JPG, até 10MB</span>
           <input type="file" id="extrasFileInput" accept="image/png,image/jpeg,image/webp" hidden>
         </div>
-        <button type="button" class="table-action" id="extrasEditOnlyButton">Só editar, sem remover o fundo</button>
-        <input type="file" id="extrasEditOnlyFileInput" accept="image/png,image/jpeg,image/webp" hidden>
+      </div>
+
+      <div id="extrasPreviewPanel" class="panel extras-preview-panel hidden">
+        <img id="extrasPreviewImage" alt="Imagem escolhida">
+        <div class="extras-preview-actions">
+          <button type="button" class="secondary" data-extras-preview-action="edit">Editar imagem</button>
+          <button type="button" class="primary" data-extras-preview-action="remove-bg">Remover fundo</button>
+        </div>
       </div>
 
       <div id="extrasLoadingPanel" class="panel extras-loading-panel hidden">
         <span class="extras-spinner" aria-hidden="true"></span>
         <strong>Removendo o fundo da imagem…</strong>
         <span class="meta">Isso leva alguns segundos.</span>
+      </div>
+
+      <div id="extrasBeforeAfterPanel" class="panel extras-before-after-panel hidden">
+        <div class="extras-before-after-grid">
+          <figure><img id="extrasBeforeImage" alt="Antes"><figcaption>Antes</figcaption></figure>
+          <figure><img id="extrasAfterImage" alt="Depois"><figcaption>Depois</figcaption></figure>
+        </div>
+        <button type="button" class="primary" data-extras-action="continue-edit">Continuar editando</button>
       </div>
 
       <div id="extrasErrorPanel" class="panel extras-error-panel hidden">
@@ -742,12 +756,6 @@
 
       <div id="extrasEditorPanel" class="extras-editor hidden">
         <div class="extras-canvas-wrap" id="extrasCanvasWrap">
-          <div class="extras-zoom-controls">
-            <button type="button" data-extras-action="zoom-out" aria-label="Diminuir zoom">−</button>
-            <span id="extrasZoomLabel">100%</span>
-            <button type="button" data-extras-action="zoom-in" aria-label="Aumentar zoom">+</button>
-            <button type="button" class="table-action" data-extras-action="zoom-reset">Ajustar zoom</button>
-          </div>
           <div class="extras-canvas-scroll" id="extrasCanvasScroll">
             <canvas id="extrasCanvas"></canvas>
             <div id="extrasBrushCursor" class="extras-brush-cursor hidden"></div>
@@ -766,81 +774,81 @@
           </div>
         </div>
 
-        <div class="extras-toolbar panel">
-          <div class="extras-tool-group">
-            <span class="eyebrow">Ferramenta</span>
-            <div class="extras-choice-options" id="extrasToolOptions">
-              <button type="button" data-extras-tool="erase" class="active">Apagar</button>
-              <button type="button" data-extras-tool="restore">Restaurar</button>
-              <button type="button" data-extras-tool="marker">Marcador</button>
-              <button type="button" data-extras-tool="pencil">Lápis</button>
-              <button type="button" data-extras-tool="signature">Caneta</button>
-              <button type="button" data-extras-tool="rect">Retângulo</button>
-              <button type="button" data-extras-tool="ellipse">Elipse</button>
-              <button type="button" data-extras-tool="text">Texto</button>
-              <button type="button" data-extras-tool="pan">Mão</button>
-            </div>
+        <div class="extras-icon-toolbar panel">
+          <div class="extras-icon-group">
+            <button type="button" class="extras-icon-btn active" data-extras-tool="erase" title="Apagar" aria-label="Apagar">⌫</button>
+            <button type="button" class="extras-icon-btn" data-extras-tool="restore" title="Restaurar" aria-label="Restaurar">🩹</button>
+            <button type="button" class="extras-icon-btn" data-extras-tool="marker" title="Marcador" aria-label="Marcador">🖊️</button>
+            <button type="button" class="extras-icon-btn" data-extras-tool="pencil" title="Lápis" aria-label="Lápis">✏️</button>
+            <button type="button" class="extras-icon-btn" data-extras-tool="signature" title="Caneta (assinatura)" aria-label="Caneta">🖋️</button>
+            <button type="button" class="extras-icon-btn" data-extras-tool="rect" title="Retângulo" aria-label="Retângulo">▭</button>
+            <button type="button" class="extras-icon-btn" data-extras-tool="ellipse" title="Elipse" aria-label="Elipse">◯</button>
+            <button type="button" class="extras-icon-btn" data-extras-tool="text" title="Texto" aria-label="Texto"><b>T</b></button>
+          </div>
+          <div class="extras-icon-group">
+            <button type="button" class="extras-icon-btn" data-extras-action="rotate" title="Girar 90°" aria-label="Girar 90°">⟳</button>
+            <button type="button" class="extras-icon-btn" data-extras-tool="crop" title="Recortar" aria-label="Recortar">✂</button>
+            <button type="button" class="extras-icon-btn" data-extras-tool="background" title="Fundo" aria-label="Fundo">🎨</button>
+            <button type="button" class="extras-icon-btn" data-extras-tool="adjust" title="Brilho e contraste" aria-label="Brilho e contraste">◐</button>
+          </div>
+          <div class="extras-icon-group extras-icon-group-right">
+            <button type="button" class="extras-icon-btn" data-extras-tool="zoom" title="Zoom" aria-label="Zoom">🔍</button>
+          </div>
+        </div>
 
-            <label class="extras-range-label" id="extrasBrushSizeGroup">Tamanho do pincel
-              <input type="range" id="extrasBrushSize" min="2" max="120" value="30">
-            </label>
+        <div id="extrasToolProperties" class="extras-tool-properties panel">
+          <label class="extras-range-label" id="extrasBrushSizeGroup">Tamanho do pincel
+            <input type="range" id="extrasBrushSize" min="2" max="120" value="30">
+          </label>
 
-            <div id="extrasTipShapeGroup" class="hidden">
-              <span class="extras-subeyebrow">Tipo de ponta</span>
-              <div class="extras-choice-options" id="extrasTipShapeOptions">
-                <button type="button" data-extras-tip-shape="round" class="active">Redonda</button>
-                <button type="button" data-extras-tip-shape="square">Quadrada</button>
-              </div>
-            </div>
-
-            <label class="extras-range-label hidden" id="extrasOpacityGroup">Transparência do marcador
-              <input type="range" id="extrasOpacity" min="10" max="100" value="60">
-            </label>
-
-            <div id="extrasFillGroup" class="hidden">
-              <span class="extras-subeyebrow">Preenchimento</span>
-              <div class="extras-choice-options" id="extrasFillOptions">
-                <button type="button" data-extras-fill="filled" class="active">Preenchido</button>
-                <button type="button" data-extras-fill="outline">Contorno</button>
-              </div>
-            </div>
-
-            <label class="extras-range-label hidden" id="extrasTextSizeGroup">Tamanho do texto
-              <input type="range" id="extrasTextSize" min="12" max="96" value="28">
-            </label>
-
-            <div id="extrasColorGroup" class="hidden">
-              <span class="extras-subeyebrow">Cor</span>
-              <div class="extras-choice-options extras-color-options" id="extrasDrawColorOptions">
-                <button type="button" data-extras-draw-color="#e5342b" class="active" style="background:#e5342b" aria-label="Vermelho"></button>
-                <button type="button" data-extras-draw-color="#f2a20c" style="background:#f2a20c" aria-label="Laranja"></button>
-                <button type="button" data-extras-draw-color="#f6e02f" style="background:#f6e02f" aria-label="Amarelo"></button>
-                <button type="button" data-extras-draw-color="#2fae4e" style="background:#2fae4e" aria-label="Verde"></button>
-                <button type="button" data-extras-draw-color="#2f7de1" style="background:#2f7de1" aria-label="Azul"></button>
-                <button type="button" data-extras-draw-color="#9b4fe0" style="background:#9b4fe0" aria-label="Roxo"></button>
-                <button type="button" data-extras-draw-color="#000000" style="background:#000000" aria-label="Preto"></button>
-                <button type="button" data-extras-draw-color="#ffffff" style="background:#ffffff" aria-label="Branco"></button>
-              </div>
-              <label class="extras-range-label">Outra cor
-                <input type="color" id="extrasDrawColorInput" value="#e5342b">
-              </label>
+          <div id="extrasTipShapeGroup" class="hidden">
+            <span class="extras-subeyebrow">Tipo de ponta</span>
+            <div class="extras-choice-options" id="extrasTipShapeOptions">
+              <button type="button" data-extras-tip-shape="round" class="active">Redonda</button>
+              <button type="button" data-extras-tip-shape="square">Quadrada</button>
             </div>
           </div>
 
-          <div class="extras-tool-group">
-            <span class="eyebrow">Ajustar</span>
-            <div class="extras-inline-actions">
-              <button type="button" class="table-action" data-extras-action="rotate">Girar 90°</button>
-              <button type="button" class="table-action" id="extrasCropToggle" data-extras-action="crop-toggle">Recortar</button>
-            </div>
-            <div class="extras-inline-actions hidden" id="extrasCropActions">
-              <button type="button" class="primary" data-extras-action="crop-apply">Aplicar corte</button>
-              <button type="button" class="secondary" data-extras-action="crop-cancel">Cancelar</button>
+          <label class="extras-range-label hidden" id="extrasOpacityGroup">Transparência do marcador
+            <input type="range" id="extrasOpacity" min="10" max="100" value="60">
+          </label>
+
+          <div id="extrasFillGroup" class="hidden">
+            <span class="extras-subeyebrow">Preenchimento</span>
+            <div class="extras-choice-options" id="extrasFillOptions">
+              <button type="button" data-extras-fill="filled" class="active">Preenchido</button>
+              <button type="button" data-extras-fill="outline">Contorno</button>
             </div>
           </div>
 
-          <div class="extras-tool-group">
-            <span class="eyebrow">Fundo</span>
+          <label class="extras-range-label hidden" id="extrasTextSizeGroup">Tamanho do texto
+            <input type="range" id="extrasTextSize" min="12" max="96" value="28">
+          </label>
+
+          <div id="extrasColorGroup" class="hidden">
+            <span class="extras-subeyebrow">Cor</span>
+            <div class="extras-choice-options extras-color-options" id="extrasDrawColorOptions">
+              <button type="button" data-extras-draw-color="#e5342b" class="active" style="background:#e5342b" aria-label="Vermelho"></button>
+              <button type="button" data-extras-draw-color="#f2a20c" style="background:#f2a20c" aria-label="Laranja"></button>
+              <button type="button" data-extras-draw-color="#f6e02f" style="background:#f6e02f" aria-label="Amarelo"></button>
+              <button type="button" data-extras-draw-color="#2fae4e" style="background:#2fae4e" aria-label="Verde"></button>
+              <button type="button" data-extras-draw-color="#2f7de1" style="background:#2f7de1" aria-label="Azul"></button>
+              <button type="button" data-extras-draw-color="#9b4fe0" style="background:#9b4fe0" aria-label="Roxo"></button>
+              <button type="button" data-extras-draw-color="#000000" style="background:#000000" aria-label="Preto"></button>
+              <button type="button" data-extras-draw-color="#ffffff" style="background:#ffffff" aria-label="Branco"></button>
+            </div>
+            <label class="extras-range-label">Outra cor
+              <input type="color" id="extrasDrawColorInput" value="#e5342b">
+            </label>
+          </div>
+
+          <div id="extrasCropGroup" class="hidden extras-inline-actions">
+            <button type="button" class="primary" data-extras-action="crop-apply">Aplicar corte</button>
+            <button type="button" class="secondary" data-extras-action="crop-cancel">Cancelar</button>
+          </div>
+
+          <div id="extrasBackgroundGroup" class="hidden">
+            <span class="extras-subeyebrow">Cor de fundo</span>
             <div class="extras-choice-options extras-color-options" id="extrasBackgroundOptions">
               <button type="button" data-extras-bg="" class="active extras-bg-none" aria-label="Sem fundo"></button>
               <button type="button" data-extras-bg="#ffffff" style="background:#ffffff" aria-label="Branco"></button>
@@ -857,8 +865,7 @@
             </label>
           </div>
 
-          <div class="extras-tool-group">
-            <span class="eyebrow">Brilho e contraste</span>
+          <div id="extrasAdjustGroup" class="hidden">
             <label class="extras-range-label">Brilho
               <input type="range" id="extrasBrightness" min="50" max="150" value="100">
             </label>
@@ -868,12 +875,20 @@
             <button type="button" class="table-action" data-extras-action="apply-adjust">Aplicar ajuste</button>
           </div>
 
-          <div class="extras-tool-group extras-tool-actions">
-            <button type="button" class="table-action" data-extras-action="undo" title="Ctrl+Z">Desfazer</button>
-            <button type="button" class="table-action" data-extras-action="reset">Reiniciar</button>
-            <button type="button" class="secondary" data-extras-action="new">Nova imagem</button>
-            <button type="button" class="primary" data-extras-action="download">Baixar PNG</button>
+          <div id="extrasZoomGroup" class="hidden extras-inline-actions">
+            <button type="button" class="extras-icon-btn" id="extrasZoomPanToggle" data-extras-action="zoom-pan-toggle" title="Mão (arrastar para navegar)" aria-label="Mão">✋</button>
+            <button type="button" class="extras-icon-btn" data-extras-action="zoom-out" title="Diminuir zoom" aria-label="Diminuir zoom">−</button>
+            <span id="extrasZoomLabel">100%</span>
+            <button type="button" class="extras-icon-btn" data-extras-action="zoom-in" title="Aumentar zoom" aria-label="Aumentar zoom">+</button>
+            <button type="button" class="table-action" data-extras-action="zoom-reset">Ajustar zoom</button>
           </div>
+        </div>
+
+        <div class="extras-action-bar panel">
+          <button type="button" class="extras-icon-btn" data-extras-action="undo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↶</button>
+          <button type="button" class="extras-icon-btn" data-extras-action="reset" title="Reiniciar" aria-label="Reiniciar">🔄</button>
+          <button type="button" class="secondary" data-extras-action="new">Nova imagem</button>
+          <button type="button" class="primary" data-extras-action="download">Baixar PNG</button>
         </div>
       </div>
     </section>

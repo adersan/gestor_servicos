@@ -6933,6 +6933,7 @@ const extrasState = {
   backgroundColor: "",
   cropping: false,
   zoom: 1,
+  zoomPanArmed: false,
   originalImageData: null,
   pristineImageData: null,
   undoStack: []
@@ -6948,19 +6949,30 @@ let extrasPanActive = false;
 let extrasPanStart = null;
 let extrasPanScrollStart = null;
 let extrasShapeStart = null;
+let extrasPendingFile = null;
+let extrasPendingResultBlob = null;
+let extrasPreviewObjectUrl = null;
 
 function extrasClamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+const EXTRAS_PANEL_IDS = {
+  upload: "extrasUploadPanel",
+  preview: "extrasPreviewPanel",
+  loading: "extrasLoadingPanel",
+  beforeAfter: "extrasBeforeAfterPanel",
+  error: "extrasErrorPanel",
+  editor: "extrasEditorPanel"
+};
+
 function extrasShowPanel(name) {
-  document.getElementById("extrasUploadPanel").classList.toggle("hidden", name !== "upload");
-  document.getElementById("extrasLoadingPanel").classList.toggle("hidden", name !== "loading");
-  document.getElementById("extrasErrorPanel").classList.toggle("hidden", name !== "error");
-  document.getElementById("extrasEditorPanel").classList.toggle("hidden", name !== "editor");
+  Object.keys(EXTRAS_PANEL_IDS).forEach((panelName) => {
+    document.getElementById(EXTRAS_PANEL_IDS[panelName]).classList.toggle("hidden", panelName !== name);
+  });
 }
 
-async function extrasHandleFile(file, options = {}) {
+function extrasHandlePickedFile(file) {
   if (!file) return;
   if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) {
     showAppAlert("Envie uma imagem PNG, JPG ou WEBP.", { type: "warning" });
@@ -6970,24 +6982,36 @@ async function extrasHandleFile(file, options = {}) {
     showAppAlert("Imagem muito grande. O limite é 10MB.", { type: "warning" });
     return;
   }
+  extrasPendingFile = file;
+  extrasPendingResultBlob = null;
+  if (extrasPreviewObjectUrl) URL.revokeObjectURL(extrasPreviewObjectUrl);
+  extrasPreviewObjectUrl = URL.createObjectURL(file);
+  document.getElementById("extrasPreviewImage").src = extrasPreviewObjectUrl;
+  extrasShowPanel("preview");
+}
+
+async function extrasProceedEdit() {
+  if (!extrasPendingFile) return;
   extrasShowPanel("loading");
-  if (options.skipRemoval) {
-    try {
-      await extrasLoadResultBlob(file);
-      extrasShowPanel("editor");
-      extrasApplyZoomStyle();
-    } catch (error) {
-      document.getElementById("extrasErrorMessage").textContent = "Não foi possível abrir essa imagem.";
-      extrasShowPanel("error");
-    }
-    return;
+  try {
+    await extrasLoadResultBlob(extrasPendingFile);
+    extrasShowPanel("editor");
+    extrasApplyZoomStyle();
+  } catch (error) {
+    document.getElementById("extrasErrorMessage").textContent = "Não foi possível abrir essa imagem.";
+    extrasShowPanel("error");
   }
+}
+
+async function extrasProceedRemoveBg() {
+  if (!extrasPendingFile) return;
+  extrasShowPanel("loading");
   try {
     const { data } = await window.supabaseClient.auth.getSession();
     const accessToken = data.session?.access_token;
     if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
     const formData = new FormData();
-    formData.append("imagem", file, file.name || "imagem.png");
+    formData.append("imagem", extrasPendingFile, extrasPendingFile.name || "imagem.png");
     const response = await fetch("/.netlify/functions/remove-bg", {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -6997,12 +7021,25 @@ async function extrasHandleFile(file, options = {}) {
       const result = await response.json().catch(() => ({}));
       throw new Error(result.error || "Não foi possível remover o fundo da imagem.");
     }
-    const blob = await response.blob();
-    await extrasLoadResultBlob(blob);
+    extrasPendingResultBlob = await response.blob();
+    document.getElementById("extrasBeforeImage").src = extrasPreviewObjectUrl;
+    document.getElementById("extrasAfterImage").src = URL.createObjectURL(extrasPendingResultBlob);
+    extrasShowPanel("beforeAfter");
+  } catch (error) {
+    document.getElementById("extrasErrorMessage").textContent = error.message;
+    extrasShowPanel("error");
+  }
+}
+
+async function extrasProceedToEditorFromBeforeAfter() {
+  if (!extrasPendingResultBlob) return;
+  extrasShowPanel("loading");
+  try {
+    await extrasLoadResultBlob(extrasPendingResultBlob);
     extrasShowPanel("editor");
     extrasApplyZoomStyle();
   } catch (error) {
-    document.getElementById("extrasErrorMessage").textContent = error.message;
+    document.getElementById("extrasErrorMessage").textContent = "Não foi possível abrir o resultado.";
     extrasShowPanel("error");
   }
 }
@@ -7036,8 +7073,10 @@ function extrasResetToolsUI() {
   extrasState.opacity = 60;
   extrasState.shapeFill = "filled";
   extrasState.zoom = 1;
+  extrasState.zoomPanArmed = false;
+  document.getElementById("extrasZoomPanToggle").classList.remove("active");
   document.getElementById("extrasCanvas").style.filter = "";
-  document.querySelectorAll("#extrasToolOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === "erase"));
+  document.querySelectorAll("[data-extras-tool]").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === "erase"));
   document.querySelectorAll("#extrasTipShapeOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTipShape === "round"));
   document.querySelectorAll("#extrasFillOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasFill === "filled"));
   document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasDrawColor === extrasState.drawColor));
@@ -7057,9 +7096,31 @@ function extrasSyncToolOptionsVisibility() {
   document.getElementById("extrasFillGroup").classList.toggle("hidden", !EXTRAS_FILL_TOOLS.has(tool));
   document.getElementById("extrasColorGroup").classList.toggle("hidden", !EXTRAS_COLOR_TOOLS.has(tool));
   document.getElementById("extrasTextSizeGroup").classList.toggle("hidden", tool !== "text");
+  document.getElementById("extrasCropGroup").classList.toggle("hidden", tool !== "crop");
+  document.getElementById("extrasBackgroundGroup").classList.toggle("hidden", tool !== "background");
+  document.getElementById("extrasAdjustGroup").classList.toggle("hidden", tool !== "adjust");
+  document.getElementById("extrasZoomGroup").classList.toggle("hidden", tool !== "zoom");
+  if (tool === "crop") extrasEnterCropMode(); else if (extrasState.cropping) extrasExitCropMode();
+  if (tool !== "zoom") {
+    extrasState.zoomPanArmed = false;
+    document.getElementById("extrasZoomPanToggle").classList.remove("active");
+  }
   const canvas = document.getElementById("extrasCanvas");
-  if (canvas) canvas.style.cursor = tool === "pan" ? "grab" : (tool === "rect" || tool === "ellipse" || tool === "text") ? "crosshair" : "none";
+  if (canvas) {
+    if (tool === "zoom") canvas.style.cursor = extrasState.zoomPanArmed ? "grab" : "default";
+    else if (tool === "rect" || tool === "ellipse" || tool === "text") canvas.style.cursor = "crosshair";
+    else if (tool === "background" || tool === "adjust" || tool === "crop") canvas.style.cursor = "default";
+    else canvas.style.cursor = "none";
+  }
   document.getElementById("extrasBrushCursor")?.classList.add("hidden");
+}
+
+function extrasSelectTool(tool) {
+  extrasCancelTextInput();
+  extrasState.tool = tool;
+  document.querySelectorAll("[data-extras-tool]").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === tool));
+  extrasSyncToolOptionsVisibility();
+  if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
 }
 
 function extrasSetBackground(color) {
@@ -7300,8 +7361,9 @@ function extrasCancelTextInput() {
 function extrasPointerDown(event) {
   if (extrasState.cropping) return;
   const tool = extrasState.tool;
-  if (tool === "pan") {
-    extrasPanPointerDown(event);
+  if (tool === "background" || tool === "adjust") return;
+  if (tool === "zoom") {
+    if (extrasState.zoomPanArmed) extrasPanPointerDown(event);
     return;
   }
   if (tool === "rect" || tool === "ellipse") {
@@ -7469,13 +7531,10 @@ function extrasRenderCropOverlay() {
   overlay.style.height = `${extrasCropRect.height}px`;
 }
 
-function extrasToggleCrop() {
-  if (extrasState.cropping) {
-    extrasExitCropMode();
-    return;
-  }
+function extrasEnterCropMode() {
+  if (extrasState.cropping) return;
   extrasState.cropping = true;
-  document.getElementById("extrasBrushCursor").classList.add("hidden");
+  document.getElementById("extrasBrushCursor")?.classList.add("hidden");
   extrasCropBounds = extrasCanvasBoundsInScroll();
   const w = (extrasCropBounds.right - extrasCropBounds.left) * 0.8;
   const h = (extrasCropBounds.bottom - extrasCropBounds.top) * 0.8;
@@ -7486,8 +7545,6 @@ function extrasToggleCrop() {
     height: h
   };
   document.getElementById("extrasCropOverlay").classList.remove("hidden");
-  document.getElementById("extrasCropToggle").textContent = "Cancelar recorte";
-  document.getElementById("extrasCropActions").classList.remove("hidden");
   extrasRenderCropOverlay();
 }
 
@@ -7496,9 +7553,6 @@ function extrasExitCropMode() {
   extrasCropRect = null;
   extrasCropBounds = null;
   document.getElementById("extrasCropOverlay")?.classList.add("hidden");
-  const toggle = document.getElementById("extrasCropToggle");
-  if (toggle) toggle.textContent = "Recortar";
-  document.getElementById("extrasCropActions")?.classList.add("hidden");
 }
 
 function extrasApplyCrop() {
@@ -7527,6 +7581,7 @@ function extrasApplyCrop() {
   ctx.drawImage(temp, 0, 0);
   if (extrasState.pristineImageData) extrasState.pristineImageData = extrasCropImageData(extrasState.pristineImageData, { x, y, w, h });
   extrasExitCropMode();
+  extrasSelectTool("erase");
   extrasApplyZoomStyle();
 }
 
@@ -7574,6 +7629,10 @@ function extrasNewImage() {
   extrasState.originalImageData = null;
   extrasState.pristineImageData = null;
   extrasState.undoStack = [];
+  if (extrasPreviewObjectUrl) URL.revokeObjectURL(extrasPreviewObjectUrl);
+  extrasPreviewObjectUrl = null;
+  extrasPendingFile = null;
+  extrasPendingResultBlob = null;
   extrasShowPanel("upload");
 }
 
@@ -7604,14 +7663,20 @@ function extrasDownload() {
   }, "image/png");
 }
 
+function extrasToggleZoomPan() {
+  extrasState.zoomPanArmed = !extrasState.zoomPanArmed;
+  document.getElementById("extrasZoomPanToggle").classList.toggle("active", extrasState.zoomPanArmed);
+  const canvas = document.getElementById("extrasCanvas");
+  if (canvas) canvas.style.cursor = extrasState.zoomPanArmed ? "grab" : "default";
+}
+
 function extrasHandleAction(action) {
-  if (extrasState.cropping && !["crop-apply", "crop-cancel", "crop-toggle"].includes(action)) extrasExitCropMode();
+  if (extrasState.cropping && !["crop-apply", "crop-cancel"].includes(action)) extrasSelectTool("erase");
   switch (action) {
-    case "retry": extrasShowPanel("upload"); break;
+    case "retry": extrasShowPanel(extrasPendingFile ? "preview" : "upload"); break;
     case "rotate": extrasRotate(); break;
-    case "crop-toggle": extrasToggleCrop(); break;
     case "crop-apply": extrasApplyCrop(); break;
-    case "crop-cancel": extrasExitCropMode(); break;
+    case "crop-cancel": extrasExitCropMode(); extrasSelectTool("erase"); break;
     case "apply-adjust": extrasApplyAdjust(); break;
     case "undo": extrasUndo(); break;
     case "reset": extrasReset(); break;
@@ -7620,6 +7685,8 @@ function extrasHandleAction(action) {
     case "zoom-in": extrasSetZoom(extrasState.zoom * 1.25); break;
     case "zoom-out": extrasSetZoom(extrasState.zoom / 1.25); break;
     case "zoom-reset": extrasSetZoom(1); break;
+    case "zoom-pan-toggle": extrasToggleZoomPan(); break;
+    case "continue-edit": extrasProceedToEditorFromBeforeAfter(); break;
     default: break;
   }
 }
@@ -7711,7 +7778,7 @@ function initializeExtrasTools() {
   fileInput.addEventListener("change", () => {
     const file = fileInput.files?.[0];
     fileInput.value = "";
-    extrasHandleFile(file);
+    extrasHandlePickedFile(file);
   });
   ["dragenter", "dragover"].forEach((eventName) => {
     dropzone.addEventListener(eventName, (event) => {
@@ -7727,16 +7794,14 @@ function initializeExtrasTools() {
   });
   dropzone.addEventListener("drop", (event) => {
     const file = event.dataTransfer?.files?.[0];
-    extrasHandleFile(file);
+    extrasHandlePickedFile(file);
   });
 
-  const editOnlyButton = document.getElementById("extrasEditOnlyButton");
-  const editOnlyInput = document.getElementById("extrasEditOnlyFileInput");
-  editOnlyButton?.addEventListener("click", () => editOnlyInput.click());
-  editOnlyInput?.addEventListener("change", () => {
-    const file = editOnlyInput.files?.[0];
-    editOnlyInput.value = "";
-    extrasHandleFile(file, { skipRemoval: true });
+  document.querySelectorAll("[data-extras-preview-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.extrasPreviewAction === "edit") extrasProceedEdit();
+      else if (button.dataset.extrasPreviewAction === "remove-bg") extrasProceedRemoveBg();
+    });
   });
 
   const canvas = document.getElementById("extrasCanvas");
@@ -7755,14 +7820,10 @@ function initializeExtrasTools() {
   });
   window.addEventListener("pointerup", extrasPointerUp);
 
-  document.getElementById("extrasToolOptions").addEventListener("click", (event) => {
+  document.querySelector(".extras-icon-toolbar").addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-tool]");
     if (!button) return;
-    extrasCancelTextInput();
-    extrasState.tool = button.dataset.extrasTool;
-    document.querySelectorAll("#extrasToolOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
-    extrasSyncToolOptionsVisibility();
-    if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
+    extrasSelectTool(button.dataset.extrasTool);
   });
 
   document.getElementById("extrasBrushSize").addEventListener("input", (event) => {
@@ -7852,7 +7913,7 @@ function initializeExtrasTools() {
     const imageItem = [...items].find((item) => item.type.startsWith("image/"));
     if (!imageItem) return;
     event.preventDefault();
-    extrasHandleFile(imageItem.getAsFile());
+    extrasHandlePickedFile(imageItem.getAsFile());
   });
 
   extrasSyncToolOptionsVisibility();
