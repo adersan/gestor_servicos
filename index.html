@@ -834,9 +834,50 @@
             </div>
           </div>
 
+          <div id="extrasStrokeGroup" class="hidden">
+            <span class="extras-subeyebrow">Cor da linha</span>
+            <div class="extras-choice-options extras-color-options" id="extrasStrokeColorOptions">
+              <button type="button" data-extras-stroke-color="#000000" class="active" style="background:#000000" aria-label="Preto"></button>
+              <button type="button" data-extras-stroke-color="#e5342b" style="background:#e5342b" aria-label="Vermelho"></button>
+              <button type="button" data-extras-stroke-color="#f2a20c" style="background:#f2a20c" aria-label="Laranja"></button>
+              <button type="button" data-extras-stroke-color="#2fae4e" style="background:#2fae4e" aria-label="Verde"></button>
+              <button type="button" data-extras-stroke-color="#2f7de1" style="background:#2f7de1" aria-label="Azul"></button>
+              <button type="button" data-extras-stroke-color="#ffffff" style="background:#ffffff" aria-label="Branco"></button>
+            </div>
+            <div class="extras-inline-actions">
+              <label class="extras-range-label" style="flex:1 1 auto">Outra cor
+                <input type="color" id="extrasStrokeColorInput" value="#000000">
+              </label>
+              <button type="button" class="extras-icon-btn" data-extras-action="pick-stroke-color" title="Conta-gotas (clonar cor)" aria-label="Conta-gotas">💧</button>
+            </div>
+            <label class="extras-range-label">Espessura da linha
+              <input type="range" id="extrasStrokeWidth" min="0" max="20" value="3">
+            </label>
+          </div>
+
           <label class="extras-range-label hidden" id="extrasTextSizeGroup">Tamanho do texto
             <input type="range" id="extrasTextSize" min="12" max="96" value="28">
           </label>
+
+          <div id="extrasTextStyleGroup" class="hidden">
+            <label class="extras-range-label">Fonte
+              <select id="extrasFontFamily">
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Verdana, sans-serif">Verdana</option>
+                <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Courier New', monospace">Courier New</option>
+                <option value="Impact, sans-serif">Impact</option>
+                <option value="'Comic Sans MS', sans-serif">Comic Sans MS</option>
+              </select>
+            </label>
+            <div class="extras-choice-options" id="extrasTextStyleOptions">
+              <button type="button" data-extras-text-style="bold" title="Negrito" aria-label="Negrito"><b>N</b></button>
+              <button type="button" data-extras-text-style="italic" title="Itálico" aria-label="Itálico"><i>I</i></button>
+              <button type="button" data-extras-text-style="underline" title="Sublinhado" aria-label="Sublinhado"><u>S</u></button>
+            </div>
+          </div>
 
           <div id="extrasColorGroup" class="hidden">
             <span class="extras-subeyebrow">Cor</span>
@@ -850,9 +891,12 @@
               <button type="button" data-extras-draw-color="#000000" style="background:#000000" aria-label="Preto"></button>
               <button type="button" data-extras-draw-color="#ffffff" style="background:#ffffff" aria-label="Branco"></button>
             </div>
-            <label class="extras-range-label">Outra cor
-              <input type="color" id="extrasDrawColorInput" value="#e5342b">
-            </label>
+            <div class="extras-inline-actions">
+              <label class="extras-range-label" style="flex:1 1 auto">Outra cor
+                <input type="color" id="extrasDrawColorInput" value="#e5342b">
+              </label>
+              <button type="button" class="extras-icon-btn" data-extras-action="pick-draw-color" title="Conta-gotas (clonar cor)" aria-label="Conta-gotas">💧</button>
+            </div>
           </div>
 
           <div id="extrasCropGroup" class="hidden extras-inline-actions">
@@ -873,9 +917,12 @@
               <button type="button" data-extras-bg="#2fae4e" style="background:#2fae4e" aria-label="Verde"></button>
               <button type="button" data-extras-bg="#f2a20c" style="background:#f2a20c" aria-label="Amarelo"></button>
             </div>
-            <label class="extras-range-label">Outra cor
-              <input type="color" id="extrasBackgroundColorInput" value="#ffffff">
-            </label>
+            <div class="extras-inline-actions">
+              <label class="extras-range-label" style="flex:1 1 auto">Outra cor
+                <input type="color" id="extrasBackgroundColorInput" value="#ffffff">
+              </label>
+              <button type="button" class="extras-icon-btn" data-extras-action="pick-background-color" title="Conta-gotas (clonar cor)" aria-label="Conta-gotas">💧</button>
+            </div>
             <span class="extras-subeyebrow">Imagem de fundo</span>
             <div class="extras-inline-actions">
               <button type="button" class="secondary" data-extras-action="background-image-upload">Carregar imagem de fundo</button>
@@ -2400,7 +2447,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=52"></script>
-  <script src="app.js?v=180"></script>
+  <script src="app.js?v=181"></script>
   <script src="supplier.js?v=65"></script>
 </body>
 </html>

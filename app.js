@@ -6945,6 +6945,12 @@ const extrasState = {
   drawColor: "#e5342b",
   opacity: 60,
   shapeFill: "filled",
+  strokeColor: "#000000",
+  strokeWidth: 3,
+  fontFamily: "Arial, sans-serif",
+  textBold: false,
+  textItalic: false,
+  textUnderline: false,
   backgroundColor: "",
   backgroundImage: null,
   cropping: false,
@@ -6956,8 +6962,10 @@ const extrasState = {
   redoStack: [],
   objects: [],
   objectsBase: null,
-  selectedObjectId: null
+  selectedObjectId: null,
+  colorPickTarget: null
 };
+const EXTRAS_TEXT_STYLE_STATE_KEYS = { bold: "textBold", italic: "textItalic", underline: "textUnderline" };
 let extrasCropRect = null;
 let extrasCropBounds = null;
 let extrasDrawing = false;
@@ -7092,6 +7100,25 @@ function extrasRenderSensitivityPreview() {
   document.getElementById("extrasAfterImage").src = preview.toDataURL("image/png");
 }
 
+const EXTRAS_REMOVE_BG_SAFE_BYTES = 3.5 * 1024 * 1024;
+const EXTRAS_REMOVE_BG_MAX_DIMENSION = 2000;
+
+async function extrasPrepareRemoveBgUpload(file) {
+  if (file.size <= EXTRAS_REMOVE_BG_SAFE_BYTES) return file;
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, EXTRAS_REMOVE_BG_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, width, height);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+  if (!blob) return file;
+  const baseName = (file.name || "imagem").replace(/\.\w+$/, "");
+  return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+}
+
 async function extrasProceedRemoveBg() {
   if (!extrasPendingFile) return;
   extrasShowPanel("loading");
@@ -7099,8 +7126,9 @@ async function extrasProceedRemoveBg() {
     const { data } = await window.supabaseClient.auth.getSession();
     const accessToken = data.session?.access_token;
     if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+    const uploadFile = await extrasPrepareRemoveBgUpload(extrasPendingFile);
     const formData = new FormData();
-    formData.append("imagem", extrasPendingFile, extrasPendingFile.name || "imagem.png");
+    formData.append("imagem", uploadFile, uploadFile.name || "imagem.png");
     const response = await fetch("/.netlify/functions/remove-bg", {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -7171,6 +7199,8 @@ function extrasResetToolsUI() {
   document.getElementById("extrasBrushSize").value = 30;
   document.getElementById("extrasOpacity").value = 60;
   document.getElementById("extrasTextSize").value = 28;
+  document.getElementById("extrasFontFamily").value = "Arial, sans-serif";
+  document.getElementById("extrasStrokeWidth").value = 3;
   extrasCancelAdjust();
   extrasState.tool = "erase";
   extrasState.brushSize = 30;
@@ -7178,6 +7208,13 @@ function extrasResetToolsUI() {
   extrasState.drawColor = "#e5342b";
   extrasState.opacity = 60;
   extrasState.shapeFill = "filled";
+  extrasState.strokeColor = "#000000";
+  extrasState.strokeWidth = 3;
+  extrasState.fontFamily = "Arial, sans-serif";
+  extrasState.textBold = false;
+  extrasState.textItalic = false;
+  extrasState.textUnderline = false;
+  extrasState.colorPickTarget = null;
   extrasState.zoom = 1;
   extrasState.zoomPanArmed = false;
   document.getElementById("extrasZoomPanToggle").classList.remove("active");
@@ -7187,6 +7224,10 @@ function extrasResetToolsUI() {
   document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasDrawColor === extrasState.drawColor));
   const drawColorInput = document.getElementById("extrasDrawColorInput");
   if (drawColorInput) drawColorInput.value = extrasState.drawColor;
+  document.querySelectorAll("#extrasStrokeColorOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasStrokeColor === extrasState.strokeColor));
+  const strokeColorInput = document.getElementById("extrasStrokeColorInput");
+  if (strokeColorInput) strokeColorInput.value = extrasState.strokeColor;
+  extrasSyncTextStyleButtons(null);
   document.getElementById("extrasBackgroundColorInput").value = "#ffffff";
   extrasSetBackground("");
   extrasResetLiveObjects();
@@ -7202,8 +7243,10 @@ function extrasSyncToolOptionsVisibility() {
   document.getElementById("extrasTipShapeGroup").classList.toggle("hidden", !EXTRAS_TIP_TOOLS.has(tool));
   document.getElementById("extrasOpacityGroup").classList.toggle("hidden", !EXTRAS_OPACITY_TOOLS.has(tool));
   document.getElementById("extrasFillGroup").classList.toggle("hidden", !EXTRAS_FILL_TOOLS.has(tool));
+  document.getElementById("extrasStrokeGroup").classList.toggle("hidden", !EXTRAS_FILL_TOOLS.has(tool));
   document.getElementById("extrasColorGroup").classList.toggle("hidden", !EXTRAS_COLOR_TOOLS.has(tool));
   document.getElementById("extrasTextSizeGroup").classList.toggle("hidden", tool !== "text");
+  document.getElementById("extrasTextStyleGroup").classList.toggle("hidden", tool !== "text");
   document.getElementById("extrasCropGroup").classList.toggle("hidden", tool !== "crop");
   document.getElementById("extrasBackgroundGroup").classList.toggle("hidden", tool !== "background");
   document.getElementById("extrasAdjustGroup").classList.toggle("hidden", tool !== "adjust");
@@ -7215,7 +7258,8 @@ function extrasSyncToolOptionsVisibility() {
   }
   const canvas = document.getElementById("extrasCanvas");
   if (canvas) {
-    if (tool === "zoom") canvas.style.cursor = extrasState.zoomPanArmed ? "grab" : "default";
+    if (extrasState.colorPickTarget) canvas.style.cursor = "crosshair";
+    else if (tool === "zoom") canvas.style.cursor = extrasState.zoomPanArmed ? "grab" : "default";
     else if (tool === "rect" || tool === "ellipse" || tool === "text") canvas.style.cursor = "crosshair";
     else if (tool === "background" || tool === "adjust" || tool === "crop") canvas.style.cursor = "default";
     else canvas.style.cursor = "none";
@@ -7225,6 +7269,7 @@ function extrasSyncToolOptionsVisibility() {
 
 function extrasSelectTool(tool) {
   extrasCancelTextInput();
+  extrasState.colorPickTarget = null;
   if (tool !== extrasState.tool) {
     if (extrasState.tool === "adjust") extrasCancelAdjust();
     extrasResetLiveObjects();
@@ -7292,25 +7337,49 @@ function extrasHitTestObjects(pt, tool) {
   return null;
 }
 
+function extrasTextFontString(obj) {
+  const parts = [];
+  if (obj.italic) parts.push("italic");
+  if (obj.bold) parts.push("bold");
+  parts.push(`${obj.size}px`);
+  parts.push(obj.fontFamily || "Arial, sans-serif");
+  return parts.join(" ");
+}
+
+function extrasRemeasureText(obj) {
+  const ctx = document.getElementById("extrasCanvas").getContext("2d");
+  ctx.font = extrasTextFontString(obj);
+  const metrics = ctx.measureText(obj.text);
+  obj.w = metrics.width;
+  obj.h = obj.size * 1.2;
+}
+
 function extrasDrawObjectInto(ctx, obj) {
   ctx.save();
   if (obj.type === "rect" || obj.type === "ellipse") {
     const box = extrasObjectBBox(obj);
-    ctx.fillStyle = obj.color;
-    ctx.strokeStyle = obj.color;
-    ctx.lineWidth = obj.lineWidth;
-    if (obj.type === "rect") {
-      if (obj.fill === "filled") ctx.fillRect(box.x, box.y, box.w, box.h); else ctx.strokeRect(box.x, box.y, box.w, box.h);
-    } else {
-      ctx.beginPath();
-      ctx.ellipse(box.x + box.w / 2, box.y + box.h / 2, box.w / 2, box.h / 2, 0, 0, Math.PI * 2);
-      if (obj.fill === "filled") ctx.fill(); else ctx.stroke();
+    ctx.beginPath();
+    if (obj.type === "rect") ctx.rect(box.x, box.y, box.w, box.h);
+    else ctx.ellipse(box.x + box.w / 2, box.y + box.h / 2, box.w / 2, box.h / 2, 0, 0, Math.PI * 2);
+    if (obj.fill === "filled") {
+      ctx.fillStyle = obj.color;
+      ctx.fill();
+    }
+    if (obj.strokeWidth > 0) {
+      ctx.strokeStyle = obj.strokeColor;
+      ctx.lineWidth = obj.strokeWidth;
+      ctx.stroke();
     }
   } else if (obj.type === "text") {
-    ctx.font = `${obj.size}px Arial, sans-serif`;
+    ctx.font = extrasTextFontString(obj);
     ctx.fillStyle = obj.color;
     ctx.textBaseline = "top";
     ctx.fillText(obj.text, obj.x, obj.y);
+    if (obj.underline) {
+      const lineY = obj.y + obj.size * 1.05;
+      const thickness = Math.max(1, obj.size * 0.06);
+      ctx.fillRect(obj.x, lineY, obj.w, thickness);
+    }
   }
   ctx.restore();
 }
@@ -7352,6 +7421,129 @@ function extrasRedrawObjectsLayer() {
 function extrasSelectObject(id) {
   extrasState.selectedObjectId = id;
   extrasRenderObjectHandles();
+  extrasSyncPropertiesForSelection();
+}
+
+function extrasSyncTextStyleButtons(obj) {
+  document.querySelectorAll("#extrasTextStyleOptions button").forEach((btn) => {
+    const style = btn.dataset.extrasTextStyle;
+    const active = obj ? !!obj[style] : !!extrasState[EXTRAS_TEXT_STYLE_STATE_KEYS[style]];
+    btn.classList.toggle("active", active);
+  });
+}
+
+function extrasSyncPropertiesForSelection() {
+  const obj = extrasFindObject(extrasState.selectedObjectId);
+
+  const colorForUI = obj ? obj.color : extrasState.drawColor;
+  document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasDrawColor || "") === colorForUI));
+  const drawColorInput = document.getElementById("extrasDrawColorInput");
+  if (drawColorInput) drawColorInput.value = colorForUI;
+
+  const isShape = !!obj && (obj.type === "rect" || obj.type === "ellipse");
+  const strokeColorForUI = isShape ? obj.strokeColor : extrasState.strokeColor;
+  document.querySelectorAll("#extrasStrokeColorOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasStrokeColor || "") === strokeColorForUI));
+  const strokeColorInput = document.getElementById("extrasStrokeColorInput");
+  if (strokeColorInput) strokeColorInput.value = strokeColorForUI;
+  const strokeWidthInput = document.getElementById("extrasStrokeWidth");
+  if (strokeWidthInput) strokeWidthInput.value = isShape ? obj.strokeWidth : extrasState.strokeWidth;
+  if (isShape) {
+    document.querySelectorAll("#extrasFillOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasFill === obj.fill));
+  }
+
+  const isText = !!obj && obj.type === "text";
+  const fontSelect = document.getElementById("extrasFontFamily");
+  if (fontSelect) fontSelect.value = isText ? obj.fontFamily : extrasState.fontFamily;
+  const textSizeInput = document.getElementById("extrasTextSize");
+  if (textSizeInput && isText) textSizeInput.value = Math.round(obj.size);
+  extrasSyncTextStyleButtons(isText ? obj : null);
+}
+
+function extrasBeginLiveEdit() {
+  if (extrasFindObject(extrasState.selectedObjectId)) extrasPushUndo();
+}
+
+function extrasWireGestureInput(inputId, applyFn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  let dragStarted = false;
+  input.addEventListener("input", (event) => {
+    if (!dragStarted) {
+      dragStarted = true;
+      extrasBeginLiveEdit();
+    }
+    applyFn(event.target.value);
+  });
+  input.addEventListener("change", () => { dragStarted = false; });
+}
+
+function extrasApplyLiveObjectProperty(mutate) {
+  const obj = extrasFindObject(extrasState.selectedObjectId);
+  if (!obj) return false;
+  mutate(obj);
+  extrasRedrawObjectsLayer();
+  extrasRenderObjectHandles();
+  return true;
+}
+
+function extrasSetDrawColor(color) {
+  extrasState.drawColor = color;
+  document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasDrawColor || "") === color));
+  const input = document.getElementById("extrasDrawColorInput");
+  if (input) input.value = color;
+  extrasApplyLiveObjectProperty((obj) => { obj.color = color; });
+}
+
+function extrasSetStrokeColor(color) {
+  extrasState.strokeColor = color;
+  document.querySelectorAll("#extrasStrokeColorOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasStrokeColor || "") === color));
+  const input = document.getElementById("extrasStrokeColorInput");
+  if (input) input.value = color;
+  extrasApplyLiveObjectProperty((obj) => { obj.strokeColor = color; });
+}
+
+function extrasSetStrokeWidth(width) {
+  extrasState.strokeWidth = width;
+  extrasApplyLiveObjectProperty((obj) => { obj.strokeWidth = width; });
+}
+
+function extrasSetFontFamily(fontFamily) {
+  extrasState.fontFamily = fontFamily;
+  extrasApplyLiveObjectProperty((obj) => {
+    if (obj.type !== "text") return;
+    obj.fontFamily = fontFamily;
+    extrasRemeasureText(obj);
+  });
+}
+
+function extrasToggleTextStyle(style) {
+  const obj = extrasFindObject(extrasState.selectedObjectId);
+  if (obj && obj.type === "text") {
+    extrasPushUndo();
+    obj[style] = !obj[style];
+    if (style !== "underline") extrasRemeasureText(obj);
+    extrasRedrawObjectsLayer();
+    extrasRenderObjectHandles();
+  } else {
+    const key = EXTRAS_TEXT_STYLE_STATE_KEYS[style];
+    extrasState[key] = !extrasState[key];
+  }
+  extrasSyncTextStyleButtons(obj && obj.type === "text" ? obj : null);
+}
+
+function extrasStartColorPick(target) {
+  extrasState.colorPickTarget = target;
+  document.getElementById("extrasCanvas").style.cursor = "crosshair";
+}
+
+function extrasSampleColorAt(event) {
+  const canvas = document.getElementById("extrasCanvas");
+  const pt = extrasCanvasPoint(event);
+  const x = extrasClamp(Math.round(pt.x), 0, canvas.width - 1);
+  const y = extrasClamp(Math.round(pt.y), 0, canvas.height - 1);
+  const data = canvas.getContext("2d").getImageData(x, y, 1, 1).data;
+  if (data[3] === 0) return null;
+  return `#${[data[0], data[1], data[2]].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function extrasCanvasRectToScreen(rect) {
@@ -7420,11 +7612,7 @@ function extrasApplyTextResize(obj, origin, key, dx, dy) {
   const newDist = Math.hypot(newDragCorner.x - oppCorner.x, newDragCorner.y - oppCorner.y);
   const scale = extrasClamp(newDist / oldDist, 0.2, 8);
   obj.size = Math.max(6, origin.size * scale);
-  const ctx = document.getElementById("extrasCanvas").getContext("2d");
-  ctx.font = `${obj.size}px Arial, sans-serif`;
-  const metrics = ctx.measureText(obj.text);
-  obj.w = metrics.width;
-  obj.h = obj.size * 1.2;
+  extrasRemeasureText(obj);
   if (opposite === "nw") { obj.x = oppCorner.x; obj.y = oppCorner.y; }
   else if (opposite === "ne") { obj.x = oppCorner.x - obj.w; obj.y = oppCorner.y; }
   else if (opposite === "sw") { obj.x = oppCorner.x; obj.y = oppCorner.y - obj.h; }
@@ -7755,7 +7943,8 @@ function extrasShapePointerUp() {
     x, y, w, h,
     fill: extrasState.shapeFill,
     color: extrasState.drawColor,
-    lineWidth: Math.max(2, extrasState.brushSize / 6)
+    strokeColor: extrasState.strokeColor,
+    strokeWidth: extrasState.strokeWidth
   };
   extrasState.objects.push(obj);
   extrasDrawObjectInto(canvas.getContext("2d"), obj);
@@ -7790,16 +7979,19 @@ function extrasCommitTextInput() {
   extrasEnsureObjectsBase();
   extrasPushUndo();
   const ctx = canvas.getContext("2d");
-  ctx.font = `${fontSize}px Arial, sans-serif`;
-  const metrics = ctx.measureText(value);
   const obj = {
     id: extrasObjectSeq++,
     type: "text",
-    x, y, w: metrics.width, h: fontSize * 1.2,
+    x, y, w: 0, h: 0,
     text: value,
     size: fontSize,
-    color: extrasState.drawColor
+    color: extrasState.drawColor,
+    fontFamily: extrasState.fontFamily,
+    bold: extrasState.textBold,
+    italic: extrasState.textItalic,
+    underline: extrasState.textUnderline
   };
+  extrasRemeasureText(obj);
   extrasState.objects.push(obj);
   extrasDrawObjectInto(ctx, obj);
   extrasSelectObject(obj.id);
@@ -7810,6 +8002,21 @@ function extrasCancelTextInput() {
 }
 
 function extrasPointerDown(event) {
+  if (extrasState.colorPickTarget) {
+    event.preventDefault();
+    const hex = extrasSampleColorAt(event);
+    const target = extrasState.colorPickTarget;
+    extrasState.colorPickTarget = null;
+    if (hex) {
+      if (target === "background") extrasSetBackground(hex);
+      else {
+        extrasBeginLiveEdit();
+        if (target === "stroke") extrasSetStrokeColor(hex); else extrasSetDrawColor(hex);
+      }
+    }
+    extrasSyncToolOptionsVisibility();
+    return;
+  }
   if (extrasState.cropping) return;
   const tool = extrasState.tool;
   if (tool === "background" || tool === "adjust") return;
@@ -7883,7 +8090,10 @@ function extrasCaptureSnapshot() {
     width: canvas.width,
     height: canvas.height,
     data: canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height),
-    pristine: extrasState.pristineImageData
+    pristine: extrasState.pristineImageData,
+    objects: extrasState.objects.map((obj) => JSON.parse(JSON.stringify(obj))),
+    objectsBase: extrasState.objectsBase,
+    selectedObjectId: extrasState.selectedObjectId
   };
 }
 
@@ -7893,7 +8103,12 @@ function extrasRestoreSnapshot(entry) {
   canvas.height = entry.height;
   canvas.getContext("2d").putImageData(entry.data, 0, 0);
   extrasState.pristineImageData = entry.pristine;
-  extrasResetLiveObjects();
+  extrasState.objects = entry.objects.map((obj) => JSON.parse(JSON.stringify(obj)));
+  extrasState.objectsBase = entry.objectsBase;
+  extrasState.selectedObjectId = entry.selectedObjectId;
+  extrasObjectDrag = null;
+  extrasRenderObjectHandles();
+  extrasSyncPropertiesForSelection();
   extrasCancelAdjust();
   extrasApplyZoomStyle();
 }
@@ -7951,9 +8166,9 @@ function extrasCropImageData(imageData, rect) {
 
 function extrasRotate() {
   extrasExitCropMode();
-  extrasResetLiveObjects();
   const canvas = document.getElementById("extrasCanvas");
   extrasPushUndo();
+  extrasResetLiveObjects();
   const w = canvas.width;
   const h = canvas.height;
   const temp = document.createElement("canvas");
@@ -8052,8 +8267,8 @@ function extrasApplyCrop() {
     extrasExitCropMode();
     return;
   }
-  extrasResetLiveObjects();
   extrasPushUndo();
+  extrasResetLiveObjects();
   const temp = document.createElement("canvas");
   temp.width = w;
   temp.height = h;
@@ -8101,8 +8316,8 @@ function extrasCancelAdjust() {
 
 function extrasApplyAdjust() {
   if (extrasAdjustIsNeutral()) return;
-  extrasResetLiveObjects();
   extrasPushUndo();
+  extrasResetLiveObjects();
   const canvas = document.getElementById("extrasCanvas");
   const temp = document.createElement("canvas");
   temp.width = canvas.width;
@@ -8134,9 +8349,9 @@ function extrasClear() {
   const canvas = document.getElementById("extrasCanvas");
   if (!canvas.width || !canvas.height) return;
   extrasExitCropMode();
+  extrasPushUndo();
   extrasResetLiveObjects();
   extrasCancelAdjust();
-  extrasPushUndo();
   canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
 }
 
@@ -8199,6 +8414,9 @@ function extrasHandleAction(action) {
     case "apply-adjust": extrasApplyAdjust(); break;
     case "adjust-cancel": extrasCancelAdjust(); break;
     case "background-image-remove": extrasSetBackground(""); break;
+    case "pick-draw-color": extrasStartColorPick("draw"); break;
+    case "pick-stroke-color": extrasStartColorPick("stroke"); break;
+    case "pick-background-color": extrasStartColorPick("background"); break;
     case "undo": extrasUndo(); break;
     case "redo": extrasRedo(); break;
     case "reset": extrasReset(); break;
@@ -8377,17 +8595,43 @@ function initializeExtrasTools() {
     if (!button) return;
     extrasState.shapeFill = button.dataset.extrasFill;
     document.querySelectorAll("#extrasFillOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
+    extrasBeginLiveEdit();
+    extrasApplyLiveObjectProperty((obj) => { obj.fill = extrasState.shapeFill; });
   });
 
   document.getElementById("extrasDrawColorOptions").addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-draw-color]");
     if (!button) return;
-    extrasState.drawColor = button.dataset.extrasDrawColor;
-    document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
+    extrasBeginLiveEdit();
+    extrasSetDrawColor(button.dataset.extrasDrawColor);
   });
-  document.getElementById("extrasDrawColorInput").addEventListener("input", (event) => {
-    extrasState.drawColor = event.target.value;
-    document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.remove("active"));
+  extrasWireGestureInput("extrasDrawColorInput", (value) => extrasSetDrawColor(value));
+
+  document.getElementById("extrasStrokeColorOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-stroke-color]");
+    if (!button) return;
+    extrasBeginLiveEdit();
+    extrasSetStrokeColor(button.dataset.extrasStrokeColor);
+  });
+  extrasWireGestureInput("extrasStrokeColorInput", (value) => extrasSetStrokeColor(value));
+  extrasWireGestureInput("extrasStrokeWidth", (value) => extrasSetStrokeWidth(Number(value)));
+  extrasWireGestureInput("extrasTextSize", (value) => {
+    extrasApplyLiveObjectProperty((obj) => {
+      if (obj.type !== "text") return;
+      obj.size = Number(value);
+      extrasRemeasureText(obj);
+    });
+  });
+
+  document.getElementById("extrasFontFamily").addEventListener("change", (event) => {
+    extrasBeginLiveEdit();
+    extrasSetFontFamily(event.target.value);
+  });
+
+  document.getElementById("extrasTextStyleOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-text-style]");
+    if (!button) return;
+    extrasToggleTextStyle(button.dataset.extrasTextStyle);
   });
 
   const textInputOverlay = document.getElementById("extrasTextInputOverlay");
@@ -8450,6 +8694,11 @@ function initializeExtrasTools() {
     if (!document.getElementById("extras")?.classList.contains("active")) return;
     if (document.getElementById("extrasEditorPanel")?.classList.contains("hidden")) return;
     if (document.activeElement === textInputOverlay) return;
+    if (event.key === "Escape" && extrasState.colorPickTarget) {
+      extrasState.colorPickTarget = null;
+      extrasSyncToolOptionsVisibility();
+      return;
+    }
     if (!(event.ctrlKey || event.metaKey)) return;
     const key = event.key.toLowerCase();
     if (key === "z" && event.shiftKey) {
@@ -8479,7 +8728,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=193").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=194").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
