@@ -6923,6 +6923,20 @@ const EXTRAS_PAINT_TOOLS = new Set(["marker", "pencil", "signature"]);
 const EXTRAS_COLOR_TOOLS = new Set(["marker", "pencil", "signature", "rect", "ellipse", "text"]);
 const EXTRAS_OPACITY_TOOLS = new Set(["marker"]);
 const EXTRAS_FILL_TOOLS = new Set(["rect", "ellipse"]);
+const EXTRAS_TOOL_LABELS = {
+  erase: "Apagar",
+  restore: "Restaurar",
+  marker: "Marcador",
+  pencil: "Lápis",
+  signature: "Caneta (assinatura)",
+  rect: "Retângulo",
+  ellipse: "Elipse",
+  text: "Texto",
+  crop: "Recortar",
+  background: "Fundo",
+  adjust: "Brilho e contraste",
+  zoom: "Zoom"
+};
 const extrasState = {
   tool: "erase",
   brushSize: 30,
@@ -6936,7 +6950,8 @@ const extrasState = {
   zoomPanArmed: false,
   originalImageData: null,
   pristineImageData: null,
-  undoStack: []
+  undoStack: [],
+  redoStack: []
 };
 let extrasCropRect = null;
 let extrasCropBounds = null;
@@ -7138,6 +7153,7 @@ async function extrasLoadResultBlob(blob) {
   extrasState.originalImageData = original;
   extrasState.pristineImageData = new ImageData(new Uint8ClampedArray(original.data), original.width, original.height);
   extrasState.undoStack = [];
+  extrasState.redoStack = [];
   extrasExitCropMode();
   extrasResetToolsUI();
 }
@@ -7172,6 +7188,8 @@ function extrasResetToolsUI() {
 
 function extrasSyncToolOptionsVisibility() {
   const tool = extrasState.tool;
+  const titleEl = document.getElementById("extrasToolPropertiesTitle");
+  if (titleEl) titleEl.textContent = EXTRAS_TOOL_LABELS[tool] || "";
   document.getElementById("extrasBrushSizeGroup").classList.toggle("hidden", !EXTRAS_BRUSH_TOOLS.has(tool));
   document.getElementById("extrasTipShapeGroup").classList.toggle("hidden", !EXTRAS_TIP_TOOLS.has(tool));
   document.getElementById("extrasOpacityGroup").classList.toggle("hidden", !EXTRAS_OPACITY_TOOLS.has(tool));
@@ -7207,7 +7225,9 @@ function extrasSelectTool(tool) {
 
 function extrasSetBackground(color) {
   extrasState.backgroundColor = color || "";
-  document.getElementById("extrasCanvas").style.backgroundColor = color || "transparent";
+  const canvas = document.getElementById("extrasCanvas");
+  canvas.style.backgroundColor = color || "transparent";
+  canvas.classList.toggle("extras-canvas-checkered", !color);
   document.querySelectorAll("#extrasBackgroundOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasBg || "") === (color || "")));
 }
 
@@ -7499,26 +7519,45 @@ function extrasPointerUp(event) {
   extrasLastPoint = null;
 }
 
-function extrasPushUndo() {
+function extrasCaptureSnapshot() {
   const canvas = document.getElementById("extrasCanvas");
-  extrasState.undoStack.push({
+  return {
     width: canvas.width,
     height: canvas.height,
     data: canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height),
     pristine: extrasState.pristineImageData
-  });
-  if (extrasState.undoStack.length > EXTRAS_UNDO_LIMIT) extrasState.undoStack.shift();
+  };
 }
 
-function extrasUndo() {
-  const entry = extrasState.undoStack.pop();
-  if (!entry) return;
+function extrasRestoreSnapshot(entry) {
   const canvas = document.getElementById("extrasCanvas");
   canvas.width = entry.width;
   canvas.height = entry.height;
   canvas.getContext("2d").putImageData(entry.data, 0, 0);
   extrasState.pristineImageData = entry.pristine;
   extrasApplyZoomStyle();
+}
+
+function extrasPushUndo() {
+  extrasState.undoStack.push(extrasCaptureSnapshot());
+  if (extrasState.undoStack.length > EXTRAS_UNDO_LIMIT) extrasState.undoStack.shift();
+  extrasState.redoStack = [];
+}
+
+function extrasUndo() {
+  const entry = extrasState.undoStack.pop();
+  if (!entry) return;
+  extrasState.redoStack.push(extrasCaptureSnapshot());
+  if (extrasState.redoStack.length > EXTRAS_UNDO_LIMIT) extrasState.redoStack.shift();
+  extrasRestoreSnapshot(entry);
+}
+
+function extrasRedo() {
+  const entry = extrasState.redoStack.pop();
+  if (!entry) return;
+  extrasState.undoStack.push(extrasCaptureSnapshot());
+  if (extrasState.undoStack.length > EXTRAS_UNDO_LIMIT) extrasState.undoStack.shift();
+  extrasRestoreSnapshot(entry);
 }
 
 function extrasImageDataToCanvas(imageData) {
@@ -7585,7 +7624,7 @@ function extrasCanvasBoundsInScroll() {
 function extrasComputeBaseScale() {
   const canvas = document.getElementById("extrasCanvas");
   const scroll = document.getElementById("extrasCanvasScroll");
-  const availableWidth = Math.max(80, scroll.clientWidth - 32);
+  const availableWidth = Math.max(80, scroll.clientWidth - 40);
   const availableHeight = Math.max(80, Math.min(window.innerHeight * 0.55, 560));
   return Math.min(1, availableWidth / canvas.width, availableHeight / canvas.height);
 }
@@ -7703,6 +7742,7 @@ function extrasReset() {
   canvas.getContext("2d").putImageData(original, 0, 0);
   extrasState.pristineImageData = new ImageData(new Uint8ClampedArray(original.data), original.width, original.height);
   extrasState.undoStack = [];
+  extrasState.redoStack = [];
   extrasResetToolsUI();
 }
 
@@ -7711,6 +7751,7 @@ function extrasNewImage() {
   extrasState.originalImageData = null;
   extrasState.pristineImageData = null;
   extrasState.undoStack = [];
+  extrasState.redoStack = [];
   if (extrasPreviewObjectUrl) URL.revokeObjectURL(extrasPreviewObjectUrl);
   extrasPreviewObjectUrl = null;
   extrasPendingFile = null;
@@ -7762,6 +7803,7 @@ function extrasHandleAction(action) {
     case "crop-cancel": extrasExitCropMode(); extrasSelectTool("erase"); break;
     case "apply-adjust": extrasApplyAdjust(); break;
     case "undo": extrasUndo(); break;
+    case "redo": extrasRedo(); break;
     case "reset": extrasReset(); break;
     case "new": extrasNewImage(); break;
     case "download": extrasDownload(); break;
@@ -7988,9 +8030,17 @@ function initializeExtrasTools() {
     if (!document.getElementById("extras")?.classList.contains("active")) return;
     if (document.getElementById("extrasEditorPanel")?.classList.contains("hidden")) return;
     if (document.activeElement === textInputOverlay) return;
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+    if (!(event.ctrlKey || event.metaKey)) return;
+    const key = event.key.toLowerCase();
+    if (key === "z" && event.shiftKey) {
+      event.preventDefault();
+      extrasRedo();
+    } else if (key === "z") {
       event.preventDefault();
       extrasUndo();
+    } else if (key === "y") {
+      event.preventDefault();
+      extrasRedo();
     }
   });
 
@@ -8009,7 +8059,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=190").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=191").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

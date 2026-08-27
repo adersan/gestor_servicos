@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=137">
+  <link rel="stylesheet" href="styles.css?v=138">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -803,6 +803,8 @@
         </div>
 
         <div id="extrasToolProperties" class="extras-tool-properties panel">
+          <h3 id="extrasToolPropertiesTitle" class="extras-tool-title">Apagar</h3>
+
           <label class="extras-range-label" id="extrasBrushSizeGroup">Tamanho do pincel
             <input type="range" id="extrasBrushSize" min="2" max="120" value="30">
           </label>
@@ -892,6 +894,7 @@
 
         <div class="extras-action-bar panel">
           <button type="button" class="extras-icon-btn" data-extras-action="undo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↶</button>
+          <button type="button" class="extras-icon-btn" data-extras-action="redo" title="Refazer (Ctrl+Y)" aria-label="Refazer">↷</button>
           <button type="button" class="extras-icon-btn" data-extras-action="reset" title="Reiniciar" aria-label="Reiniciar">🧹</button>
           <button type="button" class="secondary" data-extras-action="new">Nova imagem</button>
           <button type="button" class="primary" data-extras-action="download">Baixar PNG</button>
@@ -2367,7 +2370,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=52"></script>
-  <script src="app.js?v=177"></script>
+  <script src="app.js?v=178"></script>
   <script src="supplier.js?v=65"></script>
 </body>
 </html>
