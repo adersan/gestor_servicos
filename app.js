@@ -6950,7 +6950,8 @@ let extrasPanStart = null;
 let extrasPanScrollStart = null;
 let extrasShapeStart = null;
 let extrasPendingFile = null;
-let extrasPendingResultBlob = null;
+let extrasRawResultCanvas = null;
+let extrasSensitivity = 0;
 let extrasPreviewObjectUrl = null;
 
 function extrasClamp(value, min, max) {
@@ -6983,7 +6984,8 @@ function extrasHandlePickedFile(file) {
     return;
   }
   extrasPendingFile = file;
-  extrasPendingResultBlob = null;
+  extrasRawResultCanvas = null;
+  extrasSensitivity = 0;
   if (extrasPreviewObjectUrl) URL.revokeObjectURL(extrasPreviewObjectUrl);
   extrasPreviewObjectUrl = URL.createObjectURL(file);
   document.getElementById("extrasPreviewImage").src = extrasPreviewObjectUrl;
@@ -7001,6 +7003,70 @@ async function extrasProceedEdit() {
     document.getElementById("extrasErrorMessage").textContent = "Não foi possível abrir essa imagem.";
     extrasShowPanel("error");
   }
+}
+
+function extrasTrimTransparentEdges(canvas, alphaThreshold = 10, paddingRatio = 0.04) {
+  const { width, height } = canvas;
+  const ctx = canvas.getContext("2d");
+  const data = ctx.getImageData(0, 0, width, height).data;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > alphaThreshold) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < minX || maxY < minY) return canvas;
+  const contentW = maxX - minX + 1;
+  const contentH = maxY - minY + 1;
+  const padX = Math.round(contentW * paddingRatio);
+  const padY = Math.round(contentH * paddingRatio);
+  const cropX = Math.max(0, minX - padX);
+  const cropY = Math.max(0, minY - padY);
+  const cropW = Math.min(width, maxX + padX + 1) - cropX;
+  const cropH = Math.min(height, maxY + padY + 1) - cropY;
+  if (cropX === 0 && cropY === 0 && cropW === width && cropH === height) return canvas;
+  const trimmed = document.createElement("canvas");
+  trimmed.width = cropW;
+  trimmed.height = cropH;
+  trimmed.getContext("2d").drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+  return trimmed;
+}
+
+function extrasSensitivityAlpha(alpha, sensitivity) {
+  if (sensitivity <= 0) return alpha;
+  const threshold = (sensitivity / 100) * 200;
+  if (alpha <= threshold) return 0;
+  return Math.round(((alpha - threshold) / (255 - threshold)) * 255);
+}
+
+function extrasApplySensitivityToCanvas(sourceCanvas, sensitivity) {
+  const w = sourceCanvas.width;
+  const h = sourceCanvas.height;
+  const imgData = sourceCanvas.getContext("2d").getImageData(0, 0, w, h);
+  if (sensitivity > 0) {
+    for (let i = 3; i < imgData.data.length; i += 4) {
+      imgData.data[i] = extrasSensitivityAlpha(imgData.data[i], sensitivity);
+    }
+  }
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  out.getContext("2d").putImageData(imgData, 0, 0);
+  return out;
+}
+
+function extrasRenderSensitivityPreview() {
+  if (!extrasRawResultCanvas) return;
+  const preview = extrasApplySensitivityToCanvas(extrasRawResultCanvas, extrasSensitivity);
+  document.getElementById("extrasAfterImage").src = preview.toDataURL("image/png");
 }
 
 async function extrasProceedRemoveBg() {
@@ -7021,9 +7087,17 @@ async function extrasProceedRemoveBg() {
       const result = await response.json().catch(() => ({}));
       throw new Error(result.error || "Não foi possível remover o fundo da imagem.");
     }
-    extrasPendingResultBlob = await response.blob();
+    const resultBlob = await response.blob();
+    const bitmap = await createImageBitmap(resultBlob);
+    const rawCanvas = document.createElement("canvas");
+    rawCanvas.width = bitmap.width;
+    rawCanvas.height = bitmap.height;
+    rawCanvas.getContext("2d").drawImage(bitmap, 0, 0);
+    extrasRawResultCanvas = extrasTrimTransparentEdges(rawCanvas);
+    extrasSensitivity = 0;
+    document.getElementById("extrasSensitivity").value = 0;
     document.getElementById("extrasBeforeImage").src = extrasPreviewObjectUrl;
-    document.getElementById("extrasAfterImage").src = URL.createObjectURL(extrasPendingResultBlob);
+    extrasRenderSensitivityPreview();
     extrasShowPanel("beforeAfter");
   } catch (error) {
     document.getElementById("extrasErrorMessage").textContent = error.message;
@@ -7031,11 +7105,19 @@ async function extrasProceedRemoveBg() {
   }
 }
 
+function extrasCancelBeforeAfter() {
+  extrasRawResultCanvas = null;
+  extrasSensitivity = 0;
+  extrasShowPanel(extrasPendingFile ? "preview" : "upload");
+}
+
 async function extrasProceedToEditorFromBeforeAfter() {
-  if (!extrasPendingResultBlob) return;
+  if (!extrasRawResultCanvas) return;
   extrasShowPanel("loading");
   try {
-    await extrasLoadResultBlob(extrasPendingResultBlob);
+    const finalCanvas = extrasApplySensitivityToCanvas(extrasRawResultCanvas, extrasSensitivity);
+    const blob = await new Promise((resolve) => finalCanvas.toBlob(resolve, "image/png"));
+    await extrasLoadResultBlob(blob);
     extrasShowPanel("editor");
     extrasApplyZoomStyle();
   } catch (error) {
@@ -7632,7 +7714,8 @@ function extrasNewImage() {
   if (extrasPreviewObjectUrl) URL.revokeObjectURL(extrasPreviewObjectUrl);
   extrasPreviewObjectUrl = null;
   extrasPendingFile = null;
-  extrasPendingResultBlob = null;
+  extrasRawResultCanvas = null;
+  extrasSensitivity = 0;
   extrasShowPanel("upload");
 }
 
@@ -7687,6 +7770,7 @@ function extrasHandleAction(action) {
     case "zoom-reset": extrasSetZoom(1); break;
     case "zoom-pan-toggle": extrasToggleZoomPan(); break;
     case "continue-edit": extrasProceedToEditorFromBeforeAfter(); break;
+    case "cancel-before-after": extrasCancelBeforeAfter(); break;
     default: break;
   }
 }
@@ -7802,6 +7886,11 @@ function initializeExtrasTools() {
       if (button.dataset.extrasPreviewAction === "edit") extrasProceedEdit();
       else if (button.dataset.extrasPreviewAction === "remove-bg") extrasProceedRemoveBg();
     });
+  });
+
+  document.getElementById("extrasSensitivity").addEventListener("input", (event) => {
+    extrasSensitivity = Number(event.target.value);
+    extrasRenderSensitivityPreview();
   });
 
   const canvas = document.getElementById("extrasCanvas");

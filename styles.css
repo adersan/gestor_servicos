@@ -730,6 +730,7 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
   background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
 }
 .extras-before-after-grid figcaption { color: var(--muted); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.extras-sensitivity-label { width: 100%; max-width: 360px; margin-top: 4px; }
 
 .extras-editor { display: grid; gap: 14px; }
 .extras-canvas-wrap { display: grid; gap: 10px; }

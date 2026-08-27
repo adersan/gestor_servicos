@@ -745,7 +745,13 @@
           <figure><img id="extrasBeforeImage" alt="Antes"><figcaption>Antes</figcaption></figure>
           <figure><img id="extrasAfterImage" alt="Depois"><figcaption>Depois</figcaption></figure>
         </div>
-        <button type="button" class="primary" data-extras-action="continue-edit">Continuar editando</button>
+        <label class="extras-range-label extras-sensitivity-label">Sensibilidade do recorte (mais alto = bordas mais rígidas)
+          <input type="range" id="extrasSensitivity" min="0" max="100" value="0">
+        </label>
+        <div class="extras-preview-actions">
+          <button type="button" class="secondary" data-extras-action="cancel-before-after">Cancelar</button>
+          <button type="button" class="primary" data-extras-action="continue-edit">Continuar editando</button>
+        </div>
       </div>
 
       <div id="extrasErrorPanel" class="panel extras-error-panel hidden">
