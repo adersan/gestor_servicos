@@ -6946,6 +6946,7 @@ const extrasState = {
   opacity: 60,
   shapeFill: "filled",
   backgroundColor: "",
+  backgroundImage: null,
   cropping: false,
   zoom: 1,
   zoomPanArmed: false,
@@ -7168,10 +7169,9 @@ async function extrasLoadResultBlob(blob) {
 
 function extrasResetToolsUI() {
   document.getElementById("extrasBrushSize").value = 30;
-  document.getElementById("extrasBrightness").value = 100;
-  document.getElementById("extrasContrast").value = 100;
   document.getElementById("extrasOpacity").value = 60;
   document.getElementById("extrasTextSize").value = 28;
+  extrasCancelAdjust();
   extrasState.tool = "erase";
   extrasState.brushSize = 30;
   extrasState.tipShape = "round";
@@ -7181,7 +7181,6 @@ function extrasResetToolsUI() {
   extrasState.zoom = 1;
   extrasState.zoomPanArmed = false;
   document.getElementById("extrasZoomPanToggle").classList.remove("active");
-  document.getElementById("extrasCanvas").style.filter = "";
   document.querySelectorAll("[data-extras-tool]").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === "erase"));
   document.querySelectorAll("#extrasTipShapeOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTipShape === "round"));
   document.querySelectorAll("#extrasFillOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasFill === "filled"));
@@ -7226,7 +7225,10 @@ function extrasSyncToolOptionsVisibility() {
 
 function extrasSelectTool(tool) {
   extrasCancelTextInput();
-  if (tool !== extrasState.tool) extrasResetLiveObjects();
+  if (tool !== extrasState.tool) {
+    if (extrasState.tool === "adjust") extrasCancelAdjust();
+    extrasResetLiveObjects();
+  }
   extrasState.tool = tool;
   document.querySelectorAll("[data-extras-tool]").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === tool));
   extrasSyncToolOptionsVisibility();
@@ -7423,9 +7425,9 @@ function extrasApplyTextResize(obj, origin, key, dx, dy) {
   const metrics = ctx.measureText(obj.text);
   obj.w = metrics.width;
   obj.h = obj.size * 1.2;
-  if (opposite === "se") { obj.x = oppCorner.x; obj.y = oppCorner.y; }
-  else if (opposite === "sw") { obj.x = oppCorner.x - obj.w; obj.y = oppCorner.y; }
-  else if (opposite === "ne") { obj.x = oppCorner.x; obj.y = oppCorner.y - obj.h; }
+  if (opposite === "nw") { obj.x = oppCorner.x; obj.y = oppCorner.y; }
+  else if (opposite === "ne") { obj.x = oppCorner.x - obj.w; obj.y = oppCorner.y; }
+  else if (opposite === "sw") { obj.x = oppCorner.x; obj.y = oppCorner.y - obj.h; }
   else { obj.x = oppCorner.x - obj.w; obj.y = oppCorner.y - obj.h; }
 }
 
@@ -7533,10 +7535,39 @@ function extrasPathPointerDown(event) {
 
 function extrasSetBackground(color) {
   extrasState.backgroundColor = color || "";
+  extrasState.backgroundImage = null;
   const canvas = document.getElementById("extrasCanvas");
   canvas.style.backgroundColor = color || "transparent";
+  canvas.style.backgroundImage = "";
+  canvas.style.backgroundSize = "";
   canvas.classList.toggle("extras-canvas-checkered", !color);
   document.querySelectorAll("#extrasBackgroundOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasBg || "") === (color || "")));
+  extrasUpdateBackgroundImageUI();
+}
+
+function extrasSetBackgroundImage(dataUrl) {
+  extrasState.backgroundColor = "";
+  extrasState.backgroundImage = dataUrl;
+  const canvas = document.getElementById("extrasCanvas");
+  canvas.style.backgroundColor = "transparent";
+  canvas.classList.remove("extras-canvas-checkered");
+  canvas.style.backgroundImage = `url(${dataUrl})`;
+  canvas.style.backgroundSize = "100% 100%";
+  document.querySelectorAll("#extrasBackgroundOptions button").forEach((btn) => btn.classList.remove("active"));
+  extrasUpdateBackgroundImageUI();
+}
+
+function extrasUpdateBackgroundImageUI() {
+  const wrap = document.getElementById("extrasBackgroundImagePreview");
+  const thumb = document.getElementById("extrasBackgroundImageThumb");
+  if (!wrap || !thumb) return;
+  if (extrasState.backgroundImage) {
+    thumb.src = extrasState.backgroundImage;
+    wrap.classList.remove("hidden");
+  } else {
+    thumb.src = "";
+    wrap.classList.add("hidden");
+  }
 }
 
 function extrasCanvasPoint(event) {
@@ -7863,6 +7894,7 @@ function extrasRestoreSnapshot(entry) {
   canvas.getContext("2d").putImageData(entry.data, 0, 0);
   extrasState.pristineImageData = entry.pristine;
   extrasResetLiveObjects();
+  extrasCancelAdjust();
   extrasApplyZoomStyle();
 }
 
@@ -8037,16 +8069,38 @@ function extrasApplyCrop() {
   extrasApplyZoomStyle();
 }
 
-function extrasPreviewAdjust() {
+function extrasAdjustFilterString() {
   const brightness = document.getElementById("extrasBrightness").value;
   const contrast = document.getElementById("extrasContrast").value;
-  document.getElementById("extrasCanvas").style.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+  const saturate = document.getElementById("extrasSaturate").value;
+  const hue = document.getElementById("extrasHue").value;
+  const blur = document.getElementById("extrasBlur").value;
+  return `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) hue-rotate(${hue}deg) blur(${blur}px)`;
+}
+
+function extrasAdjustIsNeutral() {
+  return Number(document.getElementById("extrasBrightness").value) === 100
+    && Number(document.getElementById("extrasContrast").value) === 100
+    && Number(document.getElementById("extrasSaturate").value) === 100
+    && Number(document.getElementById("extrasHue").value) === 0
+    && Number(document.getElementById("extrasBlur").value) === 0;
+}
+
+function extrasPreviewAdjust() {
+  document.getElementById("extrasCanvas").style.filter = extrasAdjustFilterString();
+}
+
+function extrasCancelAdjust() {
+  document.getElementById("extrasBrightness").value = 100;
+  document.getElementById("extrasContrast").value = 100;
+  document.getElementById("extrasSaturate").value = 100;
+  document.getElementById("extrasHue").value = 0;
+  document.getElementById("extrasBlur").value = 0;
+  document.getElementById("extrasCanvas").style.filter = "";
 }
 
 function extrasApplyAdjust() {
-  const brightness = Number(document.getElementById("extrasBrightness").value);
-  const contrast = Number(document.getElementById("extrasContrast").value);
-  if (brightness === 100 && contrast === 100) return;
+  if (extrasAdjustIsNeutral()) return;
   extrasResetLiveObjects();
   extrasPushUndo();
   const canvas = document.getElementById("extrasCanvas");
@@ -8054,14 +8108,12 @@ function extrasApplyAdjust() {
   temp.width = canvas.width;
   temp.height = canvas.height;
   const tctx = temp.getContext("2d");
-  tctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+  tctx.filter = extrasAdjustFilterString();
   tctx.drawImage(canvas, 0, 0);
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(temp, 0, 0);
-  document.getElementById("extrasBrightness").value = 100;
-  document.getElementById("extrasContrast").value = 100;
-  canvas.style.filter = "";
+  extrasCancelAdjust();
 }
 
 function extrasReset() {
@@ -8083,6 +8135,7 @@ function extrasClear() {
   if (!canvas.width || !canvas.height) return;
   extrasExitCropMode();
   extrasResetLiveObjects();
+  extrasCancelAdjust();
   extrasPushUndo();
   canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
 }
@@ -8102,15 +8155,16 @@ function extrasNewImage() {
 }
 
 function extrasDownload() {
-  const brightness = Number(document.getElementById("extrasBrightness").value);
-  const contrast = Number(document.getElementById("extrasContrast").value);
-  if (brightness !== 100 || contrast !== 100) extrasApplyAdjust();
+  if (!extrasAdjustIsNeutral()) extrasApplyAdjust();
   const canvas = document.getElementById("extrasCanvas");
   const output = document.createElement("canvas");
   output.width = canvas.width;
   output.height = canvas.height;
   const octx = output.getContext("2d");
-  if (extrasState.backgroundColor) {
+  if (extrasState.backgroundImage) {
+    const bgImg = document.getElementById("extrasBackgroundImageThumb");
+    octx.drawImage(bgImg, 0, 0, output.width, output.height);
+  } else if (extrasState.backgroundColor) {
     octx.fillStyle = extrasState.backgroundColor;
     octx.fillRect(0, 0, output.width, output.height);
   }
@@ -8143,6 +8197,8 @@ function extrasHandleAction(action) {
     case "crop-apply": extrasApplyCrop(); break;
     case "crop-cancel": extrasExitCropMode(); extrasSelectTool("erase"); break;
     case "apply-adjust": extrasApplyAdjust(); break;
+    case "adjust-cancel": extrasCancelAdjust(); break;
+    case "background-image-remove": extrasSetBackground(""); break;
     case "undo": extrasUndo(); break;
     case "redo": extrasRedo(); break;
     case "reset": extrasReset(); break;
@@ -8355,8 +8411,26 @@ function initializeExtrasTools() {
     extrasSetBackground(event.target.value);
   });
 
+  const backgroundImageInput = document.getElementById("extrasBackgroundImageInput");
+  document.querySelector('[data-extras-action="background-image-upload"]').addEventListener("click", () => backgroundImageInput.click());
+  backgroundImageInput.addEventListener("change", () => {
+    const file = backgroundImageInput.files?.[0];
+    backgroundImageInput.value = "";
+    if (!file) return;
+    if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) {
+      showAppAlert("Envie uma imagem PNG, JPG ou WEBP.", { type: "warning" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => extrasSetBackgroundImage(reader.result);
+    reader.readAsDataURL(file);
+  });
+
   document.getElementById("extrasBrightness").addEventListener("input", extrasPreviewAdjust);
   document.getElementById("extrasContrast").addEventListener("input", extrasPreviewAdjust);
+  document.getElementById("extrasSaturate").addEventListener("input", extrasPreviewAdjust);
+  document.getElementById("extrasHue").addEventListener("input", extrasPreviewAdjust);
+  document.getElementById("extrasBlur").addEventListener("input", extrasPreviewAdjust);
 
   document.querySelectorAll("#extras [data-extras-action]").forEach((button) => {
     button.addEventListener("click", () => extrasHandleAction(button.dataset.extrasAction));
@@ -8405,7 +8479,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=192").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=193").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
