@@ -2306,7 +2306,12 @@
     currentClientSupplierServiceSelections,
     pickerSuppliers,
     pickerServicesForSupplier,
-    removeClientSupplierServiceById
+    removeClientSupplierServiceById,
+    payableStatus,
+    payableOpen,
+    payablePaid,
+    supplierPaymentAllocationLabel,
+    supplierEntryStatusDates
   };
   resetClientEntryOptions();
   byId("supplierRequestShareDialog").addEventListener("cancel", (event) => {

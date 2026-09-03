@@ -1190,6 +1190,17 @@ function uniqueClientMatch(value) {
   return matches.length === 1 ? matches[0] : null;
 }
 
+function supplierOptionLabel(supplier) {
+  return supplier?.name || "";
+}
+
+function uniqueSupplierMatch(value) {
+  const exact = itemByExactLabel(state.suppliers, value, supplierOptionLabel);
+  if (exact) return exact;
+  const matches = state.suppliers.filter((supplier) => matchesSearch(value, supplier.name));
+  return matches.length === 1 ? matches[0] : null;
+}
+
 function formatDate(value) {
   return value ? value.split("-").reverse().join("/") : "-";
 }
@@ -1381,6 +1392,62 @@ function renderDashboard() {
   }).join("") : emptyMarkup();
 }
 
+function servicesFor(range) {
+  return state.services.filter((item) => item.status !== "Cancelado" && inPeriod(item.date, range));
+}
+
+// A payment linked to a billing belongs to that billing's operational period.
+// This prevents a late payment from looking like credit in a later week.
+function paymentsAppliedFor(range) {
+  return state.payments.filter((item) => {
+    if (!item.billingId) return inPeriod(item.date, range);
+    const billing = state.billings.find((entry) => entry.id === item.billingId);
+    return Boolean(billing && billing.status !== "Cancelada" && inPeriod(billing.endDate, range));
+  });
+}
+
+function paymentsReceivedFor(range) {
+  return state.payments.filter((item) => inPeriod(item.date, range));
+}
+
+function billingsFor(range) {
+  return state.billings.filter((item) => item.status !== "Cancelada" && inPeriod(item.endDate, range));
+}
+
+function supplierEntriesFor(range) {
+  return state.supplierEntries.filter((item) => item.status !== "Cancelado" && inPeriod(item.date, range));
+}
+
+function serviceMetrics(range) {
+  const services = servicesFor(range);
+  const primaryServices = services.filter((item) => !item.isSecondary);
+  const supplierEntries = supplierEntriesFor(range);
+  return {
+    services,
+    primaryServices,
+    supplierEntries,
+    pending: primaryServices.filter((item) => item.status === "A fazer"),
+    done: primaryServices.filter((item) => item.status === "Pronto"),
+    delivered: primaryServices.filter((item) => item.status === "Entregue"),
+    primaryTotal: primaryServices.reduce((sum, item) => sum + Number(item.amount), 0),
+    supplierTotal: supplierEntries.reduce((sum, item) => sum + Number(item.amount), 0),
+    total: services.reduce((sum, item) => sum + Number(item.amount), 0)
+  };
+}
+
+function financeMetrics(range) {
+  const servicesTotal = servicesFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
+  const paymentTotal = paymentsReceivedFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
+  const appliedPaymentTotal = paymentsAppliedFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
+  return {
+    servicesTotal,
+    paymentTotal,
+    appliedPaymentTotal,
+    balance: servicesTotal - appliedPaymentTotal,
+    billings: billingsFor(range)
+  };
+}
+
 function renderDashboardV2() {
   dashboardPeriod ||= defaultPeriod();
   const week = currentOperationalWeek();
@@ -1403,36 +1470,6 @@ function renderDashboardV2() {
     button.classList.toggle("active", button.dataset.dashboardTab === activeDashboardTab);
   });
 
-  const servicesFor = (range) => state.services.filter((item) =>
-    item.status !== "Cancelado" && inPeriod(item.date, range));
-  // A payment linked to a billing belongs to that billing's operational period.
-  // This prevents a late payment from looking like credit in a later week.
-  const paymentsAppliedFor = (range) => state.payments.filter((item) => {
-    if (!item.billingId) return inPeriod(item.date, range);
-    const billing = state.billings.find((entry) => entry.id === item.billingId);
-    return Boolean(billing && billing.status !== "Cancelada" && inPeriod(billing.endDate, range));
-  });
-  const paymentsReceivedFor = (range) => state.payments.filter((item) => inPeriod(item.date, range));
-  const billingsFor = (range) => state.billings.filter((item) =>
-    item.status !== "Cancelada" && inPeriod(item.endDate, range));
-  const supplierEntriesFor = (range) => state.supplierEntries.filter((item) =>
-    item.status !== "Cancelado" && inPeriod(item.date, range));
-  const serviceMetrics = (range) => {
-    const services = servicesFor(range);
-    const primaryServices = services.filter((item) => !item.isSecondary);
-    const supplierEntries = supplierEntriesFor(range);
-    return {
-      services,
-      primaryServices,
-      supplierEntries,
-      pending: primaryServices.filter((item) => item.status === "A fazer"),
-      done: primaryServices.filter((item) => item.status === "Pronto"),
-      delivered: primaryServices.filter((item) => item.status === "Entregue"),
-      primaryTotal: primaryServices.reduce((sum, item) => sum + Number(item.amount), 0),
-      supplierTotal: supplierEntries.reduce((sum, item) => sum + Number(item.amount), 0),
-      total: services.reduce((sum, item) => sum + Number(item.amount), 0)
-    };
-  };
   const serviceCards = (metrics) => {
     const card = (label, items, className, statusValue) => `
       <article class="metric-card dashboard-status-card ${className}" data-service-status-shortcut="${statusValue}" role="button" tabindex="0" title="Ver estes lançamentos">
@@ -1507,18 +1544,6 @@ function renderDashboardV2() {
     <div class="alert-summary"><article><span>A fazer</span><strong>${pending.length}</strong></article><article class="${overdue.length ? "alert-danger" : ""}"><span>Acima de 24h</span><strong>${overdue.length}</strong></article></div>
     ${overdue.length ? `<div class="alert-list">${overdue.slice(0, 5).map((item) => `<div><strong>${escapeHtml(clientById(item.clientId)?.name || "")}: ${escapeHtml(item.description)}</strong><span>${escapeHtml(item.reference || "Sem referência")} · ${formatServiceAge(item)}</span></div>`).join("")}</div>` : `<p class="meta">Nenhum serviço ultrapassou 24 horas.</p>`}`;
 
-  const financeMetrics = (range) => {
-    const servicesTotal = servicesFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
-    const paymentTotal = paymentsReceivedFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
-    const appliedPaymentTotal = paymentsAppliedFor(range).reduce((sum, item) => sum + Number(item.amount), 0);
-    return {
-      servicesTotal,
-      paymentTotal,
-      appliedPaymentTotal,
-      balance: servicesTotal - appliedPaymentTotal,
-      billings: billingsFor(range)
-    };
-  };
   const financeCards = (metrics) => `
     <article class="metric-card metric-main" data-open-view="payments" role="button" tabindex="0" title="Abrir Pagamentos"><span>Saldo do período</span><strong>${money.format(metrics.balance)}</strong><small>Serviços menos baixas deste período</small></article>
     <article class="metric-card" data-open-view="services" role="button" tabindex="0" title="Abrir Lançamentos"><span>Serviços lançados</span><strong>${money.format(metrics.servicesTotal)}</strong><small>Produção no período</small></article>
@@ -8602,6 +8627,562 @@ function extrasInitCropHandlers() {
   });
 }
 
+// ---- Relatorios ----------------------------------------------------------
+
+let reportPeriod = null;
+const REPORT_ROW_WARNING_LIMIT = 500;
+
+function reportColumnStorageKey(typeId) {
+  return `gestor-servicos-report-columns-${typeId}-v1`;
+}
+
+const REPORT_DEFINITIONS = [
+  {
+    id: "periodSummary",
+    group: "Resumo",
+    label: "Resumo do período",
+    searchable: false,
+    columns: [
+      { key: "metric", label: "Métrica", value: (row) => row.label },
+      { key: "count", label: "Quantidade", align: "right", value: (row) => row.count == null ? "—" : String(row.count) },
+      { key: "amount", label: "Valor", align: "right", value: (row) => money.format(Number(row.amount || 0)) }
+    ],
+    getRows(filters) {
+      const sm = serviceMetrics(filters.period);
+      const fm = financeMetrics(filters.period);
+      return [
+        { label: "Serviços A fazer", count: sm.pending.length, amount: sm.pending.reduce((sum, item) => sum + Number(item.amount), 0) },
+        { label: "Serviços Feitos", count: sm.done.length, amount: sm.done.reduce((sum, item) => sum + Number(item.amount), 0) },
+        { label: "Serviços Entregues", count: sm.delivered.length, amount: sm.delivered.reduce((sum, item) => sum + Number(item.amount), 0) },
+        { label: "Total de serviços (principais)", count: sm.primaryServices.length, amount: sm.primaryTotal },
+        { label: "Serviços de fornecedores", count: sm.supplierEntries.length, amount: sm.supplierTotal },
+        { label: "Serviços lançados (produção do período)", count: null, amount: fm.servicesTotal },
+        { label: "Pagamentos recebidos", count: null, amount: fm.paymentTotal },
+        { label: "Saldo do período", count: null, amount: fm.balance },
+        { label: "Cobranças geradas", count: fm.billings.length, amount: fm.billings.reduce((sum, item) => sum + Number(item.amount), 0) }
+      ];
+    }
+  },
+  {
+    id: "clientSummary",
+    group: "Resumo",
+    label: "Resumo por cliente",
+    needsClient: true,
+    columns: [
+      { key: "client", label: "Cliente", value: (row) => row.client.name },
+      { key: "previousBalance", label: "Saldo anterior", align: "right", summable: true, raw: (row) => row.previousBalance, value: (row) => money.format(row.previousBalance) },
+      { key: "periodServiceTotal", label: "Consumo período", align: "right", summable: true, raw: (row) => row.periodServiceTotal, value: (row) => money.format(row.periodServiceTotal) },
+      { key: "periodPaymentTotal", label: "Pago período", align: "right", summable: true, raw: (row) => row.periodPaymentTotal, value: (row) => money.format(row.periodPaymentTotal) },
+      { key: "openBalance", label: "Saldo em aberto", align: "right", summable: true, raw: (row) => row.openBalance, value: (row) => money.format(row.openBalance) }
+    ],
+    getRows(filters) {
+      return state.clients
+        .filter((client) => !filters.clientId || client.id === filters.clientId)
+        .map((client) => {
+          const previousBalance = previousBalanceFor(client.id, filters.period.startDate);
+          const periodServiceTotal = state.services
+            .filter((item) => item.clientId === client.id && item.status !== "Cancelado"
+              && item.date >= filters.period.startDate && item.date <= filters.period.endDate)
+            .reduce((sum, item) => sum + Number(item.amount), 0);
+          const periodPaymentTotal = state.payments
+            .filter((item) => item.clientId === client.id && item.date >= filters.period.startDate && item.date <= filters.period.endDate)
+            .reduce((sum, item) => sum + Number(item.amount), 0);
+          return { client, previousBalance, periodServiceTotal, periodPaymentTotal, openBalance: previousBalance + periodServiceTotal - periodPaymentTotal };
+        })
+        .filter((row) => row.previousBalance || row.periodServiceTotal || row.periodPaymentTotal || Math.abs(row.openBalance) > 0.005)
+        .filter((row) => matchesSearch(filters.search, row.client.name))
+        .sort((a, b) => b.openBalance - a.openBalance);
+    }
+  },
+  {
+    id: "clientEntries",
+    group: "Clientes",
+    label: "Lançamentos de clientes",
+    needsClient: true,
+    statusOptions: [
+      { value: "A fazer", label: "A fazer" },
+      { value: "Pronto", label: "Feito" },
+      { value: "Entregue", label: "Entregue" },
+      { value: "Cancelado", label: "Cancelado" }
+    ],
+    extraFilter: {
+      label: "Fornecedor vinculado",
+      options: [{ value: "with", label: "Com fornecedor" }, { value: "without", label: "Sem fornecedor" }]
+    },
+    columns: [
+      { key: "date", label: "Data", value: (row) => formatDate(row.date), pdfWidth: 0.8 },
+      { key: "client", label: "Cliente", value: (row) => clientById(row.clientId)?.name || "", pdfWidth: 1.4 },
+      { key: "service", label: "Serviço", value: (row) => row.description || "", pdfWidth: 1.6 },
+      { key: "type", label: "Tipo", value: (row) => row.isSecondary ? "Complementar" : "Principal" },
+      { key: "reference", label: "Placa/Referência", value: (row) => row.reference || "—" },
+      { key: "requester", label: "Solicitante", value: (row) => row.requestedBy || "—" },
+      { key: "status", label: "Status", value: (row) => serviceStatusLabel(row.status) },
+      { key: "amount", label: "Valor", align: "right", summable: true, raw: (row) => Number(row.amount), value: (row) => money.format(Number(row.amount)), pdfWidth: 0.8 },
+      { key: "billing", label: "Cobrança", value: (row) => { const billing = state.billings.find((item) => item.id === row.billingId); return billing ? billingNumberLabel(billing) : "—"; } },
+      { key: "supplierLinked", label: "Fornecedor vinculado", value: (row) => state.supplierEntries.some((item) => item.clientServiceEntryId === row.id) ? "Sim" : "Não" }
+    ],
+    getRows(filters) {
+      return state.services
+        .filter((item) => inPeriod(item.date, filters.period))
+        .filter((item) => !filters.clientId || item.clientId === filters.clientId)
+        .filter((item) => !filters.status || item.status === filters.status)
+        .filter((item) => {
+          if (filters.extra === "with") return state.supplierEntries.some((entry) => entry.clientServiceEntryId === item.id);
+          if (filters.extra === "without") return !state.supplierEntries.some((entry) => entry.clientServiceEntryId === item.id);
+          return true;
+        })
+        .filter((item) => matchesSearch(filters.search, clientById(item.clientId)?.name, item.description, item.reference, item.requestedBy))
+        .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+    }
+  },
+  {
+    id: "payments",
+    group: "Financeiro",
+    label: "Pagamentos",
+    needsClient: true,
+    statusOptions: [
+      { value: "credit", label: "Crédito disponível" },
+      { value: "loose", label: "Adiantamento sem cobrança" },
+      { value: "linked-open", label: "Vinculado (cobrança em aberto)" },
+      { value: "linked-paid", label: "Vinculado (quitação)" }
+    ],
+    columns: [
+      { key: "date", label: "Data", value: (row) => formatDate(row.date), pdfWidth: 0.8 },
+      { key: "client", label: "Cliente", value: (row) => clientById(row.clientId)?.name || "", pdfWidth: 1.6 },
+      { key: "amount", label: "Valor", align: "right", summable: true, raw: (row) => Number(row.amount), value: (row) => money.format(Number(row.amount)), pdfWidth: 0.8 },
+      { key: "method", label: "Forma", value: (row) => row.method || "—" },
+      { key: "situation", label: "Situação", value: (row) => paymentAllocationLabel(row), pdfWidth: 1.6 },
+      { key: "billing", label: "Cobrança", value: (row) => { const billing = state.billings.find((item) => item.id === row.billingId); return billing ? billingNumberLabel(billing) : "—"; } },
+      { key: "note", label: "Observação", value: (row) => row.note || "—", pdfWidth: 1.6 }
+    ],
+    getRows(filters) {
+      return state.payments
+        .filter((item) => inPeriod(item.date, filters.period))
+        .filter((item) => !filters.clientId || item.clientId === filters.clientId)
+        .filter((item) => !filters.status || paymentAllocationState(item) === filters.status)
+        .filter((item) => matchesSearch(filters.search, clientById(item.clientId)?.name, item.method, item.note))
+        .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+    }
+  },
+  {
+    id: "billings",
+    group: "Financeiro",
+    label: "Cobranças",
+    needsClient: true,
+    statusOptions: [
+      { value: "Aberta", label: "Aberta" },
+      { value: "Parcial", label: "Parcial" },
+      { value: "Paga", label: "Quitada" },
+      { value: "Cancelada", label: "Cancelada" },
+      { value: "Consolidada", label: "Consolidada" }
+    ],
+    extraFilter: { label: "Atraso", options: [{ value: "overdue", label: "Só atrasadas" }] },
+    columns: [
+      { key: "number", label: "Número", value: (row) => billingNumberLabel(row) },
+      { key: "client", label: "Cliente", value: (row) => clientById(row.clientId)?.name || "", pdfWidth: 1.4 },
+      { key: "period", label: "Período", value: (row) => periodLabel({ startDate: row.startDate, endDate: row.endDate }), pdfWidth: 1.4 },
+      { key: "amount", label: "Valor", align: "right", summable: true, raw: (row) => Number(row.amount), value: (row) => money.format(Number(row.amount)) },
+      { key: "previousBalance", label: "Saldo anterior", align: "right", summable: true, raw: (row) => Number(row.previousBalance || 0), value: (row) => money.format(Number(row.previousBalance || 0)) },
+      { key: "paid", label: "Pago", align: "right", summable: true, raw: (row) => billingPaidAmount(row), value: (row) => money.format(billingPaidAmount(row)) },
+      { key: "open", label: "Saldo em aberto", align: "right", summable: true, raw: (row) => billingOpenAmount(row), value: (row) => money.format(billingOpenAmount(row)) },
+      { key: "status", label: "Status", value: (row) => billingStatusLabel(row) },
+      { key: "overdue", label: "Atrasada", value: (row) => isBillingOverdue(row) ? "Sim" : "Não" }
+    ],
+    getRows(filters) {
+      return state.billings
+        .filter((item) => inPeriod(item.endDate, filters.period))
+        .filter((item) => !filters.clientId || item.clientId === filters.clientId)
+        .filter((item) => !filters.status || billingCurrentStatus(item) === filters.status)
+        .filter((item) => filters.extra !== "overdue" || isBillingOverdue(item))
+        .filter((item) => matchesSearch(filters.search, clientById(item.clientId)?.name))
+        .sort((a, b) => a.endDate.localeCompare(b.endDate));
+    }
+  },
+  {
+    id: "supplierEntries",
+    group: "Fornecedores",
+    label: "Lançamentos de fornecedores",
+    needsSupplier: true,
+    needsClient: true,
+    statusOptions: [
+      { value: "A fazer", label: "A fazer" },
+      { value: "Feito", label: "Feito" },
+      { value: "Entregue", label: "Entregue" },
+      { value: "Cancelado", label: "Cancelado" }
+    ],
+    extraFilter: {
+      label: "Origem",
+      options: [{ value: "Cliente", label: "Cliente" }, { value: "Direto", label: "Direto" }, { value: "Fornecedor", label: "Fornecedor" }]
+    },
+    columns: [
+      { key: "date", label: "Data", value: (row) => formatDate(row.date), pdfWidth: 0.8 },
+      { key: "supplier", label: "Fornecedor", value: (row) => state.suppliers.find((item) => item.id === row.supplierId)?.name || "", pdfWidth: 1.3 },
+      { key: "client", label: "Cliente", value: (row) => row.clientId ? (clientById(row.clientId)?.name || "") : "—", pdfWidth: 1.3 },
+      { key: "service", label: "Serviço", value: (row) => row.description || "", pdfWidth: 1.4 },
+      { key: "reference", label: "Placa/Referência", value: (row) => row.reference || "—" },
+      { key: "status", label: "Status", value: (row) => row.status },
+      { key: "source", label: "Origem", value: (row) => row.source || "—" },
+      { key: "amount", label: "Valor", align: "right", summable: true, raw: (row) => Number(row.amount), value: (row) => money.format(Number(row.amount)), pdfWidth: 0.8 },
+      { key: "payable", label: "Conta a pagar", value: (row) => row.payableId ? "Vinculada" : "—" }
+    ],
+    getRows(filters) {
+      return state.supplierEntries
+        .filter((item) => inPeriod(item.date, filters.period))
+        .filter((item) => !filters.supplierId || item.supplierId === filters.supplierId)
+        .filter((item) => !filters.clientId || item.clientId === filters.clientId)
+        .filter((item) => !filters.status || item.status === filters.status)
+        .filter((item) => !filters.extra || item.source === filters.extra)
+        .filter((item) => matchesSearch(filters.search, state.suppliers.find((supplier) => supplier.id === item.supplierId)?.name, clientById(item.clientId)?.name, item.description, item.reference))
+        .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+    }
+  },
+  {
+    id: "supplierPayables",
+    group: "Fornecedores",
+    label: "Contas a pagar",
+    needsSupplier: true,
+    searchable: false,
+    statusOptions: [
+      { value: "Aberta", label: "Aberta" },
+      { value: "Parcial", label: "Parcial" },
+      { value: "Paga", label: "Quitada" },
+      { value: "Cancelada", label: "Cancelada" }
+    ],
+    columns: [
+      { key: "supplier", label: "Fornecedor", value: (row) => state.suppliers.find((item) => item.id === row.supplierId)?.name || "", pdfWidth: 1.4 },
+      { key: "period", label: "Período", value: (row) => periodLabel({ startDate: row.startDate, endDate: row.endDate }), pdfWidth: 1.4 },
+      { key: "amount", label: "Valor", align: "right", summable: true, raw: (row) => Number(row.amount), value: (row) => money.format(Number(row.amount)) },
+      { key: "paid", label: "Pago", align: "right", summable: true, raw: (row) => window.supplierModule.payablePaid(row), value: (row) => money.format(window.supplierModule.payablePaid(row)) },
+      { key: "open", label: "Saldo em aberto", align: "right", summable: true, raw: (row) => window.supplierModule.payableOpen(row), value: (row) => money.format(window.supplierModule.payableOpen(row)) },
+      { key: "status", label: "Status", value: (row) => window.supplierModule.payableStatus(row) }
+    ],
+    getRows(filters) {
+      return state.supplierPayables
+        .filter((item) => inPeriod(item.endDate, filters.period))
+        .filter((item) => !filters.supplierId || item.supplierId === filters.supplierId)
+        .filter((item) => !filters.status || window.supplierModule.payableStatus(item) === filters.status)
+        .sort((a, b) => a.endDate.localeCompare(b.endDate));
+    }
+  }
+];
+
+function activeReportDefinition() {
+  const typeId = document.getElementById("reportTypeSelect")?.value;
+  return REPORT_DEFINITIONS.find((def) => def.id === typeId) || null;
+}
+
+function reportFilterVisible(def, key) {
+  if (key === "start" || key === "end") return true;
+  if (key === "client") return Boolean(def.needsClient);
+  if (key === "supplier") return Boolean(def.needsSupplier);
+  if (key === "status") return Boolean(def.statusOptions?.length);
+  if (key === "extra") return Boolean(def.extraFilter);
+  if (key === "search") return def.searchable !== false;
+  return true;
+}
+
+function loadReportColumns(typeId, def) {
+  const allKeys = new Set(def.columns.map((column) => column.key));
+  const raw = localStorage.getItem(reportColumnStorageKey(typeId));
+  if (!raw) return allKeys;
+  try {
+    const saved = JSON.parse(raw).filter((key) => allKeys.has(key));
+    return new Set(saved.length ? saved : allKeys);
+  } catch {
+    return allKeys;
+  }
+}
+
+function saveReportColumns(typeId) {
+  const checked = [...document.querySelectorAll('#reportColumnOptions input[name="reportColumn"]:checked')].map((input) => input.value);
+  localStorage.setItem(reportColumnStorageKey(typeId), JSON.stringify(checked));
+}
+
+function currentReportColumns(def) {
+  const checked = new Set([...document.querySelectorAll('#reportColumnOptions input[name="reportColumn"]:checked')].map((input) => input.value));
+  return def.columns.filter((column) => checked.has(column.key));
+}
+
+function renderReportColumnOptions(def) {
+  const enabled = loadReportColumns(def.id, def);
+  document.getElementById("reportColumnOptions").innerHTML = def.columns.map((column) => `
+    <label class="checkbox-label">
+      <input type="checkbox" name="reportColumn" value="${column.key}" ${enabled.has(column.key) ? "checked" : ""}>
+      ${escapeHtml(column.label)}
+    </label>`).join("");
+}
+
+function syncReportPeriodControls() {
+  reportPeriod ||= currentOperationalWeek();
+  document.getElementById("reportStartFilter").value = reportPeriod.startDate;
+  document.getElementById("reportEndFilter").value = reportPeriod.endDate;
+  document.getElementById("reportPeriodLabel").textContent = periodLabel(reportPeriod);
+  const week = currentOperationalWeek();
+  const month = monthPeriod();
+  document.querySelectorAll("[data-report-period]").forEach((button) => {
+    const matches = button.dataset.reportPeriod === "month"
+      ? reportPeriod.startDate === month.startDate && reportPeriod.endDate === month.endDate
+      : reportPeriod.startDate === week.startDate && reportPeriod.endDate === week.endDate;
+    button.classList.toggle("active", matches);
+  });
+}
+
+function renderReportTypeUI() {
+  const def = activeReportDefinition();
+  if (!def) return;
+  document.querySelectorAll("[data-report-filter]").forEach((element) => {
+    element.classList.toggle("hidden", !reportFilterVisible(def, element.dataset.reportFilter));
+  });
+  document.getElementById("reportClientFilterSearch").value = "";
+  document.getElementById("reportClientFilter").value = "";
+  document.getElementById("reportSupplierFilterSearch").value = "";
+  document.getElementById("reportSupplierFilter").value = "";
+  document.getElementById("reportSearch").value = "";
+  document.getElementById("reportStatusFilter").innerHTML = `<option value="">Todos os status</option>`
+    + (def.statusOptions || []).map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join("");
+  document.getElementById("reportExtraFilterLabel").textContent = def.extraFilter?.label || "";
+  document.getElementById("reportExtraFilter").innerHTML = `<option value="">Todos</option>`
+    + (def.extraFilter?.options || []).map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join("");
+  renderReportColumnOptions(def);
+  document.getElementById("reportResults").innerHTML = "";
+  document.getElementById("reportResultsCount").textContent = "";
+  document.getElementById("reportRowLimitWarning").classList.add("hidden");
+}
+
+function reportFiltersFromDom() {
+  return {
+    period: reportPeriod || currentOperationalWeek(),
+    clientId: document.getElementById("reportClientFilter").value,
+    supplierId: document.getElementById("reportSupplierFilter").value,
+    status: document.getElementById("reportStatusFilter").value,
+    extra: document.getElementById("reportExtraFilter").value,
+    search: document.getElementById("reportSearch").value.trim()
+  };
+}
+
+function renderReportResults() {
+  const def = activeReportDefinition();
+  if (!def) return;
+  const filters = reportFiltersFromDom();
+  const resultsContainer = document.getElementById("reportResults");
+  const countLabel = document.getElementById("reportResultsCount");
+  let rows;
+  try {
+    rows = def.getRows(filters) || [];
+  } catch (error) {
+    console.error("Falha ao gerar relatório:", error);
+    resultsContainer.innerHTML = emptyMarkup();
+    countLabel.textContent = "Não foi possível gerar este relatório com os filtros atuais.";
+    return;
+  }
+  const columns = currentReportColumns(def);
+  countLabel.textContent = rows.length ? `${rows.length} registro(s) encontrado(s)` : "Nenhum registro encontrado";
+  document.getElementById("reportRowLimitWarning").classList.toggle("hidden", rows.length <= REPORT_ROW_WARNING_LIMIT);
+  if (!rows.length || !columns.length) {
+    resultsContainer.innerHTML = emptyMarkup();
+    return;
+  }
+  const totals = columns.map((column) => column.summable
+    ? rows.reduce((sum, row) => sum + Number(column.raw ? column.raw(row) : 0), 0)
+    : null);
+  const alignStyle = (column) => column.align === "right" ? ' style="text-align:right"' : "";
+  resultsContainer.innerHTML = `
+    <table class="catalog-table">
+      <thead><tr>${columns.map((column) => `<th${alignStyle(column)}>${escapeHtml(column.label)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map((row) => `<tr>${columns.map((column) => `<td${alignStyle(column)}>${escapeHtml(column.value(row))}</td>`).join("")}</tr>`).join("")}</tbody>
+      ${totals.some((total) => total !== null) ? `<tfoot><tr>${columns.map((column, index) => `<td${alignStyle(column)}><strong>${totals[index] !== null ? money.format(totals[index]) : (index === 0 ? "Total" : "")}</strong></td>`).join("")}</tr></tfoot>` : ""}
+    </table>`;
+}
+
+function reportFileName(def, period) {
+  const slug = String(def.label)
+    .normalize("NFD")
+    .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+  return `relatorio-${slug}-${period.startDate}-a-${period.endDate}.pdf`;
+}
+
+function buildTablePdf({ title, subtitle, columns, rows }) {
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const margin = 40;
+  const pages = [];
+  let commands = [];
+  let y = 800;
+  const colors = { green: "0.086 0.31 0.263", gray: "0.455 0.506 0.49", dark: "0.12 0.18 0.16", headerBg: "0.91 0.94 0.93", zebra: "0.97 0.98 0.97" };
+  let headerDraw = null;
+
+  function addPage() {
+    if (commands.length) pages.push(commands.join("\n"));
+    commands = [
+      `${colors.green} rg 0 790 ${pageWidth} 52 re f`,
+      "1 1 1 rg BT /F2 17 Tf 42 812 Td (Gestor de Servicos) Tj ET"
+    ];
+    y = 766;
+    if (headerDraw) headerDraw();
+  }
+
+  function text(value, x, size, color, bold) {
+    commands.push(`${color} rg BT /${bold ? "F2" : "F1"} ${size} Tf ${x} ${y} Td (${pdfSafeText(value)}) Tj ET`);
+  }
+
+  function ensureSpace(height) {
+    if (y - height < 44) addPage();
+  }
+
+  addPage();
+  text(title, margin, 9, colors.gray, true);
+  y -= 18;
+  text(subtitle, margin, 15, colors.dark, true);
+  y -= 26;
+
+  const availableWidth = pageWidth - margin * 2;
+  const totalWeight = columns.reduce((sum, column) => sum + (column.width || 1), 0);
+  let cursor = margin;
+  const colX = columns.map((column) => {
+    const x = cursor;
+    cursor += availableWidth * (column.width || 1) / totalWeight;
+    return x;
+  });
+
+  function drawHeaderRow() {
+    commands.push(`${colors.headerBg} rg ${margin} ${y - 14} ${availableWidth} 20 re f`);
+    columns.forEach((column, index) => {
+      commands.push(`${colors.dark} rg BT /F2 7 Tf ${colX[index] + 4} ${y - 2} Td (${pdfSafeText(column.label)}) Tj ET`);
+    });
+    y -= 24;
+  }
+
+  ensureSpace(24);
+  headerDraw = drawHeaderRow;
+  drawHeaderRow();
+
+  const maxCharsFor = (width) => Math.max(4, Math.floor(width / 3.9));
+  rows.forEach((row) => {
+    ensureSpace(18);
+    commands.push(`${colors.zebra} rg ${margin} ${y - 12} ${availableWidth} 18 re f`);
+    columns.forEach((column, index) => {
+      const width = (colX[index + 1] || pageWidth - margin) - colX[index];
+      const raw = String(column.value(row) ?? "");
+      const maxChars = maxCharsFor(width);
+      const value = raw.length > maxChars ? `${raw.slice(0, maxChars - 1)}…` : raw;
+      commands.push(`${colors.dark} rg BT /F1 7 Tf ${colX[index] + 4} ${y - 1} Td (${pdfSafeText(value)}) Tj ET`);
+    });
+    y -= 18;
+  });
+  headerDraw = null;
+
+  pages.push(commands.join("\n"));
+  const objects = [];
+  const pageObjectNumbers = pages.map((_, index) => 5 + index * 2);
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pages.length} >>`;
+  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  objects[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
+  pages.forEach((content, index) => {
+    const pageNumber = pageObjectNumbers[index];
+    const contentNumber = pageNumber + 1;
+    objects[pageNumber] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentNumber} 0 R >>`;
+    objects[contentNumber] = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+  });
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (let index = 1; index < objects.length; index += 1) {
+    offsets[index] = pdf.length;
+    pdf += `${index} 0 obj\n${objects[index]}\nendobj\n`;
+  }
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
+  for (let index = 1; index < objects.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function downloadReportPdf() {
+  const def = activeReportDefinition();
+  if (!def) return;
+  const filters = reportFiltersFromDom();
+  let rows;
+  try {
+    rows = def.getRows(filters) || [];
+  } catch (error) {
+    console.error("Falha ao gerar relatório:", error);
+    showAppAlert("Não foi possível gerar este relatório com os filtros atuais.", { type: "error" });
+    return;
+  }
+  const columns = currentReportColumns(def);
+  if (!rows.length || !columns.length) {
+    showAppAlert("Gere o relatório antes de exportar em PDF.", { type: "warning" });
+    return;
+  }
+  const blob = buildTablePdf({
+    title: "Gestor de Serviços - Relatório",
+    subtitle: `${def.label} - ${periodLabel(filters.period)}`,
+    columns: columns.map((column) => ({ label: column.label, value: column.value, width: column.pdfWidth || 1 })),
+    rows
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = reportFileName(def, filters.period);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function initializeReportsTools() {
+  const typeSelect = document.getElementById("reportTypeSelect");
+  if (!typeSelect) return;
+  typeSelect.addEventListener("change", renderReportTypeUI);
+  document.getElementById("reportColumnOptions").addEventListener("change", (event) => {
+    if (event.target.name !== "reportColumn") return;
+    saveReportColumns(activeReportDefinition().id);
+    renderReportResults();
+  });
+  document.getElementById("reportColumnsAllButton").addEventListener("click", () => {
+    document.querySelectorAll('#reportColumnOptions input[name="reportColumn"]').forEach((input) => { input.checked = true; });
+    saveReportColumns(activeReportDefinition().id);
+    renderReportResults();
+  });
+  document.getElementById("reportColumnsNoneButton").addEventListener("click", () => {
+    document.querySelectorAll('#reportColumnOptions input[name="reportColumn"]').forEach((input) => { input.checked = false; });
+    saveReportColumns(activeReportDefinition().id);
+    renderReportResults();
+  });
+  document.querySelectorAll("[data-report-period]").forEach((button) => {
+    button.addEventListener("click", () => {
+      reportPeriod = button.dataset.reportPeriod === "month" ? monthPeriod() : currentOperationalWeek();
+      syncReportPeriodControls();
+    });
+  });
+  document.getElementById("reportStartFilter").addEventListener("change", (event) => {
+    reportPeriod = { startDate: event.target.value || reportPeriod.startDate, endDate: reportPeriod.endDate };
+    syncReportPeriodControls();
+  });
+  document.getElementById("reportEndFilter").addEventListener("change", (event) => {
+    reportPeriod = { startDate: reportPeriod.startDate, endDate: event.target.value || reportPeriod.endDate };
+    syncReportPeriodControls();
+  });
+  document.getElementById("reportClientFilterSearch").addEventListener("input", (event) => {
+    const client = itemByExactLabel(state.clients, event.target.value, clientOptionLabel) || uniqueClientMatch(event.target.value);
+    document.getElementById("reportClientFilter").value = client?.id || "";
+  });
+  document.getElementById("reportSupplierFilterSearch").addEventListener("input", (event) => {
+    const supplier = itemByExactLabel(state.suppliers, event.target.value, supplierOptionLabel) || uniqueSupplierMatch(event.target.value);
+    document.getElementById("reportSupplierFilter").value = supplier?.id || "";
+  });
+  document.getElementById("reportGenerateButton").addEventListener("click", renderReportResults);
+  document.getElementById("reportExportPdfButton").addEventListener("click", downloadReportPdf);
+  renderReportTypeUI();
+  syncReportPeriodControls();
+}
+
 function initializeExtrasTools() {
   const dropzone = document.getElementById("extrasDropzone");
   const fileInput = document.getElementById("extrasFileInput");
@@ -8840,11 +9421,12 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=196").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=197").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
 initializeExtrasTools();
+initializeReportsTools();
 render();
 window.addEventListener("app-authenticated", (event) => {
   const user = event.detail?.user;

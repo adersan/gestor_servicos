@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=139">
+  <link rel="stylesheet" href="styles.css?v=140">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -53,6 +53,7 @@
     <button class="tab" data-view="services">Clientes</button>
     <button class="tab" data-view="suppliers">Fornecedores</button>
     <button class="tab" data-view="payments">Financeiro</button>
+    <button class="tab" data-view="relatorios">Relatórios</button>
     <button class="tab" data-view="settings">Configurações</button>
     <button class="tab" data-view="extras">Extras</button>
     <button class="tab" data-view="help">Ajuda</button>
@@ -983,6 +984,75 @@
           <button type="button" class="primary" data-extras-action="download">Baixar PNG</button>
         </div>
       </div>
+    </section>
+
+    <section id="relatorios" class="view">
+      <div class="section-heading">
+        <div><span class="eyebrow">Auditoria e conferência</span><h2>Relatórios</h2></div>
+      </div>
+      <p class="section-note">Escolha um tipo de relatório, ajuste o período e os filtros, marque as colunas que quer ver e gere a tabela. Exporte em PDF quando precisar compartilhar ou arquivar.</p>
+
+      <label class="reports-type-field">Tipo de relatório
+        <select id="reportTypeSelect">
+          <optgroup label="Resumo">
+            <option value="periodSummary">Resumo do período</option>
+            <option value="clientSummary">Resumo por cliente</option>
+          </optgroup>
+          <optgroup label="Clientes">
+            <option value="clientEntries">Lançamentos de clientes</option>
+          </optgroup>
+          <optgroup label="Financeiro">
+            <option value="payments">Pagamentos</option>
+            <option value="billings">Cobranças</option>
+          </optgroup>
+          <optgroup label="Fornecedores">
+            <option value="supplierEntries">Lançamentos de fornecedores</option>
+            <option value="supplierPayables">Contas a pagar</option>
+          </optgroup>
+        </select>
+      </label>
+
+      <section class="finance-period-bar" aria-label="Período do relatório">
+        <div class="period-shortcuts">
+          <button class="active" type="button" data-report-period="week">Semana atual</button>
+          <button type="button" data-report-period="month">Mês atual</button>
+        </div>
+        <div class="finance-period-info"><span>Período selecionado</span><strong id="reportPeriodLabel"></strong></div>
+      </section>
+
+      <div class="filters reports-filters">
+        <label data-report-filter="start">Início<input id="reportStartFilter" type="date" aria-label="Período a partir de"></label>
+        <label data-report-filter="end">Fim<input id="reportEndFilter" type="date" aria-label="Período até"></label>
+        <label data-report-filter="client">Cliente
+          <input id="reportClientFilterSearch" type="search" list="serviceClientOptions" placeholder="Todos os clientes">
+          <input id="reportClientFilter" type="hidden">
+        </label>
+        <label data-report-filter="supplier">Fornecedor
+          <input id="reportSupplierFilterSearch" type="search" list="supplierOptions" placeholder="Todos os fornecedores">
+          <input id="reportSupplierFilter" type="hidden">
+        </label>
+        <label data-report-filter="status">Status<select id="reportStatusFilter"></select></label>
+        <label data-report-filter="extra"><span id="reportExtraFilterLabel">Filtro</span><select id="reportExtraFilter"></select></label>
+        <label data-report-filter="search">Buscar<input id="reportSearch" type="search" placeholder="Nome, placa, observação..."></label>
+      </div>
+
+      <fieldset class="reports-column-fieldset">
+        <legend>Colunas</legend>
+        <div class="tracking-service-toggle-actions">
+          <button class="secondary" type="button" id="reportColumnsAllButton">Marcar todas</button>
+          <button class="secondary" type="button" id="reportColumnsNoneButton">Desmarcar todas</button>
+        </div>
+        <div id="reportColumnOptions" class="tracking-service-checklist"></div>
+      </fieldset>
+
+      <div class="reports-actions">
+        <button class="primary" type="button" id="reportGenerateButton">Gerar relatório</button>
+        <button class="secondary" type="button" id="reportExportPdfButton">Exportar PDF</button>
+        <span id="reportResultsCount" class="meta"></span>
+      </div>
+      <p id="reportRowLimitWarning" class="meta reports-warning hidden">Muitos registros encontrados — considere estreitar o período ou os filtros antes de exportar em PDF.</p>
+
+      <div id="reportResults" class="catalog-table-wrap scroll-8"></div>
     </section>
 
     <section id="help" class="view">
@@ -2453,7 +2523,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=52"></script>
-  <script src="app.js?v=183"></script>
-  <script src="supplier.js?v=65"></script>
+  <script src="app.js?v=184"></script>
+  <script src="supplier.js?v=66"></script>
 </body>
 </html>
