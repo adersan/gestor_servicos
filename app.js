@@ -8863,6 +8863,99 @@ const REPORT_DEFINITIONS = [
         .filter((item) => !filters.status || window.supplierModule.payableStatus(item) === filters.status)
         .sort((a, b) => a.endDate.localeCompare(b.endDate));
     }
+  },
+  {
+    id: "clientServiceBreakdown",
+    group: "Clientes",
+    label: "Detalhamento por serviço (cliente)",
+    needsClient: true,
+    columns: [
+      { key: "service", label: "Serviço", value: (row) => row.service, pdfWidth: 2 },
+      { key: "count", label: "Quantidade", align: "right", value: (row) => String(row.count) },
+      { key: "total", label: "Valor total", align: "right", summable: true, raw: (row) => row.total, value: (row) => money.format(row.total) },
+      { key: "average", label: "Valor médio", align: "right", value: (row) => money.format(row.count ? row.total / row.count : 0) }
+    ],
+    getRows(filters) {
+      const grouped = new Map();
+      state.services
+        .filter((item) => inPeriod(item.date, filters.period))
+        .filter((item) => item.status !== "Cancelado")
+        .filter((item) => !filters.clientId || item.clientId === filters.clientId)
+        .filter((item) => matchesSearch(filters.search, item.description))
+        .forEach((item) => {
+          const key = item.description || "Sem descrição";
+          const entry = grouped.get(key) || { service: key, count: 0, total: 0 };
+          entry.count += 1;
+          entry.total += Number(item.amount);
+          grouped.set(key, entry);
+        });
+      return [...grouped.values()].sort((a, b) => b.total - a.total);
+    }
+  },
+  {
+    id: "supplierServiceBreakdown",
+    group: "Fornecedores",
+    label: "Detalhamento por serviço (fornecedor)",
+    needsSupplier: true,
+    needsClient: true,
+    columns: [
+      { key: "service", label: "Serviço", value: (row) => row.service, pdfWidth: 2 },
+      { key: "count", label: "Quantidade", align: "right", value: (row) => String(row.count) },
+      { key: "total", label: "Custo total", align: "right", summable: true, raw: (row) => row.total, value: (row) => money.format(row.total) },
+      { key: "average", label: "Custo médio", align: "right", value: (row) => money.format(row.count ? row.total / row.count : 0) }
+    ],
+    getRows(filters) {
+      const grouped = new Map();
+      state.supplierEntries
+        .filter((item) => inPeriod(item.date, filters.period))
+        .filter((item) => item.status !== "Cancelado")
+        .filter((item) => !filters.supplierId || item.supplierId === filters.supplierId)
+        .filter((item) => !filters.clientId || item.clientId === filters.clientId)
+        .filter((item) => matchesSearch(filters.search, item.description))
+        .forEach((item) => {
+          const key = item.description || "Sem descrição";
+          const entry = grouped.get(key) || { service: key, count: 0, total: 0 };
+          entry.count += 1;
+          entry.total += Number(item.amount);
+          grouped.set(key, entry);
+        });
+      return [...grouped.values()].sort((a, b) => b.total - a.total);
+    }
+  },
+  {
+    id: "serviceMargin",
+    group: "Financeiro",
+    label: "Margem por serviço (cliente x fornecedor)",
+    needsClient: true,
+    columns: [
+      { key: "service", label: "Serviço", value: (row) => row.service, pdfWidth: 1.8 },
+      { key: "count", label: "Quantidade", align: "right", value: (row) => String(row.count) },
+      { key: "revenue", label: "Cobrado do cliente", align: "right", summable: true, raw: (row) => row.revenue, value: (row) => money.format(row.revenue) },
+      { key: "cost", label: "Pago ao fornecedor", align: "right", summable: true, raw: (row) => row.cost, value: (row) => money.format(row.cost) },
+      { key: "margin", label: "Margem", align: "right", summable: true, raw: (row) => row.margin, value: (row) => money.format(row.margin) }
+    ],
+    getRows(filters) {
+      const grouped = new Map();
+      state.services
+        .filter((item) => inPeriod(item.date, filters.period))
+        .filter((item) => item.status !== "Cancelado")
+        .filter((item) => !filters.clientId || item.clientId === filters.clientId)
+        .filter((item) => matchesSearch(filters.search, item.description))
+        .forEach((item) => {
+          const key = item.description || "Sem descrição";
+          const linkedCost = state.supplierEntries
+            .filter((entry) => entry.clientServiceEntryId === item.id && entry.status !== "Cancelado")
+            .reduce((sum, entry) => sum + Number(entry.amount), 0);
+          const row = grouped.get(key) || { service: key, count: 0, revenue: 0, cost: 0 };
+          row.count += 1;
+          row.revenue += Number(item.amount);
+          row.cost += linkedCost;
+          grouped.set(key, row);
+        });
+      return [...grouped.values()]
+        .map((row) => ({ ...row, margin: row.revenue - row.cost }))
+        .sort((a, b) => b.margin - a.margin);
+    }
   }
 ];
 
@@ -9421,7 +9514,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=197").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=198").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

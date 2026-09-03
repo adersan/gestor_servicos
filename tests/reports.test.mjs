@@ -25,13 +25,15 @@ const clients = [
 const services = [
   { id: "s1", clientId: "c1", date: "2026-08-31", description: "CRV Cadastrado", reference: "PKU8117", status: "Entregue", amount: 300, isSecondary: false, requestedBy: "", billingId: null, createdAt: "2026-08-31T12:00:00Z" },
   { id: "s2", clientId: "c2", date: "2026-09-01", description: "Digitação CRV", reference: "OUP6597", status: "Entregue", amount: 40, isSecondary: false, requestedBy: "", billingId: null, createdAt: "2026-09-01T12:00:00Z" },
-  { id: "s3", clientId: "c2", date: "2026-09-05", description: "Fora do período", reference: "ZZZ0000", status: "A fazer", amount: 40, isSecondary: false, requestedBy: "", billingId: null, createdAt: "2026-09-05T12:00:00Z" }
+  { id: "s3", clientId: "c2", date: "2026-09-05", description: "Fora do período", reference: "ZZZ0000", status: "A fazer", amount: 40, isSecondary: false, requestedBy: "", billingId: null, createdAt: "2026-09-05T12:00:00Z" },
+  { id: "s4", clientId: "c1", date: "2026-09-02", description: "CRV Cadastrado", reference: "OTHER123", status: "Entregue", amount: 300, isSecondary: false, requestedBy: "", billingId: null, createdAt: "2026-09-02T12:00:00Z" }
 ];
 
 const suppliers = [{ id: "sup1", name: "Fornecedor Cadastro" }];
 
 const supplierEntries = [
-  { id: "se1", supplierId: "sup1", clientId: "c2", clientServiceEntryId: "s2", date: "2026-09-01", description: "Cadastro", reference: "OUP6597", status: "Entregue", source: "Cliente", amount: 30, payableId: null, createdAt: "2026-09-01T12:00:00Z" }
+  { id: "se1", supplierId: "sup1", clientId: "c2", clientServiceEntryId: "s2", date: "2026-09-01", description: "Cadastro", reference: "OUP6597", status: "Entregue", source: "Cliente", amount: 30, payableId: null, createdAt: "2026-09-01T12:00:00Z" },
+  { id: "se2", supplierId: "sup1", clientId: "c1", clientServiceEntryId: "s4", date: "2026-09-02", description: "Cadastro", reference: "OTHER123", status: "Entregue", source: "Cliente", amount: 50, payableId: null, createdAt: "2026-09-02T12:00:00Z" }
 ];
 
 const context = {
@@ -73,10 +75,10 @@ function defById(id) {
 {
   const clientEntries = defById("clientEntries");
   const allRows = clientEntries.getRows({ period, clientId: "", status: "", extra: "", search: "" });
-  assert.equal(allRows.length, 2, "expects the 2 entries inside the period, excluding the one outside it");
+  assert.equal(allRows.length, 3, "expects the 3 entries inside the period, excluding the one outside it");
 
   const withSupplier = clientEntries.getRows({ period, clientId: "", status: "", extra: "with", search: "" });
-  assert.deepEqual(withSupplier.map((row) => row.id), ["s2"], "only s2 has a linked supplier entry");
+  assert.deepEqual(withSupplier.map((row) => row.id).sort(), ["s2", "s4"], "s2 and s4 have a linked supplier entry");
 
   const withoutSupplier = clientEntries.getRows({ period, clientId: "", status: "", extra: "without", search: "" });
   assert.deepEqual(withoutSupplier.map((row) => row.id), ["s1"], "s1 was delivered without any supplier entry");
@@ -89,14 +91,59 @@ function defById(id) {
 {
   const supplierEntriesDef = defById("supplierEntries");
   const rows = supplierEntriesDef.getRows({ period, supplierId: "", clientId: "", status: "", extra: "", search: "" });
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].id, "se1");
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map((row) => row.id).sort(), ["se1", "se2"]);
 
   const byOrigin = supplierEntriesDef.getRows({ period, supplierId: "", clientId: "", status: "", extra: "Direto", search: "" });
-  assert.equal(byOrigin.length, 0, "the only entry has source=Cliente, not Direto");
+  assert.equal(byOrigin.length, 0, "both entries have source=Cliente, not Direto");
 
   const searched = supplierEntriesDef.getRows({ period, supplierId: "", clientId: "", status: "", extra: "", search: "cadastro" });
-  assert.equal(searched.length, 1, "search should match the service description");
+  assert.equal(searched.length, 2, "search should match the service description on both entries");
+}
+
+// Detalhamento por servico (cliente): "CRV Cadastrado" appears twice (s1+s4,
+// 300 each = 600 total), "Digitacao CRV" once (40) - the answer to "quantos
+// servicos do tipo X fiz e quanto esta dando", the exact question the user
+// asked for, computed live without needing to close any cobranca.
+{
+  const breakdown = defById("clientServiceBreakdown");
+  const rows = breakdown.getRows({ period, clientId: "", status: "", extra: "", search: "" });
+  const crv = rows.find((row) => row.service === "CRV Cadastrado");
+  const digitacao = rows.find((row) => row.service === "Digitação CRV");
+  assert.equal(crv.count, 2);
+  assert.equal(crv.total, 600);
+  assert.equal(digitacao.count, 1);
+  assert.equal(digitacao.total, 40);
+  assert.equal(rows[0].service, "CRV Cadastrado", "sorted by total desc");
+}
+
+// Detalhamento por servico (fornecedor): both supplier entries are named
+// "Cadastro" (se1=30, se2=50) - same idea, on the fornecedor side, without
+// needing to close a conta a pagar.
+{
+  const breakdown = defById("supplierServiceBreakdown");
+  const rows = breakdown.getRows({ period, supplierId: "", clientId: "", status: "", extra: "", search: "" });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].service, "Cadastro");
+  assert.equal(rows[0].count, 2);
+  assert.equal(rows[0].total, 80);
+}
+
+// Margem por servico: "CRV Cadastrado" cobra 600 do cliente, custa 50 ao
+// fornecedor (s1 sem vinculo=0 + s4 vinculado a se2=50) -> margem 550;
+// "Digitacao CRV" cobra 40, custa 30 (s2 vinculado a se1) -> margem 10.
+{
+  const margin = defById("serviceMargin");
+  const rows = margin.getRows({ period, clientId: "", status: "", extra: "", search: "" });
+  const crv = rows.find((row) => row.service === "CRV Cadastrado");
+  const digitacao = rows.find((row) => row.service === "Digitação CRV");
+  assert.equal(crv.revenue, 600);
+  assert.equal(crv.cost, 50);
+  assert.equal(crv.margin, 550);
+  assert.equal(digitacao.revenue, 40);
+  assert.equal(digitacao.cost, 30);
+  assert.equal(digitacao.margin, 10);
+  assert.equal(rows[0].service, "CRV Cadastrado", "sorted by margin desc");
 }
 
 {
