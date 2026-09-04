@@ -9608,6 +9608,12 @@ function openSignatureDialog() {
   // em vez de deixar o usuario procurar o card "+" - evita a tela ficar em
   // silencio sem indicar o proximo passo (bug relatado pelo usuario).
   signatureShowNewModelForm(!(state.signatureModels || []).length);
+  // "Adicionar ao editor" so faz sentido com uma imagem carregada no editor do
+  // Extras - aberto direto da tela inicial, o caminho e o Exportar PNG.
+  document.getElementById("signatureAddToEditorButton").classList.toggle(
+    "hidden",
+    document.getElementById("extrasEditorPanel").classList.contains("hidden")
+  );
   signatureRenderPreview();
   document.getElementById("signatureDialog").showModal();
 }
@@ -9884,7 +9890,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=206").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=207").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
