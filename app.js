@@ -7127,8 +7127,9 @@ function extrasRenderSensitivityPreview() {
   document.getElementById("extrasAfterImage").src = preview.toDataURL("image/png");
 }
 
-const EXTRAS_REMOVE_BG_SAFE_BYTES = 3.5 * 1024 * 1024;
-const EXTRAS_REMOVE_BG_MAX_DIMENSION = 2000;
+const EXTRAS_REMOVE_BG_SAFE_BYTES = 5 * 1024 * 1024;
+const EXTRAS_REMOVE_BG_MAX_DIMENSION = 3000;
+const EXTRAS_REMOVE_BG_QUALITY = 0.92;
 
 async function extrasPrepareRemoveBgUpload(file) {
   if (file.size <= EXTRAS_REMOVE_BG_SAFE_BYTES) return file;
@@ -7140,7 +7141,7 @@ async function extrasPrepareRemoveBgUpload(file) {
   canvas.width = width;
   canvas.height = height;
   canvas.getContext("2d").drawImage(bitmap, 0, 0, width, height);
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", EXTRAS_REMOVE_BG_QUALITY));
   if (!blob) return file;
   const baseName = (file.name || "imagem").replace(/\.\w+$/, "");
   return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
@@ -9543,7 +9544,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=201").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=202").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
