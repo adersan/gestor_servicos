@@ -7129,6 +7129,105 @@ function extrasRenderSensitivityPreview() {
   document.getElementById("extrasAfterImage").src = preview.toDataURL("image/png");
 }
 
+// Cor de tinta e faixa de suavizacao da borda usadas por extrasDigitizeSignatureCanvas -
+// mesma logica de "limpar assinatura fotografada", 100% local (sem IA/API), pensada pra
+// reproduzir a MESMA assinatura enviada, so corrigida (fundo removido, borda sem serrilhado).
+const SIGNATURE_DIGITIZE_INK_COLOR = { r: 17, g: 17, b: 17 };
+const SIGNATURE_DIGITIZE_EDGE_BAND = 18;
+
+// Metodo de Otsu: acha o limiar de luminancia que melhor separa tinta de papel a partir
+// do proprio histograma da imagem - se adapta sozinho a fotos com iluminacao/contraste
+// diferentes, em vez de depender de um limiar fixo que funcionaria bem so em alguns casos.
+function extrasOtsuThreshold(histogram, totalPixels) {
+  let sum = 0;
+  for (let t = 0; t < 256; t++) sum += t * histogram[t];
+  let sumB = 0;
+  let weightBackground = 0;
+  let maxVariance = -1;
+  // Fotos de assinatura costumam ter tinta e papel bem uniformes, o que cria um platô
+  // inteiro de variância máxima igual (não um único pico) - pegar só o primeiro t do
+  // platô colocaria o limiar colado na propria tinta. Guarda a faixa toda e usa o meio.
+  let thresholdLow = 128;
+  let thresholdHigh = 128;
+  for (let t = 0; t < 256; t++) {
+    weightBackground += histogram[t];
+    if (weightBackground === 0) continue;
+    const weightForeground = totalPixels - weightBackground;
+    if (weightForeground === 0) break;
+    sumB += t * histogram[t];
+    const meanBackground = sumB / weightBackground;
+    const meanForeground = (sum - sumB) / weightForeground;
+    const variance = weightBackground * weightForeground * (meanBackground - meanForeground) ** 2;
+    if (variance > maxVariance) {
+      maxVariance = variance;
+      thresholdLow = t;
+      thresholdHigh = t;
+    } else if (variance === maxVariance) {
+      thresholdHigh = t;
+    }
+  }
+  return Math.round((thresholdLow + thresholdHigh) / 2);
+}
+
+function extrasDigitizeSignatureCanvas(bitmap) {
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bitmap, 0, 0);
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imgData.data;
+  const totalPixels = canvas.width * canvas.height;
+
+  const histogram = new Array(256).fill(0);
+  const luminances = new Float32Array(totalPixels);
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    const luminance = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    luminances[p] = luminance;
+    histogram[Math.round(luminance)]++;
+  }
+  const threshold = extrasOtsuThreshold(histogram, totalPixels);
+
+  // Tinta (mais escura que o limiar) vira opaca na cor de tinta padrao; papel vira
+  // transparente. A faixa ao redor do limiar suaviza a borda em vez de um corte duro,
+  // que ficaria com aparencia serrilhada/defeituosa.
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    const distance = threshold - luminances[p];
+    let alpha;
+    if (distance >= SIGNATURE_DIGITIZE_EDGE_BAND) alpha = 255;
+    else if (distance <= -SIGNATURE_DIGITIZE_EDGE_BAND) alpha = 0;
+    else alpha = Math.round(((distance + SIGNATURE_DIGITIZE_EDGE_BAND) / (SIGNATURE_DIGITIZE_EDGE_BAND * 2)) * 255);
+    data[i] = SIGNATURE_DIGITIZE_INK_COLOR.r;
+    data[i + 1] = SIGNATURE_DIGITIZE_INK_COLOR.g;
+    data[i + 2] = SIGNATURE_DIGITIZE_INK_COLOR.b;
+    data[i + 3] = alpha;
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return canvas;
+}
+
+async function extrasProceedDigitizeSignature() {
+  if (!extrasPendingFile) return;
+  extrasShowPanel("loading");
+  try {
+    // Da um respiro pro navegador pintar o spinner antes do processamento (sincrono,
+    // pode travar a thread principal por um instante em fotos grandes) comecar.
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    const bitmap = await createImageBitmap(extrasPendingFile);
+    const rawCanvas = extrasDigitizeSignatureCanvas(bitmap);
+    extrasRawResultCanvas = extrasTrimTransparentEdges(rawCanvas);
+    extrasSensitivity = 0;
+    document.getElementById("extrasSensitivity").value = 0;
+    document.getElementById("extrasBeforeImage").src = extrasPreviewObjectUrl;
+    extrasRenderSensitivityPreview();
+    extrasShowPanel("beforeAfter");
+  } catch (error) {
+    console.error("Falha ao digitalizar assinatura:", error);
+    document.getElementById("extrasErrorMessage").textContent = "Não foi possível digitalizar esta imagem.";
+    extrasShowPanel("error");
+  }
+}
+
 const EXTRAS_REMOVE_BG_SAFE_BYTES = 5 * 1024 * 1024;
 const EXTRAS_REMOVE_BG_MAX_DIMENSION = 3000;
 const EXTRAS_REMOVE_BG_QUALITY = 0.92;
@@ -10024,6 +10123,7 @@ function initializeExtrasTools() {
     button.addEventListener("click", () => {
       if (button.dataset.extrasPreviewAction === "edit") extrasProceedEdit();
       else if (button.dataset.extrasPreviewAction === "remove-bg") extrasProceedRemoveBg();
+      else if (button.dataset.extrasPreviewAction === "digitize-signature") extrasProceedDigitizeSignature();
     });
   });
 
@@ -10224,7 +10324,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=210").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=211").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

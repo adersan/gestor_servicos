@@ -736,13 +736,14 @@
         <img id="extrasPreviewImage" alt="Imagem escolhida">
         <div class="extras-preview-actions">
           <button type="button" class="secondary" data-extras-preview-action="edit">Editar imagem</button>
+          <button type="button" class="secondary" data-extras-preview-action="digitize-signature">Digitalizar assinatura</button>
           <button type="button" class="primary" data-extras-preview-action="remove-bg">Remover fundo</button>
         </div>
       </div>
 
       <div id="extrasLoadingPanel" class="panel extras-loading-panel hidden">
         <span class="extras-spinner" aria-hidden="true"></span>
-        <strong>Removendo o fundo da imagem…</strong>
+        <strong>Processando a imagem…</strong>
         <span class="meta">Isso leva alguns segundos.</span>
       </div>
 
@@ -761,7 +762,7 @@
       </div>
 
       <div id="extrasErrorPanel" class="panel extras-error-panel hidden">
-        <strong>Não foi possível remover o fundo</strong>
+        <strong>Não foi possível processar a imagem</strong>
         <p class="meta" id="extrasErrorMessage"></p>
         <button class="secondary" type="button" data-extras-action="retry">Tentar novamente</button>
       </div>
@@ -2610,7 +2611,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=55"></script>
-  <script src="app.js?v=194"></script>
+  <script src="app.js?v=195"></script>
   <script src="supplier.js?v=67"></script>
 </body>
 </html>
