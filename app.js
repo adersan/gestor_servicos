@@ -9725,6 +9725,9 @@ function signaturePopulateBaseFontSelect() {
 function signatureShowModelTypeFields(type) {
   document.getElementById("signatureFontTypeFields").classList.toggle("hidden", type !== "font");
   document.getElementById("signatureImageTypeFields").classList.toggle("hidden", type !== "image");
+  document.querySelectorAll(".signature-model-type-tabs button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.signatureModelType === type);
+  });
   if (type === "image") signaturePopulateBaseFontSelect();
 }
 
@@ -9791,8 +9794,6 @@ function signatureShowNewModelForm(show) {
   if (show) {
     // Sempre comeca no modo fonte, sem analise pendente de uma tentativa anterior.
     signaturePendingAnalysis = null;
-    const fontRadio = document.querySelector('input[name="signatureModelType"][value="font"]');
-    if (fontRadio) fontRadio.checked = true;
     signatureShowModelTypeFields("font");
     document.getElementById("signatureAnalysisHint").classList.add("hidden");
   }
@@ -9861,7 +9862,7 @@ async function signatureBuildImageModel(nameInput) {
 async function signatureSaveNewModel() {
   const nameInput = document.getElementById("signatureModelName");
   const fileInput = document.getElementById("signatureModelFontFile");
-  const modelType = document.querySelector('input[name="signatureModelType"]:checked')?.value || "font";
+  const modelType = document.querySelector(".signature-model-type-tabs button.active")?.dataset.signatureModelType || "font";
   const button = document.getElementById("signatureSaveModelButton");
   button.disabled = true;
   button.textContent = "Salvando...";
@@ -9919,10 +9920,12 @@ function initializeSignatureTools() {
   ["signatureTextInput", "signatureSize", "signatureColor", "signatureSlant", "signatureLetterSpacing"].forEach((id) => {
     document.getElementById(id).addEventListener("input", signatureScheduleRenderPreview);
   });
-  document.querySelectorAll('input[name="signatureModelType"]').forEach((radio) => {
-    radio.addEventListener("change", (event) => signatureShowModelTypeFields(event.target.value));
-  });
   dialog.addEventListener("click", (event) => {
+    const modeTab = event.target.closest("[data-signature-model-type]");
+    if (modeTab) {
+      signatureShowModelTypeFields(modeTab.dataset.signatureModelType);
+      return;
+    }
     if (event.target.closest("#signatureAnalyzeButton")) {
       signatureAnalyzeReferenceImage();
       return;
@@ -10221,7 +10224,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=209").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=210").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

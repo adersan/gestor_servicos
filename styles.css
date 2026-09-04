@@ -789,9 +789,11 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .signature-rename-row input { flex: 1; }
 .signature-rename-row button { width: auto; padding-inline: 14px; }
 .signature-new-model-actions { display: flex; justify-content: flex-end; gap: 10px; }
-.signature-model-type-toggle { display: flex; gap: 16px; margin: 4px 0; }
-#signatureFontTypeFields, #signatureImageTypeFields { display: flex; flex-direction: column; gap: 10px; }
-#signatureFontTypeFields.hidden, #signatureImageTypeFields.hidden { display: none; }
+.signature-model-type-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0; }
+.signature-model-type-tabs button { padding: 10px 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--brand-ink); font-weight: 800; }
+.signature-model-type-tabs button.active { border-color: var(--brand-ink); background: var(--brand); color: white; }
+.signature-model-type-panel { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.signature-model-type-panel.hidden { display: none; }
 .signature-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin: 14px 0; }
 .signature-color-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
 .signature-color-field input { width: 100%; height: 40px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; }
