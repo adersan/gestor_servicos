@@ -22,6 +22,7 @@
     suppliers: new Set(),
     clients: new Set(),
     catalog: new Set(),
+    signatureModels: new Set(),
     priceTableNames: new Set()
   };
 
@@ -37,6 +38,7 @@
     knownRemoteIds.suppliers = new Set((source.suppliers || []).map((item) => item.id));
     knownRemoteIds.clients = new Set((source.clients || []).map((item) => item.id));
     knownRemoteIds.catalog = new Set((source.catalog || []).map((item) => item.id));
+    knownRemoteIds.signatureModels = new Set((source.signatureModels || []).map((item) => item.id));
     knownRemoteIds.priceTableNames = new Set(source.priceTables || []);
   }
 
@@ -113,6 +115,15 @@
       if (!/payment_links|schema cache|does not exist|Could not find/i.test(message)) throw linksResult.error;
     } else {
       paymentLinksResult = linksResult;
+    }
+    let signatureModelsResult = { data: [] };
+    const signatureModelsQuery = await client.from("signature_models").select("*")
+      .eq("is_active", true).order("is_system_model", { ascending: false }).order("created_at");
+    if (signatureModelsQuery.error) {
+      const message = signatureModelsQuery.error.message || "";
+      if (!/signature_models|schema cache|does not exist|Could not find/i.test(message)) throw signatureModelsQuery.error;
+    } else {
+      signatureModelsResult = signatureModelsQuery;
     }
     let appSettingsResult = { data: [] };
     const appSettingsQuery = await client.from("app_settings").select("*").eq("id", "default");
@@ -300,6 +311,19 @@
         paymentId: item.payment_id || "",
         createdAt: item.created_at,
         paidAt: item.paid_at || null
+      })),
+      signatureModels: signatureModelsResult.data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        modelType: item.model_type,
+        fontFamily: item.font_family,
+        fontData: item.font_data,
+        fontMime: item.font_mime,
+        style: item.style || {},
+        isSystemModel: Boolean(item.is_system_model),
+        isActive: item.is_active !== false,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at
       })),
       periodSettings: appSettingsResult.data[0] ? {
         periodMode: appSettingsResult.data[0].period_mode === "month" ? "month" : "week",
@@ -610,6 +634,24 @@
       })));
       if (result.error) throw result.error;
     }
+    if (state.signatureModels?.length) {
+      const rows = state.signatureModels.map((item) => ({
+        id: item.id,
+        name: item.name,
+        model_type: item.modelType || "font",
+        font_family: item.fontFamily,
+        font_data: item.fontData,
+        font_mime: item.fontMime,
+        style: item.style || {},
+        is_system_model: Boolean(item.isSystemModel),
+        is_active: item.isActive !== false,
+        updated_at: new Date().toISOString()
+      }));
+      const result = await client.from("signature_models").upsert(rows, { onConflict: "id" });
+      if (result.error && !/signature_models|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
+        throw result.error;
+      }
+    }
     if (state.serviceRequests?.length) {
       const rows = state.serviceRequests.map((item) => ({
         id: item.id,
@@ -667,6 +709,11 @@
     await deleteMissing("suppliers", (state.suppliers || []).map((item) => item.id), knownRemoteIds.suppliers);
     await deleteMissing("clients", state.clients.map((item) => item.id), knownRemoteIds.clients);
     await deleteMissing("service_catalog", state.catalog.map((item) => item.id), knownRemoteIds.catalog);
+    try {
+      await deleteMissing("signature_models", (state.signatureModels || []).map((item) => item.id), knownRemoteIds.signatureModels);
+    } catch (error) {
+      if (!/signature_models|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
+    }
 
     const activeTableNames = new Set(state.priceTables);
     const removedTableIds = existingTables.data

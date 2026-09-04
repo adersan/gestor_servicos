@@ -39,6 +39,7 @@ const initialState = {
   clientRequesters: [],
   serviceRequests: [],
   paymentLinks: [],
+  signatureModels: [],
   periodSettings: null
 };
 
@@ -5055,6 +5056,7 @@ document.addEventListener("click", async (event) => {
     }
     if (dialogButton.dataset.dialog === "clientDialog") openClientForm();
     else if (dialogButton.dataset.dialog === "catalogDialog") openCatalogForm();
+    else if (dialogButton.dataset.dialog === "signatureDialog") openSignatureDialog();
     else if (dialogButton.dataset.dialog === "serviceDialog") {
       const preferredClient = uniqueClientMatch(document.getElementById("serviceClientNameFilter").value);
       openEntryForm(null, preferredClient?.id || "");
@@ -7381,12 +7383,48 @@ function extrasTextFontString(obj) {
   return parts.join(" ");
 }
 
+// Largura do texto com o espacamento extra entre caracteres ja somado - usada tanto
+// pra medir (bounding box/alcas de redimensionar) quanto pra desenhar, garantindo que
+// as duas contas batem mesmo com obj.letterSpacing preenchido (modelos de assinatura).
+function extrasTextWidthWithSpacing(ctx, text, letterSpacing) {
+  if (!letterSpacing) return ctx.measureText(text).width;
+  let width = 0;
+  for (const char of text) width += ctx.measureText(char).width + letterSpacing;
+  return Math.max(0, width - letterSpacing);
+}
+
 function extrasRemeasureText(obj) {
   const ctx = document.getElementById("extrasCanvas").getContext("2d");
   ctx.font = extrasTextFontString(obj);
-  const metrics = ctx.measureText(obj.text);
-  obj.w = metrics.width;
+  obj.w = extrasTextWidthWithSpacing(ctx, obj.text, obj.letterSpacing);
   obj.h = obj.size * 1.2;
+}
+
+function extrasDrawStyledText(ctx, obj) {
+  ctx.font = extrasTextFontString(obj);
+  ctx.fillStyle = obj.color;
+  ctx.textBaseline = "top";
+  if (obj.slant) {
+    // Inclinacao (assinatura estilizada): shear em torno do proprio ponto de ancora
+    // do texto (obj.x, obj.y), mesma tecnica sugerida no planejamento - so aplica
+    // quando o objeto tem obj.slant, texto normal continua identico a antes.
+    const shear = Math.tan((obj.slant * Math.PI) / 180);
+    ctx.transform(1, 0, shear, 1, -shear * obj.y, 0);
+  }
+  if (obj.letterSpacing) {
+    let cursorX = obj.x;
+    for (const char of obj.text) {
+      ctx.fillText(char, cursorX, obj.y);
+      cursorX += ctx.measureText(char).width + obj.letterSpacing;
+    }
+  } else {
+    ctx.fillText(obj.text, obj.x, obj.y);
+  }
+  if (obj.underline) {
+    const lineY = obj.y + obj.size * 1.05;
+    const thickness = Math.max(1, obj.size * 0.06);
+    ctx.fillRect(obj.x, lineY, obj.w, thickness);
+  }
 }
 
 function extrasDrawObjectInto(ctx, obj) {
@@ -7406,15 +7444,7 @@ function extrasDrawObjectInto(ctx, obj) {
       ctx.stroke();
     }
   } else if (obj.type === "text") {
-    ctx.font = extrasTextFontString(obj);
-    ctx.fillStyle = obj.color;
-    ctx.textBaseline = "top";
-    ctx.fillText(obj.text, obj.x, obj.y);
-    if (obj.underline) {
-      const lineY = obj.y + obj.size * 1.05;
-      const thickness = Math.max(1, obj.size * 0.06);
-      ctx.fillRect(obj.x, lineY, obj.w, thickness);
-    }
+    extrasDrawStyledText(ctx, obj);
   }
   ctx.restore();
 }
@@ -9306,6 +9336,288 @@ function initializeReportsTools() {
   syncReportPeriodControls();
 }
 
+// ---- Escrita personalizada / assinatura estilizada -----------------------
+
+const signatureFontCache = new Set();
+const SIGNATURE_MAX_FONT_BYTES = 2 * 1024 * 1024;
+const SIGNATURE_FONT_EXTENSIONS = [".ttf", ".otf", ".woff", ".woff2"];
+let signatureSelectedModelId = null;
+let signaturePreviewTimer = null;
+
+function signatureFontFamilyName(model) {
+  return model.fontFamily || `signature-model-${model.id}`;
+}
+
+async function loadSignatureFont(model) {
+  const family = signatureFontFamilyName(model);
+  if (signatureFontCache.has(model.id)) return family;
+  const font = new FontFace(family, `url(data:${model.fontMime};base64,${model.fontData})`);
+  await font.load();
+  document.fonts.add(font);
+  signatureFontCache.add(model.id);
+  return family;
+}
+
+function signatureModelsSplit() {
+  const models = (state.signatureModels || []).filter((item) => item.isActive !== false);
+  return {
+    system: models.filter((item) => item.isSystemModel),
+    mine: models.filter((item) => !item.isSystemModel)
+  };
+}
+
+function signatureModelCardMarkup(model) {
+  const active = model.id === signatureSelectedModelId ? "active" : "";
+  return `<button type="button" class="signature-model-card ${active}" data-signature-model="${model.id}">
+    <strong>${escapeHtml(model.name)}</strong>
+  </button>`;
+}
+
+function renderSignatureModelGallery() {
+  const { system, mine } = signatureModelsSplit();
+  document.getElementById("signatureSystemModels").innerHTML = system.length
+    ? system.map(signatureModelCardMarkup).join("")
+    : `<p class="meta">Nenhum modelo do sistema ainda.</p>`;
+  document.getElementById("signatureMyModels").innerHTML = mine.map(signatureModelCardMarkup).join("")
+    + `<button type="button" class="signature-model-card signature-model-card-new" id="signatureNewModelCard">+ Novo modelo</button>`;
+}
+
+function signatureCurrentStyle() {
+  return {
+    text: document.getElementById("signatureTextInput").value.trim(),
+    size: Number(document.getElementById("signatureSize").value) || 42,
+    color: document.getElementById("signatureColor").value || "#111111",
+    slant: Number(document.getElementById("signatureSlant").value) || 0,
+    letterSpacing: Number(document.getElementById("signatureLetterSpacing").value) || 0
+  };
+}
+
+async function signatureRenderPreview() {
+  const addButton = document.getElementById("signatureAddToEditorButton");
+  const exportButton = document.getElementById("signatureExportPngButton");
+  const canvas = document.getElementById("signaturePreviewCanvas");
+  const ctx = canvas.getContext("2d");
+  const model = (state.signatureModels || []).find((item) => item.id === signatureSelectedModelId);
+  const style = signatureCurrentStyle();
+  if (!model || !style.text) {
+    canvas.width = 1;
+    canvas.height = 1;
+    addButton.disabled = true;
+    exportButton.disabled = true;
+    return;
+  }
+  let fontFamily;
+  try {
+    fontFamily = await loadSignatureFont(model);
+  } catch (error) {
+    console.error("Falha ao carregar fonte da assinatura:", error);
+    showAppAlert("Não foi possível carregar esta fonte.", { type: "error" });
+    return;
+  }
+  const padding = 16;
+  ctx.font = `${style.size}px "${fontFamily}"`;
+  const textWidth = extrasTextWidthWithSpacing(ctx, style.text, style.letterSpacing);
+  const shearOffset = style.slant ? Math.abs(Math.tan((style.slant * Math.PI) / 180)) * style.size * 1.3 : 0;
+  canvas.width = Math.max(1, Math.ceil(textWidth + padding * 2 + shearOffset));
+  canvas.height = Math.max(1, Math.ceil(style.size * 1.4 + padding * 2));
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  extrasDrawStyledText(ctx, {
+    text: style.text,
+    x: padding,
+    y: padding,
+    size: style.size,
+    color: style.color,
+    fontFamily: `"${fontFamily}"`,
+    slant: style.slant,
+    letterSpacing: style.letterSpacing,
+    underline: false
+  });
+  addButton.disabled = false;
+  exportButton.disabled = false;
+}
+
+function signatureScheduleRenderPreview() {
+  clearTimeout(signaturePreviewTimer);
+  signaturePreviewTimer = setTimeout(signatureRenderPreview, 200);
+}
+
+function signatureSelectModel(modelId) {
+  signatureSelectedModelId = modelId;
+  renderSignatureModelGallery();
+  signatureRenderPreview();
+}
+
+function signatureAddToEditor() {
+  const model = (state.signatureModels || []).find((item) => item.id === signatureSelectedModelId);
+  const style = signatureCurrentStyle();
+  if (!model || !style.text) return;
+  const canvas = document.getElementById("extrasCanvas");
+  const ctx = canvas.getContext("2d");
+  const fontFamily = signatureFontFamilyName(model);
+  extrasEnsureObjectsBase();
+  extrasPushUndo();
+  const obj = {
+    id: extrasObjectSeq++,
+    type: "text",
+    x: 0, y: 0, w: 0, h: 0,
+    text: style.text,
+    size: style.size,
+    color: style.color,
+    fontFamily: `"${fontFamily}"`,
+    bold: false,
+    italic: false,
+    underline: false,
+    slant: style.slant || undefined,
+    letterSpacing: style.letterSpacing || undefined
+  };
+  extrasRemeasureText(obj);
+  obj.x = Math.max(0, (canvas.width - obj.w) / 2);
+  obj.y = Math.max(0, (canvas.height - obj.h) / 2);
+  extrasState.objects.push(obj);
+  extrasDrawObjectInto(ctx, obj);
+  extrasSelectObject(obj.id);
+  document.getElementById("signatureDialog").close();
+  showAppAlert("Assinatura adicionada ao editor.", { type: "success" });
+}
+
+function signatureExportPng() {
+  const canvas = document.getElementById("signaturePreviewCanvas");
+  if (canvas.width <= 1 || canvas.height <= 1) return;
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "assinatura.png";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }, "image/png");
+}
+
+function signatureValidateFontFile(file) {
+  const name = (file.name || "").toLowerCase();
+  if (!SIGNATURE_FONT_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+    return "Formato de fonte não suportado. Use .ttf, .otf, .woff ou .woff2.";
+  }
+  if (file.size > SIGNATURE_MAX_FONT_BYTES) return "Arquivo de fonte muito grande. O limite é 2MB.";
+  return null;
+}
+
+function signatureFontMimeFor(fileName) {
+  const name = fileName.toLowerCase();
+  if (name.endsWith(".otf")) return "font/otf";
+  if (name.endsWith(".woff2")) return "font/woff2";
+  if (name.endsWith(".woff")) return "font/woff";
+  return "font/ttf";
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Não foi possível ler o arquivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function signatureShowNewModelForm(show) {
+  document.getElementById("signatureNewModelForm").classList.toggle("hidden", !show);
+}
+
+async function signatureSaveNewModel() {
+  const nameInput = document.getElementById("signatureModelName");
+  const fileInput = document.getElementById("signatureModelFontFile");
+  const name = nameInput.value.trim();
+  const file = fileInput.files?.[0];
+  if (!name) return showAppAlert("Digite um nome para o modelo.", { type: "warning" });
+  if (!file) return showAppAlert("Selecione um arquivo de fonte.", { type: "warning" });
+  const validationError = signatureValidateFontFile(file);
+  if (validationError) return showAppAlert(validationError, { type: "warning" });
+  const button = document.getElementById("signatureSaveModelButton");
+  button.disabled = true;
+  button.textContent = "Salvando...";
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    const model = {
+      id,
+      name,
+      modelType: "font",
+      fontFamily: `signature-${id}`,
+      fontData: base64,
+      fontMime: signatureFontMimeFor(file.name),
+      style: {},
+      isSystemModel: false,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now
+    };
+    state.signatureModels = state.signatureModels || [];
+    state.signatureModels.push(model);
+    await window.persistStateNow();
+    showAppAlert("Modelo salvo com sucesso.", { type: "success" });
+    signatureSelectedModelId = model.id;
+    signatureShowNewModelForm(false);
+    nameInput.value = "";
+    fileInput.value = "";
+    renderSignatureModelGallery();
+    await signatureRenderPreview();
+  } catch (error) {
+    console.error("Falha ao salvar modelo de assinatura:", error);
+    showAppAlert(error.message || "Não foi possível salvar o modelo.", { type: "error" });
+  } finally {
+    button.disabled = false;
+    button.textContent = "Salvar modelo";
+  }
+}
+
+function openSignatureDialog() {
+  signatureSelectedModelId = (state.signatureModels || []).find((item) => item.isActive !== false)?.id || null;
+  signatureShowNewModelForm(false);
+  document.getElementById("signatureTextInput").value = "";
+  renderSignatureModelGallery();
+  signatureRenderPreview();
+  document.getElementById("signatureDialog").showModal();
+}
+
+function initializeSignatureTools() {
+  const dialog = document.getElementById("signatureDialog");
+  if (!dialog) return;
+  ["signatureTextInput", "signatureSize", "signatureColor", "signatureSlant", "signatureLetterSpacing"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", signatureScheduleRenderPreview);
+  });
+  dialog.addEventListener("click", (event) => {
+    const modelCard = event.target.closest("[data-signature-model]");
+    if (modelCard) {
+      signatureSelectModel(modelCard.dataset.signatureModel);
+      return;
+    }
+    if (event.target.closest("#signatureNewModelCard")) {
+      signatureShowNewModelForm(true);
+      return;
+    }
+    if (event.target.closest("#signatureCancelNewModelButton")) {
+      signatureShowNewModelForm(false);
+      return;
+    }
+    if (event.target.closest("#signatureSaveModelButton")) {
+      signatureSaveNewModel();
+      return;
+    }
+    if (event.target.closest("#signatureAddToEditorButton")) {
+      signatureAddToEditor();
+      return;
+    }
+    if (event.target.closest("#signatureExportPngButton")) {
+      signatureExportPng();
+    }
+  });
+}
+
 function initializeExtrasTools() {
   const dropzone = document.getElementById("extrasDropzone");
   const fileInput = document.getElementById("extrasFileInput");
@@ -9544,12 +9856,13 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=202").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=203").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
 initializeExtrasTools();
 initializeReportsTools();
+initializeSignatureTools();
 render();
 window.addEventListener("app-authenticated", (event) => {
   const user = event.detail?.user;
