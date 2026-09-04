@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=146">
+  <link rel="stylesheet" href="styles.css?v=147">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -734,10 +734,19 @@
 
       <div id="extrasPreviewPanel" class="panel extras-preview-panel hidden">
         <img id="extrasPreviewImage" alt="Imagem escolhida">
-        <div class="extras-preview-actions">
+        <div id="extrasPreviewActions" class="extras-preview-actions">
           <button type="button" class="secondary" data-extras-preview-action="edit">Editar imagem</button>
           <button type="button" class="secondary" data-extras-preview-action="digitize-signature">Digitalizar assinatura</button>
+          <button type="button" class="secondary" data-extras-preview-action="generate-handwriting">Gerar com IA (experimental)</button>
           <button type="button" class="primary" data-extras-preview-action="remove-bg">Remover fundo</button>
+        </div>
+        <div id="extrasHandwritingForm" class="extras-handwriting-form hidden">
+          <p class="meta">Experimental: a IA pode não reproduzir fielmente a caligrafia da imagem enviada.</p>
+          <label>Texto a gerar<input type="text" id="extrasHandwritingText" maxlength="60" placeholder="Ex.: João Silva"></label>
+          <div class="extras-preview-actions">
+            <button type="button" class="secondary" id="extrasHandwritingCancelButton">Cancelar</button>
+            <button type="button" class="primary" id="extrasHandwritingGenerateButton">Gerar</button>
+          </div>
         </div>
       </div>
 
@@ -2611,7 +2620,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=55"></script>
-  <script src="app.js?v=195"></script>
+  <script src="app.js?v=197"></script>
   <script src="supplier.js?v=67"></script>
 </body>
 </html>

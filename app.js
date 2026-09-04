@@ -7049,6 +7049,9 @@ function extrasHandlePickedFile(file) {
   if (extrasPreviewObjectUrl) URL.revokeObjectURL(extrasPreviewObjectUrl);
   extrasPreviewObjectUrl = URL.createObjectURL(file);
   document.getElementById("extrasPreviewImage").src = extrasPreviewObjectUrl;
+  document.getElementById("extrasHandwritingForm").classList.add("hidden");
+  document.getElementById("extrasPreviewActions").classList.remove("hidden");
+  document.getElementById("extrasHandwritingText").value = "";
   extrasShowPanel("preview");
 }
 
@@ -7129,11 +7132,18 @@ function extrasRenderSensitivityPreview() {
   document.getElementById("extrasAfterImage").src = preview.toDataURL("image/png");
 }
 
-// Cor de tinta e faixa de suavizacao da borda usadas por extrasDigitizeSignatureCanvas -
-// mesma logica de "limpar assinatura fotografada", 100% local (sem IA/API), pensada pra
-// reproduzir a MESMA assinatura enviada, so corrigida (fundo removido, borda sem serrilhado).
+// Cor de tinta, faixa de suavizacao da borda e limites usados por
+// extrasDigitizeSignatureCanvas - mesma logica de "limpar assinatura fotografada",
+// 100% local (sem IA/API), pensada pra reproduzir a MESMA assinatura enviada, so
+// corrigida (fundo removido, ruido de foto/papel limpo, borda sem serrilhado) - nao
+// e a mesma coisa que "Remover fundo" (que usa IA generica pra separar sujeito/fundo
+// de qualquer foto): aqui o alvo e especificamente tinta em papel, com despeckle e
+// suavizacao pensados pra esse tipo de imagem.
 const SIGNATURE_DIGITIZE_INK_COLOR = { r: 17, g: 17, b: 17 };
 const SIGNATURE_DIGITIZE_EDGE_BAND = 18;
+const SIGNATURE_DIGITIZE_MAX_DIMENSION = 2200;
+const SIGNATURE_DIGITIZE_BLUR_RADIUS = 2;
+const SIGNATURE_DIGITIZE_CONTRAST = 2.4;
 
 // Metodo de Otsu: acha o limiar de luminancia que melhor separa tinta de papel a partir
 // do proprio histograma da imagem - se adapta sozinho a fotos com iluminacao/contraste
@@ -7169,15 +7179,83 @@ function extrasOtsuThreshold(histogram, totalPixels) {
   return Math.round((thresholdLow + thresholdHigh) / 2);
 }
 
+// Filtro de mediana 3x3 sobre a mascara binarizada (limiar 128) - remove ruido tipo
+// "sal e pimenta" (pontinhos isolados de textura do papel virando "tinta", ou furos
+// isolados dentro do traco) que sobra da compressao JPEG/granulacao da foto. Sem isso
+// o resultado fica com pontinhos espalhados, parecendo defeito.
+function extrasDespeckleAlpha(alpha, width, height) {
+  const out = new Uint8ClampedArray(alpha.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let opaqueNeighbors = 0;
+      let total = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        const sy = y + dy;
+        if (sy < 0 || sy >= height) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const sx = x + dx;
+          if (sx < 0 || sx >= width) continue;
+          total++;
+          if (alpha[sy * width + sx] >= 128) opaqueNeighbors++;
+        }
+      }
+      out[y * width + x] = opaqueNeighbors * 2 >= total ? 255 : 0;
+    }
+  }
+  return out;
+}
+
+// Desfoque em caixa separavel (horizontal, depois vertical) sobre o canal alfa -
+// suaviza o serrilhado de pixel a pixel da mascara binarizada, deixando a borda com
+// aparencia de traco real em vez de "escada". Feito na mao (sem lib externa).
+function extrasBoxBlurAlpha(alpha, width, height, radius) {
+  const pass1 = new Float32Array(alpha.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0;
+      let count = 0;
+      for (let dx = -radius; dx <= radius; dx++) {
+        const sx = x + dx;
+        if (sx < 0 || sx >= width) continue;
+        sum += alpha[y * width + sx];
+        count++;
+      }
+      pass1[y * width + x] = sum / count;
+    }
+  }
+  const pass2 = new Float32Array(alpha.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0;
+      let count = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        const sy = y + dy;
+        if (sy < 0 || sy >= height) continue;
+        sum += pass1[sy * width + x];
+        count++;
+      }
+      pass2[y * width + x] = sum / count;
+    }
+  }
+  return pass2;
+}
+
 function extrasDigitizeSignatureCanvas(bitmap) {
+  // Fotos de celular podem vir com varios megapixels - limitar o lado maior mantem o
+  // processamento rapido e o resultado consistente, sem perder nitidez pra uma
+  // assinatura (que nao precisa de mais resolucao que isso).
+  const scale = Math.min(1, SIGNATURE_DIGITIZE_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+
   const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext("2d");
-  ctx.drawImage(bitmap, 0, 0);
-  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  const imgData = ctx.getImageData(0, 0, width, height);
   const data = imgData.data;
-  const totalPixels = canvas.width * canvas.height;
+  const totalPixels = width * height;
 
   const histogram = new Array(256).fill(0);
   const luminances = new Float32Array(totalPixels);
@@ -7188,19 +7266,26 @@ function extrasDigitizeSignatureCanvas(bitmap) {
   }
   const threshold = extrasOtsuThreshold(histogram, totalPixels);
 
-  // Tinta (mais escura que o limiar) vira opaca na cor de tinta padrao; papel vira
-  // transparente. A faixa ao redor do limiar suaviza a borda em vez de um corte duro,
-  // que ficaria com aparencia serrilhada/defeituosa.
-  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+  // Primeira passada: so o canal alfa (tinta = 255, papel = 0, faixa suave no meio).
+  let alpha = new Uint8ClampedArray(totalPixels);
+  for (let p = 0; p < totalPixels; p++) {
     const distance = threshold - luminances[p];
-    let alpha;
-    if (distance >= SIGNATURE_DIGITIZE_EDGE_BAND) alpha = 255;
-    else if (distance <= -SIGNATURE_DIGITIZE_EDGE_BAND) alpha = 0;
-    else alpha = Math.round(((distance + SIGNATURE_DIGITIZE_EDGE_BAND) / (SIGNATURE_DIGITIZE_EDGE_BAND * 2)) * 255);
+    if (distance >= SIGNATURE_DIGITIZE_EDGE_BAND) alpha[p] = 255;
+    else if (distance <= -SIGNATURE_DIGITIZE_EDGE_BAND) alpha[p] = 0;
+    else alpha[p] = Math.round(((distance + SIGNATURE_DIGITIZE_EDGE_BAND) / (SIGNATURE_DIGITIZE_EDGE_BAND * 2)) * 255);
+  }
+
+  // Limpa ruido isolado, depois suaviza a borda e reforca o contraste de volta (senao
+  // o desfoque sozinho deixaria tudo esmaecido em vez de limpo/nitido).
+  alpha = extrasDespeckleAlpha(alpha, width, height);
+  const blurred = extrasBoxBlurAlpha(alpha, width, height, SIGNATURE_DIGITIZE_BLUR_RADIUS);
+
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    const contrasted = (blurred[p] - 128) * SIGNATURE_DIGITIZE_CONTRAST + 128;
     data[i] = SIGNATURE_DIGITIZE_INK_COLOR.r;
     data[i + 1] = SIGNATURE_DIGITIZE_INK_COLOR.g;
     data[i + 2] = SIGNATURE_DIGITIZE_INK_COLOR.b;
-    data[i + 3] = alpha;
+    data[i + 3] = extrasClamp(Math.round(contrasted), 0, 255);
   }
   ctx.putImageData(imgData, 0, 0);
   return canvas;
@@ -7224,6 +7309,59 @@ async function extrasProceedDigitizeSignature() {
   } catch (error) {
     console.error("Falha ao digitalizar assinatura:", error);
     document.getElementById("extrasErrorMessage").textContent = "Não foi possível digitalizar esta imagem.";
+    extrasShowPanel("error");
+  }
+}
+
+function extrasBase64ToBlob(base64, mime) {
+  const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+  return new Blob([bytes], { type: mime });
+}
+
+// Experimental: gera um texto novo "na caligrafia" de uma imagem de referencia via IA
+// de geracao de imagem (OpenAI, fora do escopo da Claude - ela nao gera imagem). Sem
+// garantia de fidelidade ao estilo da referencia, ja avisado na propria tela. Pede fundo
+// branco na IA e reaproveita o MESMO pipeline local de "Digitalizar assinatura" (Otsu +
+// despeckle + suavizacao) pra limpar/tornar transparente o resultado, em vez de duplicar
+// logica de limpeza nova.
+async function extrasProceedGenerateHandwriting() {
+  if (!extrasPendingFile) return;
+  const text = document.getElementById("extrasHandwritingText").value.trim();
+  if (!text) return showAppAlert("Digite o texto a ser gerado.", { type: "warning" });
+  extrasShowPanel("loading");
+  try {
+    const { data } = await window.supabaseClient.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+    const dataUrl = await readFileAsDataUrl(extrasPendingFile);
+    const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+    const response = await fetch("/.netlify/functions/generate-handwriting", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ imageBase64: base64, mediaType: extrasPendingFile.type, text })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Não foi possível gerar a imagem.");
+
+    const rawBitmap = await createImageBitmap(extrasBase64ToBlob(result.imageBase64, "image/png"));
+    const rawAiCanvas = document.createElement("canvas");
+    rawAiCanvas.width = rawBitmap.width;
+    rawAiCanvas.height = rawBitmap.height;
+    rawAiCanvas.getContext("2d").drawImage(rawBitmap, 0, 0);
+
+    const cleaned = extrasDigitizeSignatureCanvas(rawBitmap);
+    extrasRawResultCanvas = extrasTrimTransparentEdges(cleaned);
+    extrasSensitivity = 0;
+    document.getElementById("extrasSensitivity").value = 0;
+    // "Antes" aqui mostra o que a IA gerou (antes da limpeza local), nao a foto de
+    // referencia original - sao conteudos diferentes (texto novo x assinatura de
+    // referencia), so a comparacao bruto/limpo faz sentido nesta tela.
+    document.getElementById("extrasBeforeImage").src = rawAiCanvas.toDataURL("image/png");
+    extrasRenderSensitivityPreview();
+    extrasShowPanel("beforeAfter");
+  } catch (error) {
+    console.error("Falha ao gerar caligrafia com IA:", error);
+    document.getElementById("extrasErrorMessage").textContent = error.message || "Não foi possível gerar a imagem.";
     extrasShowPanel("error");
   }
 }
@@ -10124,7 +10262,24 @@ function initializeExtrasTools() {
       if (button.dataset.extrasPreviewAction === "edit") extrasProceedEdit();
       else if (button.dataset.extrasPreviewAction === "remove-bg") extrasProceedRemoveBg();
       else if (button.dataset.extrasPreviewAction === "digitize-signature") extrasProceedDigitizeSignature();
+      else if (button.dataset.extrasPreviewAction === "generate-handwriting") {
+        document.getElementById("extrasPreviewActions").classList.add("hidden");
+        document.getElementById("extrasHandwritingForm").classList.remove("hidden");
+        document.getElementById("extrasHandwritingText").focus();
+      }
     });
+  });
+
+  document.getElementById("extrasHandwritingCancelButton").addEventListener("click", () => {
+    document.getElementById("extrasHandwritingForm").classList.add("hidden");
+    document.getElementById("extrasPreviewActions").classList.remove("hidden");
+    document.getElementById("extrasHandwritingText").value = "";
+  });
+  document.getElementById("extrasHandwritingGenerateButton").addEventListener("click", extrasProceedGenerateHandwriting);
+  document.getElementById("extrasHandwritingText").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    extrasProceedGenerateHandwriting();
   });
 
   document.getElementById("extrasSensitivity").addEventListener("input", (event) => {
@@ -10324,7 +10479,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=211").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=213").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
