@@ -18,6 +18,9 @@ body { margin: 0; }
 .portal-header span, .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .portal-header h1 { margin: 8px 0; font-family: Georgia, serif; font-size: 32px; }
 .portal-header p { margin: 0; color: #d7e5df; }
+.supplier-period-nav { display: flex; align-items: center; gap: 8px; }
+.supplier-period-nav-btn { flex: 0 0 auto; width: 30px; height: 30px; padding: 0; border-color: var(--line); color: var(--brand); background: white; font-size: 16px; line-height: 1; }
+.supplier-period-nav-btn:disabled { color: var(--muted); background: #f3f4f2; cursor: not-allowed; opacity: .6; }
 .portal-header-actions { display: grid; justify-items: end; align-content: center; gap: 10px; }
 .refresh-button { color: white; border-color: rgba(255,255,255,.45); background: rgba(255,255,255,.14); }
 .permission-summary { display: flex; flex-wrap: wrap; justify-content: flex-end; align-content: center; gap: 7px; max-width: 430px; }

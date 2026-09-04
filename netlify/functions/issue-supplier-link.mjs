@@ -47,7 +47,10 @@ export default async (request) => {
     const accessCode = randomAccessCode();
     const identifier = randomIdentifier();
     const password = randomPassword();
-    const days = Math.min(90, Math.max(1, Number(validDays) || 30));
+    const isIndeterminate = validDays === "indeterminate";
+    const allowedDays = [30, 60, 90, 120, 180];
+    const days = allowedDays.includes(Number(validDays)) ? Number(validDays) : 30;
+    const expiresAt = isIndeterminate ? null : new Date(Date.now() + days * 86400000).toISOString();
     const payload = {
       supplier_id: supplierId, token_hash: accessCodeHash(accessCode),
       period_start: startDate, period_end: endDate,
@@ -61,7 +64,7 @@ export default async (request) => {
       plain_access_code: accessCode,
       plain_identifier: identifier,
       plain_password: password,
-      expires_at: new Date(Date.now() + days * 86400000).toISOString(), active: true
+      expires_at: expiresAt, active: true
     };
     try {
       await supabase("/rest/v1/supplier_portal_links", {
@@ -73,7 +76,7 @@ export default async (request) => {
       if (!/identifier_hash|password_hash|plain_access_code|plain_identifier|plain_password|schema cache|Could not find/i.test(message)) throw error;
       throw new Error("Execute o SQL supplier_portal_recoverable_credentials.sql no Supabase antes de gerar links com senha.");
     }
-    return json(200, { accessCode, identifier, password, supplierName: suppliers[0].name });
+    return json(200, { accessCode, identifier, password, supplierName: suppliers[0].name, expiresAt });
   } catch (error) {
     console.error(error);
     const unauthorized = /administrativo não autorizado/i.test(error.message || "");

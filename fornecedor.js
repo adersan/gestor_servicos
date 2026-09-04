@@ -19,6 +19,7 @@
   let search = "";
   let refreshInProgress = false;
   let pendingRestrictedData = null;
+  let supplierWeekOffset = 0;
   let entryDisplayMode = localStorage.getItem(ENTRY_DISPLAY_KEY) === "simple" ? "simple" : "full";
 
   const amountText = (value) => data?.includeFinancial === false ? "Valor sob consulta" : money.format(Number(value || 0));
@@ -124,7 +125,7 @@
     const response = await fetch("/.netlify/functions/supplier-portal-data", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessCode, ...credentials })
+      body: JSON.stringify({ accessCode, weekOffset: supplierWeekOffset, ...credentials })
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Não foi possível abrir este acesso.");
@@ -178,6 +179,9 @@
 
   async function refresh() {
     if (refreshInProgress) return;
+    // Mesmo motivo do acompanhamento.js: nao atualiza sozinho com o formulario
+    // de senha aberto, senao o refresh reseta a tela de escolha no meio da digitacao.
+    if (!document.getElementById("accessPasswordForm").classList.contains("hidden")) return;
     refreshInProgress = true;
     const button = document.getElementById("refreshData");
     button.disabled = true;
@@ -190,6 +194,20 @@
       refreshInProgress = false;
       button.disabled = false;
       button.textContent = "Atualizar";
+    }
+  }
+
+  async function navigateSupplierWeek(delta) {
+    if (refreshInProgress) return;
+    supplierWeekOffset += delta;
+    refreshInProgress = true;
+    try {
+      await load();
+    } catch (error) {
+      supplierWeekOffset -= delta;
+      showAppAlert(error.message || "Não foi possível trocar de semana.", { type: "error" });
+    } finally {
+      refreshInProgress = false;
     }
   }
 
@@ -387,7 +405,11 @@
     document.getElementById("content").classList.remove("hidden");
     updateEntryDisplayToggleButton();
     document.querySelector("h1").textContent = data.supplier.name;
-    document.getElementById("period").textContent = `${date(data.period.startDate)} a ${date(data.period.endDate)}`;
+    supplierWeekOffset = Number.isInteger(data.weekOffset) ? data.weekOffset : 0;
+    const periodSuffix = supplierWeekOffset === 0 ? " · Semana atual" : "";
+    document.getElementById("period").textContent = `${date(data.period.startDate)} a ${date(data.period.endDate)}${periodSuffix}`;
+    document.getElementById("supplierPeriodPrev").disabled = data.canGoBack === false;
+    document.getElementById("supplierPeriodNext").disabled = data.canGoForward === false;
     const permissionLabels = [
       data.includeFinancial === false ? "Acesso sem senha (sem financeiro)" : "Acesso completo",
       permissions.canEdit && "Lançamentos",
@@ -569,6 +591,8 @@
     else if (event.target.closest("button[data-mark-done], button[data-edit], button[data-cancel]")) document.getElementById("entryQuickViewDialog").close();
   });
   document.getElementById("refreshData").addEventListener("click", refresh);
+  document.getElementById("supplierPeriodPrev").addEventListener("click", () => navigateSupplierWeek(-1));
+  document.getElementById("supplierPeriodNext").addEventListener("click", () => navigateSupplierWeek(1));
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && !document.querySelector("dialog[open]")) refresh();
   });

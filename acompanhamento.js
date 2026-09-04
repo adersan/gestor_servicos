@@ -791,6 +791,10 @@ async function navigateTrackingWeek(delta) {
 
 async function refreshTracking() {
   if (refreshInProgress) return;
+  // Nao atualiza sozinho enquanto o formulario de senha esta aberto - senao o
+  // refresh periodico trata a visita como "ainda nao escolheu" e reseta a tela
+  // de volta pra escolha com/sem senha no meio da digitacao do usuario.
+  if (!document.getElementById("trackingPasswordForm").classList.contains("hidden")) return;
   refreshInProgress = true;
   const button = document.getElementById("refreshButton");
   button.disabled = true;

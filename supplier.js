@@ -608,9 +608,12 @@
       const links = result.links || [];
       list.innerHTML = links.length ? links.map((item) => {
         const url = `${location.origin}/fornecedor.html?acesso=${encodeURIComponent(item.accessCode)}`;
+        const expiryText = item.expiresAt
+          ? `Expira em ${new Date(item.expiresAt).toLocaleString("pt-BR")}`
+          : "Sem validade (até ser removido)";
         return `<article class="request-card tracking-link-card">
           <div class="request-card-head"><h3>${escapeHtml(item.supplierName)}</h3></div>
-          <p class="tracking-link-meta">Período ${formatDate(item.periodStart)} a ${formatDate(item.periodEnd)} · Gerado em ${new Date(item.createdAt).toLocaleString("pt-BR")}</p>
+          <p class="tracking-link-meta">Período ${formatDate(item.periodStart)} a ${formatDate(item.periodEnd)} · Gerado em ${new Date(item.createdAt).toLocaleString("pt-BR")} · ${escapeHtml(expiryText)}</p>
           <div class="tracking-link-fields">
             <div class="tracking-link-field"><span>Link (sem senha)</span><strong>${escapeHtml(url)}</strong></div>
             <div class="tracking-link-field"><span>Identificador (com senha)</span><strong>${escapeHtml(item.identifier || "")}</strong></div>
@@ -1372,7 +1375,7 @@
     const rows = [
       ["Fornecedor", form.elements.supplierSearch.value || "-"],
       ["Período", `${formatDate(form.elements.startDate.value)} a ${formatDate(form.elements.endDate.value)}`],
-      ["Validade", `${form.elements.validDays.value} dias`],
+      ["Validade", form.elements.validDays.value === "indeterminate" ? "Indeterminado (até ser removido)" : `${form.elements.validDays.value} dias`],
       ["Lançar e alterar", form.elements.canEdit.checked ? "Sim" : "Não"],
       ["Marcar como feito", form.elements.canMarkDone.checked ? "Sim" : "Não"],
       ["Cancelar serviços", form.elements.canCancel.checked ? "Sim" : "Não"],
@@ -1790,7 +1793,7 @@
           canCancel: false,
           showLinkedNotes: false,
           showEntries: data.get("showEntries") === "on",
-          replaceExisting: false
+          replaceExisting: true
         });
         payable.snapshot = {
           ...payable.snapshot,
@@ -1920,7 +1923,7 @@
           supplierId: data.get("supplierId"),
           startDate: data.get("startDate"),
           endDate: data.get("endDate"),
-          validDays: Number(data.get("validDays")),
+          validDays: data.get("validDays"),
           canEdit: data.get("canEdit") === "on",
           canMarkDone: data.get("canMarkDone") === "on",
           canCancel: data.get("canCancel") === "on",

@@ -5,11 +5,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Portal do fornecedor</title>
-  <link rel="stylesheet" href="fornecedor.css?v=25">
+  <link rel="stylesheet" href="fornecedor.css?v=26">
 </head>
 <body>
   <header class="portal-header">
-    <div><span>Gestor de Serviços</span><h1>Portal do fornecedor</h1><p id="period"></p></div>
+    <div><span>Gestor de Serviços</span><h1>Portal do fornecedor</h1>
+      <div class="supplier-period-nav">
+        <button id="supplierPeriodPrev" class="supplier-period-nav-btn" type="button" aria-label="Semana anterior">‹</button>
+        <p id="period"></p>
+        <button id="supplierPeriodNext" class="supplier-period-nav-btn" type="button" aria-label="Próxima semana">›</button>
+      </div>
+    </div>
     <div class="portal-header-actions">
       <button id="refreshData" class="refresh-button" type="button">Atualizar</button>
       <div id="permissionSummary" class="permission-summary"></div>
@@ -167,6 +173,6 @@
     </div>
   </dialog>
 
-  <script src="fornecedor.js?v=29"></script>
+  <script src="fornecedor.js?v=30"></script>
 </body>
 </html>
