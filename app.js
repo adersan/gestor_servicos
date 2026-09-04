@@ -8865,6 +8865,35 @@ const REPORT_DEFINITIONS = [
     }
   },
   {
+    id: "serviceRanking",
+    group: "Resumo",
+    label: "Ranking de serviços mais vendidos",
+    columns: [
+      { key: "position", label: "#", value: (row) => String(row.position) },
+      { key: "service", label: "Serviço", value: (row) => row.service, pdfWidth: 1.8 },
+      { key: "count", label: "Quantidade", align: "right", value: (row) => String(row.count) },
+      { key: "share", label: "% do volume", align: "right", value: (row) => `${row.share.toFixed(1)}%` },
+      { key: "total", label: "Valor total", align: "right", summable: true, raw: (row) => row.total, value: (row) => money.format(row.total) }
+    ],
+    getRows(filters) {
+      const grouped = new Map();
+      state.services
+        .filter((item) => inPeriod(item.date, filters.period))
+        .filter((item) => item.status !== "Cancelado")
+        .filter((item) => matchesSearch(filters.search, item.description))
+        .forEach((item) => {
+          const key = item.description || "Sem descrição";
+          const entry = grouped.get(key) || { service: key, count: 0, total: 0 };
+          entry.count += 1;
+          entry.total += Number(item.amount);
+          grouped.set(key, entry);
+        });
+      const rows = [...grouped.values()].sort((a, b) => b.count - a.count || b.total - a.total);
+      const totalCount = rows.reduce((sum, row) => sum + row.count, 0) || 1;
+      return rows.map((row, index) => ({ ...row, position: index + 1, share: (row.count / totalCount) * 100 }));
+    }
+  },
+  {
     id: "clientServiceBreakdown",
     group: "Clientes",
     label: "Detalhamento por serviço (cliente)",
@@ -9514,7 +9543,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=198").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=199").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

@@ -101,6 +101,22 @@ function defById(id) {
   assert.equal(searched.length, 2, "search should match the service description on both entries");
 }
 
+// Ranking de servicos mais vendidos: ordenado por QUANTIDADE (nao valor),
+// entre todos os clientes - "CRV Cadastrado" vende 2x (c1) e fica em 1o,
+// mesmo tendo menos clientes que "Digitacao CRV" teria se vendesse mais.
+{
+  const ranking = defById("serviceRanking");
+  const rows = ranking.getRows({ period, status: "", extra: "", search: "" });
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].service, "CRV Cadastrado");
+  assert.equal(rows[0].position, 1);
+  assert.equal(rows[0].count, 2);
+  assert.equal(Math.round(rows[0].share), 67);
+  assert.equal(rows[1].service, "Digitação CRV");
+  assert.equal(rows[1].position, 2);
+  assert.equal(rows[1].count, 1);
+}
+
 // Detalhamento por servico (cliente): "CRV Cadastrado" appears twice (s1+s4,
 // 300 each = 600 total), "Digitacao CRV" once (40) - the answer to "quantos
 // servicos do tipo X fiz e quanto esta dando", the exact question the user
