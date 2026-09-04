@@ -9348,18 +9348,22 @@ function signatureFontFamilyName(model) {
   return model.fontFamily || `signature-model-${model.id}`;
 }
 
+async function ensureSignatureFontData(model) {
+  if (model.fontData) return;
+  // A sincronizacao normal traz os modelos sem o arquivo da fonte (economia de
+  // egress) - baixa aqui, uma unica vez por sessao, so quando realmente preciso
+  // (usar o modelo, renomear ou duplicar - o upsert exige fontData presente).
+  const result = await window.supabaseClient
+    .from("signature_models").select("font_data").eq("id", model.id).single();
+  if (result.error) throw result.error;
+  model.fontData = result.data?.font_data || "";
+  if (!model.fontData) throw new Error("Fonte do modelo não encontrada.");
+}
+
 async function loadSignatureFont(model) {
   const family = signatureFontFamilyName(model);
   if (signatureFontCache.has(model.id)) return family;
-  if (!model.fontData) {
-    // A sincronizacao normal traz os modelos sem o arquivo da fonte (economia de
-    // egress) - baixa aqui, uma unica vez por sessao, so quando o modelo e usado.
-    const result = await window.supabaseClient
-      .from("signature_models").select("font_data").eq("id", model.id).single();
-    if (result.error) throw result.error;
-    model.fontData = result.data?.font_data || "";
-    if (!model.fontData) throw new Error("Fonte do modelo não encontrada.");
-  }
+  await ensureSignatureFontData(model);
   const font = new FontFace(family, `url(data:${model.fontMime};base64,${model.fontData})`);
   await font.load();
   document.fonts.add(font);
@@ -9382,6 +9386,22 @@ function signatureModelCardMarkup(model) {
   </button>`;
 }
 
+function selectedSignatureModel() {
+  return (state.signatureModels || []).find((item) => item.id === signatureSelectedModelId) || null;
+}
+
+function signatureSyncModelActions() {
+  const model = selectedSignatureModel();
+  const bar = document.getElementById("signatureModelActions");
+  document.getElementById("signatureRenameRow").classList.add("hidden");
+  bar.classList.toggle("hidden", !model);
+  if (!model) return;
+  document.getElementById("signatureSelectedModelName").textContent = model.name;
+  // Modelos do sistema so podem ser duplicados; renomear/excluir e so pros seus.
+  document.getElementById("signatureRenameButton").classList.toggle("hidden", model.isSystemModel);
+  document.getElementById("signatureDeleteButton").classList.toggle("hidden", model.isSystemModel);
+}
+
 function renderSignatureModelGallery() {
   const { system, mine } = signatureModelsSplit();
   document.getElementById("signatureSystemModels").innerHTML = system.length
@@ -9389,6 +9409,7 @@ function renderSignatureModelGallery() {
     : `<p class="meta">Nenhum modelo do sistema ainda.</p>`;
   document.getElementById("signatureMyModels").innerHTML = mine.map(signatureModelCardMarkup).join("")
     + `<button type="button" class="signature-model-card signature-model-card-new" id="signatureNewModelCard">+ Novo modelo</button>`;
+  signatureSyncModelActions();
 }
 
 function signatureCurrentStyle() {
@@ -9470,6 +9491,99 @@ function signatureSelectModel(modelId) {
   signatureSelectedModelId = modelId;
   renderSignatureModelGallery();
   signatureRenderPreview();
+}
+
+function signatureStartRename() {
+  const model = selectedSignatureModel();
+  if (!model || model.isSystemModel) return;
+  const row = document.getElementById("signatureRenameRow");
+  row.classList.remove("hidden");
+  const input = document.getElementById("signatureRenameInput");
+  input.value = model.name;
+  input.focus();
+  input.select();
+}
+
+async function signatureConfirmRename() {
+  const model = selectedSignatureModel();
+  if (!model || model.isSystemModel) return;
+  const name = document.getElementById("signatureRenameInput").value.trim();
+  if (!name) return showAppAlert("Digite o novo nome do modelo.", { type: "warning" });
+  const button = document.getElementById("signatureRenameConfirmButton");
+  button.disabled = true;
+  try {
+    // O upsert so grava modelos com fontData presente (protecao contra apagar a
+    // fonte no banco) - garante a fonte carregada antes de salvar o novo nome.
+    await ensureSignatureFontData(model);
+    model.name = name;
+    model.updatedAt = new Date().toISOString();
+    await window.persistStateNow();
+    renderSignatureModelGallery();
+    showAppAlert("Modelo renomeado com sucesso.", { type: "success" });
+  } catch (error) {
+    console.error("Falha ao renomear modelo:", error);
+    showAppAlert(error.message || "Não foi possível renomear o modelo.", { type: "error" });
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function signatureDuplicateModel() {
+  const model = selectedSignatureModel();
+  if (!model) return;
+  const button = document.getElementById("signatureDuplicateButton");
+  button.disabled = true;
+  button.textContent = "Duplicando...";
+  try {
+    await ensureSignatureFontData(model);
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    const copy = {
+      ...model,
+      id,
+      name: `${model.name} - Cópia`,
+      fontFamily: `signature-${id}`,
+      isSystemModel: false,
+      createdAt: now,
+      updatedAt: now
+    };
+    state.signatureModels.push(copy);
+    await window.persistStateNow();
+    signatureSelectedModelId = copy.id;
+    renderSignatureModelGallery();
+    await signatureRenderPreview();
+    showAppAlert("Modelo duplicado com sucesso.", { type: "success" });
+  } catch (error) {
+    console.error("Falha ao duplicar modelo:", error);
+    showAppAlert(error.message || "Não foi possível duplicar o modelo.", { type: "error" });
+  } finally {
+    button.disabled = false;
+    button.textContent = "Duplicar";
+  }
+}
+
+async function signatureDeleteModel() {
+  const model = selectedSignatureModel();
+  if (!model || model.isSystemModel) return;
+  const confirmed = await showAppConfirm(
+    `Excluir o modelo "${model.name}"? Esta ação não pode ser desfeita.`,
+    { title: "Excluir modelo" }
+  );
+  if (!confirmed) return;
+  try {
+    state.signatureModels = state.signatureModels.filter((item) => item.id !== model.id);
+    signatureFontCache.delete(model.id);
+    if (signatureSelectedModelId === model.id) {
+      signatureSelectedModelId = (state.signatureModels || []).find((item) => item.isActive !== false)?.id || null;
+    }
+    await window.persistStateNow();
+    renderSignatureModelGallery();
+    await signatureRenderPreview();
+    showAppAlert("Modelo excluído com sucesso.", { type: "success" });
+  } catch (error) {
+    console.error("Falha ao excluir modelo:", error);
+    showAppAlert(error.message || "Não foi possível excluir o modelo.", { type: "error" });
+  }
 }
 
 function signatureAddToEditor() {
@@ -9646,9 +9760,34 @@ function initializeSignatureTools() {
       signatureAddToEditor();
       return;
     }
+    if (event.target.closest("#signatureRenameButton")) {
+      signatureStartRename();
+      return;
+    }
+    if (event.target.closest("#signatureRenameConfirmButton")) {
+      signatureConfirmRename();
+      return;
+    }
+    if (event.target.closest("#signatureRenameCancelButton")) {
+      document.getElementById("signatureRenameRow").classList.add("hidden");
+      return;
+    }
+    if (event.target.closest("#signatureDuplicateButton")) {
+      signatureDuplicateModel();
+      return;
+    }
+    if (event.target.closest("#signatureDeleteButton")) {
+      signatureDeleteModel();
+      return;
+    }
     if (event.target.closest("#signatureExportPngButton")) {
       signatureExportPng();
     }
+  });
+  document.getElementById("signatureRenameInput").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    signatureConfirmRename();
   });
 }
 
@@ -9890,7 +10029,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=207").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=208").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

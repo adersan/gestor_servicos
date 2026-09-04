@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=143">
+  <link rel="stylesheet" href="styles.css?v=144">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -1962,6 +1962,20 @@
       <h3 class="signature-section-title">Meus modelos</h3>
       <div id="signatureMyModels" class="signature-model-grid"></div>
 
+      <div id="signatureModelActions" class="signature-model-actions hidden">
+        <span class="meta">Modelo selecionado: <strong id="signatureSelectedModelName"></strong></span>
+        <div class="signature-model-actions-buttons">
+          <button class="table-action" type="button" id="signatureRenameButton">Renomear</button>
+          <button class="table-action" type="button" id="signatureDuplicateButton">Duplicar</button>
+          <button class="table-action danger" type="button" id="signatureDeleteButton">Excluir</button>
+        </div>
+        <div id="signatureRenameRow" class="signature-rename-row hidden">
+          <input id="signatureRenameInput" type="text" maxlength="60" placeholder="Novo nome do modelo">
+          <button class="secondary" type="button" id="signatureRenameCancelButton">Cancelar</button>
+          <button class="primary" type="button" id="signatureRenameConfirmButton">Salvar</button>
+        </div>
+      </div>
+
       <div id="signatureNewModelForm" class="signature-new-model-form hidden">
         <label>Nome do modelo<input id="signatureModelName" type="text" maxlength="60" placeholder="Ex.: Assinatura clássica"></label>
         <label>Arquivo de fonte (.ttf, .otf, .woff, .woff2)<input id="signatureModelFontFile" type="file" accept=".ttf,.otf,.woff,.woff2"></label>
@@ -2582,7 +2596,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=54"></script>
-  <script src="app.js?v=191"></script>
+  <script src="app.js?v=192"></script>
   <script src="supplier.js?v=67"></script>
 </body>
 </html>
