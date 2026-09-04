@@ -122,7 +122,7 @@
     // usado de verdade (loadSignatureFont em app.js), pra nao pesar no egress do Supabase
     // a cada fetchAll.
     const signatureModelsQuery = await client.from("signature_models")
-      .select("id,name,model_type,font_family,font_mime,style,is_system_model,is_active,created_at,updated_at")
+      .select("id,name,model_type,font_family,font_mime,style,is_system_model,is_active,created_at,updated_at,reference_image_mime,analysis_summary")
       .eq("is_active", true).order("is_system_model", { ascending: false }).order("created_at");
     if (signatureModelsQuery.error) {
       const message = signatureModelsQuery.error.message || "";
@@ -325,6 +325,9 @@
         fontData: "",
         fontMime: item.font_mime,
         style: item.style || {},
+        referenceImageData: "",
+        referenceImageMime: item.reference_image_mime || "",
+        analysisSummary: item.analysis_summary || "",
         isSystemModel: Boolean(item.is_system_model),
         isActive: item.is_active !== false,
         createdAt: item.created_at,
@@ -642,23 +645,32 @@
     if (state.signatureModels?.length) {
       // So grava modelos que tem o arquivo da fonte carregado localmente (recem-criados
       // neste aparelho, ou ja usados nesta sessao) - o fetchAll traz os modelos SEM o
-      // font_data de proposito (economia de egress), entao gravar um modelo sem fontData
-      // sobrescreveria a fonte no banco com vazio. Nao ha edicao de modelo nesta fase,
-      // so criar (sempre com fontData) e excluir (via deleteMissing, que nao passa aqui).
+      // font_data/reference_image_data de proposito (economia de egress), entao gravar um
+      // modelo sem esses dados sobrescreveria o banco com vazio. Modelos do tipo "image"
+      // exigem tambem reference_image_data carregado (ensureSignatureReferenceImageData),
+      // senao a linha fica de fora do upsert ate ser carregada sob demanda.
       const rows = state.signatureModels
-        .filter((item) => item.fontData)
-        .map((item) => ({
-          id: item.id,
-          name: item.name,
-          model_type: item.modelType || "font",
-          font_family: item.fontFamily,
-          font_data: item.fontData,
-          font_mime: item.fontMime,
-          style: item.style || {},
-          is_system_model: Boolean(item.isSystemModel),
-          is_active: item.isActive !== false,
-          updated_at: new Date().toISOString()
-        }));
+        .filter((item) => item.fontData && (item.modelType !== "image" || item.referenceImageData))
+        .map((item) => {
+          const row = {
+            id: item.id,
+            name: item.name,
+            model_type: item.modelType || "font",
+            font_family: item.fontFamily,
+            font_data: item.fontData,
+            font_mime: item.fontMime,
+            style: item.style || {},
+            is_system_model: Boolean(item.isSystemModel),
+            is_active: item.isActive !== false,
+            updated_at: new Date().toISOString()
+          };
+          if (item.modelType === "image") {
+            row.reference_image_data = item.referenceImageData;
+            row.reference_image_mime = item.referenceImageMime || "";
+            row.analysis_summary = item.analysisSummary || "";
+          }
+          return row;
+        });
       if (rows.length) {
         const result = await client.from("signature_models").upsert(rows, { onConflict: "id" });
         if (result.error && !/signature_models|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {

@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=144">
+  <link rel="stylesheet" href="styles.css?v=145">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -1967,6 +1967,7 @@
         <div class="signature-model-actions-buttons">
           <button class="table-action" type="button" id="signatureRenameButton">Renomear</button>
           <button class="table-action" type="button" id="signatureDuplicateButton">Duplicar</button>
+          <button class="table-action hidden" type="button" id="signatureReanalyzeButton">Reanalisar com IA</button>
           <button class="table-action danger" type="button" id="signatureDeleteButton">Excluir</button>
         </div>
         <div id="signatureRenameRow" class="signature-rename-row hidden">
@@ -1978,8 +1979,21 @@
 
       <div id="signatureNewModelForm" class="signature-new-model-form hidden">
         <label>Nome do modelo<input id="signatureModelName" type="text" maxlength="60" placeholder="Ex.: Assinatura clássica"></label>
-        <label>Arquivo de fonte (.ttf, .otf, .woff, .woff2)<input id="signatureModelFontFile" type="file" accept=".ttf,.otf,.woff,.woff2"></label>
-        <p class="meta">Use apenas fontes que você tenha autorização para utilizar.</p>
+        <div class="signature-model-type-toggle">
+          <label><input type="radio" name="signatureModelType" value="font" checked> Fonte</label>
+          <label><input type="radio" name="signatureModelType" value="image"> Imagem de referência</label>
+        </div>
+        <div id="signatureFontTypeFields">
+          <label>Arquivo de fonte (.ttf, .otf, .woff, .woff2)<input id="signatureModelFontFile" type="file" accept=".ttf,.otf,.woff,.woff2"></label>
+          <p class="meta">Use apenas fontes que você tenha autorização para utilizar.</p>
+        </div>
+        <div id="signatureImageTypeFields" class="hidden">
+          <label>Fonte base<select id="signatureBaseFontSelect"></select></label>
+          <label>Imagem de referência (.png, .jpg, .webp)<input id="signatureModelReferenceImageFile" type="file" accept=".png,.jpg,.jpeg,.webp"></label>
+          <p class="meta">Use apenas estilos, imagens e assinaturas que você tenha autorização para utilizar.</p>
+          <button class="secondary" type="button" id="signatureAnalyzeButton">Analisar com IA</button>
+          <p id="signatureAnalysisHint" class="meta hidden"></p>
+        </div>
         <div class="signature-new-model-actions">
           <button class="secondary" type="button" id="signatureCancelNewModelButton">Cancelar</button>
           <button class="primary" type="button" id="signatureSaveModelButton">Salvar modelo</button>
@@ -2595,8 +2609,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=54"></script>
-  <script src="app.js?v=192"></script>
+  <script src="data.js?v=55"></script>
+  <script src="app.js?v=193"></script>
   <script src="supplier.js?v=67"></script>
 </body>
 </html>

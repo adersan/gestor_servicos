@@ -9,13 +9,17 @@ function extractFunction(name, nextName) {
   const end = source.indexOf(`function ${nextName}`, start);
   assert.notEqual(start, -1, `Function ${name} was not found`);
   assert.notEqual(end, -1, `Function boundary ${nextName} was not found`);
-  return source.slice(start, end);
+  // Se a proxima funcao for "async function ...", o indexOf acha "function" depois do
+  // "async" - remove o "async" solto que sobra no fim do trecho extraido.
+  return source.slice(start, end).replace(/\basync\s*$/, "");
 }
 
 const context = {
   console,
   SIGNATURE_MAX_FONT_BYTES: 2 * 1024 * 1024,
-  SIGNATURE_FONT_EXTENSIONS: [".ttf", ".otf", ".woff", ".woff2"]
+  SIGNATURE_FONT_EXTENSIONS: [".ttf", ".otf", ".woff", ".woff2"],
+  SIGNATURE_MAX_IMAGE_BYTES: 3 * 1024 * 1024,
+  SIGNATURE_IMAGE_MIME_ALLOWLIST: ["image/png", "image/jpeg", "image/webp"]
 };
 vm.createContext(context);
 
@@ -46,6 +50,30 @@ vm.runInContext(extractFunction("signatureValidateFontFile", "signatureFontMimeF
     context.signatureValidateFontFile({ name: "assinatura.woff2", size: 3 * 1024 * 1024 }),
     /muito grande/,
     "rejects file over the 2MB limit"
+  );
+}
+
+vm.runInContext(extractFunction("signatureValidateReferenceImage", "signatureCallAnalyzeApi"), context);
+{
+  assert.equal(
+    context.signatureValidateReferenceImage({ type: "image/png", size: 1000 }),
+    null,
+    "valid PNG under the limit passes"
+  );
+  assert.equal(
+    context.signatureValidateReferenceImage({ type: "image/webp", size: 1000 }),
+    null,
+    "valid WEBP under the limit passes"
+  );
+  assert.match(
+    context.signatureValidateReferenceImage({ type: "font/ttf", size: 1000 }),
+    /não suportado/,
+    "rejects a non-image mime type"
+  );
+  assert.match(
+    context.signatureValidateReferenceImage({ type: "image/png", size: 4 * 1024 * 1024 }),
+    /muito grande/,
+    "rejects an image over the 3MB limit"
   );
 }
 

@@ -9341,8 +9341,13 @@ function initializeReportsTools() {
 const signatureFontCache = new Set();
 const SIGNATURE_MAX_FONT_BYTES = 2 * 1024 * 1024;
 const SIGNATURE_FONT_EXTENSIONS = [".ttf", ".otf", ".woff", ".woff2"];
+const SIGNATURE_MAX_IMAGE_BYTES = 3 * 1024 * 1024;
+const SIGNATURE_IMAGE_MIME_ALLOWLIST = ["image/png", "image/jpeg", "image/webp"];
 let signatureSelectedModelId = null;
 let signaturePreviewTimer = null;
+// Ultimo resultado de "Analisar com IA" ainda nao salvo - limpo sempre que o
+// formulario de novo modelo abre/fecha, pra nao vazar de uma tentativa pra outra.
+let signaturePendingAnalysis = null;
 
 function signatureFontFamilyName(model) {
   return model.fontFamily || `signature-model-${model.id}`;
@@ -9358,6 +9363,17 @@ async function ensureSignatureFontData(model) {
   if (result.error) throw result.error;
   model.fontData = result.data?.font_data || "";
   if (!model.fontData) throw new Error("Fonte do modelo não encontrada.");
+}
+
+async function ensureSignatureReferenceImageData(model) {
+  if (model.referenceImageData) return;
+  // Mesmo padrao de ensureSignatureFontData - imagem de referencia fica fora do
+  // fetchAll, carregada sob demanda so ao reanalisar ou duplicar um modelo "image".
+  const result = await window.supabaseClient
+    .from("signature_models").select("reference_image_data").eq("id", model.id).single();
+  if (result.error) throw result.error;
+  model.referenceImageData = result.data?.reference_image_data || "";
+  if (!model.referenceImageData) throw new Error("Imagem de referência do modelo não encontrada.");
 }
 
 async function loadSignatureFont(model) {
@@ -9400,6 +9416,11 @@ function signatureSyncModelActions() {
   // Modelos do sistema so podem ser duplicados; renomear/excluir e so pros seus.
   document.getElementById("signatureRenameButton").classList.toggle("hidden", model.isSystemModel);
   document.getElementById("signatureDeleteButton").classList.toggle("hidden", model.isSystemModel);
+  // Reanalisar so faz sentido pra modelos proprios criados a partir de imagem.
+  document.getElementById("signatureReanalyzeButton").classList.toggle(
+    "hidden",
+    model.isSystemModel || model.modelType !== "image"
+  );
 }
 
 function renderSignatureModelGallery() {
@@ -9487,8 +9508,17 @@ function signatureScheduleRenderPreview() {
   signaturePreviewTimer = setTimeout(signatureRenderPreview, 200);
 }
 
+function signatureApplyModelStyleToSliders(model) {
+  const style = model?.style || {};
+  document.getElementById("signatureSlant").value = Number.isFinite(style.slant) ? style.slant : 0;
+  document.getElementById("signatureLetterSpacing").value = Number.isFinite(style.letterSpacing) ? style.letterSpacing : 0;
+}
+
 function signatureSelectModel(modelId) {
   signatureSelectedModelId = modelId;
+  // Modelos "image" ja tem inclinacao/espacamento sugeridos pela IA - pre-preenche
+  // os sliders com o que foi salvo, em vez de deixar o valor da selecao anterior.
+  signatureApplyModelStyleToSliders(selectedSignatureModel());
   renderSignatureModelGallery();
   signatureRenderPreview();
 }
@@ -9536,6 +9566,7 @@ async function signatureDuplicateModel() {
   button.textContent = "Duplicando...";
   try {
     await ensureSignatureFontData(model);
+    if (model.modelType === "image") await ensureSignatureReferenceImageData(model);
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
     const copy = {
@@ -9661,40 +9692,183 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function signatureValidateReferenceImage(file) {
+  if (!SIGNATURE_IMAGE_MIME_ALLOWLIST.includes(file.type)) {
+    return "Formato de imagem não suportado. Use PNG, JPG ou WEBP.";
+  }
+  if (file.size > SIGNATURE_MAX_IMAGE_BYTES) return "Imagem muito grande. O limite é 3MB.";
+  return null;
+}
+
+async function signatureCallAnalyzeApi(imageBase64, mediaType) {
+  const { data } = await window.supabaseClient.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
+  const response = await fetch("/.netlify/functions/analyze-signature-style", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ imageBase64, mediaType })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Não foi possível analisar a imagem.");
+  return result;
+}
+
+function signaturePopulateBaseFontSelect() {
+  const select = document.getElementById("signatureBaseFontSelect");
+  const fonts = (state.signatureModels || []).filter(
+    (item) => (item.modelType || "font") === "font" && item.isActive !== false
+  );
+  select.innerHTML = fonts.map((font) => `<option value="${font.id}">${escapeHtml(font.name)}</option>`).join("");
+}
+
+function signatureShowModelTypeFields(type) {
+  document.getElementById("signatureFontTypeFields").classList.toggle("hidden", type !== "font");
+  document.getElementById("signatureImageTypeFields").classList.toggle("hidden", type !== "image");
+  if (type === "image") signaturePopulateBaseFontSelect();
+}
+
+async function signatureAnalyzeReferenceImage() {
+  const file = document.getElementById("signatureModelReferenceImageFile").files?.[0];
+  const hint = document.getElementById("signatureAnalysisHint");
+  if (!file) return showAppAlert("Selecione uma imagem de referência.", { type: "warning" });
+  const validationError = signatureValidateReferenceImage(file);
+  if (validationError) return showAppAlert(validationError, { type: "warning" });
+  const button = document.getElementById("signatureAnalyzeButton");
+  button.disabled = true;
+  button.textContent = "Analisando...";
+  hint.classList.remove("hidden");
+  hint.textContent = "Analisando estilo...";
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+    const result = await signatureCallAnalyzeApi(base64, file.type);
+    signaturePendingAnalysis = { style: result.style || {}, summary: result.summary || "" };
+    document.getElementById("signatureSlant").value = signaturePendingAnalysis.style.slant || 0;
+    document.getElementById("signatureLetterSpacing").value = signaturePendingAnalysis.style.letterSpacing || 0;
+    hint.textContent = signaturePendingAnalysis.summary
+      ? `Estilo analisado: ${signaturePendingAnalysis.summary}`
+      : "Estilo analisado com sucesso.";
+    signatureScheduleRenderPreview();
+  } catch (error) {
+    console.error("Falha ao analisar imagem de assinatura:", error);
+    hint.classList.add("hidden");
+    showAppAlert(error.message || "Não foi possível analisar a imagem.", { type: "error" });
+  } finally {
+    button.disabled = false;
+    button.textContent = "Analisar com IA";
+  }
+}
+
+async function signatureReanalyzeModel() {
+  const model = selectedSignatureModel();
+  if (!model || model.isSystemModel || model.modelType !== "image") return;
+  const button = document.getElementById("signatureReanalyzeButton");
+  button.disabled = true;
+  button.textContent = "Analisando...";
+  try {
+    await ensureSignatureReferenceImageData(model);
+    const result = await signatureCallAnalyzeApi(model.referenceImageData, model.referenceImageMime);
+    model.style = result.style || {};
+    model.analysisSummary = result.summary || "";
+    model.updatedAt = new Date().toISOString();
+    await window.persistStateNow();
+    signatureApplyModelStyleToSliders(model);
+    renderSignatureModelGallery();
+    await signatureRenderPreview();
+    showAppAlert("Modelo reanalisado com sucesso.", { type: "success" });
+  } catch (error) {
+    console.error("Falha ao reanalisar modelo:", error);
+    showAppAlert(error.message || "Não foi possível reanalisar o modelo.", { type: "error" });
+  } finally {
+    button.disabled = false;
+    button.textContent = "Reanalisar com IA";
+  }
+}
+
 function signatureShowNewModelForm(show) {
   document.getElementById("signatureNewModelForm").classList.toggle("hidden", !show);
+  if (show) {
+    // Sempre comeca no modo fonte, sem analise pendente de uma tentativa anterior.
+    signaturePendingAnalysis = null;
+    const fontRadio = document.querySelector('input[name="signatureModelType"][value="font"]');
+    if (fontRadio) fontRadio.checked = true;
+    signatureShowModelTypeFields("font");
+    document.getElementById("signatureAnalysisHint").classList.add("hidden");
+  }
+}
+
+async function signatureBuildFontModel(nameInput, fileInput) {
+  const name = nameInput.value.trim();
+  const file = fileInput.files?.[0];
+  if (!name) throw { userMessage: "Digite um nome para o modelo." };
+  if (!file) throw { userMessage: "Selecione um arquivo de fonte." };
+  const validationError = signatureValidateFontFile(file);
+  if (validationError) throw { userMessage: validationError };
+  const dataUrl = await readFileAsDataUrl(file);
+  const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  return {
+    id,
+    name,
+    modelType: "font",
+    fontFamily: `signature-${id}`,
+    fontData: base64,
+    fontMime: signatureFontMimeFor(file.name),
+    style: {},
+    isSystemModel: false,
+    isActive: true,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+async function signatureBuildImageModel(nameInput) {
+  const name = nameInput.value.trim();
+  const baseFontSelect = document.getElementById("signatureBaseFontSelect");
+  const imageFileInput = document.getElementById("signatureModelReferenceImageFile");
+  const imageFile = imageFileInput.files?.[0];
+  if (!name) throw { userMessage: "Digite um nome para o modelo." };
+  const baseFont = (state.signatureModels || []).find((item) => item.id === baseFontSelect.value);
+  if (!baseFont) throw { userMessage: "Selecione uma fonte base." };
+  if (!imageFile) throw { userMessage: "Selecione uma imagem de referência." };
+  const imageError = signatureValidateReferenceImage(imageFile);
+  if (imageError) throw { userMessage: imageError };
+  if (!signaturePendingAnalysis) throw { userMessage: "Clique em \"Analisar com IA\" antes de salvar." };
+  await ensureSignatureFontData(baseFont);
+  const dataUrl = await readFileAsDataUrl(imageFile);
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  return {
+    id,
+    name,
+    modelType: "image",
+    fontFamily: `signature-${id}`,
+    fontData: baseFont.fontData,
+    fontMime: baseFont.fontMime,
+    referenceImageData: dataUrl.slice(dataUrl.indexOf(",") + 1),
+    referenceImageMime: imageFile.type,
+    style: signaturePendingAnalysis.style || {},
+    analysisSummary: signaturePendingAnalysis.summary || "",
+    isSystemModel: false,
+    isActive: true,
+    createdAt: now,
+    updatedAt: now
+  };
 }
 
 async function signatureSaveNewModel() {
   const nameInput = document.getElementById("signatureModelName");
   const fileInput = document.getElementById("signatureModelFontFile");
-  const name = nameInput.value.trim();
-  const file = fileInput.files?.[0];
-  if (!name) return showAppAlert("Digite um nome para o modelo.", { type: "warning" });
-  if (!file) return showAppAlert("Selecione um arquivo de fonte.", { type: "warning" });
-  const validationError = signatureValidateFontFile(file);
-  if (validationError) return showAppAlert(validationError, { type: "warning" });
+  const modelType = document.querySelector('input[name="signatureModelType"]:checked')?.value || "font";
   const button = document.getElementById("signatureSaveModelButton");
   button.disabled = true;
   button.textContent = "Salvando...";
   try {
-    const dataUrl = await readFileAsDataUrl(file);
-    const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
-    const now = new Date().toISOString();
-    const id = crypto.randomUUID();
-    const model = {
-      id,
-      name,
-      modelType: "font",
-      fontFamily: `signature-${id}`,
-      fontData: base64,
-      fontMime: signatureFontMimeFor(file.name),
-      style: {},
-      isSystemModel: false,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now
-    };
+    const model = modelType === "image"
+      ? await signatureBuildImageModel(nameInput)
+      : await signatureBuildFontModel(nameInput, fileInput);
     state.signatureModels = state.signatureModels || [];
     state.signatureModels.push(model);
     await window.persistStateNow();
@@ -9703,11 +9877,16 @@ async function signatureSaveNewModel() {
     signatureShowNewModelForm(false);
     nameInput.value = "";
     fileInput.value = "";
+    document.getElementById("signatureModelReferenceImageFile").value = "";
     renderSignatureModelGallery();
     await signatureRenderPreview();
   } catch (error) {
-    console.error("Falha ao salvar modelo de assinatura:", error);
-    showAppAlert(error.message || "Não foi possível salvar o modelo.", { type: "error" });
+    if (error?.userMessage) {
+      showAppAlert(error.userMessage, { type: "warning" });
+    } else {
+      console.error("Falha ao salvar modelo de assinatura:", error);
+      showAppAlert(error.message || "Não foi possível salvar o modelo.", { type: "error" });
+    }
   } finally {
     button.disabled = false;
     button.textContent = "Salvar modelo";
@@ -9717,6 +9896,8 @@ async function signatureSaveNewModel() {
 function openSignatureDialog() {
   signatureSelectedModelId = (state.signatureModels || []).find((item) => item.isActive !== false)?.id || null;
   document.getElementById("signatureTextInput").value = "";
+  signaturePendingAnalysis = null;
+  signatureApplyModelStyleToSliders(selectedSignatureModel());
   renderSignatureModelGallery();
   // Sem nenhum modelo cadastrado ainda, abre direto o formulario de "Novo modelo"
   // em vez de deixar o usuario procurar o card "+" - evita a tela ficar em
@@ -9738,7 +9919,18 @@ function initializeSignatureTools() {
   ["signatureTextInput", "signatureSize", "signatureColor", "signatureSlant", "signatureLetterSpacing"].forEach((id) => {
     document.getElementById(id).addEventListener("input", signatureScheduleRenderPreview);
   });
+  document.querySelectorAll('input[name="signatureModelType"]').forEach((radio) => {
+    radio.addEventListener("change", (event) => signatureShowModelTypeFields(event.target.value));
+  });
   dialog.addEventListener("click", (event) => {
+    if (event.target.closest("#signatureAnalyzeButton")) {
+      signatureAnalyzeReferenceImage();
+      return;
+    }
+    if (event.target.closest("#signatureReanalyzeButton")) {
+      signatureReanalyzeModel();
+      return;
+    }
     const modelCard = event.target.closest("[data-signature-model]");
     if (modelCard) {
       signatureSelectModel(modelCard.dataset.signatureModel);
@@ -10029,7 +10221,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=208").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=209").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
