@@ -23,6 +23,7 @@
     clients: new Set(),
     catalog: new Set(),
     signatureModels: new Set(),
+    savedSignatures: new Set(),
     priceTableNames: new Set()
   };
 
@@ -39,6 +40,7 @@
     knownRemoteIds.clients = new Set((source.clients || []).map((item) => item.id));
     knownRemoteIds.catalog = new Set((source.catalog || []).map((item) => item.id));
     knownRemoteIds.signatureModels = new Set((source.signatureModels || []).map((item) => item.id));
+    knownRemoteIds.savedSignatures = new Set((source.savedSignatures || []).map((item) => item.id));
     knownRemoteIds.priceTableNames = new Set(source.priceTables || []);
   }
 
@@ -129,6 +131,19 @@
       if (!/signature_models|schema cache|does not exist|Could not find/i.test(message)) throw signatureModelsQuery.error;
     } else {
       signatureModelsResult = signatureModelsQuery;
+    }
+    let savedSignaturesResult = { data: [] };
+    // image_data (PNG final em base64, pode chegar a algumas centenas de KB) fica FORA
+    // do fetchAll de proposito, mesmo padrao ja usado por font_data/reference_image_data -
+    // carregada sob demanda so quando o item e realmente aberto/reutilizado.
+    const savedSignaturesQuery = await client.from("saved_signatures")
+      .select("id,name,source,image_mime,thumbnail_data,created_at,updated_at")
+      .order("created_at", { ascending: false });
+    if (savedSignaturesQuery.error) {
+      const message = savedSignaturesQuery.error.message || "";
+      if (!/saved_signatures|schema cache|does not exist|Could not find/i.test(message)) throw savedSignaturesQuery.error;
+    } else {
+      savedSignaturesResult = savedSignaturesQuery;
     }
     let appSettingsResult = { data: [] };
     const appSettingsQuery = await client.from("app_settings").select("*").eq("id", "default");
@@ -330,6 +345,16 @@
         analysisSummary: item.analysis_summary || "",
         isSystemModel: Boolean(item.is_system_model),
         isActive: item.is_active !== false,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at
+      })),
+      savedSignatures: savedSignaturesResult.data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        source: item.source || "digitized",
+        imageData: "",
+        imageMime: item.image_mime || "image/png",
+        thumbnailData: item.thumbnail_data || "",
         createdAt: item.created_at,
         updatedAt: item.updated_at
       })),
@@ -678,6 +703,28 @@
         }
       }
     }
+    if (state.savedSignatures?.length) {
+      // Mesma protecao do bloco de signature_models acima - so grava linhas com o PNG
+      // final carregado (recem-salvo neste aparelho, ou ja carregado sob demanda nesta
+      // sessao), senao sobrescreveria a imagem no banco com vazio.
+      const rows = state.savedSignatures
+        .filter((item) => item.imageData)
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          source: item.source || "digitized",
+          image_data: item.imageData,
+          image_mime: item.imageMime || "image/png",
+          thumbnail_data: item.thumbnailData || "",
+          updated_at: new Date().toISOString()
+        }));
+      if (rows.length) {
+        const result = await client.from("saved_signatures").upsert(rows, { onConflict: "id" });
+        if (result.error && !/saved_signatures|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
+          throw result.error;
+        }
+      }
+    }
     if (state.serviceRequests?.length) {
       const rows = state.serviceRequests.map((item) => ({
         id: item.id,
@@ -739,6 +786,11 @@
       await deleteMissing("signature_models", (state.signatureModels || []).map((item) => item.id), knownRemoteIds.signatureModels);
     } catch (error) {
       if (!/signature_models|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
+    }
+    try {
+      await deleteMissing("saved_signatures", (state.savedSignatures || []).map((item) => item.id), knownRemoteIds.savedSignatures);
+    } catch (error) {
+      if (!/saved_signatures|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
     }
 
     const activeTableNames = new Set(state.priceTables);

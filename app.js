@@ -40,6 +40,7 @@ const initialState = {
   serviceRequests: [],
   paymentLinks: [],
   signatureModels: [],
+  savedSignatures: [],
   periodSettings: null
 };
 
@@ -5057,6 +5058,7 @@ document.addEventListener("click", async (event) => {
     if (dialogButton.dataset.dialog === "clientDialog") openClientForm();
     else if (dialogButton.dataset.dialog === "catalogDialog") openCatalogForm();
     else if (dialogButton.dataset.dialog === "signatureDialog") openSignatureDialog();
+    else if (dialogButton.dataset.dialog === "savedSignaturesDialog") openSavedSignaturesDialog();
     else if (dialogButton.dataset.dialog === "serviceDialog") {
       const preferredClient = uniqueClientMatch(document.getElementById("serviceClientNameFilter").value);
       openEntryForm(null, preferredClient?.id || "");
@@ -7008,6 +7010,10 @@ let extrasShapeStart = null;
 let extrasPendingFile = null;
 let extrasRawResultCanvas = null;
 let extrasSensitivity = 0;
+// Qual acao produziu o resultado atual da tela antes/depois - so "digitize-signature" e
+// "generate-handwriting" fazem sentido salvar como assinatura (remove-bg processa
+// fotos de qualquer assunto, nao so assinaturas).
+let extrasBeforeAfterSource = null;
 let extrasPreviewObjectUrl = null;
 let extrasObjectSeq = 1;
 let extrasObjectDrag = null;
@@ -7305,6 +7311,7 @@ async function extrasProceedDigitizeSignature() {
     document.getElementById("extrasSensitivity").value = 0;
     document.getElementById("extrasBeforeImage").src = extrasPreviewObjectUrl;
     extrasRenderSensitivityPreview();
+    extrasSetBeforeAfterSource("digitize-signature");
     extrasShowPanel("beforeAfter");
   } catch (error) {
     console.error("Falha ao digitalizar assinatura:", error);
@@ -7318,6 +7325,26 @@ function extrasBase64ToBlob(base64, mime) {
   return new Blob([bytes], { type: mime });
 }
 
+const EXTRAS_HANDWRITING_POLL_INTERVAL_MS = 3000;
+const EXTRAS_HANDWRITING_POLL_MAX_ATTEMPTS = 40; // ~2 minutos no total
+
+// A geracao de imagem na OpenAI costuma passar do limite de 60s de uma function
+// sincrona da Netlify - por isso o pedido vai pra uma Background Function (ate 15min)
+// e o navegador fica consultando o andamento aqui ate ficar pronto ou dar erro.
+async function extrasPollHandwritingJob(jobId, accessToken) {
+  for (let attempt = 0; attempt < EXTRAS_HANDWRITING_POLL_MAX_ATTEMPTS; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, EXTRAS_HANDWRITING_POLL_INTERVAL_MS));
+    const response = await fetch(`/.netlify/functions/handwriting-job-status?jobId=${encodeURIComponent(jobId)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Não foi possível consultar o andamento.");
+    if (result.status === "done") return result.imageBase64;
+    if (result.status === "error") throw new Error(result.errorMessage || "Não foi possível gerar a imagem.");
+  }
+  throw new Error("A geração demorou demais. Tente novamente mais tarde.");
+}
+
 // Experimental: gera um texto novo "na caligrafia" de uma imagem de referencia via IA
 // de geracao de imagem (OpenAI, fora do escopo da Claude - ela nao gera imagem). Sem
 // garantia de fidelidade ao estilo da referencia, ja avisado na propria tela. Pede fundo
@@ -7328,6 +7355,8 @@ async function extrasProceedGenerateHandwriting() {
   if (!extrasPendingFile) return;
   const text = document.getElementById("extrasHandwritingText").value.trim();
   if (!text) return showAppAlert("Digite o texto a ser gerado.", { type: "warning" });
+  document.getElementById("extrasLoadingTitle").textContent = "Gerando com IA (experimental)…";
+  document.getElementById("extrasLoadingSubtitle").textContent = "Isso pode levar até 2 minutos.";
   extrasShowPanel("loading");
   try {
     const { data } = await window.supabaseClient.auth.getSession();
@@ -7335,15 +7364,17 @@ async function extrasProceedGenerateHandwriting() {
     if (!accessToken) throw new Error("Sua sessão administrativa expirou.");
     const dataUrl = await readFileAsDataUrl(extrasPendingFile);
     const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
-    const response = await fetch("/.netlify/functions/generate-handwriting", {
+    const jobId = crypto.randomUUID();
+    // Dispara a Background Function (sempre responde 202 vazio na hora, por design da
+    // Netlify) e passa a consultar o andamento por polling.
+    await fetch("/.netlify/functions/generate-handwriting-background", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ imageBase64: base64, mediaType: extrasPendingFile.type, text })
+      body: JSON.stringify({ jobId, imageBase64: base64, mediaType: extrasPendingFile.type, text })
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "Não foi possível gerar a imagem.");
+    const resultBase64 = await extrasPollHandwritingJob(jobId, accessToken);
 
-    const rawBitmap = await createImageBitmap(extrasBase64ToBlob(result.imageBase64, "image/png"));
+    const rawBitmap = await createImageBitmap(extrasBase64ToBlob(resultBase64, "image/png"));
     const rawAiCanvas = document.createElement("canvas");
     rawAiCanvas.width = rawBitmap.width;
     rawAiCanvas.height = rawBitmap.height;
@@ -7358,11 +7389,15 @@ async function extrasProceedGenerateHandwriting() {
     // referencia), so a comparacao bruto/limpo faz sentido nesta tela.
     document.getElementById("extrasBeforeImage").src = rawAiCanvas.toDataURL("image/png");
     extrasRenderSensitivityPreview();
+    extrasSetBeforeAfterSource("generate-handwriting");
     extrasShowPanel("beforeAfter");
   } catch (error) {
     console.error("Falha ao gerar caligrafia com IA:", error);
     document.getElementById("extrasErrorMessage").textContent = error.message || "Não foi possível gerar a imagem.";
     extrasShowPanel("error");
+  } finally {
+    document.getElementById("extrasLoadingTitle").textContent = "Processando a imagem…";
+    document.getElementById("extrasLoadingSubtitle").textContent = "Isso leva alguns segundos.";
   }
 }
 
@@ -7416,6 +7451,7 @@ async function extrasProceedRemoveBg() {
     document.getElementById("extrasSensitivity").value = 0;
     document.getElementById("extrasBeforeImage").src = extrasPreviewObjectUrl;
     extrasRenderSensitivityPreview();
+    extrasSetBeforeAfterSource("remove-bg");
     extrasShowPanel("beforeAfter");
   } catch (error) {
     document.getElementById("extrasErrorMessage").textContent = error.message;
@@ -7423,9 +7459,60 @@ async function extrasProceedRemoveBg() {
   }
 }
 
+function extrasSetBeforeAfterSource(source) {
+  extrasBeforeAfterSource = source;
+  // "Salvar assinatura" so faz sentido pros dois fluxos pensados pra assinatura -
+  // "Remover fundo" processa foto de qualquer assunto, entao fica escondido ali.
+  document.getElementById("extrasSaveSignatureButton").classList.toggle(
+    "hidden",
+    source !== "digitize-signature" && source !== "generate-handwriting"
+  );
+  extrasShowSaveSignatureForm(false);
+}
+
+function extrasShowSaveSignatureForm(show) {
+  document.getElementById("extrasSaveSignatureForm").classList.toggle("hidden", !show);
+  if (show) document.getElementById("extrasSaveSignatureName").focus();
+  else document.getElementById("extrasSaveSignatureName").value = "";
+}
+
+async function extrasConfirmSaveSignature() {
+  if (!extrasRawResultCanvas) return;
+  const name = document.getElementById("extrasSaveSignatureName").value.trim();
+  if (!name) return showAppAlert("Digite um nome para a assinatura.", { type: "warning" });
+  const button = document.getElementById("extrasSaveSignatureConfirmButton");
+  button.disabled = true;
+  try {
+    const finalCanvas = extrasApplySensitivityToCanvas(extrasRawResultCanvas, extrasSensitivity);
+    const dataUrl = finalCanvas.toDataURL("image/png");
+    const now = new Date().toISOString();
+    const item = {
+      id: crypto.randomUUID(),
+      name,
+      source: extrasBeforeAfterSource === "generate-handwriting" ? "generated" : "digitized",
+      imageData: dataUrl.slice(dataUrl.indexOf(",") + 1),
+      imageMime: "image/png",
+      thumbnailData: extrasGenerateThumbnail(finalCanvas, 160),
+      createdAt: now,
+      updatedAt: now
+    };
+    state.savedSignatures = state.savedSignatures || [];
+    state.savedSignatures.push(item);
+    await window.persistStateNow();
+    extrasShowSaveSignatureForm(false);
+    showAppAlert("Assinatura salva com sucesso. Veja em \"Minhas assinaturas\".", { type: "success" });
+  } catch (error) {
+    console.error("Falha ao salvar assinatura:", error);
+    showAppAlert(error.message || "Não foi possível salvar a assinatura.", { type: "error" });
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function extrasCancelBeforeAfter() {
   extrasRawResultCanvas = null;
   extrasSensitivity = 0;
+  extrasShowSaveSignatureForm(false);
   extrasShowPanel(extrasPendingFile ? "preview" : "upload");
 }
 
@@ -10223,6 +10310,206 @@ function initializeSignatureTools() {
   });
 }
 
+// ---- Minhas assinaturas (galeria de assinaturas digitalizadas/geradas) ---------
+// Diferente de signature_models (modelos de ESTILO pra renderizar QUALQUER texto novo
+// via fonte): cada linha aqui e uma imagem FINAL unica (ja limpa/transparente), salva a
+// partir de "Digitalizar assinatura" ou "Gerar com IA", pra reutilizar sem reprocessar.
+
+let savedSignatureSelectedId = null;
+
+function extrasGenerateThumbnail(canvas, maxDim) {
+  const scale = Math.min(1, maxDim / Math.max(canvas.width, canvas.height));
+  const width = Math.max(1, Math.round(canvas.width * scale));
+  const height = Math.max(1, Math.round(canvas.height * scale));
+  const thumb = document.createElement("canvas");
+  thumb.width = width;
+  thumb.height = height;
+  thumb.getContext("2d").drawImage(canvas, 0, 0, width, height);
+  const dataUrl = thumb.toDataURL("image/png");
+  return dataUrl.slice(dataUrl.indexOf(",") + 1);
+}
+
+async function ensureSavedSignatureImageData(item) {
+  if (item.imageData) return;
+  const result = await window.supabaseClient
+    .from("saved_signatures").select("image_data").eq("id", item.id).single();
+  if (result.error) throw result.error;
+  item.imageData = result.data?.image_data || "";
+  if (!item.imageData) throw new Error("Imagem da assinatura não encontrada.");
+}
+
+function savedSignatureCardMarkup(item) {
+  const active = item.id === savedSignatureSelectedId ? "active" : "";
+  const thumbSrc = item.thumbnailData ? `data:${item.imageMime || "image/png"};base64,${item.thumbnailData}` : "";
+  return `<button type="button" class="signature-model-card saved-signature-card ${active}" data-saved-signature="${item.id}">
+    ${thumbSrc ? `<img src="${thumbSrc}" alt="" class="saved-signature-thumb extras-canvas-checkered">` : ""}
+    <strong>${escapeHtml(item.name)}</strong>
+  </button>`;
+}
+
+function selectedSavedSignature() {
+  return (state.savedSignatures || []).find((item) => item.id === savedSignatureSelectedId) || null;
+}
+
+function savedSignatureSyncActions() {
+  const item = selectedSavedSignature();
+  document.getElementById("savedSignatureRenameRow").classList.add("hidden");
+  document.getElementById("savedSignaturesActions").classList.toggle("hidden", !item);
+  document.getElementById("savedSignatureAddToEditorButton").disabled = !item;
+  if (!item) return;
+  document.getElementById("savedSignatureSelectedName").textContent = item.name;
+}
+
+function renderSavedSignaturesGallery() {
+  const items = state.savedSignatures || [];
+  document.getElementById("savedSignaturesGrid").innerHTML = items.length
+    ? items.map(savedSignatureCardMarkup).join("")
+    : `<p class="meta">Nenhuma assinatura salva ainda. Use "Digitalizar assinatura" ou "Gerar com IA" em Extras.</p>`;
+  savedSignatureSyncActions();
+}
+
+function savedSignatureSelect(id) {
+  savedSignatureSelectedId = id;
+  renderSavedSignaturesGallery();
+}
+
+function savedSignatureStartRename() {
+  const item = selectedSavedSignature();
+  if (!item) return;
+  const row = document.getElementById("savedSignatureRenameRow");
+  row.classList.remove("hidden");
+  const input = document.getElementById("savedSignatureRenameInput");
+  input.value = item.name;
+  input.focus();
+  input.select();
+}
+
+async function savedSignatureConfirmRename() {
+  const item = selectedSavedSignature();
+  if (!item) return;
+  const name = document.getElementById("savedSignatureRenameInput").value.trim();
+  if (!name) return showAppAlert("Digite o novo nome da assinatura.", { type: "warning" });
+  const button = document.getElementById("savedSignatureRenameConfirmButton");
+  button.disabled = true;
+  try {
+    // O upsert so grava linhas com imageData presente - garante a imagem carregada
+    // antes de salvar o novo nome (mesmo cuidado ja usado em signatureConfirmRename).
+    await ensureSavedSignatureImageData(item);
+    item.name = name;
+    item.updatedAt = new Date().toISOString();
+    await window.persistStateNow();
+    renderSavedSignaturesGallery();
+    showAppAlert("Assinatura renomeada com sucesso.", { type: "success" });
+  } catch (error) {
+    console.error("Falha ao renomear assinatura:", error);
+    showAppAlert(error.message || "Não foi possível renomear a assinatura.", { type: "error" });
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function savedSignatureDelete() {
+  const item = selectedSavedSignature();
+  if (!item) return;
+  const confirmed = await showAppConfirm(
+    `Excluir a assinatura "${item.name}"? Esta ação não pode ser desfeita.`,
+    { title: "Excluir assinatura" }
+  );
+  if (!confirmed) return;
+  try {
+    state.savedSignatures = state.savedSignatures.filter((entry) => entry.id !== item.id);
+    if (savedSignatureSelectedId === item.id) savedSignatureSelectedId = null;
+    await window.persistStateNow();
+    renderSavedSignaturesGallery();
+    showAppAlert("Assinatura excluída com sucesso.", { type: "success" });
+  } catch (error) {
+    console.error("Falha ao excluir assinatura:", error);
+    showAppAlert(error.message || "Não foi possível excluir a assinatura.", { type: "error" });
+  }
+}
+
+async function savedSignatureDownload() {
+  const item = selectedSavedSignature();
+  if (!item) return;
+  try {
+    await ensureSavedSignatureImageData(item);
+    const blob = extrasBase64ToBlob(item.imageData, item.imageMime || "image/png");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${item.name || "assinatura"}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (error) {
+    console.error("Falha ao baixar assinatura:", error);
+    showAppAlert(error.message || "Não foi possível baixar a assinatura.", { type: "error" });
+  }
+}
+
+async function savedSignatureAddToEditor() {
+  const item = selectedSavedSignature();
+  if (!item) return;
+  try {
+    await ensureSavedSignatureImageData(item);
+    const blob = extrasBase64ToBlob(item.imageData, item.imageMime || "image/png");
+    await extrasLoadResultBlob(blob);
+    extrasShowPanel("editor");
+    extrasApplyZoomStyle();
+    document.getElementById("savedSignaturesDialog").close();
+  } catch (error) {
+    console.error("Falha ao adicionar assinatura ao editor:", error);
+    showAppAlert(error.message || "Não foi possível adicionar a assinatura ao editor.", { type: "error" });
+  }
+}
+
+function openSavedSignaturesDialog() {
+  savedSignatureSelectedId = null;
+  renderSavedSignaturesGallery();
+  document.getElementById("savedSignaturesDialog").showModal();
+}
+
+function initializeSavedSignaturesTools() {
+  const dialog = document.getElementById("savedSignaturesDialog");
+  if (!dialog) return;
+  dialog.addEventListener("click", (event) => {
+    const card = event.target.closest("[data-saved-signature]");
+    if (card) {
+      savedSignatureSelect(card.dataset.savedSignature);
+      return;
+    }
+    if (event.target.closest("#savedSignatureRenameButton")) {
+      savedSignatureStartRename();
+      return;
+    }
+    if (event.target.closest("#savedSignatureRenameConfirmButton")) {
+      savedSignatureConfirmRename();
+      return;
+    }
+    if (event.target.closest("#savedSignatureRenameCancelButton")) {
+      document.getElementById("savedSignatureRenameRow").classList.add("hidden");
+      return;
+    }
+    if (event.target.closest("#savedSignatureDeleteButton")) {
+      savedSignatureDelete();
+      return;
+    }
+    if (event.target.closest("#savedSignatureDownloadButton")) {
+      savedSignatureDownload();
+      return;
+    }
+    if (event.target.closest("#savedSignatureAddToEditorButton")) {
+      savedSignatureAddToEditor();
+    }
+  });
+  document.getElementById("savedSignatureRenameInput").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    savedSignatureConfirmRename();
+  });
+}
+
 function initializeExtrasTools() {
   const dropzone = document.getElementById("extrasDropzone");
   const fileInput = document.getElementById("extrasFileInput");
@@ -10280,6 +10567,15 @@ function initializeExtrasTools() {
     if (event.key !== "Enter") return;
     event.preventDefault();
     extrasProceedGenerateHandwriting();
+  });
+
+  document.getElementById("extrasSaveSignatureButton").addEventListener("click", () => extrasShowSaveSignatureForm(true));
+  document.getElementById("extrasSaveSignatureCancelButton").addEventListener("click", () => extrasShowSaveSignatureForm(false));
+  document.getElementById("extrasSaveSignatureConfirmButton").addEventListener("click", extrasConfirmSaveSignature);
+  document.getElementById("extrasSaveSignatureName").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    extrasConfirmSaveSignature();
   });
 
   document.getElementById("extrasSensitivity").addEventListener("input", (event) => {
@@ -10479,13 +10775,14 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=213").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=214").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
 initializeExtrasTools();
 initializeReportsTools();
 initializeSignatureTools();
+initializeSavedSignaturesTools();
 render();
 window.addEventListener("app-authenticated", (event) => {
   const user = event.detail?.user;

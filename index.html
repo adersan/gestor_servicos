@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=147">
+  <link rel="stylesheet" href="styles.css?v=148">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -730,6 +730,10 @@
           <span aria-hidden="true">✒️</span>
           <span><strong>Escrita personalizada</strong><small>Gere um texto ou assinatura estilizada e exporte em PNG transparente</small></span>
         </button>
+        <button type="button" class="extras-signature-entry" data-dialog="savedSignaturesDialog">
+          <span aria-hidden="true">🗂️</span>
+          <span><strong>Minhas assinaturas</strong><small>Veja, renomeie ou reutilize assinaturas digitalizadas/geradas anteriormente</small></span>
+        </button>
       </div>
 
       <div id="extrasPreviewPanel" class="panel extras-preview-panel hidden">
@@ -752,8 +756,8 @@
 
       <div id="extrasLoadingPanel" class="panel extras-loading-panel hidden">
         <span class="extras-spinner" aria-hidden="true"></span>
-        <strong>Processando a imagem…</strong>
-        <span class="meta">Isso leva alguns segundos.</span>
+        <strong id="extrasLoadingTitle">Processando a imagem…</strong>
+        <span class="meta" id="extrasLoadingSubtitle">Isso leva alguns segundos.</span>
       </div>
 
       <div id="extrasBeforeAfterPanel" class="panel extras-before-after-panel hidden">
@@ -766,7 +770,13 @@
         </label>
         <div class="extras-preview-actions">
           <button type="button" class="secondary" data-extras-action="cancel-before-after">Cancelar</button>
+          <button type="button" class="secondary hidden" id="extrasSaveSignatureButton">Salvar assinatura</button>
           <button type="button" class="primary" data-extras-action="continue-edit">Continuar editando</button>
+        </div>
+        <div id="extrasSaveSignatureForm" class="signature-rename-row hidden">
+          <input type="text" id="extrasSaveSignatureName" maxlength="60" placeholder="Nome da assinatura">
+          <button type="button" class="secondary" id="extrasSaveSignatureCancelButton">Cancelar</button>
+          <button type="button" class="primary" id="extrasSaveSignatureConfirmButton">Salvar</button>
         </div>
       </div>
 
@@ -2029,6 +2039,30 @@
     </div>
   </dialog>
 
+  <dialog id="savedSignaturesDialog" class="wide-dialog">
+    <div class="dialog-heading"><h2>Minhas assinaturas</h2><button class="icon-button" data-close-dialog>×</button></div>
+    <div class="signature-dialog-content">
+      <p class="meta">Assinaturas já digitalizadas ou geradas por IA, prontas pra reutilizar sem repetir o processamento.</p>
+      <div id="savedSignaturesGrid" class="signature-model-grid"></div>
+      <div id="savedSignaturesActions" class="signature-model-actions hidden">
+        <span class="meta">Selecionada: <strong id="savedSignatureSelectedName"></strong></span>
+        <div class="signature-model-actions-buttons">
+          <button class="table-action" type="button" id="savedSignatureRenameButton">Renomear</button>
+          <button class="table-action" type="button" id="savedSignatureDownloadButton">Baixar PNG</button>
+          <button class="table-action danger" type="button" id="savedSignatureDeleteButton">Excluir</button>
+        </div>
+        <div id="savedSignatureRenameRow" class="signature-rename-row hidden">
+          <input id="savedSignatureRenameInput" type="text" maxlength="60" placeholder="Novo nome da assinatura">
+          <button class="secondary" type="button" id="savedSignatureRenameCancelButton">Cancelar</button>
+          <button class="primary" type="button" id="savedSignatureRenameConfirmButton">Salvar</button>
+        </div>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="secondary" type="button" id="savedSignatureAddToEditorButton" disabled>Adicionar ao editor</button>
+    </div>
+  </dialog>
+
   <dialog id="supplierDialog">
     <form id="supplierForm" method="dialog">
       <div class="dialog-heading"><h2 id="supplierDialogTitle">Novo fornecedor</h2><button class="icon-button" value="cancel" data-close-supplier-dialog>×</button></div>
@@ -2619,8 +2653,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
-  <script src="data.js?v=55"></script>
-  <script src="app.js?v=197"></script>
+  <script src="data.js?v=56"></script>
+  <script src="app.js?v=198"></script>
   <script src="supplier.js?v=67"></script>
 </body>
 </html>
