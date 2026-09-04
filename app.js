@@ -9351,6 +9351,15 @@ function signatureFontFamilyName(model) {
 async function loadSignatureFont(model) {
   const family = signatureFontFamilyName(model);
   if (signatureFontCache.has(model.id)) return family;
+  if (!model.fontData) {
+    // A sincronizacao normal traz os modelos sem o arquivo da fonte (economia de
+    // egress) - baixa aqui, uma unica vez por sessao, so quando o modelo e usado.
+    const result = await window.supabaseClient
+      .from("signature_models").select("font_data").eq("id", model.id).single();
+    if (result.error) throw result.error;
+    model.fontData = result.data?.font_data || "";
+    if (!model.fontData) throw new Error("Fonte do modelo não encontrada.");
+  }
   const font = new FontFace(family, `url(data:${model.fontMime};base64,${model.fontData})`);
   await font.load();
   document.fonts.add(font);
@@ -9875,7 +9884,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=204").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=205").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

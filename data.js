@@ -117,7 +117,12 @@
       paymentLinksResult = linksResult;
     }
     let signatureModelsResult = { data: [] };
-    const signatureModelsQuery = await client.from("signature_models").select("*")
+    // font_data (arquivo da fonte em base64, pode ter centenas de KB por modelo) fica FORA
+    // da sincronizacao normal de proposito - e baixado sob demanda so quando o modelo e
+    // usado de verdade (loadSignatureFont em app.js), pra nao pesar no egress do Supabase
+    // a cada fetchAll.
+    const signatureModelsQuery = await client.from("signature_models")
+      .select("id,name,model_type,font_family,font_mime,style,is_system_model,is_active,created_at,updated_at")
       .eq("is_active", true).order("is_system_model", { ascending: false }).order("created_at");
     if (signatureModelsQuery.error) {
       const message = signatureModelsQuery.error.message || "";
@@ -317,7 +322,7 @@
         name: item.name,
         modelType: item.model_type,
         fontFamily: item.font_family,
-        fontData: item.font_data,
+        fontData: "",
         fontMime: item.font_mime,
         style: item.style || {},
         isSystemModel: Boolean(item.is_system_model),
@@ -635,21 +640,30 @@
       if (result.error) throw result.error;
     }
     if (state.signatureModels?.length) {
-      const rows = state.signatureModels.map((item) => ({
-        id: item.id,
-        name: item.name,
-        model_type: item.modelType || "font",
-        font_family: item.fontFamily,
-        font_data: item.fontData,
-        font_mime: item.fontMime,
-        style: item.style || {},
-        is_system_model: Boolean(item.isSystemModel),
-        is_active: item.isActive !== false,
-        updated_at: new Date().toISOString()
-      }));
-      const result = await client.from("signature_models").upsert(rows, { onConflict: "id" });
-      if (result.error && !/signature_models|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
-        throw result.error;
+      // So grava modelos que tem o arquivo da fonte carregado localmente (recem-criados
+      // neste aparelho, ou ja usados nesta sessao) - o fetchAll traz os modelos SEM o
+      // font_data de proposito (economia de egress), entao gravar um modelo sem fontData
+      // sobrescreveria a fonte no banco com vazio. Nao ha edicao de modelo nesta fase,
+      // so criar (sempre com fontData) e excluir (via deleteMissing, que nao passa aqui).
+      const rows = state.signatureModels
+        .filter((item) => item.fontData)
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          model_type: item.modelType || "font",
+          font_family: item.fontFamily,
+          font_data: item.fontData,
+          font_mime: item.fontMime,
+          style: item.style || {},
+          is_system_model: Boolean(item.isSystemModel),
+          is_active: item.isActive !== false,
+          updated_at: new Date().toISOString()
+        }));
+      if (rows.length) {
+        const result = await client.from("signature_models").upsert(rows, { onConflict: "id" });
+        if (result.error && !/signature_models|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
+          throw result.error;
+        }
       }
     }
     if (state.serviceRequests?.length) {
