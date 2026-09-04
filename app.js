@@ -9392,6 +9392,14 @@ function signatureCurrentStyle() {
   };
 }
 
+function signatureSetPreviewHint(message) {
+  const hint = document.getElementById("signaturePreviewHint");
+  const canvas = document.getElementById("signaturePreviewCanvas");
+  hint.textContent = message;
+  hint.classList.toggle("hidden", !message);
+  canvas.classList.toggle("hidden", Boolean(message));
+}
+
 async function signatureRenderPreview() {
   const addButton = document.getElementById("signatureAddToEditorButton");
   const exportButton = document.getElementById("signatureExportPngButton");
@@ -9399,11 +9407,18 @@ async function signatureRenderPreview() {
   const ctx = canvas.getContext("2d");
   const model = (state.signatureModels || []).find((item) => item.id === signatureSelectedModelId);
   const style = signatureCurrentStyle();
-  if (!model || !style.text) {
-    canvas.width = 1;
-    canvas.height = 1;
-    addButton.disabled = true;
-    exportButton.disabled = true;
+  addButton.disabled = true;
+  exportButton.disabled = true;
+  if (!(state.signatureModels || []).length) {
+    signatureSetPreviewHint("Cadastre um modelo de fonte em \"+ Novo modelo\" para começar.");
+    return;
+  }
+  if (!model) {
+    signatureSetPreviewHint("Selecione um modelo acima.");
+    return;
+  }
+  if (!style.text) {
+    signatureSetPreviewHint("Digite um texto para gerar a prévia.");
     return;
   }
   let fontFamily;
@@ -9411,9 +9426,10 @@ async function signatureRenderPreview() {
     fontFamily = await loadSignatureFont(model);
   } catch (error) {
     console.error("Falha ao carregar fonte da assinatura:", error);
-    showAppAlert("Não foi possível carregar esta fonte.", { type: "error" });
+    signatureSetPreviewHint("Não foi possível carregar esta fonte.");
     return;
   }
+  signatureSetPreviewHint("");
   const padding = 16;
   ctx.font = `${style.size}px "${fontFamily}"`;
   const textWidth = extrasTextWidthWithSpacing(ctx, style.text, style.letterSpacing);
@@ -9577,9 +9593,12 @@ async function signatureSaveNewModel() {
 
 function openSignatureDialog() {
   signatureSelectedModelId = (state.signatureModels || []).find((item) => item.isActive !== false)?.id || null;
-  signatureShowNewModelForm(false);
   document.getElementById("signatureTextInput").value = "";
   renderSignatureModelGallery();
+  // Sem nenhum modelo cadastrado ainda, abre direto o formulario de "Novo modelo"
+  // em vez de deixar o usuario procurar o card "+" - evita a tela ficar em
+  // silencio sem indicar o proximo passo (bug relatado pelo usuario).
+  signatureShowNewModelForm(!(state.signatureModels || []).length);
   signatureRenderPreview();
   document.getElementById("signatureDialog").showModal();
 }
@@ -9856,7 +9875,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=203").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=204").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
