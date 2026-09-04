@@ -1,4 +1,4 @@
-const CACHE = "gestor-servicos-v238";
+const CACHE = "gestor-servicos-v239";
 const ASSETS = [
   "./",
   "index.html",
@@ -36,6 +36,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // So intercepta GET - deixar POST/PUT/DELETE passar direto evita um bug conhecido
+  // de service worker no Safari/WebKit mobile que corrompe o corpo (FormData/JSON) de
+  // requisicoes nao-GET quando repassadas via fetch(event.request) - foi a causa real
+  // do erro "Failed to parse body as FormData" no upload de imagem do Extras no celular.
+  if (event.request.method !== "GET") return;
   event.respondWith(
     fetch(event.request)
       .then((response) => {
