@@ -10464,6 +10464,34 @@ async function savedSignatureAddToEditor() {
   }
 }
 
+// Reaproveita uma assinatura ja salva como imagem de referencia pra "Gerar com IA",
+// sem precisar subir a foto de novo - carrega o PNG salvo como se fosse o arquivo
+// escolhido no dropzone e pula direto pro formulario de texto (a intencao aqui e so
+// gerar um texto novo, nao escolher entre Editar/Digitalizar/Remover fundo de novo).
+async function savedSignatureUseForGeneration() {
+  const item = selectedSavedSignature();
+  if (!item) return;
+  try {
+    await ensureSavedSignatureImageData(item);
+    const blob = extrasBase64ToBlob(item.imageData, item.imageMime || "image/png");
+    extrasPendingFile = new File([blob], `${item.name || "assinatura"}.png`, { type: item.imageMime || "image/png" });
+    extrasRawResultCanvas = null;
+    extrasSensitivity = 0;
+    if (extrasPreviewObjectUrl) URL.revokeObjectURL(extrasPreviewObjectUrl);
+    extrasPreviewObjectUrl = URL.createObjectURL(blob);
+    document.getElementById("extrasPreviewImage").src = extrasPreviewObjectUrl;
+    document.getElementById("savedSignaturesDialog").close();
+    extrasShowPanel("preview");
+    document.getElementById("extrasPreviewActions").classList.add("hidden");
+    document.getElementById("extrasHandwritingForm").classList.remove("hidden");
+    document.getElementById("extrasHandwritingText").value = "";
+    document.getElementById("extrasHandwritingText").focus();
+  } catch (error) {
+    console.error("Falha ao usar assinatura salva para gerar outra:", error);
+    showAppAlert(error.message || "Não foi possível usar esta assinatura.", { type: "error" });
+  }
+}
+
 function openSavedSignaturesDialog() {
   savedSignatureSelectedId = null;
   renderSavedSignaturesGallery();
@@ -10477,6 +10505,10 @@ function initializeSavedSignaturesTools() {
     const card = event.target.closest("[data-saved-signature]");
     if (card) {
       savedSignatureSelect(card.dataset.savedSignature);
+      return;
+    }
+    if (event.target.closest("#savedSignatureUseForGenerationButton")) {
+      savedSignatureUseForGeneration();
       return;
     }
     if (event.target.closest("#savedSignatureRenameButton")) {
@@ -10775,7 +10807,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=214").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=215").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
