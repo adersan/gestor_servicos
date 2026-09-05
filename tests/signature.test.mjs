@@ -24,7 +24,7 @@ vm.createContext(context);
 // extrasTextWidthWithSpacing: with no letterSpacing, must equal ctx.measureText(text).width
 // (identical to the pre-existing behavior); with letterSpacing, must add it between every
 // character but not after the last one (n-1 gaps for n characters).
-vm.runInContext(extractFunction("extrasTextWidthWithSpacing", "extrasRemeasureText"), context);
+vm.runInContext(extractFunction("extrasTextWidthWithSpacing", "extrasTextFontString"), context);
 {
   const fakeCtx = { measureText: (text) => ({ width: text.length * 10 }) };
   assert.equal(context.extrasTextWidthWithSpacing(fakeCtx, "abc", 0), 30, "no spacing: same as measureText");
