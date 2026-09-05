@@ -7010,9 +7010,9 @@ let extrasShapeStart = null;
 let extrasPendingFile = null;
 let extrasRawResultCanvas = null;
 let extrasSensitivity = 0;
-// Qual acao produziu o resultado atual da tela antes/depois - so "digitize-signature" e
-// "generate-handwriting" fazem sentido salvar como assinatura (remove-bg processa
-// fotos de qualquer assunto, nao so assinaturas).
+// Qual acao produziu o resultado atual da tela antes/depois - so "generate-handwriting"
+// faz sentido salvar como assinatura (remove-bg processa fotos de qualquer assunto,
+// nao so assinaturas).
 let extrasBeforeAfterSource = null;
 let extrasPreviewObjectUrl = null;
 let extrasObjectSeq = 1;
@@ -7333,29 +7333,6 @@ function extrasDigitizeSignatureCanvas(bitmap) {
   return canvas;
 }
 
-async function extrasProceedDigitizeSignature() {
-  if (!extrasPendingFile) return;
-  extrasShowPanel("loading");
-  try {
-    // Da um respiro pro navegador pintar o spinner antes do processamento (sincrono,
-    // pode travar a thread principal por um instante em fotos grandes) comecar.
-    await new Promise((resolve) => setTimeout(resolve, 30));
-    const bitmap = await createImageBitmap(extrasPendingFile);
-    const rawCanvas = extrasDigitizeSignatureCanvas(bitmap);
-    extrasRawResultCanvas = extrasTrimTransparentEdges(rawCanvas);
-    extrasSensitivity = 0;
-    document.getElementById("extrasSensitivity").value = 0;
-    document.getElementById("extrasBeforeImage").src = extrasPreviewObjectUrl;
-    extrasRenderSensitivityPreview();
-    extrasSetBeforeAfterSource("digitize-signature");
-    extrasShowPanel("beforeAfter");
-  } catch (error) {
-    console.error("Falha ao digitalizar assinatura:", error);
-    document.getElementById("extrasErrorMessage").textContent = "Não foi possível digitalizar esta imagem.";
-    extrasShowPanel("error");
-  }
-}
-
 function extrasBase64ToBlob(base64, mime) {
   const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
   return new Blob([bytes], { type: mime });
@@ -7384,9 +7361,8 @@ async function extrasPollHandwritingJob(jobId, accessToken) {
 // Experimental: gera um texto novo "na caligrafia" de uma imagem de referencia via IA
 // de geracao de imagem (OpenAI, fora do escopo da Claude - ela nao gera imagem). Sem
 // garantia de fidelidade ao estilo da referencia, ja avisado na propria tela. Pede fundo
-// branco na IA e reaproveita o MESMO pipeline local de "Digitalizar assinatura" (Otsu +
-// despeckle + suavizacao) pra limpar/tornar transparente o resultado, em vez de duplicar
-// logica de limpeza nova.
+// branco na IA e reaproveita `extrasDigitizeSignatureCanvas` (Otsu + despeckle +
+// suavizacao) pra limpar/tornar transparente o resultado, em vez de duplicar logica.
 async function extrasProceedGenerateHandwriting() {
   if (!extrasPendingFile) return;
   const text = document.getElementById("extrasHandwritingText").value.trim();
@@ -7501,7 +7477,7 @@ function extrasSetBeforeAfterSource(source) {
   // "Remover fundo" processa foto de qualquer assunto, entao fica escondido ali.
   document.getElementById("extrasSaveSignatureButton").classList.toggle(
     "hidden",
-    source !== "digitize-signature" && source !== "generate-handwriting"
+    source !== "generate-handwriting"
   );
   extrasShowSaveSignatureForm(false);
 }
@@ -7525,7 +7501,7 @@ async function extrasConfirmSaveSignature() {
     const item = {
       id: crypto.randomUUID(),
       name,
-      source: extrasBeforeAfterSource === "generate-handwriting" ? "generated" : "digitized",
+      source: "generated",
       imageData: dataUrl.slice(dataUrl.indexOf(",") + 1),
       imageMime: "image/png",
       thumbnailData: extrasGenerateThumbnail(finalCanvas, 160),
@@ -10288,7 +10264,7 @@ function initializeSignatureTools() {
 // ---- Minhas assinaturas (galeria de assinaturas digitalizadas/geradas) ---------
 // Diferente de signature_models (modelos de ESTILO pra renderizar QUALQUER texto novo
 // via fonte): cada linha aqui e uma imagem FINAL unica (ja limpa/transparente), salva a
-// partir de "Digitalizar assinatura" ou "Gerar com IA", pra reutilizar sem reprocessar.
+// partir de "Gerar com IA", pra reutilizar sem reprocessar.
 
 let savedSignatureSelectedId = null;
 
@@ -10339,7 +10315,7 @@ function renderSavedSignaturesGallery() {
   const items = state.savedSignatures || [];
   document.getElementById("savedSignaturesGrid").innerHTML = items.length
     ? items.map(savedSignatureCardMarkup).join("")
-    : `<p class="meta">Nenhuma assinatura salva ainda. Use "Digitalizar assinatura" ou "Gerar com IA" em Extras.</p>`;
+    : `<p class="meta">Nenhuma assinatura salva ainda. Use "Gerar com IA" em Extras.</p>`;
   savedSignatureSyncActions();
 }
 
@@ -10442,7 +10418,7 @@ async function savedSignatureAddToEditor() {
 // Reaproveita uma assinatura ja salva como imagem de referencia pra "Gerar com IA",
 // sem precisar subir a foto de novo - carrega o PNG salvo como se fosse o arquivo
 // escolhido no dropzone e pula direto pro formulario de texto (a intencao aqui e so
-// gerar um texto novo, nao escolher entre Editar/Digitalizar/Remover fundo de novo).
+// gerar um texto novo, nao escolher entre Editar/Remover fundo de novo).
 async function savedSignatureUseForGeneration() {
   const item = selectedSavedSignature();
   if (!item) return;
@@ -10555,7 +10531,6 @@ function initializeExtrasTools() {
     button.addEventListener("click", () => {
       if (button.dataset.extrasPreviewAction === "edit") extrasProceedEdit();
       else if (button.dataset.extrasPreviewAction === "remove-bg") extrasProceedRemoveBg();
-      else if (button.dataset.extrasPreviewAction === "digitize-signature") extrasProceedDigitizeSignature();
       else if (button.dataset.extrasPreviewAction === "generate-handwriting") {
         document.getElementById("extrasPreviewActions").classList.add("hidden");
         document.getElementById("extrasHandwritingForm").classList.remove("hidden");
@@ -10784,7 +10759,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=221").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=222").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
