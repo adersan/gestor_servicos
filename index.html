@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=153">
+  <link rel="stylesheet" href="styles.css?v=154">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -2012,7 +2012,6 @@
           <div class="signature-model-actions-buttons">
             <button class="table-action" type="button" id="signatureRenameButton">Renomear</button>
             <button class="table-action" type="button" id="signatureDuplicateButton">Duplicar</button>
-            <button class="table-action hidden" type="button" id="signatureReanalyzeButton">Reanalisar com IA</button>
             <button class="table-action danger" type="button" id="signatureDeleteButton">Excluir</button>
           </div>
           <div id="signatureRenameRow" class="signature-rename-row hidden">
@@ -2024,32 +2023,15 @@
       </div>
 
       <div id="signatureNewModelForm" class="signature-new-model-form hidden">
-        <div class="signature-new-model-name-row">
-          <label class="signature-new-model-name-field">Nome do modelo<input id="signatureModelName" type="text" maxlength="60" placeholder="Ex.: Assinatura clássica"></label>
-          <div class="signature-model-type-tabs">
-            <button type="button" class="active" data-signature-model-type="font">Fonte</button>
-            <button type="button" data-signature-model-type="image">Imagem de referência</button>
+        <label>Nome do modelo<input id="signatureModelName" type="text" maxlength="60" placeholder="Ex.: Assinatura clássica"></label>
+        <div class="signature-new-model-file-row">
+          <label class="signature-new-model-file-field">Arquivo de fonte (.ttf, .otf, .woff, .woff2)<input id="signatureModelFontFile" type="file" accept=".ttf,.otf,.woff,.woff2"></label>
+          <div class="signature-new-model-actions">
+            <button class="secondary" type="button" id="signatureCancelNewModelButton">Cancelar</button>
+            <button class="primary" type="button" id="signatureSaveModelButton">Salvar modelo</button>
           </div>
         </div>
-        <div id="signatureFontTypeFields" class="signature-model-type-panel">
-          <div id="signatureFontFileRow" class="signature-new-model-file-row">
-            <label class="signature-new-model-file-field">Arquivo de fonte (.ttf, .otf, .woff, .woff2)<input id="signatureModelFontFile" type="file" accept=".ttf,.otf,.woff,.woff2"></label>
-          </div>
-          <p class="meta">Use apenas fontes que você tenha autorização para utilizar.</p>
-        </div>
-        <div id="signatureImageTypeFields" class="signature-model-type-panel hidden">
-          <label>Fonte base<select id="signatureBaseFontSelect"></select></label>
-          <div id="signatureImageFileRow" class="signature-new-model-file-row">
-            <label class="signature-new-model-file-field">Imagem de referência (.png, .jpg, .webp)<input id="signatureModelReferenceImageFile" type="file" accept=".png,.jpg,.jpeg,.webp"></label>
-          </div>
-          <p class="meta">Use apenas estilos, imagens e assinaturas que você tenha autorização para utilizar.</p>
-          <button class="secondary" type="button" id="signatureAnalyzeButton">Analisar com IA</button>
-          <p id="signatureAnalysisHint" class="meta hidden"></p>
-        </div>
-        <div id="signatureNewModelActions" class="signature-new-model-actions">
-          <button class="secondary" type="button" id="signatureCancelNewModelButton">Cancelar</button>
-          <button class="primary" type="button" id="signatureSaveModelButton">Salvar modelo</button>
-        </div>
+        <p class="meta">Use apenas fontes que você tenha autorização para utilizar.</p>
       </div>
 
     </div>
@@ -2671,7 +2653,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=56"></script>
-  <script src="app.js?v=204"></script>
+  <script src="app.js?v=205"></script>
   <script src="supplier.js?v=67"></script>
 </body>
 </html>
