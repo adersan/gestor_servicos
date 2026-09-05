@@ -722,6 +722,9 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 
 .extras-preview-panel img { max-width: 100%; max-height: 46vh; border-radius: 12px; }
 .extras-preview-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 4px; }
+.extras-preview-menu { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 360px; margin-top: 8px; }
+.extras-preview-menu.hidden { display: none; }
+.extras-preview-menu button { width: 100%; }
 .extras-handwriting-form { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 360px; margin-top: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); text-align: left; }
 .extras-handwriting-form.hidden { display: none; }
 .extras-handwriting-form label { display: flex; flex-direction: column; gap: 6px; }

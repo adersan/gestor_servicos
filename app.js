@@ -7061,6 +7061,19 @@ function extrasHandlePickedFile(file) {
   extrasShowPanel("preview");
 }
 
+function extrasCancelPreview() {
+  extrasPendingFile = null;
+  if (extrasPreviewObjectUrl) {
+    URL.revokeObjectURL(extrasPreviewObjectUrl);
+    extrasPreviewObjectUrl = null;
+  }
+  document.getElementById("extrasHandwritingForm").classList.add("hidden");
+  document.getElementById("extrasPreviewActions").classList.remove("hidden");
+  document.getElementById("extrasHandwritingText").value = "";
+  document.getElementById("extrasFileInput").value = "";
+  extrasShowPanel("upload");
+}
+
 async function extrasProceedEdit() {
   if (!extrasPendingFile) return;
   extrasShowPanel("loading");
@@ -7263,22 +7276,36 @@ function extrasDigitizeSignatureCanvas(bitmap) {
   const data = imgData.data;
   const totalPixels = width * height;
 
-  const histogram = new Array(256).fill(0);
-  const luminances = new Float32Array(totalPixels);
-  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-    const luminance = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    luminances[p] = luminance;
-    histogram[Math.round(luminance)]++;
+  // Uma foto normal (JPEG ou PNG opaco) nao tem transparencia nenhuma - so faz sentido
+  // separar "papel" de "tinta" por luminancia nesse caso. Se a imagem ja veio com
+  // transparencia significativa (ex.: um PNG que ja passou por remocao de fundo antes),
+  // pode nao existir "papel" nenhum pra comparar - o limiar de Otsu fica sem sentido
+  // (as vezes cai no meio da propria tinta) e o resultado sai vazio ou errado. Nesse
+  // caso so preserva o alfa que ja existia, sem tentar re-separar por cor.
+  let sourceTransparentPixels = 0;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 250) sourceTransparentPixels++;
   }
-  const threshold = extrasOtsuThreshold(histogram, totalPixels);
+  const hasExistingTransparency = sourceTransparentPixels > totalPixels * 0.02;
 
-  // Primeira passada: so o canal alfa (tinta = 255, papel = 0, faixa suave no meio).
   let alpha = new Uint8ClampedArray(totalPixels);
-  for (let p = 0; p < totalPixels; p++) {
-    const distance = threshold - luminances[p];
-    if (distance >= SIGNATURE_DIGITIZE_EDGE_BAND) alpha[p] = 255;
-    else if (distance <= -SIGNATURE_DIGITIZE_EDGE_BAND) alpha[p] = 0;
-    else alpha[p] = Math.round(((distance + SIGNATURE_DIGITIZE_EDGE_BAND) / (SIGNATURE_DIGITIZE_EDGE_BAND * 2)) * 255);
+  if (hasExistingTransparency) {
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) alpha[p] = data[i + 3];
+  } else {
+    const histogram = new Array(256).fill(0);
+    const luminances = new Float32Array(totalPixels);
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      const luminance = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      luminances[p] = luminance;
+      histogram[Math.round(luminance)]++;
+    }
+    const threshold = extrasOtsuThreshold(histogram, totalPixels);
+    for (let p = 0; p < totalPixels; p++) {
+      const distance = threshold - luminances[p];
+      if (distance >= SIGNATURE_DIGITIZE_EDGE_BAND) alpha[p] = 255;
+      else if (distance <= -SIGNATURE_DIGITIZE_EDGE_BAND) alpha[p] = 0;
+      else alpha[p] = Math.round(((distance + SIGNATURE_DIGITIZE_EDGE_BAND) / (SIGNATURE_DIGITIZE_EDGE_BAND * 2)) * 255);
+    }
   }
 
   // Limpa ruido isolado, depois suaviza a borda e reforca o contraste de volta (senao
@@ -9809,9 +9836,19 @@ async function signatureRenderPreview() {
   ctx.font = `${style.size}px "${fontFamily}"`;
   const textWidth = extrasTextWidthWithSpacing(ctx, style.text, style.letterSpacing);
   const shearOffset = style.slant ? Math.abs(Math.tan((style.slant * Math.PI) / 180)) * style.size * 1.3 : 0;
-  canvas.width = Math.max(1, Math.ceil(textWidth + padding * 2 + shearOffset));
-  canvas.height = Math.max(1, Math.ceil(style.size * 1.4 + padding * 2));
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const logicalWidth = Math.max(1, Math.ceil(textWidth + padding * 2 + shearOffset));
+  const logicalHeight = Math.max(1, Math.ceil(style.size * 1.4 + padding * 2));
+  // Sem isso, o canvas renderiza na resolucao "logica" (ex.: 300px) e o navegador
+  // amplia pra exibir em telas de alta densidade (retina/celular) - a fonte cursiva,
+  // cheia de curvas, fica visivelmente serrilhada. Desenha em resolucao real da tela
+  // (devicePixelRatio) e escala de volta por CSS, mantendo o tamanho visual igual.
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = logicalWidth * dpr;
+  canvas.height = logicalHeight * dpr;
+  canvas.style.width = `${logicalWidth}px`;
+  canvas.style.height = `${logicalHeight}px`;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, logicalWidth, logicalHeight);
   extrasDrawStyledText(ctx, {
     text: style.text,
     x: padding,
@@ -10585,6 +10622,8 @@ function initializeExtrasTools() {
         document.getElementById("extrasPreviewActions").classList.add("hidden");
         document.getElementById("extrasHandwritingForm").classList.remove("hidden");
         document.getElementById("extrasHandwritingText").focus();
+      } else if (button.dataset.extrasPreviewAction === "cancel") {
+        extrasCancelPreview();
       }
     });
   });
@@ -10807,7 +10846,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=215").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=216").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

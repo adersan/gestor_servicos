@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=148">
+  <link rel="stylesheet" href="styles.css?v=149">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -738,11 +738,12 @@
 
       <div id="extrasPreviewPanel" class="panel extras-preview-panel hidden">
         <img id="extrasPreviewImage" alt="Imagem escolhida">
-        <div id="extrasPreviewActions" class="extras-preview-actions">
+        <div id="extrasPreviewActions" class="extras-preview-menu">
           <button type="button" class="secondary" data-extras-preview-action="edit">Editar imagem</button>
           <button type="button" class="secondary" data-extras-preview-action="digitize-signature">Digitalizar assinatura</button>
           <button type="button" class="secondary" data-extras-preview-action="generate-handwriting">Gerar com IA (experimental)</button>
           <button type="button" class="primary" data-extras-preview-action="remove-bg">Remover fundo</button>
+          <button type="button" class="secondary" data-extras-preview-action="cancel">Cancelar</button>
         </div>
         <div id="extrasHandwritingForm" class="extras-handwriting-form hidden">
           <p class="meta">Experimental: a IA pode não reproduzir fielmente a caligrafia da imagem enviada.</p>
@@ -2655,7 +2656,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=56"></script>
-  <script src="app.js?v=199"></script>
+  <script src="app.js?v=200"></script>
   <script src="supplier.js?v=67"></script>
 </body>
 </html>
