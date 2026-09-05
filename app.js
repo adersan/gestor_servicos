@@ -9238,6 +9238,24 @@ function extrasDownload() {
     octx.fillRect(0, 0, output.width, output.height);
   }
   octx.drawImage(canvas, 0, 0);
+  // Camada de objetos (Fabric) - desenha so o conteudo de verdade (lowerCanvasEl,
+  // sempre do mesmo tamanho de pixel que #extrasCanvas gracas a extrasSyncLayers).
+  // As alcas/redimensionar ficam num canvas separado (upperCanvasEl, so UI), mas o
+  // objeto ATIVO ganha um destaque de selecao desenhado no proprio lowerCanvasEl -
+  // precisa desselecionar e re-renderizar antes de capturar, senao esse destaque vaza
+  // pro PNG. Restaura a selecao depois, pra nao surpreender o usuario.
+  if (extrasFabricCanvas) {
+    const activeObject = extrasFabricCanvas.getActiveObject();
+    if (activeObject) {
+      extrasFabricCanvas.discardActiveObject();
+      extrasFabricCanvas.renderAll();
+    }
+    octx.drawImage(extrasFabricCanvas.lowerCanvasEl, 0, 0, output.width, output.height);
+    if (activeObject) {
+      extrasFabricCanvas.setActiveObject(activeObject);
+      extrasFabricCanvas.requestRenderAll();
+    }
+  }
   output.toBlob((blob) => {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
@@ -11156,7 +11174,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=225").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=226").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
