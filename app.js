@@ -9784,12 +9784,10 @@ function signatureSyncModelActions() {
 
 function renderSignatureModelGallery() {
   const { system, mine } = signatureModelsSplit();
-  // Lista unica (sistema + proprios juntos) - o "+" fica sempre como primeira linha,
-  // pra continuar visivel mesmo com muitos modelos cadastrados (nunca some rolando
-  // pra baixo, bug relatado pelo usuario quando ficava so no fim da lista).
-  document.getElementById("signatureModelList").innerHTML =
-    `<button type="button" class="signature-model-list-add" id="signatureNewModelCard">+ Novo modelo</button>`
-    + [...system, ...mine].map(signatureModelCardMarkup).join("");
+  // Lista unica (sistema + proprios juntos), com rolagem propria - o "+" fica FORA
+  // dela (irmao, nao filho), sempre visivel do lado, nunca rola junto nem some
+  // com muitos modelos cadastrados.
+  document.getElementById("signatureModelList").innerHTML = [...system, ...mine].map(signatureModelCardMarkup).join("");
   signatureSyncModelActions();
 }
 
@@ -10373,10 +10371,29 @@ function initializeSignatureTools() {
       if (opening) {
         // position:fixed calculado na hora, senao o painel fica cortado pelo
         // overflow-y:auto do conteudo do dialog (era position:absolute antes).
+        // Abre pra baixo OU pra cima, o que tiver mais espaco ate a borda da tela -
+        // sem isso, com o gatilho perto do fim da janela o painel passava do
+        // rodape do navegador e a lista ficava cortada sem jeito de rolar ate ela.
         const rect = pickerTrigger.getBoundingClientRect();
-        pickerPanel.style.top = `${rect.bottom + 6}px`;
+        const margin = 6;
+        // Descontar o "chrome" do proprio painel (padding+borda ao redor da lista),
+        // senao a lista cabia no espaco disponivel mas o painel (lista + padding)
+        // passava da borda da tela mesmo assim.
+        const panelChrome = 18;
+        const spaceBelow = window.innerHeight - rect.bottom - margin - panelChrome;
+        const spaceAbove = rect.top - margin - panelChrome;
+        const listEl = document.getElementById("signatureModelList");
         pickerPanel.style.left = `${rect.left}px`;
         pickerPanel.style.width = `${Math.max(rect.width, 260)}px`;
+        if (spaceBelow >= 160 || spaceBelow >= spaceAbove) {
+          pickerPanel.style.top = `${rect.bottom + margin}px`;
+          pickerPanel.style.bottom = "";
+          listEl.style.maxHeight = `${Math.max(120, Math.min(360, spaceBelow))}px`;
+        } else {
+          pickerPanel.style.top = "";
+          pickerPanel.style.bottom = `${window.innerHeight - rect.top + margin}px`;
+          listEl.style.maxHeight = `${Math.max(120, Math.min(360, spaceAbove))}px`;
+        }
       }
       return;
     }
@@ -10949,7 +10966,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=219").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=220").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

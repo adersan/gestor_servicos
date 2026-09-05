@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=152">
+  <link rel="stylesheet" href="styles.css?v=153">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -2003,6 +2003,7 @@
             <span class="signature-model-picker-caret" aria-hidden="true">▾</span>
           </button>
           <div id="signatureModelPickerPanel" class="signature-model-picker-panel hidden">
+            <button type="button" id="signatureNewModelCard" class="signature-model-list-add" title="Novo modelo" aria-label="Novo modelo">+</button>
             <div id="signatureModelList" class="signature-model-list"></div>
           </div>
         </div>
@@ -2670,7 +2671,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=56"></script>
-  <script src="app.js?v=203"></script>
+  <script src="app.js?v=204"></script>
   <script src="supplier.js?v=67"></script>
 </body>
 </html>
