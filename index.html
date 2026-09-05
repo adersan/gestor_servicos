@@ -795,7 +795,6 @@
             </div>
             <div id="extrasBrushCursor" class="extras-brush-cursor hidden"></div>
             <div id="extrasShapePreview" class="extras-shape-preview hidden"></div>
-            <input type="text" id="extrasTextInputOverlay" class="extras-text-input hidden" placeholder="Digite o texto…">
             <div id="extrasCropOverlay" class="extras-crop-overlay hidden">
               <div class="extras-crop-handle" data-extras-crop-handle="nw"></div>
               <div class="extras-crop-handle" data-extras-crop-handle="n"></div>
@@ -806,39 +805,48 @@
               <div class="extras-crop-handle" data-extras-crop-handle="sw"></div>
               <div class="extras-crop-handle" data-extras-crop-handle="w"></div>
             </div>
-            <div id="extrasObjectOverlay" class="extras-object-overlay hidden">
-              <div class="extras-object-handle" data-extras-object-handle="nw"></div>
-              <div class="extras-object-handle" data-extras-object-handle="n"></div>
-              <div class="extras-object-handle" data-extras-object-handle="ne"></div>
-              <div class="extras-object-handle" data-extras-object-handle="e"></div>
-              <div class="extras-object-handle" data-extras-object-handle="se"></div>
-              <div class="extras-object-handle" data-extras-object-handle="s"></div>
-              <div class="extras-object-handle" data-extras-object-handle="sw"></div>
-              <div class="extras-object-handle" data-extras-object-handle="w"></div>
-            </div>
           </div>
         </div>
 
         <div class="extras-icon-toolbar panel">
-          <div class="extras-icon-group">
-            <button type="button" class="extras-icon-btn active" data-extras-tool="select" title="Seleção" aria-label="Seleção">↖</button>
+          <div class="extras-icon-category">
+            <span class="extras-category-label">Selecionar</span>
+            <div class="extras-icon-group">
+              <button type="button" class="extras-icon-btn active" data-extras-tool="select" title="Seleção" aria-label="Seleção">↖</button>
+            </div>
           </div>
-          <div class="extras-icon-group">
-            <button type="button" class="extras-icon-btn" data-extras-tool="erase" title="Apagar" aria-label="Apagar">⌫</button>
-            <button type="button" class="extras-icon-btn" data-extras-tool="restore" title="Restaurar" aria-label="Restaurar">🩹</button>
-            <button type="button" class="extras-icon-btn" data-extras-tool="marker" title="Marcador" aria-label="Marcador">🖍️</button>
-            <button type="button" class="extras-icon-btn" data-extras-tool="pencil" title="Lápis" aria-label="Lápis">✏️</button>
-            <button type="button" class="extras-icon-btn" data-extras-tool="signature" title="Caneta (assinatura)" aria-label="Caneta">🖋️</button>
-            <button type="button" class="extras-icon-btn" data-extras-tool="rect" title="Retângulo" aria-label="Retângulo">▭</button>
-            <button type="button" class="extras-icon-btn" data-extras-tool="ellipse" title="Elipse" aria-label="Elipse">◯</button>
-            <button type="button" class="extras-icon-btn" data-extras-tool="text" title="Texto" aria-label="Texto"><b>T</b></button>
+          <div class="extras-icon-category">
+            <span class="extras-category-label">Retocar</span>
+            <div class="extras-icon-group">
+              <button type="button" class="extras-icon-btn" data-extras-tool="erase" title="Apagar" aria-label="Apagar">⌫</button>
+              <button type="button" class="extras-icon-btn" data-extras-tool="restore" title="Restaurar" aria-label="Restaurar">🩹</button>
+              <button type="button" class="extras-icon-btn" data-extras-tool="marker" title="Marcador" aria-label="Marcador">🖍️</button>
+            </div>
           </div>
-          <div class="extras-icon-group">
-            <button type="button" class="extras-icon-btn" data-extras-tool="background" title="Fundo" aria-label="Fundo">🎨</button>
-            <button type="button" class="extras-icon-btn" data-extras-tool="adjust" title="Brilho e contraste" aria-label="Brilho e contraste">🌓</button>
+          <div class="extras-icon-category">
+            <span class="extras-category-label">Desenhar</span>
+            <div class="extras-icon-group">
+              <button type="button" class="extras-icon-btn" data-extras-tool="pencil" title="Lápis" aria-label="Lápis">✏️</button>
+              <button type="button" class="extras-icon-btn" data-extras-tool="signature" title="Caneta (assinatura)" aria-label="Caneta">🖋️</button>
+              <button type="button" class="extras-icon-btn" data-extras-tool="rect" title="Retângulo" aria-label="Retângulo">▭</button>
+              <button type="button" class="extras-icon-btn" data-extras-tool="ellipse" title="Elipse" aria-label="Elipse">◯</button>
+              <button type="button" class="extras-icon-btn" data-extras-tool="text" title="Texto" aria-label="Texto"><b>T</b></button>
+            </div>
           </div>
-          <div class="extras-icon-group">
-            <button type="button" class="extras-icon-btn" data-dialog="signatureDialog" title="Escrita personalizada" aria-label="Escrita personalizada">✒️</button>
+          <div class="extras-icon-category">
+            <span class="extras-category-label">Ajustar</span>
+            <div class="extras-icon-group">
+              <button type="button" class="extras-icon-btn" data-extras-tool="crop" title="Recortar" aria-label="Recortar">✂</button>
+              <button type="button" class="extras-icon-btn" data-extras-action="rotate" title="Girar 90°" aria-label="Girar 90°">🔄</button>
+              <button type="button" class="extras-icon-btn" data-extras-tool="background" title="Fundo" aria-label="Fundo">🎨</button>
+              <button type="button" class="extras-icon-btn" data-extras-tool="adjust" title="Brilho e contraste" aria-label="Brilho e contraste">🌓</button>
+            </div>
+          </div>
+          <div class="extras-icon-category">
+            <span class="extras-category-label">Mais</span>
+            <div class="extras-icon-group">
+              <button type="button" class="extras-icon-btn" data-dialog="signatureDialog" title="Escrita personalizada" aria-label="Escrita personalizada">✒️</button>
+            </div>
           </div>
         </div>
 
@@ -1007,8 +1015,6 @@
           <button type="button" class="extras-icon-btn" data-extras-action="redo" title="Refazer (Ctrl+Y)" aria-label="Refazer">↷</button>
           <button type="button" class="extras-icon-btn" data-extras-action="reset" title="Reiniciar" aria-label="Reiniciar">🧹</button>
           <button type="button" class="extras-icon-btn" data-extras-tool="zoom" title="Zoom" aria-label="Zoom">🔍</button>
-          <button type="button" class="extras-icon-btn" data-extras-tool="crop" title="Recortar" aria-label="Recortar">✂</button>
-          <button type="button" class="extras-icon-btn" data-extras-action="rotate" title="Girar 90°" aria-label="Girar 90°">🔄</button>
           <button type="button" class="extras-icon-btn" data-extras-action="delete-object" title="Excluir objeto selecionado (Delete)" aria-label="Excluir objeto selecionado">🗑</button>
           <button type="button" class="secondary" data-extras-action="clear">Limpar</button>
           <button type="button" class="secondary" data-extras-action="new">Nova imagem</button>

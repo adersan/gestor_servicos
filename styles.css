@@ -742,6 +742,28 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .extras-sensitivity-label { width: 100%; max-width: 360px; margin-top: 4px; }
 
 .extras-editor {
+  /* Paleta escura fixa da area de edicao - independente dos 5 temas globais do
+     painel (Configuracoes > Aparencia), igual a maioria dos editores de imagem
+     profissionais. Redefine os TOKENS globais (--surface/--ink/--line/--muted/
+     --brand-ink/--brand-soft) so dentro do escopo de .extras-editor, entao toda
+     regra ja existente que usa esses tokens (.panel, .extras-icon-btn, .secondary,
+     .extras-choice-options etc.) fica escura automaticamente, sem precisar reescrever
+     nada. --accent (dourado) e global e ja e fixo entre os 5 temas, reaproveitado
+     aqui como acento sem precisar de variavel propria. */
+  --extras-bg: #101915;
+  --extras-surface: #1b2620;
+  --extras-surface-2: #212f28;
+  --extras-ink: #eef4f0;
+  --extras-muted: #93a89e;
+  --extras-line: #31423a;
+  --extras-accent-soft: rgba(216,155,69,.16);
+  --surface: var(--extras-surface);
+  --surface-2: var(--extras-surface-2);
+  --ink: var(--extras-ink);
+  --muted: var(--extras-muted);
+  --line: var(--extras-line);
+  --brand-ink: var(--accent);
+  --brand-soft: var(--extras-accent-soft);
   display: grid;
   gap: 14px;
   grid-template-columns: auto minmax(0, 1fr) 280px;
@@ -749,6 +771,15 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
     "actions actions actions"
     "tools canvas props";
   align-items: start;
+  /* Sem fundo/borda no grid em si de proposito: tools/canvas/props tem alturas bem
+     diferentes (a barra lateral categorizada e naturalmente mais alta que o painel
+     de propriedades de "Selecao", por exemplo) - uma unica caixa escura por tras de
+     tudo esticaria pra cobrir a linha inteira do grid, sobrando um vazio visivel
+     atras da coluna mais curta. Cada painel (.panel, ja usado por toolbar/props/
+     action-bar) e o poco do canvas (.extras-canvas-scroll) ja tem seu proprio fundo
+     escuro via os tokens redefinidos acima - fica como cards independentes, cada um
+     do tamanho do seu proprio conteudo, sem caixa externa.
+*/
 }
 .extras-canvas-wrap { grid-area: canvas; display: grid; gap: 10px; min-width: 0; }
 .extras-canvas-scroll {
@@ -844,7 +875,6 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .extras-brush-cursor.extras-brush-cursor-square { border-radius: 3px; }
 .extras-shape-preview { position: absolute; border: 2px dashed var(--brand-ink); background: rgba(23,63,53,.12); pointer-events: none; }
 .extras-shape-preview.extras-shape-ellipse { border-radius: 50%; }
-.extras-text-input { position: absolute; min-width: 160px; padding: 4px 8px; border: 2px dashed var(--brand-ink); border-radius: 6px; background: rgba(255,255,255,.92); color: #1a1a1a; font-size: 15px; z-index: 2; }
 .extras-crop-overlay { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.45); cursor: move; }
 .extras-crop-handle { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--brand-ink); border: 2px solid #fff; }
 .extras-crop-handle[data-extras-crop-handle="nw"] { left: -8px; top: -8px; cursor: nwse-resize; }
@@ -856,24 +886,11 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .extras-crop-handle[data-extras-crop-handle="sw"] { left: -8px; bottom: -8px; cursor: nesw-resize; }
 .extras-crop-handle[data-extras-crop-handle="w"] { left: -8px; top: 50%; margin-top: -8px; cursor: ew-resize; }
 
-.extras-object-overlay { position: absolute; border: 2px dashed var(--brand-ink); cursor: move; }
-.extras-object-handle { position: absolute; width: 14px; height: 14px; border-radius: 3px; background: var(--brand-ink); border: 2px solid #fff; }
-.extras-object-handle[data-extras-object-handle="nw"] { left: -8px; top: -8px; cursor: nwse-resize; }
-.extras-object-handle[data-extras-object-handle="n"] { left: 50%; top: -8px; margin-left: -7px; cursor: ns-resize; }
-.extras-object-handle[data-extras-object-handle="ne"] { right: -8px; top: -8px; cursor: nesw-resize; }
-.extras-object-handle[data-extras-object-handle="e"] { right: -8px; top: 50%; margin-top: -7px; cursor: ew-resize; }
-.extras-object-handle[data-extras-object-handle="se"] { right: -8px; bottom: -8px; cursor: nwse-resize; }
-.extras-object-handle[data-extras-object-handle="s"] { left: 50%; bottom: -8px; margin-left: -7px; cursor: ns-resize; }
-.extras-object-handle[data-extras-object-handle="sw"] { left: -8px; bottom: -8px; cursor: nesw-resize; }
-.extras-object-handle[data-extras-object-handle="w"] { left: -8px; top: 50%; margin-top: -7px; cursor: ew-resize; }
-.extras-object-overlay-corners-only [data-extras-object-handle="n"],
-.extras-object-overlay-corners-only [data-extras-object-handle="e"],
-.extras-object-overlay-corners-only [data-extras-object-handle="s"],
-.extras-object-overlay-corners-only [data-extras-object-handle="w"] { display: none; }
-
-.extras-icon-toolbar { grid-area: tools; display: flex; flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 12px 10px; align-self: start; }
-.extras-icon-group { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
-.extras-icon-group:last-child { border-bottom: 0; padding-bottom: 0; }
+.extras-icon-toolbar { grid-area: tools; display: flex; flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 14px; padding: 14px 12px; align-self: start; }
+.extras-icon-category { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.extras-icon-category:last-child { border-bottom: 0; padding-bottom: 0; }
+.extras-category-label { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.extras-icon-group { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 6px; }
 .extras-icon-btn {
   display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0;
   border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font-size: 20px; line-height: 1;
@@ -1325,9 +1342,10 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   }
   .extras-canvas-scroll { max-height: 52vh; }
   .extras-icon-btn { width: 46px; height: 46px; font-size: 21px; }
-  .extras-icon-toolbar { flex-direction: row; flex-wrap: wrap; padding: 10px 14px; }
-  .extras-icon-group { flex-direction: row; flex-wrap: wrap; padding-right: 14px; padding-bottom: 0; border-right: 1px solid var(--line); border-bottom: 0; }
-  .extras-icon-group:last-child { border-right: 0; padding-right: 0; }
+  .extras-icon-toolbar { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 10px 14px; scrollbar-width: none; }
+  .extras-icon-category { flex-direction: column; flex-shrink: 0; width: auto; padding: 0 16px 0 0; border-bottom: 0; border-right: 1px solid var(--line); }
+  .extras-icon-category:last-child { border-right: 0; padding-right: 0; }
+  .extras-icon-group { flex-direction: row; flex-wrap: nowrap; }
   .report-header { flex-direction: column; }
   .chart-row { grid-template-columns: 90px 1fr; }
   .chart-row strong { grid-column: 2; }
