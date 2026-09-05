@@ -7276,35 +7276,44 @@ function extrasDigitizeSignatureCanvas(bitmap) {
   const data = imgData.data;
   const totalPixels = width * height;
 
-  // Uma foto normal (JPEG ou PNG opaco) nao tem transparencia nenhuma - so faz sentido
-  // separar "papel" de "tinta" por luminancia nesse caso. Se a imagem ja veio com
-  // transparencia significativa (ex.: um PNG que ja passou por remocao de fundo antes),
-  // pode nao existir "papel" nenhum pra comparar - o limiar de Otsu fica sem sentido
-  // (as vezes cai no meio da propria tinta) e o resultado sai vazio ou errado. Nesse
-  // caso so preserva o alfa que ja existia, sem tentar re-separar por cor.
-  let sourceTransparentPixels = 0;
-  for (let i = 3; i < data.length; i += 4) {
-    if (data[i] < 250) sourceTransparentPixels++;
+  // Le o alfa de origem e a luminancia juntos, contando so os pixels JA opacos (>=200)
+  // pro histograma - uma imagem gerada por IA ou ja processada antes pode ter um pouco
+  // de transparencia incidental (ex.: cantos) MESMO tendo um fundo "de papel" opaco de
+  // verdade que ainda precisa ser separado da tinta por luminancia (bug relatado: uma
+  // imagem assim virava toda preta, porque a versao anterior tratava "existe alguma
+  // transparencia" como "a imagem inteira ja veio pronta, so preservar o alfa" - sem
+  // perceber que o fundo branco opaco continuava precisando virar transparente).
+  const sourceAlpha = new Uint8ClampedArray(totalPixels);
+  const luminances = new Float32Array(totalPixels);
+  const histogram = new Array(256).fill(0);
+  let opaqueSourcePixels = 0;
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    sourceAlpha[p] = data[i + 3];
+    const luminance = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    luminances[p] = luminance;
+    if (sourceAlpha[p] >= 200) {
+      histogram[Math.round(luminance)]++;
+      opaqueSourcePixels++;
+    }
   }
-  const hasExistingTransparency = sourceTransparentPixels > totalPixels * 0.02;
 
   let alpha = new Uint8ClampedArray(totalPixels);
-  if (hasExistingTransparency) {
-    for (let i = 0, p = 0; i < data.length; i += 4, p++) alpha[p] = data[i + 3];
+  if (opaqueSourcePixels < totalPixels * 0.05) {
+    // Quase nada da imagem esta opaco - nesse caso e mesmo um recorte que ja veio
+    // pronto (sem "papel" nenhum pra comparar, so o traco/objeto em si), entao so
+    // preserva a transparencia que ja existia.
+    for (let p = 0; p < totalPixels; p++) alpha[p] = sourceAlpha[p];
   } else {
-    const histogram = new Array(256).fill(0);
-    const luminances = new Float32Array(totalPixels);
-    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-      const luminance = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-      luminances[p] = luminance;
-      histogram[Math.round(luminance)]++;
-    }
-    const threshold = extrasOtsuThreshold(histogram, totalPixels);
+    const threshold = extrasOtsuThreshold(histogram, opaqueSourcePixels);
     for (let p = 0; p < totalPixels; p++) {
       const distance = threshold - luminances[p];
-      if (distance >= SIGNATURE_DIGITIZE_EDGE_BAND) alpha[p] = 255;
-      else if (distance <= -SIGNATURE_DIGITIZE_EDGE_BAND) alpha[p] = 0;
-      else alpha[p] = Math.round(((distance + SIGNATURE_DIGITIZE_EDGE_BAND) / (SIGNATURE_DIGITIZE_EDGE_BAND * 2)) * 255);
+      let inkAlpha;
+      if (distance >= SIGNATURE_DIGITIZE_EDGE_BAND) inkAlpha = 255;
+      else if (distance <= -SIGNATURE_DIGITIZE_EDGE_BAND) inkAlpha = 0;
+      else inkAlpha = Math.round(((distance + SIGNATURE_DIGITIZE_EDGE_BAND) / (SIGNATURE_DIGITIZE_EDGE_BAND * 2)) * 255);
+      // Nunca fica mais opaco do que a origem ja era - respeita transparencia
+      // incidental que ja existia (ex.: cantos de uma imagem gerada por IA).
+      alpha[p] = Math.min(inkAlpha, sourceAlpha[p]);
     }
   }
 
@@ -9748,9 +9757,7 @@ function signatureModelsSplit() {
 
 function signatureModelCardMarkup(model) {
   const active = model.id === signatureSelectedModelId ? "active" : "";
-  return `<button type="button" class="signature-model-card ${active}" data-signature-model="${model.id}">
-    <strong>${escapeHtml(model.name)}</strong>
-  </button>`;
+  return `<button type="button" class="signature-model-list-item ${active}" data-signature-model="${model.id}">${escapeHtml(model.name)}</button>`;
 }
 
 function selectedSignatureModel() {
@@ -9778,9 +9785,9 @@ function renderSignatureModelGallery() {
   const { system, mine } = signatureModelsSplit();
   document.getElementById("signatureSystemModels").innerHTML = system.length
     ? system.map(signatureModelCardMarkup).join("")
-    : `<p class="meta">Nenhum modelo do sistema ainda.</p>`;
+    : `<span class="meta">Nenhum modelo do sistema ainda.</span>`;
   document.getElementById("signatureMyModels").innerHTML = mine.map(signatureModelCardMarkup).join("")
-    + `<button type="button" class="signature-model-card signature-model-card-new" id="signatureNewModelCard">+ Novo modelo</button>`;
+    + `<button type="button" class="signature-model-list-add" id="signatureNewModelCard" title="Novo modelo" aria-label="Novo modelo">+</button>`;
   signatureSyncModelActions();
 }
 
@@ -9985,6 +9992,28 @@ function signatureAddToEditor() {
   const canvas = document.getElementById("extrasCanvas");
   const ctx = canvas.getContext("2d");
   const fontFamily = signatureFontFamilyName(model);
+
+  // Um canvas "em branco" (nenhuma foto carregada nesta sessao) comeca no tamanho
+  // padrao do elemento <canvas> (300x150) - baixo demais pra um texto cursivo ficar
+  // nitido quando exibido maior na tela (ficava serrilhado). Uma foto real ja tem
+  // resolucao de sobra por natureza (megapixels da camera); um canvas em branco nao -
+  // da um tamanho de trabalho generoso antes de desenhar, escalando o texto junto pra
+  // manter a mesma proporcao visual de antes.
+  let sizeScale = 1;
+  // So redimensiona um canvas genuinamente intocado ate agora (sem foto E sem nenhum
+  // objeto ja adicionado) - resize depois de ja existir conteudo apagaria/desalinharia
+  // o que ja estava la.
+  if (!extrasState.originalImageData && !extrasState.objects.length && canvas.width <= 300 && canvas.height <= 150) {
+    sizeScale = Math.max(2, Math.round(window.devicePixelRatio || 1));
+    const padding = 40 * sizeScale;
+    const measureCtx = document.createElement("canvas").getContext("2d");
+    measureCtx.font = `${style.size * sizeScale}px "${fontFamily}"`;
+    const textWidth = extrasTextWidthWithSpacing(measureCtx, style.text, (style.letterSpacing || 0) * sizeScale);
+    canvas.width = Math.max(600, Math.ceil(textWidth + padding * 2));
+    canvas.height = Math.max(300, Math.ceil(style.size * sizeScale * 2.4 + padding));
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    extrasState.objectsBase = null;
+  }
   extrasEnsureObjectsBase();
   extrasPushUndo();
   const obj = {
@@ -9992,14 +10021,14 @@ function signatureAddToEditor() {
     type: "text",
     x: 0, y: 0, w: 0, h: 0,
     text: style.text,
-    size: style.size,
+    size: style.size * sizeScale,
     color: style.color,
     fontFamily: `"${fontFamily}"`,
     bold: false,
     italic: false,
     underline: false,
     slant: style.slant || undefined,
-    letterSpacing: style.letterSpacing || undefined
+    letterSpacing: style.letterSpacing ? style.letterSpacing * sizeScale : undefined
   };
   extrasRemeasureText(obj);
   obj.x = Math.max(0, (canvas.width - obj.w) / 2);
@@ -10846,7 +10875,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=216").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=217").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

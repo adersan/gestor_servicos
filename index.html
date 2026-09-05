@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=149">
+  <link rel="stylesheet" href="styles.css?v=150">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -1973,28 +1973,51 @@
   </dialog>
 
   <dialog id="signatureDialog" class="wide-dialog">
-    <div class="dialog-heading"><h2>Escrita personalizada</h2><button class="icon-button" data-close-dialog>×</button></div>
+    <div class="dialog-heading">
+      <h2>Escrita personalizada</h2>
+      <div class="dialog-heading-actions">
+        <button class="secondary" type="button" id="signatureAddToEditorButton" disabled>Adicionar ao editor</button>
+        <button class="secondary" type="button" id="signatureExportPngButton" disabled>Exportar PNG</button>
+        <button class="icon-button" data-close-dialog>×</button>
+      </div>
+    </div>
     <div class="signature-dialog-content">
       <label>Texto<input id="signatureTextInput" type="text" maxlength="150" placeholder="Digite o texto"></label>
 
-      <h3 class="signature-section-title">Modelos do sistema</h3>
-      <div id="signatureSystemModels" class="signature-model-grid"></div>
+      <div class="signature-preview-wrap extras-canvas-checkered">
+        <canvas id="signaturePreviewCanvas" class="hidden"></canvas>
+        <p id="signaturePreviewHint" class="meta"></p>
+      </div>
 
-      <h3 class="signature-section-title">Meus modelos</h3>
-      <div id="signatureMyModels" class="signature-model-grid"></div>
+      <div class="signature-controls">
+        <label class="extras-range-label">Tamanho<input type="range" id="signatureSize" min="16" max="120" value="42"></label>
+        <label class="signature-color-field">Cor<input type="color" id="signatureColor" value="#111111"></label>
+        <label class="extras-range-label">Inclinação<input type="range" id="signatureSlant" min="-30" max="30" value="0"></label>
+        <label class="extras-range-label">Espaçamento<input type="range" id="signatureLetterSpacing" min="-5" max="20" value="0"></label>
+      </div>
 
-      <div id="signatureModelActions" class="signature-model-actions hidden">
-        <span class="meta">Modelo selecionado: <strong id="signatureSelectedModelName"></strong></span>
-        <div class="signature-model-actions-buttons">
-          <button class="table-action" type="button" id="signatureRenameButton">Renomear</button>
-          <button class="table-action" type="button" id="signatureDuplicateButton">Duplicar</button>
-          <button class="table-action hidden" type="button" id="signatureReanalyzeButton">Reanalisar com IA</button>
-          <button class="table-action danger" type="button" id="signatureDeleteButton">Excluir</button>
+      <div class="signature-models-bar">
+        <div class="signature-models-group">
+          <span class="signature-models-label">Modelos do sistema</span>
+          <div id="signatureSystemModels" class="signature-model-list"></div>
         </div>
-        <div id="signatureRenameRow" class="signature-rename-row hidden">
-          <input id="signatureRenameInput" type="text" maxlength="60" placeholder="Novo nome do modelo">
-          <button class="secondary" type="button" id="signatureRenameCancelButton">Cancelar</button>
-          <button class="primary" type="button" id="signatureRenameConfirmButton">Salvar</button>
+        <div class="signature-models-group">
+          <span class="signature-models-label">Meus modelos</span>
+          <div id="signatureMyModels" class="signature-model-list"></div>
+        </div>
+        <div id="signatureModelActions" class="signature-model-actions hidden">
+          <span class="meta">Selecionado: <strong id="signatureSelectedModelName"></strong></span>
+          <div class="signature-model-actions-buttons">
+            <button class="table-action" type="button" id="signatureRenameButton">Renomear</button>
+            <button class="table-action" type="button" id="signatureDuplicateButton">Duplicar</button>
+            <button class="table-action hidden" type="button" id="signatureReanalyzeButton">Reanalisar com IA</button>
+            <button class="table-action danger" type="button" id="signatureDeleteButton">Excluir</button>
+          </div>
+          <div id="signatureRenameRow" class="signature-rename-row hidden">
+            <input id="signatureRenameInput" type="text" maxlength="60" placeholder="Novo nome do modelo">
+            <button class="secondary" type="button" id="signatureRenameCancelButton">Cancelar</button>
+            <button class="primary" type="button" id="signatureRenameConfirmButton">Salvar</button>
+          </div>
         </div>
       </div>
 
@@ -2021,22 +2044,6 @@
         </div>
       </div>
 
-      <div class="signature-controls">
-        <label class="extras-range-label">Tamanho<input type="range" id="signatureSize" min="16" max="120" value="42"></label>
-        <label class="signature-color-field">Cor<input type="color" id="signatureColor" value="#111111"></label>
-        <label class="extras-range-label">Inclinação<input type="range" id="signatureSlant" min="-30" max="30" value="0"></label>
-        <label class="extras-range-label">Espaçamento<input type="range" id="signatureLetterSpacing" min="-5" max="20" value="0"></label>
-      </div>
-
-      <h3 class="signature-section-title">Prévia</h3>
-      <div class="signature-preview-wrap extras-canvas-checkered">
-        <canvas id="signaturePreviewCanvas" class="hidden"></canvas>
-        <p id="signaturePreviewHint" class="meta"></p>
-      </div>
-    </div>
-    <div class="dialog-actions">
-      <button class="secondary" type="button" id="signatureAddToEditorButton" disabled>Adicionar ao editor</button>
-      <button class="secondary" type="button" id="signatureExportPngButton" disabled>Exportar PNG</button>
     </div>
   </dialog>
 
@@ -2656,7 +2663,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=56"></script>
-  <script src="app.js?v=200"></script>
+  <script src="app.js?v=201"></script>
   <script src="supplier.js?v=67"></script>
 </body>
 </html>
