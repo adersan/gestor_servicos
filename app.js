@@ -10331,10 +10331,13 @@ async function signatureDeleteModel() {
   }
 }
 
+// Fase 5 da reescrita: em vez de empurrar pro sistema antigo (extrasState.objects),
+// cria um fabric.Textbox de verdade na camada de objetos - skewX/charSpacing nativos
+// do Fabric substituem o shear manual e o loop de caractere-por-caractere de antes.
 function signatureAddToEditor() {
   const model = (state.signatureModels || []).find((item) => item.id === signatureSelectedModelId);
   const style = signatureCurrentStyle();
-  if (!model || !style.text) return;
+  if (!model || !style.text || !extrasFabricCanvas) return;
   const canvas = document.getElementById("extrasCanvas");
   const ctx = canvas.getContext("2d");
   const fontFamily = signatureFontFamilyName(model);
@@ -10347,9 +10350,9 @@ function signatureAddToEditor() {
   // manter a mesma proporcao visual de antes.
   let sizeScale = 1;
   // So redimensiona um canvas genuinamente intocado ate agora (sem foto E sem nenhum
-  // objeto ja adicionado) - resize depois de ja existir conteudo apagaria/desalinharia
+  // objeto Fabric ja adicionado) - resize depois de ja existir conteudo desalinharia
   // o que ja estava la.
-  if (!extrasState.originalImageData && !extrasState.objects.length && canvas.width <= 300 && canvas.height <= 150) {
+  if (!extrasState.originalImageData && !extrasFabricCanvas.getObjects().length && canvas.width <= 300 && canvas.height <= 150) {
     sizeScale = Math.max(3, Math.round(window.devicePixelRatio || 1));
     const padding = 40 * sizeScale;
     const measureCtx = document.createElement("canvas").getContext("2d");
@@ -10358,30 +10361,31 @@ function signatureAddToEditor() {
     canvas.width = Math.max(600, Math.ceil(textWidth + padding * 2));
     canvas.height = Math.max(300, Math.ceil(style.size * sizeScale * 2.4 + padding));
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    extrasState.objectsBase = null;
+    extrasSyncLayers();
   }
-  extrasEnsureObjectsBase();
   extrasPushUndo();
-  const obj = {
-    id: extrasObjectSeq++,
-    type: "text",
-    x: 0, y: 0, w: 0, h: 0,
-    text: style.text,
-    size: style.size * sizeScale,
-    color: style.color,
+  const fontSize = style.size * sizeScale;
+  const letterSpacingPx = style.letterSpacing ? style.letterSpacing * sizeScale : 0;
+  const textbox = new fabric.Textbox(style.text, {
+    left: 0,
+    top: 0,
+    fontSize,
+    fill: style.color,
     fontFamily: `"${fontFamily}"`,
-    bold: false,
-    italic: false,
-    underline: false,
-    slant: style.slant || undefined,
-    letterSpacing: style.letterSpacing ? style.letterSpacing * sizeScale : undefined
-  };
-  extrasRemeasureText(obj);
-  obj.x = Math.max(0, (canvas.width - obj.w) / 2);
-  obj.y = Math.max(0, (canvas.height - obj.h) / 2);
-  extrasState.objects.push(obj);
-  extrasDrawObjectInto(ctx, obj);
-  extrasSelectObject(obj.id);
+    skewX: style.slant || 0,
+    // Fabric usa "milesimos de em" pra charSpacing, nao pixel direto como o campo
+    // legado (letterSpacing) - converte proporcional ao tamanho da fonte.
+    charSpacing: letterSpacingPx ? (letterSpacingPx / fontSize) * 1000 : 0
+  });
+  textbox.id = `obj-${extrasObjectSeq++}`;
+  extrasFabricCanvas.add(textbox);
+  textbox.set({
+    left: Math.max(0, (canvas.width - textbox.getScaledWidth()) / 2),
+    top: Math.max(0, (canvas.height - textbox.getScaledHeight()) / 2)
+  });
+  textbox.setCoords();
+  extrasFabricCanvas.setActiveObject(textbox);
+  extrasFabricCanvas.requestRenderAll();
   document.getElementById("signatureDialog").close();
   showAppAlert("Assinatura adicionada ao editor.", { type: "success" });
 }
