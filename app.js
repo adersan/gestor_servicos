@@ -7606,23 +7606,43 @@ function extrasResetToolsUI() {
   extrasApplyZoomStyle();
 }
 
+// Enquanto a ferramenta ativa e "select" e algo esta selecionado (Fabric ou legado),
+// a barra de propriedades mostra os controles do TIPO do objeto selecionado (cor,
+// contorno, fonte etc.), nao um painel vazio de "select" - sem precisar trocar
+// extrasState.tool de verdade pra isso (trocar pra "pencil"/"signature" ligaria
+// isDrawingMode e quebraria a selecao/arraste do Fabric).
+function extrasPanelToolFor(tool) {
+  if (tool !== "select") return tool;
+  const fabricObj = extrasSelectedFabricObject();
+  if (fabricObj) {
+    if (fabricObj.type === "rect") return "rect";
+    if (fabricObj.type === "ellipse") return "ellipse";
+    if (fabricObj.type === "textbox") return "text";
+    if (fabricObj.type === "path") return "pencil";
+  }
+  const legacyObj = extrasFindObject(extrasState.selectedObjectId);
+  if (legacyObj) return extrasObjectToolOf(legacyObj);
+  return tool;
+}
+
 function extrasSyncToolOptionsVisibility() {
   const tool = extrasState.tool;
+  const panelTool = extrasPanelToolFor(tool);
   const titleEl = document.getElementById("extrasToolPropertiesTitle");
-  if (titleEl) titleEl.textContent = EXTRAS_TOOL_LABELS[tool] || "";
-  document.getElementById("extrasBrushSizeGroup").classList.toggle("hidden", !EXTRAS_BRUSH_TOOLS.has(tool));
-  document.getElementById("extrasTipShapeGroup").classList.toggle("hidden", !EXTRAS_TIP_TOOLS.has(tool));
-  document.getElementById("extrasOpacityGroup").classList.toggle("hidden", !EXTRAS_OPACITY_TOOLS.has(tool));
-  document.getElementById("extrasFillGroup").classList.toggle("hidden", !EXTRAS_FILL_TOOLS.has(tool));
-  document.getElementById("extrasStrokeGroup").classList.toggle("hidden", !EXTRAS_FILL_TOOLS.has(tool));
-  document.getElementById("extrasColorGroup").classList.toggle("hidden", !EXTRAS_COLOR_TOOLS.has(tool));
-  document.getElementById("extrasTextSizeGroup").classList.toggle("hidden", tool !== "text");
-  document.getElementById("extrasTextStyleGroup").classList.toggle("hidden", tool !== "text");
+  if (titleEl) titleEl.textContent = EXTRAS_TOOL_LABELS[panelTool] || EXTRAS_TOOL_LABELS[tool] || "";
+  document.getElementById("extrasBrushSizeGroup").classList.toggle("hidden", !EXTRAS_BRUSH_TOOLS.has(panelTool));
+  document.getElementById("extrasTipShapeGroup").classList.toggle("hidden", !EXTRAS_TIP_TOOLS.has(panelTool));
+  document.getElementById("extrasOpacityGroup").classList.toggle("hidden", !EXTRAS_OPACITY_TOOLS.has(panelTool));
+  document.getElementById("extrasFillGroup").classList.toggle("hidden", !EXTRAS_FILL_TOOLS.has(panelTool));
+  document.getElementById("extrasStrokeGroup").classList.toggle("hidden", !EXTRAS_FILL_TOOLS.has(panelTool));
+  document.getElementById("extrasColorGroup").classList.toggle("hidden", !EXTRAS_COLOR_TOOLS.has(panelTool));
+  document.getElementById("extrasTextSizeGroup").classList.toggle("hidden", panelTool !== "text");
+  document.getElementById("extrasTextStyleGroup").classList.toggle("hidden", panelTool !== "text");
   document.getElementById("extrasCropGroup").classList.toggle("hidden", tool !== "crop");
   document.getElementById("extrasBackgroundGroup").classList.toggle("hidden", tool !== "background");
   document.getElementById("extrasAdjustGroup").classList.toggle("hidden", tool !== "adjust");
   document.getElementById("extrasZoomGroup").classList.toggle("hidden", tool !== "zoom");
-  document.getElementById("extrasSelectGroup").classList.toggle("hidden", tool !== "select");
+  document.getElementById("extrasSelectGroup").classList.toggle("hidden", tool !== "select" || panelTool !== "select");
   if (tool === "crop") extrasEnterCropMode(); else if (extrasState.cropping) extrasExitCropMode();
   if (tool !== "zoom") {
     extrasState.zoomPanArmed = false;
@@ -7642,8 +7662,11 @@ function extrasSyncToolOptionsVisibility() {
 function extrasSelectTool(tool) {
   if (tool !== extrasState.tool) {
     if (extrasState.tool === "adjust") extrasCancelAdjust();
-    if (tool === "select" || EXTRAS_OBJECT_TOOLS.has(tool)) extrasSelectObject(null);
-    else extrasResetLiveObjects();
+    // Trocar de ferramenta so desseleciona - nao apaga mais os objetos so por trocar
+    // (bug do sistema antigo, corrigido na Fase 2: so recorte/rotacao/ajuste ainda
+    // apagam objetos, e so no proprio commit deles, nao so por ativar a ferramenta).
+    extrasSelectObject(null);
+    if (extrasFabricCanvas) extrasFabricCanvas.discardActiveObject();
   }
   extrasActivateToolForSelection(tool);
 }
@@ -7654,6 +7677,7 @@ function extrasActivateToolForSelection(tool) {
   extrasState.tool = tool;
   document.querySelectorAll("[data-extras-tool]").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasTool === tool));
   extrasSyncToolOptionsVisibility();
+  extrasSyncFabricToolMode();
   if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
 }
 
@@ -7840,34 +7864,34 @@ function extrasSyncTextStyleButtons(obj) {
 }
 
 function extrasSyncPropertiesForSelection() {
-  const obj = extrasFindObject(extrasState.selectedObjectId);
+  const style = extrasCurrentSelectionStyle();
 
-  const colorForUI = obj ? obj.color : extrasState.drawColor;
+  const colorForUI = style ? style.color : extrasState.drawColor;
   document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasDrawColor || "") === colorForUI));
   const drawColorInput = document.getElementById("extrasDrawColorInput");
   if (drawColorInput) drawColorInput.value = colorForUI;
 
-  const isShape = !!obj && (obj.type === "rect" || obj.type === "ellipse");
-  const strokeColorForUI = isShape ? obj.strokeColor : extrasState.strokeColor;
+  const isShape = !!style && style.isShape;
+  const strokeColorForUI = isShape ? style.strokeColor : extrasState.strokeColor;
   document.querySelectorAll("#extrasStrokeColorOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasStrokeColor || "") === strokeColorForUI));
   const strokeColorInput = document.getElementById("extrasStrokeColorInput");
   if (strokeColorInput) strokeColorInput.value = strokeColorForUI;
   const strokeWidthInput = document.getElementById("extrasStrokeWidth");
-  if (strokeWidthInput) strokeWidthInput.value = isShape ? obj.strokeWidth : extrasState.strokeWidth;
+  if (strokeWidthInput) strokeWidthInput.value = isShape ? style.strokeWidth : extrasState.strokeWidth;
   if (isShape) {
-    document.querySelectorAll("#extrasFillOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasFill === obj.fill));
+    document.querySelectorAll("#extrasFillOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasFill === style.fill));
   }
 
-  const isText = !!obj && obj.type === "text";
+  const isText = !!style && style.isText;
   const fontSelect = document.getElementById("extrasFontFamily");
-  if (fontSelect) fontSelect.value = isText ? obj.fontFamily : extrasState.fontFamily;
+  if (fontSelect) fontSelect.value = isText ? style.fontFamily : extrasState.fontFamily;
   const textSizeInput = document.getElementById("extrasTextSize");
-  if (textSizeInput && isText) textSizeInput.value = Math.round(obj.size);
-  extrasSyncTextStyleButtons(isText ? obj : null);
+  if (textSizeInput && isText) textSizeInput.value = Math.round(style.size);
+  extrasSyncTextStyleButtons(isText ? style : null);
 }
 
 function extrasBeginLiveEdit() {
-  if (extrasFindObject(extrasState.selectedObjectId)) extrasPushUndo();
+  if (extrasSelectedFabricObject() || extrasFindObject(extrasState.selectedObjectId)) extrasPushUndo();
 }
 
 function extrasWireGestureInput(inputId, applyFn) {
@@ -7898,7 +7922,15 @@ function extrasSetDrawColor(color) {
   document.querySelectorAll("#extrasDrawColorOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasDrawColor || "") === color));
   const input = document.getElementById("extrasDrawColorInput");
   if (input) input.value = color;
-  extrasApplyLiveObjectProperty((obj) => { obj.color = color; });
+  extrasApplyToSelection(
+    (obj) => { obj.color = color; },
+    (obj) => {
+      if (obj.type === "textbox") obj.set({ fill: color });
+      else if (obj.type === "rect" || obj.type === "ellipse") obj.set({ fill: extrasState.shapeFill === "filled" ? color : "" });
+      else obj.set({ stroke: color }); // path (lapis/assinatura)
+    }
+  );
+  if (extrasFabricCanvas?.freeDrawingBrush) extrasFabricCanvas.freeDrawingBrush.color = color;
 }
 
 function extrasSetStrokeColor(color) {
@@ -7906,24 +7938,43 @@ function extrasSetStrokeColor(color) {
   document.querySelectorAll("#extrasStrokeColorOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasStrokeColor || "") === color));
   const input = document.getElementById("extrasStrokeColorInput");
   if (input) input.value = color;
-  extrasApplyLiveObjectProperty((obj) => { obj.strokeColor = color; });
+  extrasApplyToSelection(
+    (obj) => { obj.strokeColor = color; },
+    (obj) => { if (obj.type === "rect" || obj.type === "ellipse") obj.set({ stroke: color }); }
+  );
 }
 
 function extrasSetStrokeWidth(width) {
   extrasState.strokeWidth = width;
-  extrasApplyLiveObjectProperty((obj) => { obj.strokeWidth = width; });
+  extrasApplyToSelection(
+    (obj) => { obj.strokeWidth = width; },
+    (obj) => { if (obj.type === "rect" || obj.type === "ellipse") obj.set({ strokeWidth: width }); }
+  );
 }
 
 function extrasSetFontFamily(fontFamily) {
   extrasState.fontFamily = fontFamily;
-  extrasApplyLiveObjectProperty((obj) => {
-    if (obj.type !== "text") return;
-    obj.fontFamily = fontFamily;
-    extrasRemeasureText(obj);
-  });
+  extrasApplyToSelection(
+    (obj) => {
+      if (obj.type !== "text") return;
+      obj.fontFamily = fontFamily;
+      extrasRemeasureText(obj);
+    },
+    (obj) => { if (obj.type === "textbox") obj.set({ fontFamily }); }
+  );
 }
 
 function extrasToggleTextStyle(style) {
+  const fabricObj = extrasSelectedFabricObject();
+  if (fabricObj && fabricObj.type === "textbox") {
+    extrasPushUndo();
+    if (style === "bold") fabricObj.set({ fontWeight: fabricObj.fontWeight === "bold" ? "normal" : "bold" });
+    else if (style === "italic") fabricObj.set({ fontStyle: fabricObj.fontStyle === "italic" ? "normal" : "italic" });
+    else fabricObj.set({ underline: !fabricObj.underline });
+    extrasFabricCanvas.requestRenderAll();
+    extrasSyncPropertiesForSelection();
+    return;
+  }
   const obj = extrasFindObject(extrasState.selectedObjectId);
   if (obj && obj.type === "text") {
     extrasPushUndo();
@@ -8744,10 +8795,206 @@ function initializeExtrasFabricLayer() {
   extrasFabricCanvas.wrapperEl.style.position = "absolute";
   extrasFabricCanvas.wrapperEl.style.top = "0";
   extrasFabricCanvas.wrapperEl.style.left = "0";
-  // Fase 1: nenhuma ferramenta ainda usa esta camada - fica inerte (sem capturar
-  // clique) ate a Fase 2 ligar as ferramentas de objeto nela.
   extrasFabricCanvas.wrapperEl.classList.remove("extras-objects-interactive");
   extrasSyncLayers();
+  extrasWireFabricObjectCreation();
+  const extrasOnFabricSelectionChange = () => {
+    extrasSyncToolOptionsVisibility();
+    extrasSyncPropertiesForSelection();
+  };
+  extrasFabricCanvas.on("selection:created", extrasOnFabricSelectionChange);
+  extrasFabricCanvas.on("selection:updated", extrasOnFabricSelectionChange);
+  extrasFabricCanvas.on("selection:cleared", extrasOnFabricSelectionChange);
+  // O anel do cursor do pincel (#extrasBrushCursor) e posicionado a partir de
+  // #extrasCanvas (camada de baixo) - continua correto mesmo pro lapis/assinatura
+  // desenhando na camada Fabric por cima, ja que as duas ficam sempre alinhadas
+  // (extrasSyncLayers), mas precisa de listener proprio aqui porque o Fabric, quando
+  // interativo, intercepta o pointermove antes dele chegar em #extrasCanvas.
+  extrasFabricCanvas.on("mouse:move", (opt) => {
+    extrasLastCursorEvent = opt.e;
+    extrasUpdateBrushCursor(opt.e);
+  });
+  extrasFabricCanvas.wrapperEl.addEventListener("pointerleave", () => {
+    document.getElementById("extrasBrushCursor").classList.add("hidden");
+  });
+}
+
+let extrasFabricDrawingShape = null;
+// Clicar fora de um texto em edicao dispara "text:editing:exited" E o mouse:down
+// desse MESMO clique (Fabric processa a saida da edicao antes de emitir o evento
+// publico) - sem essa trava, esse clique tambem seria interpretado como "criar texto
+// novo aqui", deixando uma caixa de texto vazia extra pra tras.
+let extrasFabricSuppressNextTextCreate = false;
+
+// Ferramentas de objeto (Fase 2 da reescrita): texto/retangulo/elipse na camada
+// Fabric via clique/arraste direto nela; lapis/caneta-assinatura via isDrawingMode
+// nativo do Fabric (extrasSyncFabricToolMode liga o pincel). Apagar/Restaurar/
+// Marcador continuam 100% na camada de baixo, sem nenhuma mudanca (arquitetura
+// hibrida - ver plano).
+function extrasWireFabricObjectCreation() {
+  extrasFabricCanvas.on("mouse:down", (opt) => {
+    const tool = extrasState.tool;
+    if (extrasFabricCanvas.isDrawingMode) {
+      // Lapis/assinatura: deixa o proprio PencilBrush do Fabric conduzir o traco,
+      // so garante que da pra desfazer o traco inteiro depois.
+      extrasPushUndo();
+      return;
+    }
+    if (opt.target) return; // clicou num objeto existente - deixa o Fabric selecionar
+    if (tool === "text") {
+      if (extrasFabricSuppressNextTextCreate) { extrasFabricSuppressNextTextCreate = false; return; }
+      const pointer = extrasFabricCanvas.getScenePoint(opt.e);
+      extrasPushUndo();
+      const textbox = new fabric.Textbox("Texto", {
+        left: pointer.x,
+        top: pointer.y,
+        fontSize: Number(document.getElementById("extrasTextSize").value) || 28,
+        fill: extrasState.drawColor,
+        fontFamily: extrasState.fontFamily,
+        fontWeight: extrasState.textBold ? "bold" : "normal",
+        fontStyle: extrasState.textItalic ? "italic" : "normal",
+        underline: extrasState.textUnderline
+      });
+      textbox.id = `obj-${extrasObjectSeq++}`;
+      extrasFabricCanvas.add(textbox);
+      extrasFabricCanvas.setActiveObject(textbox);
+      extrasFabricCanvas.requestRenderAll();
+      textbox.enterEditing();
+      textbox.selectAll();
+      return;
+    }
+    if (tool === "rect" || tool === "ellipse") {
+      const pointer = extrasFabricCanvas.getScenePoint(opt.e);
+      extrasPushUndo();
+      const fill = extrasState.shapeFill === "filled" ? extrasState.drawColor : "";
+      const commonProps = {
+        left: pointer.x, top: pointer.y, width: 1, height: 1,
+        fill, stroke: extrasState.strokeColor, strokeWidth: extrasState.strokeWidth,
+        selectable: false
+      };
+      const shape = tool === "rect" ? new fabric.Rect(commonProps) : new fabric.Ellipse({ ...commonProps, rx: 0.5, ry: 0.5 });
+      shape.id = `obj-${extrasObjectSeq++}`;
+      extrasFabricCanvas.add(shape);
+      extrasFabricDrawingShape = { shape, startX: pointer.x, startY: pointer.y };
+      return;
+    }
+  });
+
+  extrasFabricCanvas.on("mouse:move", (opt) => {
+    if (!extrasFabricDrawingShape) return;
+    const pointer = extrasFabricCanvas.getScenePoint(opt.e);
+    const { shape, startX, startY } = extrasFabricDrawingShape;
+    const left = Math.min(startX, pointer.x);
+    const top = Math.min(startY, pointer.y);
+    const width = Math.max(1, Math.abs(pointer.x - startX));
+    const height = Math.max(1, Math.abs(pointer.y - startY));
+    const props = { left, top, width, height };
+    if (shape.type === "ellipse") { props.rx = width / 2; props.ry = height / 2; }
+    shape.set(props);
+    shape.setCoords();
+    extrasFabricCanvas.requestRenderAll();
+  });
+
+  extrasFabricCanvas.on("mouse:up", () => {
+    if (!extrasFabricDrawingShape) return;
+    const { shape } = extrasFabricDrawingShape;
+    extrasFabricDrawingShape = null;
+    if (shape.width < 4 && shape.height < 4) {
+      extrasFabricCanvas.remove(shape);
+      return;
+    }
+    shape.set({ selectable: true });
+    shape.setCoords();
+    extrasFabricCanvas.setActiveObject(shape);
+    extrasFabricCanvas.requestRenderAll();
+  });
+
+  // Texto vazio ao sair da edicao (usuario apagou tudo) - remove o objeto, mesmo
+  // comportamento do fluxo antigo (overlay HTML) pra texto novo deixado em branco.
+  extrasFabricCanvas.on("text:editing:exited", (opt) => {
+    if (extrasState.tool === "text") extrasFabricSuppressNextTextCreate = true;
+    const textbox = opt.target;
+    if (textbox && !textbox.text.trim()) {
+      extrasFabricCanvas.remove(textbox);
+      extrasFabricCanvas.requestRenderAll();
+    }
+  });
+
+  extrasFabricCanvas.on("path:created", (opt) => {
+    opt.path.id = `obj-${extrasObjectSeq++}`;
+  });
+}
+
+// Liga/desliga a camada Fabric conforme a ferramenta ativa - so "select" e as 5
+// ferramentas de objeto (EXTRAS_OBJECT_TOOLS) capturam clique; nas demais (apagar/
+// restaurar/marcador/recortar/fundo/ajustar/zoom) a camada fica transparente a
+// eventos, deixando tudo passar pra camada da foto embaixo, como sempre.
+function extrasSyncFabricToolMode() {
+  if (!extrasFabricCanvas) return;
+  const tool = extrasState.tool;
+  const interactive = tool === "select" || EXTRAS_OBJECT_TOOLS.has(tool);
+  extrasFabricCanvas.wrapperEl.classList.toggle("extras-objects-interactive", interactive);
+  extrasFabricCanvas.selection = tool === "select";
+  const isFreehand = tool === "pencil" || tool === "signature";
+  extrasFabricCanvas.isDrawingMode = isFreehand;
+  if (isFreehand) {
+    const brush = new fabric.PencilBrush(extrasFabricCanvas);
+    brush.width = extrasState.brushSize;
+    brush.color = extrasState.drawColor;
+    extrasFabricCanvas.freeDrawingBrush = brush;
+  }
+  if (!interactive) extrasFabricCanvas.discardActiveObject();
+  extrasFabricCanvas.requestRenderAll();
+}
+
+function extrasSelectedFabricObject() {
+  return extrasFabricCanvas ? extrasFabricCanvas.getActiveObject() : null;
+}
+
+// Le o estilo atual da selecao (legado OU Fabric) num formato comum, pra alimentar a
+// barra de propriedades sem duplicar logica em cada lugar que exibe/aplica estilo.
+function extrasCurrentSelectionStyle() {
+  const fabricObj = extrasSelectedFabricObject();
+  if (fabricObj) {
+    const isShape = fabricObj.type === "rect" || fabricObj.type === "ellipse";
+    const isText = fabricObj.type === "textbox";
+    return {
+      color: isText ? fabricObj.fill : (isShape ? (fabricObj.fill || extrasState.drawColor) : fabricObj.stroke),
+      isShape,
+      strokeColor: fabricObj.stroke,
+      strokeWidth: fabricObj.strokeWidth,
+      fill: isShape ? (fabricObj.fill ? "filled" : "outline") : null,
+      isText,
+      fontFamily: fabricObj.fontFamily,
+      size: fabricObj.fontSize,
+      bold: fabricObj.fontWeight === "bold",
+      italic: fabricObj.fontStyle === "italic",
+      underline: !!fabricObj.underline
+    };
+  }
+  const obj = extrasFindObject(extrasState.selectedObjectId);
+  if (!obj) return null;
+  const isShape = obj.type === "rect" || obj.type === "ellipse";
+  const isText = obj.type === "text";
+  return {
+    color: obj.color, isShape, strokeColor: obj.strokeColor, strokeWidth: obj.strokeWidth,
+    fill: isShape ? obj.fill : null, isText, fontFamily: obj.fontFamily, size: obj.size,
+    bold: obj.bold, italic: obj.italic, underline: obj.underline
+  };
+}
+
+// Aplica uma mudanca de propriedade na selecao atual, seja ela um objeto Fabric ou
+// (legado, caminho morto apos a Fase 2 mas mantido ate o endurecimento) um objeto do
+// sistema antigo. No maximo um dos dois encontra uma selecao de verdade.
+function extrasApplyToSelection(legacyMutate, fabricMutate) {
+  const fabricObj = extrasSelectedFabricObject();
+  if (fabricObj) {
+    fabricMutate(fabricObj);
+    fabricObj.setCoords();
+    extrasFabricCanvas.requestRenderAll();
+    return true;
+  }
+  return extrasApplyLiveObjectProperty(legacyMutate);
 }
 
 // Mantem a camada de objetos (Fabric) com o MESMO tamanho de pixel e a MESMA escala
@@ -10679,6 +10926,7 @@ function initializeExtrasTools() {
   document.getElementById("extrasBrushSize").addEventListener("input", (event) => {
     extrasState.brushSize = Number(event.target.value);
     if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
+    if (extrasFabricCanvas?.freeDrawingBrush) extrasFabricCanvas.freeDrawingBrush.width = extrasState.brushSize;
   });
 
   document.getElementById("extrasOpacity").addEventListener("input", (event) => {
@@ -10699,7 +10947,10 @@ function initializeExtrasTools() {
     extrasState.shapeFill = button.dataset.extrasFill;
     document.querySelectorAll("#extrasFillOptions button").forEach((btn) => btn.classList.toggle("active", btn === button));
     extrasBeginLiveEdit();
-    extrasApplyLiveObjectProperty((obj) => { obj.fill = extrasState.shapeFill; });
+    extrasApplyToSelection(
+      (obj) => { obj.fill = extrasState.shapeFill; },
+      (obj) => { if (obj.type === "rect" || obj.type === "ellipse") obj.set({ fill: extrasState.shapeFill === "filled" ? extrasState.drawColor : "" }); }
+    );
   });
 
   document.getElementById("extrasDrawColorOptions").addEventListener("click", (event) => {
@@ -10719,11 +10970,14 @@ function initializeExtrasTools() {
   extrasWireGestureInput("extrasStrokeColorInput", (value) => extrasSetStrokeColor(value));
   extrasWireGestureInput("extrasStrokeWidth", (value) => extrasSetStrokeWidth(Number(value)));
   extrasWireGestureInput("extrasTextSize", (value) => {
-    extrasApplyLiveObjectProperty((obj) => {
-      if (obj.type !== "text") return;
-      obj.size = Number(value);
-      extrasRemeasureText(obj);
-    });
+    extrasApplyToSelection(
+      (obj) => {
+        if (obj.type !== "text") return;
+        obj.size = Number(value);
+        extrasRemeasureText(obj);
+      },
+      (obj) => { if (obj.type === "textbox") obj.set({ fontSize: Number(value) }); }
+    );
   });
 
   document.getElementById("extrasFontFamily").addEventListener("change", (event) => {
@@ -10803,19 +11057,41 @@ function initializeExtrasTools() {
       return;
     }
     const activeTag = document.activeElement?.tagName;
+    // A edicao inline de texto do Fabric usa um <textarea> escondido pra capturar
+    // digitacao - o mesmo guard de "typingInField" ja cobre isso, sem checagem extra.
     const typingInField = activeTag === "INPUT" || activeTag === "SELECT" || activeTag === "TEXTAREA";
-    if (!typingInField && (event.key === "Delete" || event.key === "Backspace") && extrasFindObject(extrasState.selectedObjectId)) {
-      event.preventDefault();
-      extrasDeleteSelectedObject();
-      return;
+    const fabricSelected = extrasSelectedFabricObject();
+    if (!typingInField && (event.key === "Delete" || event.key === "Backspace")) {
+      if (fabricSelected) {
+        event.preventDefault();
+        extrasPushUndo();
+        extrasFabricCanvas.remove(fabricSelected);
+        extrasFabricCanvas.requestRenderAll();
+        return;
+      }
+      if (extrasFindObject(extrasState.selectedObjectId)) {
+        event.preventDefault();
+        extrasDeleteSelectedObject();
+        return;
+      }
     }
-    if (!typingInField && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key) && extrasFindObject(extrasState.selectedObjectId)) {
-      event.preventDefault();
+    if (!typingInField && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
       const step = event.shiftKey ? 10 : 1;
       const dx = event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
       const dy = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
-      extrasNudgeSelectedObject(dx, dy, !event.repeat);
-      return;
+      if (fabricSelected) {
+        event.preventDefault();
+        if (!event.repeat) extrasPushUndo();
+        fabricSelected.set({ left: fabricSelected.left + dx, top: fabricSelected.top + dy });
+        fabricSelected.setCoords();
+        extrasFabricCanvas.requestRenderAll();
+        return;
+      }
+      if (extrasFindObject(extrasState.selectedObjectId)) {
+        event.preventDefault();
+        extrasNudgeSelectedObject(dx, dy, !event.repeat);
+        return;
+      }
     }
     if (!(event.ctrlKey || event.metaKey)) return;
     const key = event.key.toLowerCase();
@@ -10846,7 +11122,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=223").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=224").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
