@@ -9768,6 +9768,7 @@ function signatureSyncModelActions() {
   const model = selectedSignatureModel();
   const bar = document.getElementById("signatureModelActions");
   document.getElementById("signatureRenameRow").classList.add("hidden");
+  document.getElementById("signatureModelPickerLabel").textContent = model ? model.name : "Escolher modelo";
   bar.classList.toggle("hidden", !model);
   if (!model) return;
   document.getElementById("signatureSelectedModelName").textContent = model.name;
@@ -9840,16 +9841,24 @@ async function signatureRenderPreview() {
   }
   signatureSetPreviewHint("");
   const padding = 16;
+  ctx.textBaseline = "top";
   ctx.font = `${style.size}px "${fontFamily}"`;
   const textWidth = extrasTextWidthWithSpacing(ctx, style.text, style.letterSpacing);
+  // Fontes cursivas/de assinatura costumam ter rabiscos e flourishes que ultrapassam
+  // a métrica "top" nominal da fonte (acima) ou o descendente comum (abaixo) - medir
+  // a caixa de tinta real do texto (actualBoundingBox*) evita cortar essas pontas,
+  // em vez de um multiplicador fixo (style.size * 1.4) que so cobria letras comuns.
+  const metrics = ctx.measureText(style.text);
+  const inkAbove = Math.max(0, metrics.actualBoundingBoxAscent || 0);
+  const inkBelow = Math.max(style.size * 1.15, metrics.actualBoundingBoxDescent || 0);
   const shearOffset = style.slant ? Math.abs(Math.tan((style.slant * Math.PI) / 180)) * style.size * 1.3 : 0;
   const logicalWidth = Math.max(1, Math.ceil(textWidth + padding * 2 + shearOffset));
-  const logicalHeight = Math.max(1, Math.ceil(style.size * 1.4 + padding * 2));
-  // Sem isso, o canvas renderiza na resolucao "logica" (ex.: 300px) e o navegador
-  // amplia pra exibir em telas de alta densidade (retina/celular) - a fonte cursiva,
-  // cheia de curvas, fica visivelmente serrilhada. Desenha em resolucao real da tela
-  // (devicePixelRatio) e escala de volta por CSS, mantendo o tamanho visual igual.
-  const dpr = window.devicePixelRatio || 1;
+  const logicalHeight = Math.max(1, Math.ceil(inkAbove + inkBelow + padding * 2));
+  // Sem isso, o canvas renderiza na resolucao "logica" (ex.: 300px) e fica serrilhado
+  // ao exibir ampliado ou ao baixar o PNG - especialmente em monitores comuns (nao
+  // retina), onde devicePixelRatio e 1 e nenhuma superamostragem acontecia antes.
+  // Usa sempre um minimo de 3x de resolucao interna, independente da tela do usuario.
+  const dpr = Math.max(3, window.devicePixelRatio || 1);
   canvas.width = logicalWidth * dpr;
   canvas.height = logicalHeight * dpr;
   canvas.style.width = `${logicalWidth}px`;
@@ -9859,7 +9868,7 @@ async function signatureRenderPreview() {
   extrasDrawStyledText(ctx, {
     text: style.text,
     x: padding,
-    y: padding,
+    y: padding + inkAbove,
     size: style.size,
     color: style.color,
     fontFamily: `"${fontFamily}"`,
@@ -10004,7 +10013,7 @@ function signatureAddToEditor() {
   // objeto ja adicionado) - resize depois de ja existir conteudo apagaria/desalinharia
   // o que ja estava la.
   if (!extrasState.originalImageData && !extrasState.objects.length && canvas.width <= 300 && canvas.height <= 150) {
-    sizeScale = Math.max(2, Math.round(window.devicePixelRatio || 1));
+    sizeScale = Math.max(3, Math.round(window.devicePixelRatio || 1));
     const padding = 40 * sizeScale;
     const measureCtx = document.createElement("canvas").getContext("2d");
     measureCtx.font = `${style.size * sizeScale}px "${fontFamily}"`;
@@ -10118,6 +10127,11 @@ function signatureShowModelTypeFields(type) {
   document.querySelectorAll(".signature-model-type-tabs button").forEach((button) => {
     button.classList.toggle("active", button.dataset.signatureModelType === type);
   });
+  // Cancelar/Salvar ficam sempre na mesma linha do campo de escolher arquivo,
+  // mesmo elemento reaproveitado (sem duplicar botao/id) - so muda de "casa"
+  // conforme a aba ativa.
+  const fileRow = document.getElementById(type === "image" ? "signatureImageFileRow" : "signatureFontFileRow");
+  fileRow.appendChild(document.getElementById("signatureNewModelActions"));
   if (type === "image") signaturePopulateBaseFontSelect();
 }
 
@@ -10310,7 +10324,31 @@ function initializeSignatureTools() {
   ["signatureTextInput", "signatureSize", "signatureColor", "signatureSlant", "signatureLetterSpacing"].forEach((id) => {
     document.getElementById(id).addEventListener("input", signatureScheduleRenderPreview);
   });
+  // O painel do dropdown de modelos usa position:fixed calculado na abertura - se o
+  // conteudo do dialog rolar enquanto ele esta aberto, a posicao fica desalinhada
+  // do botao. Mais simples fechar do que reposicionar a cada evento de scroll.
+  document.querySelector("#signatureDialog .signature-dialog-content").addEventListener("scroll", () => {
+    document.getElementById("signatureModelPickerPanel").classList.add("hidden");
+  });
   dialog.addEventListener("click", (event) => {
+    const pickerTrigger = event.target.closest("#signatureModelPickerTrigger");
+    const pickerPanel = document.getElementById("signatureModelPickerPanel");
+    if (pickerTrigger) {
+      const opening = pickerPanel.classList.contains("hidden");
+      pickerPanel.classList.toggle("hidden");
+      if (opening) {
+        // position:fixed calculado na hora, senao o painel fica cortado pelo
+        // overflow-y:auto do conteudo do dialog (era position:absolute antes).
+        const rect = pickerTrigger.getBoundingClientRect();
+        pickerPanel.style.top = `${rect.bottom + 6}px`;
+        pickerPanel.style.left = `${rect.left}px`;
+        pickerPanel.style.width = `${Math.max(rect.width, 260)}px`;
+      }
+      return;
+    }
+    // Fecha o dropdown de modelos ao clicar fora dele - mesmo comportamento de um
+    // seletor de fonte de editor de texto.
+    if (!event.target.closest("#signatureModelPicker")) pickerPanel.classList.add("hidden");
     const modeTab = event.target.closest("[data-signature-model-type]");
     if (modeTab) {
       signatureShowModelTypeFields(modeTab.dataset.signatureModelType);
@@ -10327,9 +10365,11 @@ function initializeSignatureTools() {
     const modelCard = event.target.closest("[data-signature-model]");
     if (modelCard) {
       signatureSelectModel(modelCard.dataset.signatureModel);
+      pickerPanel.classList.add("hidden");
       return;
     }
     if (event.target.closest("#signatureNewModelCard")) {
+      pickerPanel.classList.add("hidden");
       signatureShowNewModelForm(true);
       return;
     }
@@ -10875,7 +10915,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=217").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=218").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
