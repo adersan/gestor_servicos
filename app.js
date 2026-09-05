@@ -6966,7 +6966,22 @@ const EXTRAS_TOOL_LABELS = {
   crop: "Recortar",
   background: "Fundo",
   adjust: "Brilho e contraste",
+  filters: "Filtros",
   zoom: "Zoom"
+};
+// Fase B do projeto de aparencia profissional (ver plano polished-strolling-
+// starlight): cada preset e so uma combinacao pronta dos mesmos sliders do Ajuste
+// manual (+ grayscale/sepia, sem controle visivel proprio) - "1 clique" aplica os
+// valores e comita direto via extrasApplyAdjust(), reaproveitando 100% do pipeline
+// que ja existia pro ajuste manual.
+const EXTRAS_FILTER_PRESETS = {
+  original: { brightness: 100, contrast: 100, saturate: 100, hue: 0, blur: 0, grayscale: 0, sepia: 0 },
+  bw: { brightness: 100, contrast: 110, saturate: 0, hue: 0, blur: 0, grayscale: 100, sepia: 0 },
+  vintage: { brightness: 98, contrast: 105, saturate: 120, hue: 0, blur: 0, grayscale: 0, sepia: 40 },
+  vivid: { brightness: 102, contrast: 112, saturate: 160, hue: 0, blur: 0, grayscale: 0, sepia: 0 },
+  warm: { brightness: 102, contrast: 104, saturate: 115, hue: 350, blur: 0, grayscale: 0, sepia: 12 },
+  cool: { brightness: 100, contrast: 104, saturate: 108, hue: 14, blur: 0, grayscale: 0, sepia: 0 },
+  soft: { brightness: 106, contrast: 92, saturate: 104, hue: 0, blur: 0.6, grayscale: 0, sepia: 0 }
 };
 const extrasState = {
   tool: "erase",
@@ -7632,6 +7647,7 @@ function extrasSyncToolOptionsVisibility() {
   document.getElementById("extrasCropGroup").classList.toggle("hidden", tool !== "crop");
   document.getElementById("extrasBackgroundGroup").classList.toggle("hidden", tool !== "background");
   document.getElementById("extrasAdjustGroup").classList.toggle("hidden", tool !== "adjust");
+  document.getElementById("extrasFiltersGroup").classList.toggle("hidden", tool !== "filters");
   document.getElementById("extrasZoomGroup").classList.toggle("hidden", tool !== "zoom");
   document.getElementById("extrasSelectGroup").classList.toggle("hidden", tool !== "select" || panelTool !== "select");
   if (tool === "crop") extrasEnterCropMode(); else if (extrasState.cropping) extrasExitCropMode();
@@ -7644,7 +7660,7 @@ function extrasSyncToolOptionsVisibility() {
     if (extrasState.colorPickTarget) canvas.style.cursor = "crosshair";
     else if (tool === "zoom") canvas.style.cursor = extrasState.zoomPanArmed ? "grab" : "default";
     else if (tool === "rect" || tool === "ellipse" || tool === "text") canvas.style.cursor = "crosshair";
-    else if (tool === "background" || tool === "adjust" || tool === "crop" || tool === "select") canvas.style.cursor = "default";
+    else if (tool === "background" || tool === "adjust" || tool === "filters" || tool === "crop" || tool === "select") canvas.style.cursor = "default";
     else canvas.style.cursor = "none";
   }
   document.getElementById("extrasBrushCursor")?.classList.add("hidden");
@@ -8050,7 +8066,7 @@ function extrasPointerDown(event) {
   }
   if (extrasState.cropping) return;
   const tool = extrasState.tool;
-  if (tool === "background" || tool === "adjust") return;
+  if (tool === "background" || tool === "adjust" || tool === "filters") return;
   if (tool === "zoom") {
     if (extrasState.zoomPanArmed) extrasPanPointerDown(event);
     return;
@@ -8584,7 +8600,9 @@ function extrasAdjustFilterString() {
   const saturate = document.getElementById("extrasSaturate").value;
   const hue = document.getElementById("extrasHue").value;
   const blur = document.getElementById("extrasBlur").value;
-  return `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) hue-rotate(${hue}deg) blur(${blur}px)`;
+  const grayscale = document.getElementById("extrasGrayscale").value;
+  const sepia = document.getElementById("extrasSepia").value;
+  return `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) hue-rotate(${hue}deg) blur(${blur}px) grayscale(${grayscale}%) sepia(${sepia}%)`;
 }
 
 function extrasAdjustIsNeutral() {
@@ -8592,11 +8610,20 @@ function extrasAdjustIsNeutral() {
     && Number(document.getElementById("extrasContrast").value) === 100
     && Number(document.getElementById("extrasSaturate").value) === 100
     && Number(document.getElementById("extrasHue").value) === 0
-    && Number(document.getElementById("extrasBlur").value) === 0;
+    && Number(document.getElementById("extrasBlur").value) === 0
+    && Number(document.getElementById("extrasGrayscale").value) === 0
+    && Number(document.getElementById("extrasSepia").value) === 0;
 }
 
+// Mexer manualmente num slider deixa de corresponder a um preset nomeado - limpa
+// o destaque de filtro ativo (se houver) pra nao sugerir que ainda e "Vintage" etc.
 function extrasPreviewAdjust() {
   document.getElementById("extrasCanvas").style.filter = extrasAdjustFilterString();
+  extrasSetActiveFilterButton(null);
+}
+
+function extrasSetActiveFilterButton(key) {
+  document.querySelectorAll("#extrasFilterOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasFilter === key));
 }
 
 function extrasCancelAdjust() {
@@ -8605,7 +8632,29 @@ function extrasCancelAdjust() {
   document.getElementById("extrasSaturate").value = 100;
   document.getElementById("extrasHue").value = 0;
   document.getElementById("extrasBlur").value = 0;
+  document.getElementById("extrasGrayscale").value = 0;
+  document.getElementById("extrasSepia").value = 0;
   document.getElementById("extrasCanvas").style.filter = "";
+}
+
+// Fase B: aplica um preset de filtro (grade de botoes na categoria "Filtros") -
+// so preenche os mesmos sliders do Ajuste manual (+ grayscale/sepia escondidos)
+// e comita direto via extrasApplyAdjust(), sem nenhum pipeline de renderizacao novo.
+// O destaque do botao e setado DEPOIS de aplicar (extrasApplyAdjust -> extrasCancelAdjust
+// zera os sliders mas nao mexe no destaque) pra continuar marcado como "o filtro
+// atual da foto" mesmo com os sliders ja de volta ao neutro.
+function extrasApplyFilterPreset(key) {
+  const preset = EXTRAS_FILTER_PRESETS[key];
+  if (!preset) return;
+  document.getElementById("extrasBrightness").value = preset.brightness;
+  document.getElementById("extrasContrast").value = preset.contrast;
+  document.getElementById("extrasSaturate").value = preset.saturate;
+  document.getElementById("extrasHue").value = preset.hue;
+  document.getElementById("extrasBlur").value = preset.blur;
+  document.getElementById("extrasGrayscale").value = preset.grayscale;
+  document.getElementById("extrasSepia").value = preset.sepia;
+  extrasApplyAdjust();
+  extrasSetActiveFilterButton(key);
 }
 
 function extrasApplyAdjust() {
@@ -10508,6 +10557,12 @@ function initializeExtrasTools() {
   document.getElementById("extrasSaturate").addEventListener("input", extrasPreviewAdjust);
   document.getElementById("extrasHue").addEventListener("input", extrasPreviewAdjust);
   document.getElementById("extrasBlur").addEventListener("input", extrasPreviewAdjust);
+
+  document.getElementById("extrasFilterOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-filter]");
+    if (!button) return;
+    extrasApplyFilterPreset(button.dataset.extrasFilter);
+  });
 
   document.querySelectorAll("#extras [data-extras-action]").forEach((button) => {
     button.addEventListener("click", () => extrasHandleAction(button.dataset.extrasAction));

@@ -843,6 +843,12 @@
             </div>
           </div>
           <div class="extras-icon-category">
+            <span class="extras-category-label">Filtros</span>
+            <div class="extras-icon-group">
+              <button type="button" class="extras-icon-btn" data-extras-tool="filters" title="Filtros" aria-label="Filtros">🎞️</button>
+            </div>
+          </div>
+          <div class="extras-icon-category">
             <span class="extras-category-label">Mais</span>
             <div class="extras-icon-group">
               <button type="button" class="extras-icon-btn" data-dialog="signatureDialog" title="Escrita personalizada" aria-label="Escrita personalizada">✒️</button>
@@ -998,6 +1004,25 @@
             <div class="extras-inline-actions">
               <button type="button" class="primary" data-extras-action="apply-adjust">Aplicar ajuste</button>
               <button type="button" class="secondary" data-extras-action="adjust-cancel">Cancelar</button>
+            </div>
+          </div>
+
+          <!-- Sem controle manual visivel - so guardam o valor que os presets de
+               Filtros (abaixo) ajustam, reaproveitando o mesmo pipeline de
+               extrasAdjustFilterString()/extrasApplyAdjust() do Ajuste manual. -->
+          <input type="hidden" id="extrasGrayscale" value="0">
+          <input type="hidden" id="extrasSepia" value="0">
+
+          <div id="extrasFiltersGroup" class="hidden">
+            <span class="extras-subeyebrow">Filtros com 1 clique</span>
+            <div class="extras-choice-options" id="extrasFilterOptions">
+              <button type="button" data-extras-filter="original" class="active">Original</button>
+              <button type="button" data-extras-filter="bw">Preto e branco</button>
+              <button type="button" data-extras-filter="vintage">Vintage</button>
+              <button type="button" data-extras-filter="vivid">Vívido</button>
+              <button type="button" data-extras-filter="warm">Quente</button>
+              <button type="button" data-extras-filter="cool">Frio</button>
+              <button type="button" data-extras-filter="soft">Suave</button>
             </div>
           </div>
 
