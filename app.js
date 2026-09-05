@@ -8737,11 +8737,25 @@ function extrasCropImageData(imageData, rect) {
   return dst.getContext("2d").getImageData(0, 0, rect.w, rect.h);
 }
 
+// Gira os objetos Fabric 90 graus em volta do MESMO centro que a rotacao de pixel usa
+// (ver extrasRotate) - formula direta de rotacao 90 graus horaria num sistema y-pra-
+// baixo: um ponto (x,y) num canvas de altura H vira (H - y, x). oldHeight e a altura
+// do canvas ANTES da rotacao (capturada antes de canvas.width/height trocarem).
+function extrasRotateFabricObjects(oldHeight) {
+  if (!extrasFabricCanvas) return;
+  extrasFabricCanvas.getObjects().forEach((obj) => {
+    const center = obj.getCenterPoint();
+    obj.set({ angle: (obj.angle || 0) + 90 });
+    obj.setPositionByOrigin(new fabric.Point(oldHeight - center.y, center.x), "center", "center");
+    obj.setCoords();
+  });
+  extrasFabricCanvas.requestRenderAll();
+}
+
 function extrasRotate() {
   extrasExitCropMode();
   const canvas = document.getElementById("extrasCanvas");
   extrasPushUndo();
-  extrasResetLiveObjects();
   const w = canvas.width;
   const h = canvas.height;
   const temp = document.createElement("canvas");
@@ -8757,6 +8771,7 @@ function extrasRotate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(temp, 0, 0);
   if (extrasState.pristineImageData) extrasState.pristineImageData = extrasRotateImageData(extrasState.pristineImageData);
+  extrasRotateFabricObjects(h);
   extrasApplyZoomStyle();
 }
 
@@ -9073,6 +9088,23 @@ function extrasExitCropMode() {
   document.getElementById("extrasCropOverlay")?.classList.add("hidden");
 }
 
+// Translada os objetos Fabric pelo mesmo deslocamento do recorte (-x,-y) e remove so
+// os que ficarem TOTALMENTE fora da nova area (0..newWidth, 0..newHeight) - o oposto
+// do bug antigo, que apagava todos os objetos so por recortar (Fase 3 da reescrita).
+function extrasTranslateFabricObjects(dx, dy, newWidth, newHeight) {
+  if (!extrasFabricCanvas) return;
+  const toRemove = [];
+  extrasFabricCanvas.getObjects().forEach((obj) => {
+    obj.set({ left: obj.left + dx, top: obj.top + dy });
+    obj.setCoords();
+    const box = obj.getBoundingRect();
+    const outside = box.left + box.width <= 0 || box.top + box.height <= 0 || box.left >= newWidth || box.top >= newHeight;
+    if (outside) toRemove.push(obj);
+  });
+  toRemove.forEach((obj) => extrasFabricCanvas.remove(obj));
+  extrasFabricCanvas.requestRenderAll();
+}
+
 function extrasApplyCrop() {
   if (!extrasCropRect) return;
   const canvas = document.getElementById("extrasCanvas");
@@ -9088,7 +9120,6 @@ function extrasApplyCrop() {
     return;
   }
   extrasPushUndo();
-  extrasResetLiveObjects();
   const temp = document.createElement("canvas");
   temp.width = w;
   temp.height = h;
@@ -9099,6 +9130,7 @@ function extrasApplyCrop() {
   ctx.clearRect(0, 0, w, h);
   ctx.drawImage(temp, 0, 0);
   if (extrasState.pristineImageData) extrasState.pristineImageData = extrasCropImageData(extrasState.pristineImageData, { x, y, w, h });
+  extrasTranslateFabricObjects(-x, -y, w, h);
   extrasExitCropMode();
   extrasSelectTool("erase");
   extrasApplyZoomStyle();
@@ -9137,7 +9169,9 @@ function extrasCancelAdjust() {
 function extrasApplyAdjust() {
   if (extrasAdjustIsNeutral()) return;
   extrasPushUndo();
-  extrasResetLiveObjects();
+  // Ajuste so mexe em pixel da foto (brilho/contraste/etc.), o canvas nao muda de
+  // tamanho nem de posicao - nao ha motivo pra apagar objetos aqui (Fase 3 da
+  // reescrita corrigiu esse apagamento desnecessario, ver plano).
   const canvas = document.getElementById("extrasCanvas");
   const temp = document.createElement("canvas");
   temp.width = canvas.width;
@@ -11122,7 +11156,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=224").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=225").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
