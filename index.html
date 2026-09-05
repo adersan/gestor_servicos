@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=154">
+  <link rel="stylesheet" href="styles.css?v=155">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -789,7 +789,10 @@
       <div id="extrasEditorPanel" class="extras-editor hidden">
         <div class="extras-canvas-wrap" id="extrasCanvasWrap">
           <div class="extras-canvas-scroll" id="extrasCanvasScroll">
-            <canvas id="extrasCanvas"></canvas>
+            <div class="extras-canvas-stack" id="extrasCanvasStack">
+              <canvas id="extrasCanvas"></canvas>
+              <canvas id="extrasObjectsCanvas"></canvas>
+            </div>
             <div id="extrasBrushCursor" class="extras-brush-cursor hidden"></div>
             <div id="extrasShapePreview" class="extras-shape-preview hidden"></div>
             <input type="text" id="extrasTextInputOverlay" class="extras-text-input hidden" placeholder="Digite o texto…">
@@ -2649,10 +2652,11 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fabric@7.4.0/dist/index.min.js"></script>
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=56"></script>
-  <script src="app.js?v=206"></script>
+  <script src="app.js?v=207"></script>
   <script src="supplier.js?v=67"></script>
 </body>
 </html>

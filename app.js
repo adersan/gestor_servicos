@@ -7019,6 +7019,11 @@ let extrasObjectSeq = 1;
 let extrasObjectDrag = null;
 let extrasLastClickInfo = null;
 let extrasPathPoints = null;
+// Camada de objetos (Fabric.js), sobreposta ao <canvas id="extrasCanvas"> de pixel puro
+// - ver plano da reescrita (arquitetura hibrida: apagar/restaurar/marcador continuam no
+// canvas cru de baixo, so texto/formas/lapis/assinatura vivem no Fabric por cima).
+let extrasFabricCanvas = null;
+let extrasFabricObjectPatched = false;
 
 function extrasClamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -7658,6 +7663,7 @@ function extrasResetLiveObjects() {
   extrasState.selectedObjectId = null;
   extrasObjectDrag = null;
   extrasRenderObjectHandles();
+  if (extrasFabricCanvas) extrasFabricCanvas.clear();
 }
 
 function extrasEnsureObjectsBase() {
@@ -8581,11 +8587,17 @@ function extrasCaptureSnapshot() {
     pristine: extrasState.pristineImageData,
     objects: extrasState.objects.map((obj) => JSON.parse(JSON.stringify(obj))),
     objectsBase: extrasState.objectsBase,
-    selectedObjectId: extrasState.selectedObjectId
+    selectedObjectId: extrasState.selectedObjectId,
+    // Camada Fabric (arquitetura hibrida) - toJSON() ja inclui "id" gracas ao patch em
+    // initializeExtrasFabricLayer(). null quando a camada ainda nao existe.
+    fabricJson: extrasFabricCanvas ? extrasFabricCanvas.toJSON() : null
   };
 }
 
-function extrasRestoreSnapshot(entry) {
+// Assincrona porque fabricCanvas.loadFromJSON() e assincrono (achado do spike da Fase
+// 0) - antes disso, desfazer/refazer eram 100% sincronos. Chamadores devem tratar como
+// promise; extrasUndo/extrasRedo ja tem uma trava contra chamadas sobrepostas.
+async function extrasRestoreSnapshot(entry) {
   const canvas = document.getElementById("extrasCanvas");
   canvas.width = entry.width;
   canvas.height = entry.height;
@@ -8599,6 +8611,11 @@ function extrasRestoreSnapshot(entry) {
   extrasSyncPropertiesForSelection();
   extrasCancelAdjust();
   extrasApplyZoomStyle();
+  if (extrasFabricCanvas) {
+    if (entry.fabricJson) await extrasFabricCanvas.loadFromJSON(entry.fabricJson);
+    else extrasFabricCanvas.clear();
+    extrasFabricCanvas.requestRenderAll();
+  }
 }
 
 function extrasPushUndo() {
@@ -8607,20 +8624,37 @@ function extrasPushUndo() {
   extrasState.redoStack = [];
 }
 
-function extrasUndo() {
+// extrasUndoRedoBusy: sem isso, apertar Ctrl+Z rapido demais dispara restauracoes
+// sobrepostas (loadFromJSON e assincrono) - so possivel desde que o desfazer passou a
+// cobrir a camada Fabric tambem.
+let extrasUndoRedoBusy = false;
+
+async function extrasUndo() {
+  if (extrasUndoRedoBusy) return;
   const entry = extrasState.undoStack.pop();
   if (!entry) return;
-  extrasState.redoStack.push(extrasCaptureSnapshot());
-  if (extrasState.redoStack.length > EXTRAS_UNDO_LIMIT) extrasState.redoStack.shift();
-  extrasRestoreSnapshot(entry);
+  extrasUndoRedoBusy = true;
+  try {
+    extrasState.redoStack.push(extrasCaptureSnapshot());
+    if (extrasState.redoStack.length > EXTRAS_UNDO_LIMIT) extrasState.redoStack.shift();
+    await extrasRestoreSnapshot(entry);
+  } finally {
+    extrasUndoRedoBusy = false;
+  }
 }
 
-function extrasRedo() {
+async function extrasRedo() {
+  if (extrasUndoRedoBusy) return;
   const entry = extrasState.redoStack.pop();
   if (!entry) return;
-  extrasState.undoStack.push(extrasCaptureSnapshot());
-  if (extrasState.undoStack.length > EXTRAS_UNDO_LIMIT) extrasState.undoStack.shift();
-  extrasRestoreSnapshot(entry);
+  extrasUndoRedoBusy = true;
+  try {
+    extrasState.undoStack.push(extrasCaptureSnapshot());
+    if (extrasState.undoStack.length > EXTRAS_UNDO_LIMIT) extrasState.undoStack.shift();
+    await extrasRestoreSnapshot(entry);
+  } finally {
+    extrasUndoRedoBusy = false;
+  }
 }
 
 function extrasImageDataToCanvas(imageData) {
@@ -8685,6 +8719,56 @@ function extrasCanvasBoundsInScroll() {
   };
 }
 
+function initializeExtrasFabricLayer() {
+  if (extrasFabricCanvas || typeof fabric === "undefined") return;
+  if (!document.getElementById("extrasObjectsCanvas")) return;
+  if (!extrasFabricObjectPatched) {
+    // Fabric so serializa as props conhecidas de cada classe - sem isso, o "id" que o
+    // app usa pra ligar objeto<->selecao<->desfazer some silenciosamente do
+    // toJSON()/toObject() (achado no spike da Fase 0, ver plano da reescrita).
+    const baseToObject = fabric.Object.prototype.toObject;
+    fabric.Object.prototype.toObject = function (propertiesToInclude) {
+      return baseToObject.call(this, (propertiesToInclude || []).concat(["id"]));
+    };
+    extrasFabricObjectPatched = true;
+  }
+  extrasFabricCanvas = new fabric.Canvas("extrasObjectsCanvas", {
+    selection: true,
+    preserveObjectStacking: true,
+    backgroundColor: "" // transparente - a foto de verdade fica na camada de baixo
+  });
+  // O proprio Fabric envolve o <canvas> num <div class="canvas-container"> com
+  // position:relative inline - sobrescreve pra ficar exatamente por cima da camada da
+  // foto (confirmado no spike: precisa ser depois da construcao, senao o Fabric
+  // reescreve o inline style dele mesmo).
+  extrasFabricCanvas.wrapperEl.style.position = "absolute";
+  extrasFabricCanvas.wrapperEl.style.top = "0";
+  extrasFabricCanvas.wrapperEl.style.left = "0";
+  // Fase 1: nenhuma ferramenta ainda usa esta camada - fica inerte (sem capturar
+  // clique) ate a Fase 2 ligar as ferramentas de objeto nela.
+  extrasFabricCanvas.wrapperEl.classList.remove("extras-objects-interactive");
+  extrasSyncLayers();
+}
+
+// Mantem a camada de objetos (Fabric) com o MESMO tamanho de pixel e a MESMA escala
+// de exibicao (CSS) da camada da foto - chamada sempre que extrasApplyZoomStyle roda,
+// que por sua vez ja e chamada por todo caminho que redimensiona a foto (carregar
+// imagem, recortar, girar, resetar, zoom). Ponto central pra evitar desalinhamento
+// entre as duas camadas (o risco #1 identificado no plano da reescrita).
+function extrasSyncLayers() {
+  if (!extrasFabricCanvas) return;
+  const canvas = document.getElementById("extrasCanvas");
+  const width = canvas.width;
+  const height = canvas.height;
+  const cssWidth = parseFloat(canvas.style.width) || width;
+  const cssHeight = parseFloat(canvas.style.height) || height;
+  if (extrasFabricCanvas.width !== width || extrasFabricCanvas.height !== height) {
+    extrasFabricCanvas.setDimensions({ width, height });
+  }
+  extrasFabricCanvas.setDimensions({ width: `${cssWidth}px`, height: `${cssHeight}px` }, { cssOnly: true });
+  extrasFabricCanvas.requestRenderAll();
+}
+
 function extrasComputeBaseScale() {
   const canvas = document.getElementById("extrasCanvas");
   const scroll = document.getElementById("extrasCanvasScroll");
@@ -8701,6 +8785,7 @@ function extrasApplyZoomStyle() {
   canvas.style.height = `${canvas.height * scale}px`;
   const label = document.getElementById("extrasZoomLabel");
   if (label) label.textContent = `${Math.round(extrasState.zoom * 100)}%`;
+  extrasSyncLayers();
 }
 
 function extrasSetZoom(value) {
@@ -10498,6 +10583,8 @@ function initializeExtrasTools() {
   const fileInput = document.getElementById("extrasFileInput");
   if (!dropzone || !fileInput) return;
 
+  initializeExtrasFabricLayer();
+
   dropzone.addEventListener("click", () => fileInput.click());
   dropzone.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -10759,7 +10846,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=222").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=223").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
