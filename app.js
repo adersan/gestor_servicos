@@ -9784,11 +9784,12 @@ function signatureSyncModelActions() {
 
 function renderSignatureModelGallery() {
   const { system, mine } = signatureModelsSplit();
-  document.getElementById("signatureSystemModels").innerHTML = system.length
-    ? system.map(signatureModelCardMarkup).join("")
-    : `<span class="meta">Nenhum modelo do sistema ainda.</span>`;
-  document.getElementById("signatureMyModels").innerHTML = mine.map(signatureModelCardMarkup).join("")
-    + `<button type="button" class="signature-model-list-add" id="signatureNewModelCard" title="Novo modelo" aria-label="Novo modelo">+</button>`;
+  // Lista unica (sistema + proprios juntos) - o "+" fica sempre como primeira linha,
+  // pra continuar visivel mesmo com muitos modelos cadastrados (nunca some rolando
+  // pra baixo, bug relatado pelo usuario quando ficava so no fim da lista).
+  document.getElementById("signatureModelList").innerHTML =
+    `<button type="button" class="signature-model-list-add" id="signatureNewModelCard">+ Novo modelo</button>`
+    + [...system, ...mine].map(signatureModelCardMarkup).join("");
   signatureSyncModelActions();
 }
 
@@ -10299,6 +10300,13 @@ async function signatureSaveNewModel() {
 }
 
 function openSignatureDialog() {
+  // Reseta uma posicao arrastada em sessao anterior - reabrir sempre comeca
+  // centralizado, so fica onde o usuario deixou dentro da MESMA abertura.
+  const dialogEl = document.getElementById("signatureDialog");
+  dialogEl.style.left = "";
+  dialogEl.style.top = "";
+  dialogEl.style.margin = "";
+  dialogEl.style.position = "";
   signatureSelectedModelId = (state.signatureModels || []).find((item) => item.isActive !== false)?.id || null;
   document.getElementById("signatureTextInput").value = "";
   signaturePendingAnalysis = null;
@@ -10330,6 +10338,32 @@ function initializeSignatureTools() {
   document.querySelector("#signatureDialog .signature-dialog-content").addEventListener("scroll", () => {
     document.getElementById("signatureModelPickerPanel").classList.add("hidden");
   });
+  // Permite arrastar a janela pelo cabecalho, pra nao ficar sempre presa no centro
+  // da tela - pedido do usuario. So os botoes do cabecalho continuam clicaveis
+  // normalmente (ignorado no pointerdown).
+  const heading = dialog.querySelector(".dialog-heading");
+  let dragState = null;
+  heading.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("button")) return;
+    const rect = dialog.getBoundingClientRect();
+    dragState = { startX: event.clientX, startY: event.clientY, startLeft: rect.left, startTop: rect.top };
+    dialog.style.margin = "0";
+    dialog.style.position = "fixed";
+    dialog.style.left = `${rect.left}px`;
+    dialog.style.top = `${rect.top}px`;
+    heading.setPointerCapture(event.pointerId);
+  });
+  heading.addEventListener("pointermove", (event) => {
+    if (!dragState) return;
+    const dx = event.clientX - dragState.startX;
+    const dy = event.clientY - dragState.startY;
+    const maxLeft = window.innerWidth - 120;
+    const maxTop = window.innerHeight - 60;
+    dialog.style.left = `${Math.min(Math.max(dragState.startLeft + dx, -(dialog.offsetWidth - 120)), maxLeft)}px`;
+    dialog.style.top = `${Math.min(Math.max(dragState.startTop + dy, 0), maxTop)}px`;
+  });
+  heading.addEventListener("pointerup", () => { dragState = null; });
+  heading.addEventListener("pointercancel", () => { dragState = null; });
   dialog.addEventListener("click", (event) => {
     const pickerTrigger = event.target.closest("#signatureModelPickerTrigger");
     const pickerPanel = document.getElementById("signatureModelPickerPanel");
@@ -10915,7 +10949,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=218").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=219").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
