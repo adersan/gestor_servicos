@@ -6949,7 +6949,7 @@ const EXTRAS_UNDO_LIMIT = 20;
 const EXTRAS_BRUSH_TOOLS = new Set(["erase", "restore", "marker", "pencil", "signature"]);
 const EXTRAS_TIP_TOOLS = new Set(["marker", "pencil", "signature"]);
 const EXTRAS_PAINT_TOOLS = new Set(["marker", "pencil", "signature"]);
-const EXTRAS_COLOR_TOOLS = new Set(["marker", "pencil", "signature", "rect", "ellipse", "text"]);
+const EXTRAS_COLOR_TOOLS = new Set(["marker", "pencil", "signature", "rect", "ellipse", "text", "sticker"]);
 const EXTRAS_OPACITY_TOOLS = new Set(["marker"]);
 const EXTRAS_FILL_TOOLS = new Set(["rect", "ellipse"]);
 const EXTRAS_OBJECT_TOOLS = new Set(["text", "rect", "ellipse", "pencil", "signature"]);
@@ -6968,6 +6968,8 @@ const EXTRAS_TOOL_LABELS = {
   adjust: "Brilho e contraste",
   filters: "Filtros",
   frame: "Molduras",
+  stickers: "Adesivos",
+  sticker: "Adesivo",
   zoom: "Zoom"
 };
 // Fase B do projeto de aparencia profissional (ver plano polished-strolling-
@@ -6984,6 +6986,47 @@ const EXTRAS_FILTER_PRESETS = {
   cool: { brightness: 100, contrast: 104, saturate: 108, hue: 14, blur: 0, grayscale: 0, sepia: 0 },
   soft: { brightness: 106, contrast: 92, saturate: 104, hue: 0, blur: 0.6, grayscale: 0, sepia: 0 }
 };
+
+// Fase E (adesivos): pontos de um poligono estrela de N pontas alternando raio
+// externo/interno - gerador puro em vez de path SVG decorado, sem risco de sintaxe
+// de path malformada.
+function extrasStarPoints(spikes, outerRadius, innerRadius) {
+  const points = [];
+  const step = Math.PI / spikes;
+  let rot = -Math.PI / 2;
+  const cx = outerRadius;
+  const cy = outerRadius;
+  for (let i = 0; i < spikes; i++) {
+    points.push({ x: cx + Math.cos(rot) * outerRadius, y: cy + Math.sin(rot) * outerRadius });
+    rot += step;
+    points.push({ x: cx + Math.cos(rot) * innerRadius, y: cy + Math.sin(rot) * innerRadius });
+    rot += step;
+  }
+  return points;
+}
+
+// Galeria pequena de adesivos (Fase E, "recursos resumidos"): cada um e um unico
+// fabric.Polygon/Path colorivel (nunca fabric.Group) - sem imagem/asset nenhum,
+// tudo gerado por coordenadas (evita reabrir Supabase Storage/egress, decisao ja
+// tomada no modulo de remocao de fundo) ou por um path SVG unico bem conhecido
+// (o coracao, icone Material Design "favorite", confianca alta na exatidao).
+const EXTRAS_STICKERS = {
+  arrow: { label: "Seta", icon: "➜", points: [
+    { x: 0, y: 20 }, { x: 55, y: 20 }, { x: 55, y: 0 }, { x: 100, y: 30 }, { x: 55, y: 60 }, { x: 55, y: 40 }, { x: 0, y: 40 }
+  ] },
+  star: { label: "Estrela", icon: "★", points: extrasStarPoints(5, 50, 20) },
+  heart: { label: "Coração", icon: "♥", path: "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" },
+  check: { label: "Check", icon: "✔", points: [
+    { x: 0, y: 38 }, { x: 14, y: 24 }, { x: 38, y: 48 }, { x: 88, y: 0 }, { x: 100, y: 14 }, { x: 38, y: 74 }
+  ] },
+  banner: { label: "Faixa", icon: "🎗️", points: [
+    { x: 0, y: 0 }, { x: 100, y: 0 }, { x: 88, y: 16 }, { x: 100, y: 32 }, { x: 0, y: 32 }, { x: 12, y: 16 }
+  ] },
+  speech: { label: "Balão", icon: "💬", points: [
+    { x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 60 }, { x: 30, y: 60 }, { x: 20, y: 80 }, { x: 20, y: 60 }, { x: 0, y: 60 }
+  ] }
+};
+
 const extrasState = {
   tool: "erase",
   brushSize: 30,
@@ -7628,6 +7671,9 @@ function extrasPanelToolFor(tool) {
   if (tool !== "select") return tool;
   const fabricObj = extrasSelectedFabricObject();
   if (fabricObj) {
+    // Checa adesivo ANTES do tipo generico - o coracao e um fabric.Path, mesmo tipo
+    // usado pelo lapis/assinatura, mas nao deve mostrar o painel de pincel.
+    if (fabricObj.extrasSticker) return "sticker";
     if (fabricObj.type === "rect") return "rect";
     if (fabricObj.type === "ellipse") return "ellipse";
     if (fabricObj.type === "textbox") return "text";
@@ -7654,6 +7700,7 @@ function extrasSyncToolOptionsVisibility() {
   document.getElementById("extrasAdjustGroup").classList.toggle("hidden", tool !== "adjust");
   document.getElementById("extrasFiltersGroup").classList.toggle("hidden", tool !== "filters");
   document.getElementById("extrasFrameGroup").classList.toggle("hidden", tool !== "frame");
+  document.getElementById("extrasStickersGroup").classList.toggle("hidden", tool !== "stickers");
   document.getElementById("extrasZoomGroup").classList.toggle("hidden", tool !== "zoom");
   document.getElementById("extrasSelectGroup").classList.toggle("hidden", tool !== "select" || panelTool !== "select");
   if (tool === "crop") extrasEnterCropMode(); else if (extrasState.cropping) extrasExitCropMode();
@@ -7666,7 +7713,7 @@ function extrasSyncToolOptionsVisibility() {
     if (extrasState.colorPickTarget) canvas.style.cursor = "crosshair";
     else if (tool === "zoom") canvas.style.cursor = extrasState.zoomPanArmed ? "grab" : "default";
     else if (tool === "rect" || tool === "ellipse" || tool === "text") canvas.style.cursor = "crosshair";
-    else if (tool === "background" || tool === "adjust" || tool === "filters" || tool === "frame" || tool === "crop" || tool === "select") canvas.style.cursor = "default";
+    else if (tool === "background" || tool === "adjust" || tool === "filters" || tool === "frame" || tool === "stickers" || tool === "crop" || tool === "select") canvas.style.cursor = "default";
     else canvas.style.cursor = "none";
   }
   document.getElementById("extrasBrushCursor")?.classList.add("hidden");
@@ -7809,6 +7856,7 @@ function extrasSetDrawColor(color) {
     (obj) => {
       if (obj.type === "textbox") obj.set({ fill: color });
       else if (obj.type === "rect" || obj.type === "ellipse") obj.set({ fill: extrasState.shapeFill === "filled" ? color : "" });
+      else if (obj.extrasSticker) obj.set({ fill: color });
       else obj.set({ stroke: color }); // path (lapis/assinatura)
     }
   );
@@ -8091,7 +8139,7 @@ function extrasPointerDown(event) {
   }
   if (extrasState.cropping) return;
   const tool = extrasState.tool;
-  if (tool === "background" || tool === "adjust" || tool === "filters" || tool === "frame") return;
+  if (tool === "background" || tool === "adjust" || tool === "filters" || tool === "frame" || tool === "stickers") return;
   if (tool === "zoom") {
     if (extrasState.zoomPanArmed) extrasPanPointerDown(event);
     return;
@@ -8316,6 +8364,36 @@ function extrasApplyFrame() {
   extrasApplyZoomStyle();
 }
 
+// Fase E (adesivos): cria o objeto Fabric a partir da tabela EXTRAS_STICKERS,
+// normaliza pro mesmo tamanho de exibicao (a escala nativa de cada path/poligono
+// varia) e centraliza no canvas - mesmo fluxo de signatureAddToEditor() (pushUndo
+// -> criar objeto Fabric -> add -> setActiveObject), sem trocar de ferramenta
+// (fica em "stickers" pra facilitar adicionar varios em sequencia, mesmo
+// comportamento ja usado por retangulo/elipse/texto).
+function extrasNormalizeStickerSize(obj, targetSize) {
+  const scale = targetSize / Math.max(obj.width, obj.height);
+  obj.set({ scaleX: scale, scaleY: scale });
+}
+
+function extrasInsertSticker(key) {
+  const config = EXTRAS_STICKERS[key];
+  if (!config || !extrasFabricCanvas) return;
+  extrasPushUndo();
+  const canvas = document.getElementById("extrasCanvas");
+  const color = extrasState.drawColor;
+  const obj = config.path ? new fabric.Path(config.path, { fill: color }) : new fabric.Polygon(config.points, { fill: color });
+  obj.extrasSticker = true;
+  obj.id = `obj-${extrasObjectSeq++}`;
+  extrasNormalizeStickerSize(obj, Math.min(canvas.width, canvas.height) * 0.25);
+  obj.set({
+    left: (canvas.width - obj.getScaledWidth()) / 2,
+    top: (canvas.height - obj.getScaledHeight()) / 2
+  });
+  extrasFabricCanvas.add(obj);
+  extrasFabricCanvas.setActiveObject(obj);
+  extrasFabricCanvas.requestRenderAll();
+}
+
 // Gira os objetos Fabric 90 graus em volta do MESMO centro que a rotacao de pixel usa
 // (ver extrasRotate) - formula direta de rotacao 90 graus horaria num sistema y-pra-
 // baixo: um ponto (x,y) num canvas de altura H vira (H - y, x). oldHeight e a altura
@@ -8371,9 +8449,12 @@ function initializeExtrasFabricLayer() {
     // Fabric so serializa as props conhecidas de cada classe - sem isso, o "id" que o
     // app usa pra ligar objeto<->selecao<->desfazer some silenciosamente do
     // toJSON()/toObject() (achado no spike da Fase 0, ver plano da reescrita).
+    // "extrasSticker" (Fase E) entra pelo mesmo motivo - sem isso, um adesivo perderia
+    // a marcacao ao passar por desfazer/refazer (loadFromJSON) e passaria a ser tratado
+    // como objeto generico (cor deixaria de aplicar em fill).
     const baseToObject = fabric.Object.prototype.toObject;
     fabric.Object.prototype.toObject = function (propertiesToInclude) {
-      return baseToObject.call(this, (propertiesToInclude || []).concat(["id"]));
+      return baseToObject.call(this, (propertiesToInclude || []).concat(["id", "extrasSticker"]));
     };
     extrasFabricObjectPatched = true;
   }
@@ -8561,8 +8642,9 @@ function extrasCurrentSelectionStyle() {
   if (!fabricObj) return null;
   const isShape = fabricObj.type === "rect" || fabricObj.type === "ellipse";
   const isText = fabricObj.type === "textbox";
+  const isSticker = !!fabricObj.extrasSticker;
   return {
-    color: isText ? fabricObj.fill : (isShape ? (fabricObj.fill || extrasState.drawColor) : fabricObj.stroke),
+    color: isText ? fabricObj.fill : (isShape ? (fabricObj.fill || extrasState.drawColor) : (isSticker ? fabricObj.fill : fabricObj.stroke)),
     isShape,
     strokeColor: fabricObj.stroke,
     strokeWidth: fabricObj.strokeWidth,
@@ -10695,6 +10777,12 @@ function initializeExtrasTools() {
   });
   document.getElementById("extrasFrameColorInput").addEventListener("input", (event) => {
     extrasSetFrameColor(event.target.value);
+  });
+
+  document.getElementById("extrasStickerOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-sticker]");
+    if (!button) return;
+    extrasInsertSticker(button.dataset.extrasSticker);
   });
 
   document.querySelectorAll("#extras [data-extras-action]").forEach((button) => {
