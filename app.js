@@ -6967,6 +6967,7 @@ const EXTRAS_TOOL_LABELS = {
   background: "Fundo",
   adjust: "Brilho e contraste",
   filters: "Filtros",
+  frame: "Molduras",
   zoom: "Zoom"
 };
 // Fase B do projeto de aparencia profissional (ver plano polished-strolling-
@@ -7648,6 +7649,7 @@ function extrasSyncToolOptionsVisibility() {
   document.getElementById("extrasBackgroundGroup").classList.toggle("hidden", tool !== "background");
   document.getElementById("extrasAdjustGroup").classList.toggle("hidden", tool !== "adjust");
   document.getElementById("extrasFiltersGroup").classList.toggle("hidden", tool !== "filters");
+  document.getElementById("extrasFrameGroup").classList.toggle("hidden", tool !== "frame");
   document.getElementById("extrasZoomGroup").classList.toggle("hidden", tool !== "zoom");
   document.getElementById("extrasSelectGroup").classList.toggle("hidden", tool !== "select" || panelTool !== "select");
   if (tool === "crop") extrasEnterCropMode(); else if (extrasState.cropping) extrasExitCropMode();
@@ -7660,7 +7662,7 @@ function extrasSyncToolOptionsVisibility() {
     if (extrasState.colorPickTarget) canvas.style.cursor = "crosshair";
     else if (tool === "zoom") canvas.style.cursor = extrasState.zoomPanArmed ? "grab" : "default";
     else if (tool === "rect" || tool === "ellipse" || tool === "text") canvas.style.cursor = "crosshair";
-    else if (tool === "background" || tool === "adjust" || tool === "filters" || tool === "crop" || tool === "select") canvas.style.cursor = "default";
+    else if (tool === "background" || tool === "adjust" || tool === "filters" || tool === "frame" || tool === "crop" || tool === "select") canvas.style.cursor = "default";
     else canvas.style.cursor = "none";
   }
   document.getElementById("extrasBrushCursor")?.classList.add("hidden");
@@ -8066,7 +8068,7 @@ function extrasPointerDown(event) {
   }
   if (extrasState.cropping) return;
   const tool = extrasState.tool;
-  if (tool === "background" || tool === "adjust" || tool === "filters") return;
+  if (tool === "background" || tool === "adjust" || tool === "filters" || tool === "frame") return;
   if (tool === "zoom") {
     if (extrasState.zoomPanArmed) extrasPanPointerDown(event);
     return;
@@ -8207,6 +8209,88 @@ function extrasCropImageData(imageData, rect) {
   dst.height = rect.h;
   dst.getContext("2d").drawImage(src, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h);
   return dst.getContext("2d").getImageData(0, 0, rect.w, rect.h);
+}
+
+// Fase C (molduras): "simples" e uma cor solida; "sombra" e um degrade radial do
+// centro (transparente, some sob a foto) ate a borda externa (quase preto) - da um
+// efeito de vinheta sem precisar desenhar cada lado/canto da moldura separado.
+// "sombra": um degrade radial calibrado pela DISTANCIA ATE O CENTRO nao cobre uma
+// moldura de espessura UNIFORME em retangulo - o meio de cada lado fica bem mais
+// perto do centro que os cantos, entao ficava translucido (quadriculado do "sem
+// fundo" aparecia atraves) enquanto os cantos ficavam opacos. Trocado por um efeito
+// mais robusto e mais parecido com "sombra" de verdade: fundo solido neutro (mesmo
+// tom escuro do editor) + a foto desenhada por cima com sombra suave do proprio
+// canvas 2D (shadowColor/shadowBlur/shadowOffsetY), como uma foto flutuando.
+function extrasDrawFrameBackground(ctx, w, h, style, color) {
+  ctx.fillStyle = style === "shadow" ? "#161f1a" : color;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function extrasCompositeFramePhoto(ctx, source, offsetX, offsetY, width, style) {
+  if (style === "shadow") {
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,.55)";
+    ctx.shadowBlur = Math.max(10, width * 0.7);
+    ctx.shadowOffsetY = Math.max(4, width * 0.3);
+    ctx.drawImage(source, offsetX, offsetY);
+    ctx.restore();
+  } else {
+    ctx.drawImage(source, offsetX, offsetY);
+  }
+}
+
+// Reaproveitada tanto pro canvas visivel quanto pro pristineImageData (Restaurar
+// continua funcionando dentro da foto original depois de aplicar uma moldura,
+// mesmo padrao de extrasCropImageData/extrasRotateImageData pro Restaurar sobreviver
+// a recorte/rotacao).
+function extrasExpandImageData(imageData, offsetX, offsetY, newW, newH, style, color) {
+  const src = extrasImageDataToCanvas(imageData);
+  const dst = document.createElement("canvas");
+  dst.width = newW;
+  dst.height = newH;
+  const dctx = dst.getContext("2d");
+  extrasDrawFrameBackground(dctx, newW, newH, style, color);
+  dctx.drawImage(src, offsetX, offsetY);
+  return dctx.getImageData(0, 0, newW, newH);
+}
+
+function extrasSetFrameStyle(style) {
+  document.querySelectorAll("#extrasFrameStyleOptions button").forEach((btn) => btn.classList.toggle("active", btn.dataset.extrasFrameStyle === style));
+  document.getElementById("extrasFrameColorGroup").classList.toggle("hidden", style !== "solid");
+}
+
+function extrasSetFrameColor(color) {
+  document.querySelectorAll("#extrasFrameColorOptions button").forEach((btn) => btn.classList.toggle("active", (btn.dataset.extrasFrameColor || "") === color));
+  const input = document.getElementById("extrasFrameColorInput");
+  if (input) input.value = color;
+}
+
+function extrasApplyFrame() {
+  const width = Math.round(Number(document.getElementById("extrasFrameWidth").value)) || 0;
+  if (width <= 0) return;
+  const style = document.querySelector("#extrasFrameStyleOptions button.active")?.dataset.extrasFrameStyle || "solid";
+  const color = document.getElementById("extrasFrameColorInput").value;
+  extrasPushUndo();
+  const canvas = document.getElementById("extrasCanvas");
+  const newWidth = canvas.width + width * 2;
+  const newHeight = canvas.height + width * 2;
+  const temp = document.createElement("canvas");
+  temp.width = newWidth;
+  temp.height = newHeight;
+  const tctx = temp.getContext("2d");
+  extrasDrawFrameBackground(tctx, newWidth, newHeight, style, color);
+  extrasCompositeFramePhoto(tctx, canvas, width, width, width, style);
+  canvas.width = newWidth;
+  canvas.height = newHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, newWidth, newHeight);
+  ctx.drawImage(temp, 0, 0);
+  if (extrasState.pristineImageData) {
+    extrasState.pristineImageData = extrasExpandImageData(extrasState.pristineImageData, width, width, newWidth, newHeight, style, color);
+  }
+  extrasTranslateFabricObjects(width, width, newWidth, newHeight);
+  extrasSyncLayers();
+  extrasApplyZoomStyle();
 }
 
 // Gira os objetos Fabric 90 graus em volta do MESMO centro que a rotacao de pixel usa
@@ -8776,6 +8860,7 @@ function extrasHandleAction(action) {
     case "crop-cancel": extrasExitCropMode(); extrasSelectTool("erase"); break;
     case "apply-adjust": extrasApplyAdjust(); break;
     case "adjust-cancel": extrasCancelAdjust(); break;
+    case "apply-frame": extrasApplyFrame(); break;
     case "background-image-remove": extrasSetBackground(""); break;
     case "pick-draw-color": extrasStartColorPick("draw"); break;
     case "pick-stroke-color": extrasStartColorPick("stroke"); break;
@@ -10562,6 +10647,20 @@ function initializeExtrasTools() {
     const button = event.target.closest("[data-extras-filter]");
     if (!button) return;
     extrasApplyFilterPreset(button.dataset.extrasFilter);
+  });
+
+  document.getElementById("extrasFrameStyleOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-frame-style]");
+    if (!button) return;
+    extrasSetFrameStyle(button.dataset.extrasFrameStyle);
+  });
+  document.getElementById("extrasFrameColorOptions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-frame-color]");
+    if (!button) return;
+    extrasSetFrameColor(button.dataset.extrasFrameColor);
+  });
+  document.getElementById("extrasFrameColorInput").addEventListener("input", (event) => {
+    extrasSetFrameColor(event.target.value);
   });
 
   document.querySelectorAll("#extras [data-extras-action]").forEach((button) => {

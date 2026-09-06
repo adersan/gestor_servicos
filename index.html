@@ -849,6 +849,12 @@
             </div>
           </div>
           <div class="extras-icon-category">
+            <span class="extras-category-label">Molduras</span>
+            <div class="extras-icon-group">
+              <button type="button" class="extras-icon-btn" data-extras-tool="frame" title="Molduras" aria-label="Molduras">🖼️</button>
+            </div>
+          </div>
+          <div class="extras-icon-category">
             <span class="extras-category-label">Mais</span>
             <div class="extras-icon-group">
               <button type="button" class="extras-icon-btn" data-dialog="signatureDialog" title="Escrita personalizada" aria-label="Escrita personalizada">✒️</button>
@@ -1024,6 +1030,31 @@
               <button type="button" data-extras-filter="cool">Frio</button>
               <button type="button" data-extras-filter="soft">Suave</button>
             </div>
+          </div>
+
+          <div id="extrasFrameGroup" class="hidden">
+            <span class="extras-subeyebrow">Estilo</span>
+            <div class="extras-choice-options" id="extrasFrameStyleOptions">
+              <button type="button" data-extras-frame-style="solid" class="active">Simples</button>
+              <button type="button" data-extras-frame-style="shadow">Sombra</button>
+            </div>
+            <div id="extrasFrameColorGroup">
+              <span class="extras-subeyebrow">Cor da moldura</span>
+              <div class="extras-choice-options extras-color-options" id="extrasFrameColorOptions">
+                <button type="button" data-extras-frame-color="#ffffff" class="active" style="background:#ffffff" aria-label="Branco"></button>
+                <button type="button" data-extras-frame-color="#000000" style="background:#000000" aria-label="Preto"></button>
+                <button type="button" data-extras-frame-color="#173f35" style="background:#173f35" aria-label="Verde"></button>
+                <button type="button" data-extras-frame-color="#d89b45" style="background:#d89b45" aria-label="Dourado"></button>
+                <button type="button" data-extras-frame-color="#a6483e" style="background:#a6483e" aria-label="Vermelho"></button>
+              </div>
+              <label class="extras-range-label" style="flex:1 1 auto">Outra cor
+                <input type="color" id="extrasFrameColorInput" value="#ffffff">
+              </label>
+            </div>
+            <label class="extras-range-label">Espessura da moldura
+              <input type="range" id="extrasFrameWidth" min="4" max="60" value="20">
+            </label>
+            <button type="button" class="primary" data-extras-action="apply-frame">Aplicar moldura</button>
           </div>
 
           <div id="extrasZoomGroup" class="hidden extras-inline-actions">
