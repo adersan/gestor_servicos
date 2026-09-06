@@ -6997,6 +6997,8 @@ const extrasState = {
   textBold: false,
   textItalic: false,
   textUnderline: false,
+  textOutline: false,
+  textShadow: false,
   backgroundColor: "",
   backgroundImage: null,
   cropping: false,
@@ -7008,7 +7010,7 @@ const extrasState = {
   redoStack: [],
   colorPickTarget: null
 };
-const EXTRAS_TEXT_STYLE_STATE_KEYS = { bold: "textBold", italic: "textItalic", underline: "textUnderline" };
+const EXTRAS_TEXT_STYLE_STATE_KEYS = { bold: "textBold", italic: "textItalic", underline: "textUnderline", outline: "textOutline", shadow: "textShadow" };
 let extrasCropRect = null;
 let extrasCropBounds = null;
 let extrasDrawing = false;
@@ -7594,6 +7596,8 @@ function extrasResetToolsUI() {
   extrasState.textBold = false;
   extrasState.textItalic = false;
   extrasState.textUnderline = false;
+  extrasState.textOutline = false;
+  extrasState.textShadow = false;
   extrasState.colorPickTarget = null;
   extrasState.zoom = 1;
   extrasState.zoomPanArmed = false;
@@ -7829,13 +7833,32 @@ function extrasSetFontFamily(fontFamily) {
   extrasApplyToSelection((obj) => { if (obj.type === "textbox") obj.set({ fontFamily }); });
 }
 
+// Contorno automatico: preto pra texto claro, branco pra texto escuro - sem precisar
+// de um seletor de cor proprio (Fase D, "recursos resumidos").
+function extrasTextOutlineColorFor(fillColor) {
+  const rgb = extrasHexToRgb(fillColor || "#000000");
+  const luminance = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+  return luminance > 0.55 ? "#000000" : "#ffffff";
+}
+
 function extrasToggleTextStyle(style) {
   const fabricObj = extrasSelectedFabricObject();
   if (fabricObj && fabricObj.type === "textbox") {
     extrasPushUndo();
     if (style === "bold") fabricObj.set({ fontWeight: fabricObj.fontWeight === "bold" ? "normal" : "bold" });
     else if (style === "italic") fabricObj.set({ fontStyle: fabricObj.fontStyle === "italic" ? "normal" : "italic" });
-    else fabricObj.set({ underline: !fabricObj.underline });
+    else if (style === "underline") fabricObj.set({ underline: !fabricObj.underline });
+    else if (style === "outline") {
+      if (fabricObj.stroke) fabricObj.set({ stroke: null, strokeWidth: 0 });
+      else fabricObj.set({ stroke: extrasTextOutlineColorFor(fabricObj.fill), strokeWidth: Math.max(1, Math.round(fabricObj.fontSize / 16)) });
+    } else {
+      fabricObj.set({ shadow: fabricObj.shadow ? null : new fabric.Shadow({
+        color: "rgba(0,0,0,.45)",
+        blur: Math.max(4, fabricObj.fontSize * 0.12),
+        offsetX: 0,
+        offsetY: Math.max(2, fabricObj.fontSize * 0.06)
+      }) });
+    }
     extrasFabricCanvas.requestRenderAll();
     extrasSyncPropertiesForSelection();
     return;
@@ -8416,15 +8439,24 @@ function extrasWireFabricObjectCreation() {
       if (extrasFabricSuppressNextTextCreate) { extrasFabricSuppressNextTextCreate = false; return; }
       const pointer = extrasFabricCanvas.getScenePoint(opt.e);
       extrasPushUndo();
+      const fontSize = Number(document.getElementById("extrasTextSize").value) || 28;
       const textbox = new fabric.Textbox("Texto", {
         left: pointer.x,
         top: pointer.y,
-        fontSize: Number(document.getElementById("extrasTextSize").value) || 28,
+        fontSize,
         fill: extrasState.drawColor,
         fontFamily: extrasState.fontFamily,
         fontWeight: extrasState.textBold ? "bold" : "normal",
         fontStyle: extrasState.textItalic ? "italic" : "normal",
-        underline: extrasState.textUnderline
+        underline: extrasState.textUnderline,
+        stroke: extrasState.textOutline ? extrasTextOutlineColorFor(extrasState.drawColor) : null,
+        strokeWidth: extrasState.textOutline ? Math.max(1, Math.round(fontSize / 16)) : 0,
+        shadow: extrasState.textShadow ? new fabric.Shadow({
+          color: "rgba(0,0,0,.45)",
+          blur: Math.max(4, fontSize * 0.12),
+          offsetX: 0,
+          offsetY: Math.max(2, fontSize * 0.06)
+        }) : null
       });
       textbox.id = `obj-${extrasObjectSeq++}`;
       extrasFabricCanvas.add(textbox);
@@ -8540,7 +8572,9 @@ function extrasCurrentSelectionStyle() {
     size: fabricObj.fontSize,
     bold: fabricObj.fontWeight === "bold",
     italic: fabricObj.fontStyle === "italic",
-    underline: !!fabricObj.underline
+    underline: !!fabricObj.underline,
+    outline: !!fabricObj.stroke,
+    shadow: !!fabricObj.shadow
   };
 }
 
