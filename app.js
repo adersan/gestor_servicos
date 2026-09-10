@@ -271,15 +271,6 @@ async function refreshRemoteState(force = false, silent = false) {
   }
 }
 
-// Mesma lista de tabelas de window.dataStore.fetchAll (data.js) — precisa estar
-// habilitada na publicação supabase_realtime (ver migration enable-realtime-admin-sync).
-const REALTIME_SYNC_TABLES = [
-  "price_tables", "clients", "service_catalog", "service_prices", "service_entries",
-  "payments", "payment_methods", "billings", "suppliers", "supplier_services",
-  "supplier_entries", "supplier_payables", "supplier_payments", "client_service_requests",
-  "client_requesters", "payment_links", "app_settings"
-];
-
 function scheduleRealtimeSyncRefresh() {
   clearTimeout(realtimeSyncDebounceTimer);
   realtimeSyncDebounceTimer = setTimeout(() => {
@@ -287,12 +278,13 @@ function scheduleRealtimeSyncRefresh() {
   }, 2500);
 }
 
+// Tabelas monitoradas ficam nos triggers de public.notify_admin_sync() (ver
+// migration realtime-broadcast-admin-sync) — aqui so escuta o aviso, sem
+// precisar saber quais tabelas sao (mesma lista de window.dataStore.fetchAll).
 function initializeRealtimeSync() {
   if (realtimeSyncChannel || !window.supabaseClient) return;
-  let channel = window.supabaseClient.channel("admin-realtime-sync");
-  REALTIME_SYNC_TABLES.forEach((table) => {
-    channel = channel.on("postgres_changes", { event: "*", schema: "public", table }, scheduleRealtimeSyncRefresh);
-  });
+  const channel = window.supabaseClient.channel("admin-realtime-sync");
+  channel.on("broadcast", { event: "admin_sync" }, scheduleRealtimeSyncRefresh);
   channel.subscribe();
   realtimeSyncChannel = channel;
 }
@@ -10861,7 +10853,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=228").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=229").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
