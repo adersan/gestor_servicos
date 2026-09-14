@@ -889,6 +889,14 @@
       form.elements.supplierServiceSearch.focus();
       return false;
     }
+    const otherServiceFromSameSupplier = clientSupplierServiceValues.find((item) => item.supplierId === supplierId);
+    if (otherServiceFromSameSupplier) {
+      const otherService = supplierServiceById(otherServiceFromSameSupplier.supplierServiceId);
+      showAppAlert(
+        `Este lançamento já tem "${otherService?.name || "outro serviço"}" deste fornecedor. Se a intenção era trocar, remova o anterior na lista abaixo.`,
+        { type: "warning" }
+      );
+    }
     clientSupplierServiceValues.push({ supplierId, supplierServiceId, amount });
     renderClientSupplierServices();
     form.elements.supplierServiceId.value = "";
