@@ -5894,6 +5894,7 @@ document.getElementById("deleteServiceForm").addEventListener("submit", (event) 
     group.filter((item) => item.id !== entry.id && item.isSecondary).forEach((item) => {
       item.primaryEntryId = null;
       item.isSecondary = false;
+      item.serviceGroupId = null;
       item.notes = [item.notes, "Serviço de origem excluído"].filter(Boolean).join(" · ");
     });
   }
