@@ -402,6 +402,55 @@
       inserted.data.forEach((table) => { existingByName[table.name] = table.id; });
     }
 
+    // Exclusoes rodam ANTES dos upserts abaixo (proposital): upsertState reenvia o estado inteiro
+    // a cada gravacao, e se uma tabela mais adiante nesta funcao falhar (linha invalida em
+    // qualquer registro, nao so no que o usuario acabou de mexer), a funcao inteira aborta - antes,
+    // isso deixava exclusoes pendentes (ex: excluir lancamento do fornecedor) nunca chegarem a
+    // rodar no banco, e o registro "voltava" na proxima sincronizacao mesmo ja tendo sumido da
+    // tela. Rodando primeiro, a exclusao fica garantida mesmo que outra tabela falhe depois.
+    async function deleteMissing(table, localIds, knownIds) {
+      const existing = await client.from(table).select("id");
+      if (existing.error) throw existing.error;
+      const localSet = new Set(localIds);
+      const missingIds = existing.data
+        .map((item) => item.id)
+        .filter((id) => !localSet.has(id) && knownIds.has(id));
+      if (!missingIds.length) return;
+      const removed = await client.from(table).delete().in("id", missingIds);
+      if (removed.error) throw removed.error;
+    }
+
+    await deleteMissing("payments", state.payments.map((item) => item.id), knownRemoteIds.payments);
+    await deleteMissing("supplier_entries", (state.supplierEntries || []).map((item) => item.id), knownRemoteIds.supplierEntries);
+    await deleteMissing("service_entries", state.services.map((item) => item.id), knownRemoteIds.services);
+    await deleteMissing("billings", state.billings.map((item) => item.id), knownRemoteIds.billings);
+    await deleteMissing("payment_methods", state.paymentMethods.map((item) => item.id), knownRemoteIds.paymentMethods);
+    await deleteMissing("supplier_payments", (state.supplierPayments || []).map((item) => item.id), knownRemoteIds.supplierPayments);
+    await deleteMissing("supplier_payables", (state.supplierPayables || []).map((item) => item.id), knownRemoteIds.supplierPayables);
+    await deleteMissing("supplier_services", (state.supplierServices || []).map((item) => item.id), knownRemoteIds.supplierServices);
+    await deleteMissing("suppliers", (state.suppliers || []).map((item) => item.id), knownRemoteIds.suppliers);
+    await deleteMissing("clients", state.clients.map((item) => item.id), knownRemoteIds.clients);
+    await deleteMissing("service_catalog", state.catalog.map((item) => item.id), knownRemoteIds.catalog);
+    try {
+      await deleteMissing("signature_models", (state.signatureModels || []).map((item) => item.id), knownRemoteIds.signatureModels);
+    } catch (error) {
+      if (!/signature_models|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
+    }
+    try {
+      await deleteMissing("saved_signatures", (state.savedSignatures || []).map((item) => item.id), knownRemoteIds.savedSignatures);
+    } catch (error) {
+      if (!/saved_signatures|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
+    }
+
+    const activeTableNames = new Set(state.priceTables);
+    const removedTableIds = existingTables.data
+      .filter((table) => !activeTableNames.has(table.name) && knownRemoteIds.priceTableNames.has(table.name))
+      .map((table) => table.id);
+    if (removedTableIds.length) {
+      const removedTables = await client.from("price_tables").delete().in("id", removedTableIds);
+      if (removedTables.error) throw removedTables.error;
+    }
+
     if (state.catalog.length) {
       const catalogResult = await client.from("service_catalog").upsert(
         state.catalog.map((service) => ({
@@ -757,49 +806,6 @@
       if (result.error && !/app_settings|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
         throw result.error;
       }
-    }
-
-    async function deleteMissing(table, localIds, knownIds) {
-      const existing = await client.from(table).select("id");
-      if (existing.error) throw existing.error;
-      const localSet = new Set(localIds);
-      const missingIds = existing.data
-        .map((item) => item.id)
-        .filter((id) => !localSet.has(id) && knownIds.has(id));
-      if (!missingIds.length) return;
-      const removed = await client.from(table).delete().in("id", missingIds);
-      if (removed.error) throw removed.error;
-    }
-
-    await deleteMissing("payments", state.payments.map((item) => item.id), knownRemoteIds.payments);
-    await deleteMissing("supplier_entries", (state.supplierEntries || []).map((item) => item.id), knownRemoteIds.supplierEntries);
-    await deleteMissing("service_entries", state.services.map((item) => item.id), knownRemoteIds.services);
-    await deleteMissing("billings", state.billings.map((item) => item.id), knownRemoteIds.billings);
-    await deleteMissing("payment_methods", state.paymentMethods.map((item) => item.id), knownRemoteIds.paymentMethods);
-    await deleteMissing("supplier_payments", (state.supplierPayments || []).map((item) => item.id), knownRemoteIds.supplierPayments);
-    await deleteMissing("supplier_payables", (state.supplierPayables || []).map((item) => item.id), knownRemoteIds.supplierPayables);
-    await deleteMissing("supplier_services", (state.supplierServices || []).map((item) => item.id), knownRemoteIds.supplierServices);
-    await deleteMissing("suppliers", (state.suppliers || []).map((item) => item.id), knownRemoteIds.suppliers);
-    await deleteMissing("clients", state.clients.map((item) => item.id), knownRemoteIds.clients);
-    await deleteMissing("service_catalog", state.catalog.map((item) => item.id), knownRemoteIds.catalog);
-    try {
-      await deleteMissing("signature_models", (state.signatureModels || []).map((item) => item.id), knownRemoteIds.signatureModels);
-    } catch (error) {
-      if (!/signature_models|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
-    }
-    try {
-      await deleteMissing("saved_signatures", (state.savedSignatures || []).map((item) => item.id), knownRemoteIds.savedSignatures);
-    } catch (error) {
-      if (!/saved_signatures|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
-    }
-
-    const activeTableNames = new Set(state.priceTables);
-    const removedTableIds = existingTables.data
-      .filter((table) => !activeTableNames.has(table.name) && knownRemoteIds.priceTableNames.has(table.name))
-      .map((table) => table.id);
-    if (removedTableIds.length) {
-      const removedTables = await client.from("price_tables").delete().in("id", removedTableIds);
-      if (removedTables.error) throw removedTables.error;
     }
 
     rememberKnownIds(state);
