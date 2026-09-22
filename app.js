@@ -69,6 +69,14 @@ let knownPendingRequestIds = null;
 let alertMessages = loadAlertMessages();
 let soundAlertsEnabled = localStorage.getItem(SOUND_ALERTS_KEY) === "true";
 let serviceDisplayMode = localStorage.getItem(SERVICE_DISPLAY_KEY) === "simple" ? "simple" : "full";
+let serviceSelectionMode = false;
+const selectedServiceIds = new Set();
+const SERVICE_STATUS_NEXT_TARGETS = {
+  "A fazer": ["Pronto"],
+  "Pronto": ["Entregue", "A fazer"],
+  "Entregue": ["Pronto"]
+};
+const SERVICE_BULK_STATUS_LABELS = { "Pronto": "Marcar como Feito", "Entregue": "Marcar como Entregue", "A fazer": "Marcar como A fazer" };
 let alertAudioContext = null;
 let currentAdminName = "Administrador";
 let systemSettings = loadSystemSettings();
@@ -1799,6 +1807,7 @@ function openServiceQuickView(primaryId) {
 
 function renderServices() {
   updateServiceDisplayToggleButton();
+  updateServiceSelectionToggleButton();
   const clientFilter = document.getElementById("serviceClientFilter").value;
   const clientNameFilter = document.getElementById("serviceClientNameFilter").value.trim();
   const statusFilter = document.getElementById("serviceStatusFilter").value;
@@ -1860,6 +1869,10 @@ function renderServices() {
   serviceGroupsById.clear();
   groupedItems.forEach((group) => serviceGroupsById.set(group.primary.id, group));
 
+  const selectionActive = serviceSelectionMode && serviceDisplayMode === "simple";
+  const visibleGroupIds = new Set(groupedItems.map((group) => group.primary.id));
+  [...selectedServiceIds].forEach((id) => { if (!visibleGroupIds.has(id)) selectedServiceIds.delete(id); });
+
   const serviceSimpleRowMarkup = ({ primary, complementary }) => {
     const total = [primary, ...complementary].reduce((sum, item) => sum + Number(item.amount), 0);
     const fullServiceLabel = `${primary.description}${complementary.length ? ` + ${complementary.length} complementar(es)` : ""}`;
@@ -1873,6 +1886,7 @@ function renderServices() {
       <td class="service-simple-truncate">${escapeHtml(fullServiceLabel)}</td>
       <td><span class="status status-${statusClass} service-simple-full">${escapeHtml(statusLabel)}</span><span class="status status-${statusClass} service-simple-compact">${escapeHtml(statusInitial)}</span></td>
       <td class="service-simple-amount">${money.format(total)}</td>
+      ${selectionActive ? `<td><input type="checkbox" data-select-entry="${primary.id}" ${selectedServiceIds.has(primary.id) ? "checked" : ""} aria-label="Selecionar"></td>` : ""}
     </tr>`;
   };
 
@@ -1880,12 +1894,35 @@ function renderServices() {
     ? emptyMarkup()
     : serviceDisplayMode === "simple"
     ? `<div class="service-simple-wrap"><table class="service-simple-table">
-        <thead><tr><th>Data</th><th><span class="service-simple-full">Referência</span><span class="service-simple-compact">REF</span></th><th>Cliente</th><th>Serviço</th><th>Status</th><th>Valor</th></tr></thead>
+        <thead><tr><th>Data</th><th><span class="service-simple-full">Referência</span><span class="service-simple-compact">REF</span></th><th>Cliente</th><th>Serviço</th><th>Status</th><th>Valor</th>${selectionActive ? `<th><input type="checkbox" data-select-all-entries aria-label="Selecionar todos"></th>` : ""}</tr></thead>
         <tbody>${groupedItems.map(serviceSimpleRowMarkup).join("")}</tbody>
       </table></div>`
     : groupedItems.map(({ ordered }) => ordered.length > 1
       ? `<section class="linked-service-group">${ordered.map((item) => serviceItemMarkup(item, true)).join("")}</section>`
       : serviceItemMarkup(ordered[0])).join("");
+  renderServiceBulkActionsBar();
+}
+
+function renderServiceBulkActionsBar() {
+  const bar = document.getElementById("serviceBulkActions");
+  if (!bar) return;
+  if (!serviceSelectionMode || serviceDisplayMode !== "simple" || !selectedServiceIds.size) {
+    bar.classList.add("hidden");
+    bar.innerHTML = "";
+    return;
+  }
+  const selectedPrimaries = [...selectedServiceIds].map((id) => serviceGroupsById.get(id)?.primary).filter(Boolean);
+  const availableTargets = new Set();
+  selectedPrimaries.forEach((primary) => {
+    (SERVICE_STATUS_NEXT_TARGETS[primary.status] || []).forEach((target) => availableTargets.add(target));
+  });
+  bar.classList.remove("hidden");
+  bar.innerHTML = `
+    <span>${selectedPrimaries.length} selecionado(s)</span>
+    <div class="bulk-actions-buttons">
+      ${[...availableTargets].map((target) => `<button type="button" class="table-action success" data-bulk-service-status="${target}">${SERVICE_BULK_STATUS_LABELS[target]}</button>`).join("")}
+      <button type="button" class="table-action" data-bulk-service-clear>Cancelar seleção</button>
+    </div>`;
 }
 
 function updateServiceDisplayToggleButton() {
@@ -1895,6 +1932,17 @@ function updateServiceDisplayToggleButton() {
   button.textContent = isSimple ? "Exibir completo" : "Exibir simples";
   button.classList.toggle("active", isSimple);
   button.setAttribute("aria-pressed", String(isSimple));
+}
+
+function updateServiceSelectionToggleButton() {
+  const button = document.getElementById("serviceSelectionToggle");
+  if (!button) return;
+  const isSimple = serviceDisplayMode === "simple";
+  button.classList.toggle("hidden", !isSimple);
+  if (!isSimple && serviceSelectionMode) { serviceSelectionMode = false; selectedServiceIds.clear(); }
+  button.textContent = serviceSelectionMode ? "Cancelar seleção" : "Selecionar";
+  button.classList.toggle("active", serviceSelectionMode);
+  button.setAttribute("aria-pressed", String(serviceSelectionMode));
 }
 
 function renderServiceRequests() {
@@ -4709,6 +4757,7 @@ async function pollApiBrasilWhatsApp(onUpdate) {
 }
 
 document.addEventListener("click", async (event) => {
+  if (event.target.closest("[data-select-entry], [data-select-all-entries], [data-select-supplier-entry], [data-select-all-supplier-entries]")) return;
   const tab = event.target.closest("[data-view]");
   const clientTab = event.target.closest("[data-client-view]");
   const opener = event.target.closest("[data-open-view]");
@@ -6511,6 +6560,51 @@ document.getElementById("serviceDisplayToggle").addEventListener("click", () => 
   serviceDisplayMode = serviceDisplayMode === "simple" ? "full" : "simple";
   localStorage.setItem(SERVICE_DISPLAY_KEY, serviceDisplayMode);
   renderServices();
+});
+document.getElementById("serviceSelectionToggle").addEventListener("click", () => {
+  serviceSelectionMode = !serviceSelectionMode;
+  if (!serviceSelectionMode) selectedServiceIds.clear();
+  renderServices();
+});
+document.getElementById("serviceList").addEventListener("change", (event) => {
+  const checkbox = event.target.closest("[data-select-entry]");
+  if (checkbox) {
+    if (checkbox.checked) selectedServiceIds.add(checkbox.dataset.selectEntry);
+    else selectedServiceIds.delete(checkbox.dataset.selectEntry);
+    renderServiceBulkActionsBar();
+    return;
+  }
+  const selectAll = event.target.closest("[data-select-all-entries]");
+  if (selectAll) {
+    document.querySelectorAll('#serviceList [data-select-entry]').forEach((el) => {
+      el.checked = selectAll.checked;
+      if (selectAll.checked) selectedServiceIds.add(el.dataset.selectEntry);
+      else selectedServiceIds.delete(el.dataset.selectEntry);
+    });
+    renderServiceBulkActionsBar();
+  }
+});
+document.getElementById("serviceBulkActions").addEventListener("click", async (event) => {
+  if (event.target.closest("[data-bulk-service-clear]")) {
+    selectedServiceIds.clear();
+    renderServices();
+    return;
+  }
+  const statusButton = event.target.closest("[data-bulk-service-status]");
+  if (!statusButton) return;
+  const targetStatus = statusButton.dataset.bulkServiceStatus;
+  const selectedPrimaries = [...selectedServiceIds].map((id) => serviceGroupsById.get(id)?.primary).filter(Boolean);
+  const eligible = selectedPrimaries.filter((primary) =>
+    (SERVICE_STATUS_NEXT_TARGETS[primary.status] || []).includes(targetStatus));
+  if (!eligible.length) return;
+  const confirmed = await showAppConfirm(`Aplicar "${serviceStatusLabel(targetStatus)}" a ${eligible.length} lançamento(s) selecionado(s)?`);
+  if (!confirmed) return;
+  const changedAt = new Date().toISOString();
+  eligible.forEach((primary) => applyServiceStatus(primary, targetStatus, changedAt));
+  const skipped = selectedPrimaries.length - eligible.length;
+  selectedServiceIds.clear();
+  saveState();
+  showAppAlert(`${eligible.length} lançamento(s) atualizado(s).${skipped ? ` ${skipped} ignorado(s) por status incompatível.` : ""}`, { type: "success" });
 });
 document.getElementById("serviceQuickViewDialog").addEventListener("click", (event) => {
   if (event.target.closest("[data-edit-entry], [data-cancel-entry], [data-delete-entry], [data-service-status], [data-request-delivery]")) {

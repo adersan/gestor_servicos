@@ -12,6 +12,14 @@
   const SUPPLIER_ENTRY_DISPLAY_KEY = "gestor-servicos-supplier-entry-display-v1";
   const SUPPLIER_ENTRY_SIMPLE_STATUS_INITIALS = { "A fazer": "AF", Feito: "F", Entregue: "E", Cancelado: "C" };
   let supplierEntryDisplayMode = localStorage.getItem(SUPPLIER_ENTRY_DISPLAY_KEY) === "simple" ? "simple" : "full";
+  let supplierEntrySelectionMode = false;
+  const selectedSupplierEntryIds = new Set();
+  const SUPPLIER_ENTRY_STATUS_NEXT_TARGETS = {
+    "A fazer": ["Feito"],
+    "Feito": ["Entregue", "A fazer"],
+    "Entregue": ["Feito"]
+  };
+  const SUPPLIER_ENTRY_BULK_STATUS_LABELS = { "Feito": "Marcar como Feito", "Entregue": "Marcar como Entregue", "A fazer": "Marcar como A fazer" };
 
   const byId = (id) => document.getElementById(id);
   const today = () => new Date().toISOString().slice(0, 10);
@@ -348,7 +356,7 @@
       </article>`;
   }
 
-  function supplierEntrySimpleRowMarkup(item) {
+  function supplierEntrySimpleRowMarkup(item, selectionActive) {
     const statusClass = normalized(item.status).replace(/\s/g, "-");
     const statusInitial = SUPPLIER_ENTRY_SIMPLE_STATUS_INITIALS[item.status] || item.status;
     return `<tr data-view-supplier-entry="${item.id}">
@@ -358,6 +366,7 @@
       <td class="service-simple-truncate">${escapeHtml(item.description)}</td>
       <td><span class="status status-${statusClass} service-simple-full">${escapeHtml(item.status)}</span><span class="status status-${statusClass} service-simple-compact">${escapeHtml(statusInitial)}</span></td>
       <td class="service-simple-amount">${money.format(item.amount)}</td>
+      ${selectionActive ? `<td>${item.payableId ? "" : `<input type="checkbox" data-select-supplier-entry="${item.id}" ${selectedSupplierEntryIds.has(item.id) ? "checked" : ""} aria-label="Selecionar">`}</td>` : ""}
     </tr>`;
   }
 
@@ -370,6 +379,39 @@
     button.setAttribute("aria-pressed", String(isSimple));
   }
 
+  function updateSupplierEntrySelectionToggleButton() {
+    const button = byId("supplierEntrySelectionToggle");
+    if (!button) return;
+    const isSimple = supplierEntryDisplayMode === "simple";
+    button.classList.toggle("hidden", !isSimple);
+    if (!isSimple && supplierEntrySelectionMode) { supplierEntrySelectionMode = false; selectedSupplierEntryIds.clear(); }
+    button.textContent = supplierEntrySelectionMode ? "Cancelar seleção" : "Selecionar";
+    button.classList.toggle("active", supplierEntrySelectionMode);
+    button.setAttribute("aria-pressed", String(supplierEntrySelectionMode));
+  }
+
+  function renderSupplierEntryBulkActionsBar() {
+    const bar = byId("supplierEntryBulkActions");
+    if (!bar) return;
+    if (!supplierEntrySelectionMode || supplierEntryDisplayMode !== "simple" || !selectedSupplierEntryIds.size) {
+      bar.classList.add("hidden");
+      bar.innerHTML = "";
+      return;
+    }
+    const selectedEntries = [...selectedSupplierEntryIds].map((id) => state.supplierEntries.find((item) => item.id === id)).filter(Boolean);
+    const availableTargets = new Set();
+    selectedEntries.forEach((entry) => {
+      (SUPPLIER_ENTRY_STATUS_NEXT_TARGETS[entry.status] || []).forEach((target) => availableTargets.add(target));
+    });
+    bar.classList.remove("hidden");
+    bar.innerHTML = `
+      <span>${selectedEntries.length} selecionado(s)</span>
+      <div class="bulk-actions-buttons">
+        ${[...availableTargets].map((target) => `<button type="button" class="table-action success" data-bulk-supplier-entry-status="${target}">${SUPPLIER_ENTRY_BULK_STATUS_LABELS[target]}</button>`).join("")}
+        <button type="button" class="table-action" data-bulk-supplier-entry-clear>Cancelar seleção</button>
+      </div>`;
+  }
+
   function openSupplierEntryQuickView(id) {
     const entry = state.supplierEntries.find((item) => item.id === id);
     if (!entry) return;
@@ -379,6 +421,7 @@
 
   function renderEntries() {
     updateSupplierEntryDisplayToggleButton();
+    updateSupplierEntrySelectionToggleButton();
     const supplierId = byId("supplierEntrySupplierFilter").value;
     const clientId = byId("supplierEntryClientFilter").value;
     const status = byId("supplierEntryStatusFilter").value;
@@ -409,14 +452,18 @@
         ? `${entries.length} lançamento(s) encontrado(s)`
         : "Nenhum lançamento encontrado";
     }
+    const selectionActive = supplierEntrySelectionMode && supplierEntryDisplayMode === "simple";
+    const visibleIds = new Set(entries.map((item) => item.id));
+    [...selectedSupplierEntryIds].forEach((id) => { if (!visibleIds.has(id)) selectedSupplierEntryIds.delete(id); });
     byId("supplierEntryList").innerHTML = !entries.length
       ? empty()
       : supplierEntryDisplayMode === "simple"
       ? `<div class="service-simple-wrap"><table class="service-simple-table">
-          <thead><tr><th>Data</th><th><span class="service-simple-full">Referência</span><span class="service-simple-compact">REF</span></th><th>Fornecedor</th><th>Serviço</th><th>Status</th><th>Valor</th></tr></thead>
-          <tbody>${entries.map(supplierEntrySimpleRowMarkup).join("")}</tbody>
+          <thead><tr><th>Data</th><th><span class="service-simple-full">Referência</span><span class="service-simple-compact">REF</span></th><th>Fornecedor</th><th>Serviço</th><th>Status</th><th>Valor</th>${selectionActive ? `<th><input type="checkbox" data-select-all-supplier-entries aria-label="Selecionar todos"></th>` : ""}</tr></thead>
+          <tbody>${entries.map((item) => supplierEntrySimpleRowMarkup(item, selectionActive)).join("")}</tbody>
         </table></div>`
       : entries.map(supplierEntryItemMarkup).join("");
+    renderSupplierEntryBulkActionsBar();
   }
 
   function renderPayables() {
@@ -2010,6 +2057,7 @@
   }, true);
 
   document.addEventListener("click", async (event) => {
+    if (event.target.closest("[data-select-supplier-entry], [data-select-all-supplier-entries]")) return;
     const tab = event.target.closest("[data-supplier-tab]"); if (tab) showSupplierTab(tab.dataset.supplierTab);
     const panelTab = event.target.closest("[data-supplier-panel-tab]");
     if (panelTab) showSupplierDashboardTab(panelTab.dataset.supplierPanelTab);
@@ -2333,6 +2381,59 @@
     supplierEntryDisplayMode = supplierEntryDisplayMode === "simple" ? "full" : "simple";
     localStorage.setItem(SUPPLIER_ENTRY_DISPLAY_KEY, supplierEntryDisplayMode);
     renderEntries();
+  });
+  byId("supplierEntrySelectionToggle").addEventListener("click", () => {
+    supplierEntrySelectionMode = !supplierEntrySelectionMode;
+    if (!supplierEntrySelectionMode) selectedSupplierEntryIds.clear();
+    renderEntries();
+  });
+  byId("supplierEntryList").addEventListener("change", (event) => {
+    const checkbox = event.target.closest("[data-select-supplier-entry]");
+    if (checkbox) {
+      if (checkbox.checked) selectedSupplierEntryIds.add(checkbox.dataset.selectSupplierEntry);
+      else selectedSupplierEntryIds.delete(checkbox.dataset.selectSupplierEntry);
+      renderSupplierEntryBulkActionsBar();
+      return;
+    }
+    const selectAll = event.target.closest("[data-select-all-supplier-entries]");
+    if (selectAll) {
+      byId("supplierEntryList").querySelectorAll("[data-select-supplier-entry]").forEach((el) => {
+        el.checked = selectAll.checked;
+        if (selectAll.checked) selectedSupplierEntryIds.add(el.dataset.selectSupplierEntry);
+        else selectedSupplierEntryIds.delete(el.dataset.selectSupplierEntry);
+      });
+      renderSupplierEntryBulkActionsBar();
+    }
+  });
+  byId("supplierEntryBulkActions").addEventListener("click", async (event) => {
+    if (event.target.closest("[data-bulk-supplier-entry-clear]")) {
+      selectedSupplierEntryIds.clear();
+      renderEntries();
+      return;
+    }
+    const statusButton = event.target.closest("[data-bulk-supplier-entry-status]");
+    if (!statusButton) return;
+    const targetStatus = statusButton.dataset.bulkSupplierEntryStatus;
+    const selectedEntries = [...selectedSupplierEntryIds].map((id) => state.supplierEntries.find((item) => item.id === id)).filter(Boolean);
+    const eligible = selectedEntries.filter((entry) => !entry.payableId
+      && (SUPPLIER_ENTRY_STATUS_NEXT_TARGETS[entry.status] || []).includes(targetStatus));
+    if (!eligible.length) return;
+    const confirmed = await showAppConfirm(`Aplicar "${targetStatus}" a ${eligible.length} lançamento(s) selecionado(s)?`);
+    if (!confirmed) return;
+    const changedAt = new Date().toISOString();
+    eligible.forEach((entry) => {
+      entry.status = targetStatus;
+      if (["Feito", "Entregue"].includes(targetStatus)) entry.doneAt ||= changedAt;
+      if (targetStatus === "Entregue") entry.deliveredAt = changedAt;
+      else entry.deliveredAt = null;
+      if (targetStatus === "A fazer") entry.doneAt = null;
+      entry.lastChangedBy = "Administrador";
+      entry.updatedAt = changedAt;
+    });
+    const skipped = selectedEntries.length - eligible.length;
+    selectedSupplierEntryIds.clear();
+    saveState();
+    showAppAlert(`${eligible.length} lançamento(s) atualizado(s).${skipped ? ` ${skipped} ignorado(s) por status incompatível ou já em conta a pagar.` : ""}`, { type: "success" });
   });
   byId("supplierEntryQuickViewDialog").addEventListener("click", (event) => {
     if (event.target.closest("[data-edit-supplier-entry], [data-cancel-supplier-entry], [data-delete-supplier-entry], [data-supplier-entry-status]")) {

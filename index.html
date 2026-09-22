@@ -271,7 +271,11 @@
         <input id="serviceEndDate" type="date" aria-label="Data final">
         <input id="serviceSearch" type="search" placeholder="Buscar cliente, placa ou serviço">
       </div>
-      <button id="serviceDisplayToggle" class="table-action service-display-toggle" type="button" aria-pressed="false">Exibir simples</button>
+      <div class="entry-list-toolbar">
+        <button id="serviceDisplayToggle" class="table-action service-display-toggle" type="button" aria-pressed="false">Exibir simples</button>
+        <button id="serviceSelectionToggle" class="table-action" type="button" aria-pressed="false">Selecionar</button>
+      </div>
+      <div id="serviceBulkActions" class="bulk-actions-bar hidden"></div>
       <div id="serviceList" class="timeline"></div>
     </section>
 
@@ -524,7 +528,11 @@
           <input id="supplierEntryEnd" type="date" aria-label="Data final">
           <input id="supplierEntrySearch" type="search" placeholder="Buscar serviço, cliente ou referência">
         </div>
-        <button id="supplierEntryDisplayToggle" class="table-action service-display-toggle" type="button" aria-pressed="false">Exibir simples</button>
+        <div class="entry-list-toolbar">
+          <button id="supplierEntryDisplayToggle" class="table-action service-display-toggle" type="button" aria-pressed="false">Exibir simples</button>
+          <button id="supplierEntrySelectionToggle" class="table-action" type="button" aria-pressed="false">Selecionar</button>
+        </div>
+        <div id="supplierEntryBulkActions" class="bulk-actions-bar hidden"></div>
         <div id="supplierEntryList" class="timeline"></div>
       </div>
       <div id="supplierPayablesPanel" class="supplier-panel hidden">
