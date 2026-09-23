@@ -10610,6 +10610,12 @@ async function savedSignatureUseForGeneration() {
   }
 }
 
+function savedSignatureAddNew() {
+  document.getElementById("savedSignaturesDialog").close();
+  extrasCancelPreview();
+  document.getElementById("extrasFileInput").click();
+}
+
 function openSavedSignaturesDialog() {
   savedSignatureSelectedId = null;
   renderSavedSignaturesGallery();
@@ -10620,6 +10626,10 @@ function initializeSavedSignaturesTools() {
   const dialog = document.getElementById("savedSignaturesDialog");
   if (!dialog) return;
   dialog.addEventListener("click", (event) => {
+    if (event.target.closest("#savedSignatureAddNewButton")) {
+      savedSignatureAddNew();
+      return;
+    }
     const card = event.target.closest("[data-saved-signature]");
     if (card) {
       savedSignatureSelect(card.dataset.savedSignature);
@@ -10948,7 +10958,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=233").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=234").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

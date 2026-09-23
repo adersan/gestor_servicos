@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=157">
+  <link rel="stylesheet" href="styles.css?v=158">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -2138,6 +2138,7 @@
     <div class="dialog-heading"><h2>Minhas assinaturas</h2><button class="icon-button" data-close-dialog>×</button></div>
     <div class="signature-dialog-content">
       <p class="meta">Assinaturas já digitalizadas ou geradas por IA, prontas pra reutilizar sem repetir o processamento.</p>
+      <button type="button" class="table-action" id="savedSignatureAddNewButton">+ Adicionar nova assinatura</button>
       <div id="savedSignaturesGrid" class="signature-model-grid"></div>
       <div id="savedSignaturesActions" class="signature-model-actions hidden">
         <span class="meta">Selecionada: <strong id="savedSignatureSelectedName"></strong></span>
@@ -2751,7 +2752,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=57"></script>
-  <script src="app.js?v=215"></script>
+  <script src="app.js?v=216"></script>
   <script src="supplier.js?v=69"></script>
 </body>
 </html>
