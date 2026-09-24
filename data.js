@@ -402,12 +402,25 @@
       inserted.data.forEach((table) => { existingByName[table.name] = table.id; });
     }
 
-    // Exclusoes rodam ANTES dos upserts abaixo (proposital): upsertState reenvia o estado inteiro
-    // a cada gravacao, e se uma tabela mais adiante nesta funcao falhar (linha invalida em
-    // qualquer registro, nao so no que o usuario acabou de mexer), a funcao inteira aborta - antes,
-    // isso deixava exclusoes pendentes (ex: excluir lancamento do fornecedor) nunca chegarem a
-    // rodar no banco, e o registro "voltava" na proxima sincronizacao mesmo ja tendo sumido da
-    // tela. Rodando primeiro, a exclusao fica garantida mesmo que outra tabela falhe depois.
+    // Cada passo abaixo (exclusao ou upsert de uma tabela) roda isolado dentro de attempt():
+    // upsertState reenvia o estado inteiro a cada gravacao, e se um passo qualquer falhar (linha
+    // invalida em qualquer registro, nao so no que o usuario acabou de mexer), os passos SEGUINTES
+    // continuam rodando normalmente em vez de a funcao inteira abortar - antes, uma falha isolada
+    // (ex: erro so na tabela de clientes) podia impedir ate exclusoes/edicoes ja feitas e sem
+    // nenhuma relacao (ex: excluir lancamento do fornecedor, ou desvincular um complementar de um
+    // lancamento excluido) de chegar a rodar no banco, e o registro "voltava" na proxima
+    // sincronizacao mesmo ja tendo sumido/mudado na tela. Erros coletados em `errors` e relancados
+    // juntos no final, so pra ainda avisar o usuario - mas so depois de toda tentativa ja ter rodado.
+    const errors = [];
+    async function attempt(label, fn) {
+      try {
+        await fn();
+      } catch (error) {
+        console.error(`Falha ao sincronizar ${label}:`, error);
+        errors.push(error);
+      }
+    }
+
     async function deleteMissing(table, localIds, knownIds) {
       const existing = await client.from(table).select("id");
       if (existing.error) throw existing.error;
@@ -420,395 +433,460 @@
       if (removed.error) throw removed.error;
     }
 
-    await deleteMissing("payments", state.payments.map((item) => item.id), knownRemoteIds.payments);
-    await deleteMissing("supplier_entries", (state.supplierEntries || []).map((item) => item.id), knownRemoteIds.supplierEntries);
-    await deleteMissing("service_entries", state.services.map((item) => item.id), knownRemoteIds.services);
-    await deleteMissing("billings", state.billings.map((item) => item.id), knownRemoteIds.billings);
-    await deleteMissing("payment_methods", state.paymentMethods.map((item) => item.id), knownRemoteIds.paymentMethods);
-    await deleteMissing("supplier_payments", (state.supplierPayments || []).map((item) => item.id), knownRemoteIds.supplierPayments);
-    await deleteMissing("supplier_payables", (state.supplierPayables || []).map((item) => item.id), knownRemoteIds.supplierPayables);
-    await deleteMissing("supplier_services", (state.supplierServices || []).map((item) => item.id), knownRemoteIds.supplierServices);
-    await deleteMissing("suppliers", (state.suppliers || []).map((item) => item.id), knownRemoteIds.suppliers);
-    await deleteMissing("clients", state.clients.map((item) => item.id), knownRemoteIds.clients);
-    await deleteMissing("service_catalog", state.catalog.map((item) => item.id), knownRemoteIds.catalog);
-    try {
-      await deleteMissing("signature_models", (state.signatureModels || []).map((item) => item.id), knownRemoteIds.signatureModels);
-    } catch (error) {
-      if (!/signature_models|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
-    }
-    try {
-      await deleteMissing("saved_signatures", (state.savedSignatures || []).map((item) => item.id), knownRemoteIds.savedSignatures);
-    } catch (error) {
-      if (!/saved_signatures|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
-    }
+    await attempt("exclusoes de payments", () =>
+      deleteMissing("payments", state.payments.map((item) => item.id), knownRemoteIds.payments));
+    await attempt("exclusoes de supplier_entries", () =>
+      deleteMissing("supplier_entries", (state.supplierEntries || []).map((item) => item.id), knownRemoteIds.supplierEntries));
+    await attempt("exclusoes de service_entries", () =>
+      deleteMissing("service_entries", state.services.map((item) => item.id), knownRemoteIds.services));
+    await attempt("exclusoes de billings", () =>
+      deleteMissing("billings", state.billings.map((item) => item.id), knownRemoteIds.billings));
+    await attempt("exclusoes de payment_methods", () =>
+      deleteMissing("payment_methods", state.paymentMethods.map((item) => item.id), knownRemoteIds.paymentMethods));
+    await attempt("exclusoes de supplier_payments", () =>
+      deleteMissing("supplier_payments", (state.supplierPayments || []).map((item) => item.id), knownRemoteIds.supplierPayments));
+    await attempt("exclusoes de supplier_payables", () =>
+      deleteMissing("supplier_payables", (state.supplierPayables || []).map((item) => item.id), knownRemoteIds.supplierPayables));
+    await attempt("exclusoes de supplier_services", () =>
+      deleteMissing("supplier_services", (state.supplierServices || []).map((item) => item.id), knownRemoteIds.supplierServices));
+    await attempt("exclusoes de suppliers", () =>
+      deleteMissing("suppliers", (state.suppliers || []).map((item) => item.id), knownRemoteIds.suppliers));
+    await attempt("exclusoes de clients", () =>
+      deleteMissing("clients", state.clients.map((item) => item.id), knownRemoteIds.clients));
+    await attempt("exclusoes de service_catalog", () =>
+      deleteMissing("service_catalog", state.catalog.map((item) => item.id), knownRemoteIds.catalog));
+    await attempt("exclusoes de signature_models", async () => {
+      try {
+        await deleteMissing("signature_models", (state.signatureModels || []).map((item) => item.id), knownRemoteIds.signatureModels);
+      } catch (error) {
+        if (!/signature_models|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
+      }
+    });
+    await attempt("exclusoes de saved_signatures", async () => {
+      try {
+        await deleteMissing("saved_signatures", (state.savedSignatures || []).map((item) => item.id), knownRemoteIds.savedSignatures);
+      } catch (error) {
+        if (!/saved_signatures|schema cache|does not exist|Could not find/i.test(error.message || "")) throw error;
+      }
+    });
 
-    const activeTableNames = new Set(state.priceTables);
-    const removedTableIds = existingTables.data
-      .filter((table) => !activeTableNames.has(table.name) && knownRemoteIds.priceTableNames.has(table.name))
-      .map((table) => table.id);
-    if (removedTableIds.length) {
-      const removedTables = await client.from("price_tables").delete().in("id", removedTableIds);
-      if (removedTables.error) throw removedTables.error;
-    }
+    await attempt("exclusoes de price_tables", async () => {
+      const activeTableNames = new Set(state.priceTables);
+      const removedTableIds = existingTables.data
+        .filter((table) => !activeTableNames.has(table.name) && knownRemoteIds.priceTableNames.has(table.name))
+        .map((table) => table.id);
+      if (removedTableIds.length) {
+        const removedTables = await client.from("price_tables").delete().in("id", removedTableIds);
+        if (removedTables.error) throw removedTables.error;
+      }
+    });
 
-    if (state.catalog.length) {
-      const catalogResult = await client.from("service_catalog").upsert(
-        state.catalog.map((service) => ({
-          id: service.id,
-          code: service.code || null,
-          name: service.name,
-          active: true
+    await attempt("service_catalog", async () => {
+      if (state.catalog.length) {
+        const catalogResult = await client.from("service_catalog").upsert(
+          state.catalog.map((service) => ({
+            id: service.id,
+            code: service.code || null,
+            name: service.name,
+            active: true
+          }))
+        );
+        if (catalogResult.error) throw catalogResult.error;
+      }
+    });
+
+    await attempt("service_prices", async () => {
+      const servicePrices = state.catalog.flatMap((service) =>
+        state.priceTables.map((tableName) => ({
+          service_id: service.id,
+          price_table_id: existingByName[tableName],
+          amount: Number(service.prices[tableName] || 0)
         }))
       );
-      if (catalogResult.error) throw catalogResult.error;
-    }
-
-    const servicePrices = state.catalog.flatMap((service) =>
-      state.priceTables.map((tableName) => ({
-        service_id: service.id,
-        price_table_id: existingByName[tableName],
-        amount: Number(service.prices[tableName] || 0)
-      }))
-    );
-    if (servicePrices.length) {
-      const pricesResult = await client.from("service_prices").upsert(servicePrices);
-      if (pricesResult.error) throw pricesResult.error;
-    }
-
-    if (state.clients.length) {
-      const clientRows = state.clients.map((item) => ({
-          id: item.id,
-          name: item.name,
-          phone: item.phone || null,
-          document: item.document || null,
-          email: item.email || null,
-          contact_name: item.contactName || null,
-          zip_code: item.zipCode || null,
-          address: item.address || null,
-          address_number: item.addressNumber || null,
-          address_complement: item.addressComplement || null,
-          neighborhood: item.neighborhood || null,
-          city: item.city || null,
-          state: item.state || null,
-          notes: item.notes || null,
-          price_table_id: existingByName[item.priceGroup] || null,
-          billing_frequency: item.billingFrequency || "semanal",
-          active: true
-        }));
-      let clientsResult = await client.from("clients").upsert(clientRows);
-      if (clientsResult.error && /document|email|contact_name|zip_code|address|neighborhood|city|state|notes|billing_frequency|schema cache|Could not find/i.test(clientsResult.error.message || "")) {
-        clientsResult = await client.from("clients").upsert(clientRows.map(({
-          document, email, contact_name, zip_code, address, address_number,
-          address_complement, neighborhood, city, state, notes, billing_frequency, ...row
-        }) => row));
+      if (servicePrices.length) {
+        const pricesResult = await client.from("service_prices").upsert(servicePrices);
+        if (pricesResult.error) throw pricesResult.error;
       }
-      if (clientsResult.error) throw clientsResult.error;
-    }
+    });
 
-    if (state.services.length) {
-      const entries = state.services.map((item) => ({
+    await attempt("clients", async () => {
+      if (state.clients.length) {
+        const clientRows = state.clients.map((item) => ({
+            id: item.id,
+            name: item.name,
+            phone: item.phone || null,
+            document: item.document || null,
+            email: item.email || null,
+            contact_name: item.contactName || null,
+            zip_code: item.zipCode || null,
+            address: item.address || null,
+            address_number: item.addressNumber || null,
+            address_complement: item.addressComplement || null,
+            neighborhood: item.neighborhood || null,
+            city: item.city || null,
+            state: item.state || null,
+            notes: item.notes || null,
+            price_table_id: existingByName[item.priceGroup] || null,
+            billing_frequency: item.billingFrequency || "semanal",
+            active: true
+          }));
+        let clientsResult = await client.from("clients").upsert(clientRows);
+        if (clientsResult.error && /document|email|contact_name|zip_code|address|neighborhood|city|state|notes|billing_frequency|schema cache|Could not find/i.test(clientsResult.error.message || "")) {
+          clientsResult = await client.from("clients").upsert(clientRows.map(({
+            document, email, contact_name, zip_code, address, address_number,
+            address_complement, neighborhood, city, state, notes, billing_frequency, ...row
+          }) => row));
+        }
+        if (clientsResult.error) throw clientsResult.error;
+      }
+    });
+
+    await attempt("service_entries", async () => {
+      if (state.services.length) {
+        const entries = state.services.map((item) => ({
+            id: item.id,
+            client_id: item.clientId,
+            service_id: item.catalogId || null,
+            service_name: item.description,
+            requested_by: item.requestedBy || null,
+            reference: item.reference || null,
+            service_date: item.date,
+            amount: Number(item.amount),
+            status: item.status,
+            notes: item.notes || null,
+            done_at: item.doneAt || null,
+            billing_id: item.billingId || null,
+            delivery_code: item.deliveryCode || null,
+            confirmation_requested_at: item.confirmationRequestedAt || null,
+            delivered_at: item.deliveredAt || null,
+            delivery_source: item.deliverySource || null,
+            service_group_id: item.serviceGroupId || null,
+            primary_entry_id: item.primaryEntryId || null,
+            is_secondary: Boolean(item.isSecondary),
+            cancellation_reason: item.cancellationReason || null,
+            cancellation_original_amount: item.cancellationOriginalAmount ?? null
+          }));
+        let entriesResult = await client.from("service_entries").upsert(entries);
+        if (entriesResult.error && /requested_by|done_at|delivery_(code|source)|confirmation_requested_at|delivered_at|service_group_id|primary_entry_id|is_secondary|cancellation_reason|cancellation_original_amount/i.test(entriesResult.error.message || "")) {
+          const compatibleEntries = entries.map((entry) => {
+            const {
+              requested_by,
+              done_at,
+              delivery_code,
+              confirmation_requested_at,
+              delivered_at,
+              delivery_source,
+              service_group_id,
+              primary_entry_id,
+              is_secondary,
+              cancellation_reason,
+              cancellation_original_amount,
+              ...compatibleEntry
+            } = entry;
+            return compatibleEntry;
+          });
+          entriesResult = await client.from("service_entries").upsert(compatibleEntries);
+        }
+        if (entriesResult.error) throw entriesResult.error;
+      }
+    });
+
+    await attempt("client_requesters", async () => {
+      if (state.clientRequesters?.length) {
+        const requesterRows = state.clientRequesters.map((item) => ({
+          id: item.id,
+          client_id: item.clientId,
+          name: item.name,
+          normalized_name: item.normalizedName || String(item.name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR"),
+          active: item.active !== false
+        }));
+        const requestersResult = await client.from("client_requesters").upsert(requesterRows);
+        if (requestersResult.error && !/client_requesters|schema cache|does not exist|Could not find/i.test(requestersResult.error.message || "")) {
+          throw requestersResult.error;
+        }
+      }
+    });
+
+    await attempt("payments", async () => {
+      if (state.payments.length) {
+        const payments = state.payments.map((item) => ({
+            id: item.id,
+            client_id: item.clientId,
+            payment_date: item.date,
+            amount: Number(item.amount),
+            method: item.method || null,
+            notes: item.note || null,
+            billing_id: item.billingId || null,
+            external_payment_id: item.externalPaymentId || null,
+            payment_source: item.paymentSource || "Manual",
+            created_at: item.createdAt
+          }));
+        let paymentsResult = await client.from("payments").upsert(payments);
+        if (paymentsResult.error && /external_payment_id|payment_source/i.test(paymentsResult.error.message || "")) {
+          const compatiblePayments = payments.map((payment) => {
+            const { external_payment_id, payment_source, ...compatiblePayment } = payment;
+            return compatiblePayment;
+          });
+          paymentsResult = await client.from("payments").upsert(compatiblePayments);
+        }
+        if (paymentsResult.error) throw paymentsResult.error;
+      }
+    });
+
+    await attempt("payment_methods", async () => {
+      if (state.paymentMethods.length) {
+        const methodsResult = await client.from("payment_methods").upsert(
+          state.paymentMethods.map((item) => ({
+            id: item.id,
+            type: item.type,
+            name: item.name,
+            details: item.details || null,
+            payment_link: item.link || null,
+            active: item.active
+          }))
+        );
+        if (methodsResult.error) throw methodsResult.error;
+      }
+    });
+
+    await attempt("billings", async () => {
+      if (state.billings.length) {
+        const billingsResult = await client.from("billings").upsert(
+          state.billings.map((item) => ({
+            id: item.id,
+            billing_number: item.billingNumber || null,
+            client_id: item.clientId,
+            period_start: item.startDate,
+            period_end: item.endDate,
+            previous_balance: Number(item.previousBalance || 0),
+            services_total: Number(item.servicesTotal || 0),
+            payments_total: Number(item.paymentsTotal || 0),
+            total_due: Number(item.amount),
+            status: item.rolledIntoBillingId ? "Paga" : (item.status || "Aberta"),
+            snapshot: {
+              identifier: item.identifier,
+              paymentMethodIds: item.paymentMethodIds || [],
+              paymentMethods: item.paymentMethods || [],
+              sendHistory: item.sendHistory || [],
+              historyEnabled: Boolean(item.historyEnabled),
+              paymentIds: item.paymentIds || [],
+              creditGenerated: Number(item.creditGenerated || 0),
+              statusReason: item.statusReason || "",
+              calculationVersion: Number(item.calculationVersion || 1),
+              rolledIntoBillingId: item.rolledIntoBillingId || null,
+              rolledAt: item.rolledAt || null,
+              rolledBillingIds: item.rolledBillingIds || [],
+              rolledBalance: Number(item.rolledBalance || 0),
+              cardSurchargePercent: Number(item.cardSurchargePercent || 0)
+            },
+            created_at: item.createdAt
+          }))
+        );
+        if (billingsResult.error) throw billingsResult.error;
+      }
+    });
+
+    await attempt("suppliers", async () => {
+      if (state.suppliers?.length) {
+        const defaultSupplier = state.suppliers.find((item) => item.isDefault);
+        if (defaultSupplier) {
+          const clearDefault = await client.from("suppliers")
+            .update({ is_default: false })
+            .eq("is_default", true);
+          if (clearDefault.error) throw clearDefault.error;
+        }
+        const supplierRows = state.suppliers.map((item) => ({
+          id: item.id, name: item.name, phone: item.phone || null, document: item.document || null,
+          notes: item.notes || null, is_default: false, active: item.active !== false,
+          whatsapp_destination: item.whatsappDestination || "individual",
+          whatsapp_group_name: item.whatsappGroupName || null
+        }));
+        let result = await client.from("suppliers").upsert(supplierRows);
+        if (result.error && /whatsapp_destination|whatsapp_group_name/i.test(result.error.message || "")) {
+          result = await client.from("suppliers").upsert(supplierRows.map(({
+            whatsapp_destination, whatsapp_group_name, ...item
+          }) => item));
+        }
+        if (result.error) throw result.error;
+        if (defaultSupplier) {
+          const setDefault = await client.from("suppliers")
+            .update({ is_default: true })
+            .eq("id", defaultSupplier.id);
+          if (setDefault.error) throw setDefault.error;
+        }
+      }
+    });
+
+    await attempt("supplier_services", async () => {
+      if (state.supplierServices?.length) {
+        const result = await client.from("supplier_services").upsert(state.supplierServices.map((item) => ({
+          id: item.id, supplier_id: item.supplierId, code: item.code || null,
+          name: item.name, default_cost: Number(item.cost), active: item.active !== false
+        })));
+        if (result.error) throw result.error;
+      }
+    });
+
+    await attempt("supplier_payables", async () => {
+      if (state.supplierPayables?.length) {
+        const result = await client.from("supplier_payables").upsert(state.supplierPayables.map((item) => ({
+          id: item.id, supplier_id: item.supplierId, period_start: item.startDate,
+          period_end: item.endDate, total_due: Number(item.amount), status: item.status,
+          snapshot: item.snapshot || {}, created_at: item.createdAt
+        })));
+        if (result.error) throw result.error;
+      }
+    });
+
+    await attempt("supplier_entries", async () => {
+      if (state.supplierEntries?.length) {
+        const validClientServiceIds = new Set(state.services.map((item) => item.id));
+        const supplierEntryRows = state.supplierEntries.map((item) => ({
+          id: item.id, supplier_id: item.supplierId, supplier_service_id: item.supplierServiceId || null,
+          client_id: item.clientId || null,
+          client_service_entry_id: item.clientServiceEntryId && validClientServiceIds.has(item.clientServiceEntryId)
+            ? item.clientServiceEntryId
+            : null,
+          payable_id: item.payableId || null, service_date: item.date, service_name: item.description,
+          reference: item.reference || null, amount: Number(item.amount), status: item.status,
+          source: item.source || "Direto", notes: item.notes || null,
+          last_changed_by: item.lastChangedBy || null,
+          done_at: item.doneAt || null, delivered_at: item.deliveredAt || null,
+          cancellation_reason: item.cancellationReason || null,
+          cancellation_original_amount: item.cancellationOriginalAmount ?? null,
+          created_at: item.createdAt
+        }));
+        let result = await client.from("supplier_entries").upsert(supplierEntryRows);
+        if (result.error && /last_changed_by|done_at|delivered_at/i.test(result.error.message || "")) {
+          result = await client.from("supplier_entries").upsert(supplierEntryRows.map(({
+            last_changed_by, done_at, delivered_at, ...item
+          }) => item));
+        }
+        if (result.error) throw result.error;
+      }
+    });
+
+    await attempt("supplier_payments", async () => {
+      if (state.supplierPayments?.length) {
+        const result = await client.from("supplier_payments").upsert(state.supplierPayments.map((item) => ({
+          id: item.id, supplier_id: item.supplierId, payable_id: item.payableId || null,
+          payment_date: item.date, amount: Number(item.amount), method: item.method || null,
+          notes: item.note || null, payment_source: item.paymentSource || null, created_at: item.createdAt
+        })));
+        if (result.error) throw result.error;
+      }
+    });
+
+    await attempt("signature_models", async () => {
+      if (state.signatureModels?.length) {
+        // So grava modelos que tem o arquivo da fonte carregado localmente (recem-criados
+        // neste aparelho, ou ja usados nesta sessao) - o fetchAll traz os modelos SEM o
+        // font_data/reference_image_data de proposito (economia de egress), entao gravar um
+        // modelo sem esses dados sobrescreveria o banco com vazio. Modelos do tipo "image"
+        // exigem tambem reference_image_data carregado (ensureSignatureReferenceImageData),
+        // senao a linha fica de fora do upsert ate ser carregada sob demanda.
+        const rows = state.signatureModels
+          .filter((item) => item.fontData && (item.modelType !== "image" || item.referenceImageData))
+          .map((item) => {
+            const row = {
+              id: item.id,
+              name: item.name,
+              model_type: item.modelType || "font",
+              font_family: item.fontFamily,
+              font_data: item.fontData,
+              font_mime: item.fontMime,
+              style: item.style || {},
+              is_system_model: Boolean(item.isSystemModel),
+              is_active: item.isActive !== false,
+              updated_at: new Date().toISOString()
+            };
+            if (item.modelType === "image") {
+              row.reference_image_data = item.referenceImageData;
+              row.reference_image_mime = item.referenceImageMime || "";
+              row.analysis_summary = item.analysisSummary || "";
+            }
+            return row;
+          });
+        if (rows.length) {
+          const result = await client.from("signature_models").upsert(rows, { onConflict: "id" });
+          if (result.error && !/signature_models|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
+            throw result.error;
+          }
+        }
+      }
+    });
+
+    await attempt("saved_signatures", async () => {
+      if (state.savedSignatures?.length) {
+        // Mesma protecao do bloco de signature_models acima - so grava linhas com o PNG
+        // final carregado (recem-salvo neste aparelho, ou ja carregado sob demanda nesta
+        // sessao), senao sobrescreveria a imagem no banco com vazio.
+        const rows = state.savedSignatures
+          .filter((item) => item.imageData)
+          .map((item) => ({
+            id: item.id,
+            name: item.name,
+            source: item.source || "digitized",
+            image_data: item.imageData,
+            image_mime: item.imageMime || "image/png",
+            thumbnail_data: item.thumbnailData || "",
+            updated_at: new Date().toISOString()
+          }));
+        if (rows.length) {
+          const result = await client.from("saved_signatures").upsert(rows, { onConflict: "id" });
+          if (result.error && !/saved_signatures|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
+            throw result.error;
+          }
+        }
+      }
+    });
+
+    await attempt("client_service_requests", async () => {
+      if (state.serviceRequests?.length) {
+        const rows = state.serviceRequests.map((item) => ({
           id: item.id,
           client_id: item.clientId,
           service_id: item.catalogId || null,
-          service_name: item.description,
+          service_name: item.serviceName,
+          references_list: item.references || [],
+          requested_date: item.requestedDate,
+          amount: Number(item.amount || 0),
           requested_by: item.requestedBy || null,
-          reference: item.reference || null,
-          service_date: item.date,
-          amount: Number(item.amount),
-          status: item.status,
           notes: item.notes || null,
-          done_at: item.doneAt || null,
-          billing_id: item.billingId || null,
-          delivery_code: item.deliveryCode || null,
-          confirmation_requested_at: item.confirmationRequestedAt || null,
-          delivered_at: item.deliveredAt || null,
-          delivery_source: item.deliverySource || null,
-          service_group_id: item.serviceGroupId || null,
-          primary_entry_id: item.primaryEntryId || null,
-          is_secondary: Boolean(item.isSecondary),
-          cancellation_reason: item.cancellationReason || null,
-          cancellation_original_amount: item.cancellationOriginalAmount ?? null
-        }));
-      let entriesResult = await client.from("service_entries").upsert(entries);
-      if (entriesResult.error && /requested_by|done_at|delivery_(code|source)|confirmation_requested_at|delivered_at|service_group_id|primary_entry_id|is_secondary|cancellation_reason|cancellation_original_amount/i.test(entriesResult.error.message || "")) {
-        const compatibleEntries = entries.map((entry) => {
-          const {
-            requested_by,
-            done_at,
-            delivery_code,
-            confirmation_requested_at,
-            delivered_at,
-            delivery_source,
-            service_group_id,
-            primary_entry_id,
-            is_secondary,
-            cancellation_reason,
-            cancellation_original_amount,
-            ...compatibleEntry
-          } = entry;
-          return compatibleEntry;
-        });
-        entriesResult = await client.from("service_entries").upsert(compatibleEntries);
-      }
-      if (entriesResult.error) throw entriesResult.error;
-    }
-
-    if (state.clientRequesters?.length) {
-      const requesterRows = state.clientRequesters.map((item) => ({
-        id: item.id,
-        client_id: item.clientId,
-        name: item.name,
-        normalized_name: item.normalizedName || String(item.name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR"),
-        active: item.active !== false
-      }));
-      const requestersResult = await client.from("client_requesters").upsert(requesterRows);
-      if (requestersResult.error && !/client_requesters|schema cache|does not exist|Could not find/i.test(requestersResult.error.message || "")) {
-        throw requestersResult.error;
-      }
-    }
-
-    if (state.payments.length) {
-      const payments = state.payments.map((item) => ({
-          id: item.id,
-          client_id: item.clientId,
-          payment_date: item.date,
-          amount: Number(item.amount),
-          method: item.method || null,
-          notes: item.note || null,
-          billing_id: item.billingId || null,
-          external_payment_id: item.externalPaymentId || null,
-          payment_source: item.paymentSource || "Manual",
+          status: item.status || "Novo",
+          imported_entry_ids: item.importedEntryIds || [],
+          imported_at: item.importedAt || null,
           created_at: item.createdAt
         }));
-      let paymentsResult = await client.from("payments").upsert(payments);
-      if (paymentsResult.error && /external_payment_id|payment_source/i.test(paymentsResult.error.message || "")) {
-        const compatiblePayments = payments.map((payment) => {
-          const { external_payment_id, payment_source, ...compatiblePayment } = payment;
-          return compatiblePayment;
-        });
-        paymentsResult = await client.from("payments").upsert(compatiblePayments);
-      }
-      if (paymentsResult.error) throw paymentsResult.error;
-    }
-
-    if (state.paymentMethods.length) {
-      const methodsResult = await client.from("payment_methods").upsert(
-        state.paymentMethods.map((item) => ({
-          id: item.id,
-          type: item.type,
-          name: item.name,
-          details: item.details || null,
-          payment_link: item.link || null,
-          active: item.active
-        }))
-      );
-      if (methodsResult.error) throw methodsResult.error;
-    }
-
-    if (state.billings.length) {
-      const billingsResult = await client.from("billings").upsert(
-        state.billings.map((item) => ({
-          id: item.id,
-          billing_number: item.billingNumber || null,
-          client_id: item.clientId,
-          period_start: item.startDate,
-          period_end: item.endDate,
-          previous_balance: Number(item.previousBalance || 0),
-          services_total: Number(item.servicesTotal || 0),
-          payments_total: Number(item.paymentsTotal || 0),
-          total_due: Number(item.amount),
-          status: item.rolledIntoBillingId ? "Paga" : (item.status || "Aberta"),
-          snapshot: {
-            identifier: item.identifier,
-            paymentMethodIds: item.paymentMethodIds || [],
-            paymentMethods: item.paymentMethods || [],
-            sendHistory: item.sendHistory || [],
-            historyEnabled: Boolean(item.historyEnabled),
-            paymentIds: item.paymentIds || [],
-            creditGenerated: Number(item.creditGenerated || 0),
-            statusReason: item.statusReason || "",
-            calculationVersion: Number(item.calculationVersion || 1),
-            rolledIntoBillingId: item.rolledIntoBillingId || null,
-            rolledAt: item.rolledAt || null,
-            rolledBillingIds: item.rolledBillingIds || [],
-            rolledBalance: Number(item.rolledBalance || 0),
-            cardSurchargePercent: Number(item.cardSurchargePercent || 0)
-          },
-          created_at: item.createdAt
-        }))
-      );
-      if (billingsResult.error) throw billingsResult.error;
-    }
-
-    if (state.suppliers?.length) {
-      const defaultSupplier = state.suppliers.find((item) => item.isDefault);
-      if (defaultSupplier) {
-        const clearDefault = await client.from("suppliers")
-          .update({ is_default: false })
-          .eq("is_default", true);
-        if (clearDefault.error) throw clearDefault.error;
-      }
-      const supplierRows = state.suppliers.map((item) => ({
-        id: item.id, name: item.name, phone: item.phone || null, document: item.document || null,
-        notes: item.notes || null, is_default: false, active: item.active !== false,
-        whatsapp_destination: item.whatsappDestination || "individual",
-        whatsapp_group_name: item.whatsappGroupName || null
-      }));
-      let result = await client.from("suppliers").upsert(supplierRows);
-      if (result.error && /whatsapp_destination|whatsapp_group_name/i.test(result.error.message || "")) {
-        result = await client.from("suppliers").upsert(supplierRows.map(({
-          whatsapp_destination, whatsapp_group_name, ...item
-        }) => item));
-      }
-      if (result.error) throw result.error;
-      if (defaultSupplier) {
-        const setDefault = await client.from("suppliers")
-          .update({ is_default: true })
-          .eq("id", defaultSupplier.id);
-        if (setDefault.error) throw setDefault.error;
-      }
-    }
-    if (state.supplierServices?.length) {
-      const result = await client.from("supplier_services").upsert(state.supplierServices.map((item) => ({
-        id: item.id, supplier_id: item.supplierId, code: item.code || null,
-        name: item.name, default_cost: Number(item.cost), active: item.active !== false
-      })));
-      if (result.error) throw result.error;
-    }
-    if (state.supplierPayables?.length) {
-      const result = await client.from("supplier_payables").upsert(state.supplierPayables.map((item) => ({
-        id: item.id, supplier_id: item.supplierId, period_start: item.startDate,
-        period_end: item.endDate, total_due: Number(item.amount), status: item.status,
-        snapshot: item.snapshot || {}, created_at: item.createdAt
-      })));
-      if (result.error) throw result.error;
-    }
-    if (state.supplierEntries?.length) {
-      const validClientServiceIds = new Set(state.services.map((item) => item.id));
-      const supplierEntryRows = state.supplierEntries.map((item) => ({
-        id: item.id, supplier_id: item.supplierId, supplier_service_id: item.supplierServiceId || null,
-        client_id: item.clientId || null,
-        client_service_entry_id: item.clientServiceEntryId && validClientServiceIds.has(item.clientServiceEntryId)
-          ? item.clientServiceEntryId
-          : null,
-        payable_id: item.payableId || null, service_date: item.date, service_name: item.description,
-        reference: item.reference || null, amount: Number(item.amount), status: item.status,
-        source: item.source || "Direto", notes: item.notes || null,
-        last_changed_by: item.lastChangedBy || null,
-        done_at: item.doneAt || null, delivered_at: item.deliveredAt || null,
-        cancellation_reason: item.cancellationReason || null,
-        cancellation_original_amount: item.cancellationOriginalAmount ?? null,
-        created_at: item.createdAt
-      }));
-      let result = await client.from("supplier_entries").upsert(supplierEntryRows);
-      if (result.error && /last_changed_by|done_at|delivered_at/i.test(result.error.message || "")) {
-        result = await client.from("supplier_entries").upsert(supplierEntryRows.map(({
-          last_changed_by, done_at, delivered_at, ...item
-        }) => item));
-      }
-      if (result.error) throw result.error;
-    }
-    if (state.supplierPayments?.length) {
-      const result = await client.from("supplier_payments").upsert(state.supplierPayments.map((item) => ({
-        id: item.id, supplier_id: item.supplierId, payable_id: item.payableId || null,
-        payment_date: item.date, amount: Number(item.amount), method: item.method || null,
-        notes: item.note || null, payment_source: item.paymentSource || null, created_at: item.createdAt
-      })));
-      if (result.error) throw result.error;
-    }
-    if (state.signatureModels?.length) {
-      // So grava modelos que tem o arquivo da fonte carregado localmente (recem-criados
-      // neste aparelho, ou ja usados nesta sessao) - o fetchAll traz os modelos SEM o
-      // font_data/reference_image_data de proposito (economia de egress), entao gravar um
-      // modelo sem esses dados sobrescreveria o banco com vazio. Modelos do tipo "image"
-      // exigem tambem reference_image_data carregado (ensureSignatureReferenceImageData),
-      // senao a linha fica de fora do upsert ate ser carregada sob demanda.
-      const rows = state.signatureModels
-        .filter((item) => item.fontData && (item.modelType !== "image" || item.referenceImageData))
-        .map((item) => {
-          const row = {
-            id: item.id,
-            name: item.name,
-            model_type: item.modelType || "font",
-            font_family: item.fontFamily,
-            font_data: item.fontData,
-            font_mime: item.fontMime,
-            style: item.style || {},
-            is_system_model: Boolean(item.isSystemModel),
-            is_active: item.isActive !== false,
-            updated_at: new Date().toISOString()
-          };
-          if (item.modelType === "image") {
-            row.reference_image_data = item.referenceImageData;
-            row.reference_image_mime = item.referenceImageMime || "";
-            row.analysis_summary = item.analysisSummary || "";
-          }
-          return row;
-        });
-      if (rows.length) {
-        const result = await client.from("signature_models").upsert(rows, { onConflict: "id" });
-        if (result.error && !/signature_models|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
-          throw result.error;
+        const result = await client.from("client_service_requests").upsert(rows, { onConflict: "id" });
+        if (result.error && !/client_service_requests|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
+          console.warn("Falha ao sincronizar pedidos recebidos:", result.error.message || result.error);
         }
       }
-    }
-    if (state.savedSignatures?.length) {
-      // Mesma protecao do bloco de signature_models acima - so grava linhas com o PNG
-      // final carregado (recem-salvo neste aparelho, ou ja carregado sob demanda nesta
-      // sessao), senao sobrescreveria a imagem no banco com vazio.
-      const rows = state.savedSignatures
-        .filter((item) => item.imageData)
-        .map((item) => ({
-          id: item.id,
-          name: item.name,
-          source: item.source || "digitized",
-          image_data: item.imageData,
-          image_mime: item.imageMime || "image/png",
-          thumbnail_data: item.thumbnailData || "",
+    });
+
+    await attempt("app_settings", async () => {
+      if (state.periodSettings) {
+        const result = await client.from("app_settings").upsert({
+          id: "default",
+          period_mode: state.periodSettings.periodMode === "month" ? "month" : "week",
+          week_start_day: Number(state.periodSettings.weekStartDay ?? 0),
+          week_end_day: Number(state.periodSettings.weekEndDay ?? 5),
           updated_at: new Date().toISOString()
-        }));
-      if (rows.length) {
-        const result = await client.from("saved_signatures").upsert(rows, { onConflict: "id" });
-        if (result.error && !/saved_signatures|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
+        });
+        if (result.error && !/app_settings|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
           throw result.error;
         }
       }
-    }
-    if (state.serviceRequests?.length) {
-      const rows = state.serviceRequests.map((item) => ({
-        id: item.id,
-        client_id: item.clientId,
-        service_id: item.catalogId || null,
-        service_name: item.serviceName,
-        references_list: item.references || [],
-        requested_date: item.requestedDate,
-        amount: Number(item.amount || 0),
-        requested_by: item.requestedBy || null,
-        notes: item.notes || null,
-        status: item.status || "Novo",
-        imported_entry_ids: item.importedEntryIds || [],
-        imported_at: item.importedAt || null,
-        created_at: item.createdAt
-      }));
-      const result = await client.from("client_service_requests").upsert(rows, { onConflict: "id" });
-      if (result.error && !/client_service_requests|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
-        console.warn("Falha ao sincronizar pedidos recebidos:", result.error.message || result.error);
-      }
-    }
-    if (state.periodSettings) {
-      const result = await client.from("app_settings").upsert({
-        id: "default",
-        period_mode: state.periodSettings.periodMode === "month" ? "month" : "week",
-        week_start_day: Number(state.periodSettings.weekStartDay ?? 0),
-        week_end_day: Number(state.periodSettings.weekEndDay ?? 5),
-        updated_at: new Date().toISOString()
-      });
-      if (result.error && !/app_settings|schema cache|does not exist|Could not find/i.test(result.error.message || "")) {
-        throw result.error;
-      }
-    }
+    });
 
     rememberKnownIds(state);
+
+    if (errors.length) {
+      const combined = new Error(errors.map((error) => error.message || String(error)).join(" | "));
+      combined.causes = errors;
+      throw combined;
+    }
   }
 
   let saveTimer;
