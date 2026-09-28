@@ -6875,6 +6875,8 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
     && !form.elements.hasSupplierService.disabled;
   const additionalEnabled = form.elements.hasAdditionalServices.checked
     && !form.elements.hasAdditionalServices.disabled;
+  const requesterEnabled = form.elements.hasRequester.checked
+    && !form.elements.hasRequester.disabled;
 
   function focusField(field) {
     if (!field) return;
@@ -6889,6 +6891,7 @@ document.getElementById("serviceForm").addEventListener("keydown", (event) => {
   function focusNextFrom(target) {
     const fields = [
       form.elements.clientSearch,
+      ...(requesterEnabled ? [form.elements.requestedBy] : []),
       form.elements.date,
       form.elements.catalogSearch,
       form.elements.reference,
@@ -10958,7 +10961,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=235").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=236").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
