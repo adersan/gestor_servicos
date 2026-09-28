@@ -10,8 +10,8 @@ export interface StatusSegment {
 export function StatusBar({ title, total, segments }: { title: string; total: number; segments: StatusSegment[] }) {
   const totalForRatio = total || 1;
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <div className="mb-3 flex items-baseline justify-between">
+    <div className="rounded-2xl border border-border bg-surface p-4">
+      <div className="mb-4 flex items-baseline justify-between">
         <h3 className="text-sm font-semibold text-brand-ink">{title}</h3>
         <span className="text-xs text-muted">{total} no total</span>
       </div>
@@ -19,17 +19,18 @@ export function StatusBar({ title, total, segments }: { title: string; total: nu
         {segments.map((segment) => (
           <div
             key={segment.key}
-            className={segment.colorClass}
+            className={`${segment.colorClass} transition-all duration-500 ease-out`}
             style={{ width: `${(segment.count / totalForRatio) * 100}%` }}
             title={`${segment.label}: ${segment.count}`}
           />
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-3">
+      <div className="mt-4 flex flex-wrap gap-4">
         {segments.map((segment) => (
           <div key={segment.key} className="flex items-center gap-1.5 text-xs text-muted">
             <span className={`h-2.5 w-2.5 rounded-full ${segment.colorClass}`} />
             {segment.label} <strong className="text-ink">{segment.count}</strong>
+            <span className="text-muted">({Math.round((segment.count / totalForRatio) * 100)}%)</span>
           </div>
         ))}
       </div>

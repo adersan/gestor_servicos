@@ -16,4 +16,22 @@
   --primary-foreground: var(--white);
   --border: var(--line);
   --destructive: var(--danger);
+
+  /*
+   * Tailwind so gera o modificador de opacidade (bg-primary/15) quando a cor
+   * ja esta no formato "canais RGB separados" - como --primary/--destructive
+   * so encaminham pra hex do styles.css (var(--brand)/var(--danger)), o
+   * modificador seria descartado silenciosamente. color-mix() funciona com
+   * qualquer formato de cor, entao pre-computamos os tons usados como
+   * variaveis e referenciamos via valor arbitrario (bg-[var(--primary-15)]).
+   */
+  --primary-10: color-mix(in srgb, var(--primary) 10%, transparent);
+  --primary-15: color-mix(in srgb, var(--primary) 15%, transparent);
+  --primary-30: color-mix(in srgb, var(--primary) 30%, transparent);
+  --primary-40: color-mix(in srgb, var(--primary) 40%, transparent);
+  --primary-60: color-mix(in srgb, var(--primary) 60%, transparent);
+  --danger-10: color-mix(in srgb, var(--destructive) 10%, transparent);
+  --danger-15: color-mix(in srgb, var(--destructive) 15%, transparent);
+  --danger-30: color-mix(in srgb, var(--destructive) 30%, transparent);
+  --danger-40: color-mix(in srgb, var(--destructive) 40%, transparent);
 }

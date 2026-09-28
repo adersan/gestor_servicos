@@ -1,35 +1,56 @@
+import type { LucideIcon } from "lucide-react";
+import { Inbox, AlertOctagon, PiggyBank } from "lucide-react";
+
 import { money } from "@/lib/format";
 import type { FinanceSummaryData } from "@/dashboard/data";
+
+function Strip({
+  label,
+  value,
+  icon: Icon,
+  tone,
+  danger,
+  onClick
+}: {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  tone: string;
+  danger?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-shadow hover:shadow-md ${
+        danger ? "border-[var(--danger-40)]" : "border-border"
+      } bg-surface`}
+    >
+      <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <div>
+        <span className="block text-xs text-muted">{label}</span>
+        <strong className={`text-lg ${danger ? "text-danger" : "text-ink"}`}>{money.format(value)}</strong>
+      </div>
+    </button>
+  );
+}
 
 export function FinanceSummaryStrip({ data }: { data: FinanceSummaryData }) {
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-      <button
-        type="button"
+      <Strip label="Em aberto" value={data.openTotal} icon={Inbox} tone="bg-sky-500/15 text-sky-600" onClick={() => window.showView("billing")} />
+      <Strip
+        label="Atrasado"
+        value={data.overdueTotal}
+        icon={AlertOctagon}
+        tone="bg-[var(--danger-15)] text-danger"
+        danger={data.overdueTotal > 0}
         onClick={() => window.showView("billing")}
-        className="rounded-lg border border-border bg-surface p-3 text-left"
-      >
-        <span className="block text-xs text-muted">Em aberto</span>
-        <strong className="text-lg text-ink">{money.format(data.openTotal)}</strong>
-      </button>
-      <button
-        type="button"
-        onClick={() => window.showView("billing")}
-        className={`rounded-lg border p-3 text-left ${data.overdueTotal > 0 ? "border-danger" : "border-border"} bg-surface`}
-      >
-        <span className="block text-xs text-muted">Atrasado</span>
-        <strong className={data.overdueTotal > 0 ? "text-lg text-danger" : "text-lg text-ink"}>
-          {money.format(data.overdueTotal)}
-        </strong>
-      </button>
-      <button
-        type="button"
-        onClick={() => window.showView("payments")}
-        className="rounded-lg border border-border bg-surface p-3 text-left"
-      >
-        <span className="block text-xs text-muted">Recebido hoje</span>
-        <strong className="text-lg text-ink">{money.format(data.receivedToday)}</strong>
-      </button>
+      />
+      <Strip label="Recebido hoje" value={data.receivedToday} icon={PiggyBank} tone="bg-emerald-500/15 text-emerald-600" onClick={() => window.showView("payments")} />
     </div>
   );
 }

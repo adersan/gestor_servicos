@@ -1,21 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
+import { LayoutDashboard } from "lucide-react";
 
 import type { Period } from "@/types/global";
-import {
-  loadAccountList,
-  loadAttentionData,
-  loadBillingAlerts,
-  loadBillingStatusCounts,
-  loadClientRanking,
-  loadDailyPayments,
-  loadDailyVolumes,
-  loadDashboardSnapshot,
-  loadFinanceSummary,
-  loadServiceAlerts,
-  shiftMonth,
-  subscribeToAppRender,
-  type PeriodMode
-} from "@/dashboard/data";
+import { shiftMonth, type PeriodMode } from "@/dashboard/data";
+import { useDashboardData } from "@/dashboard/useDashboardData";
 import { AttentionStrip } from "@/dashboard/components/AttentionStrip";
 import { InnerTabs, type DashboardTab } from "@/dashboard/components/InnerTabs";
 import { FinanceSummaryStrip } from "@/dashboard/components/FinanceSummaryStrip";
@@ -38,20 +26,8 @@ export function Dashboard() {
   const [period, setPeriod] = useState<Period>(() => window.defaultPeriod());
   const [mode, setMode] = useState<PeriodMode>(() => window.defaultFinancePeriodMode());
   const [tab, setTab] = useState<DashboardTab>("services");
-  const [tick, setTick] = useState(0);
 
-  useEffect(() => subscribeToAppRender(() => setTick((value) => value + 1)), []);
-
-  const snapshot = useMemo(() => loadDashboardSnapshot(period), [period, tick]);
-  const attention = useMemo(() => loadAttentionData(), [tick]);
-  const financeSummary = useMemo(() => loadFinanceSummary(), [tick]);
-  const clientRanking = useMemo(() => loadClientRanking(snapshot.serviceMetrics), [snapshot]);
-  const serviceAlerts = useMemo(() => loadServiceAlerts(), [tick]);
-  const dailyVolumes = useMemo(() => loadDailyVolumes(period, snapshot.serviceMetrics), [period, snapshot]);
-  const dailyPayments = useMemo(() => loadDailyPayments(period), [period, tick]);
-  const billingStatusCounts = useMemo(() => loadBillingStatusCounts(period), [period, tick]);
-  const billingAlerts = useMemo(() => loadBillingAlerts(), [tick]);
-  const accountRows = useMemo(() => loadAccountList(period, snapshot.serviceMetrics), [period, snapshot]);
+  const data = useDashboardData(period);
 
   const handleWeek = () => {
     setPeriod(window.currentOperationalWeek());
@@ -73,15 +49,20 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="rounded-xl border border-border bg-surface p-4">
-        <span className="text-xs font-bold uppercase tracking-wide text-muted">Visão geral</span>
-        <h2 className="text-xl font-bold text-brand-ink">Resumo do negócio</h2>
-        <p className="text-sm text-muted">Acompanhe serviços e financeiro por semana, mês ou período personalizado.</p>
+      <div className="flex items-center gap-4 rounded-2xl border border-border bg-gradient-to-br from-[var(--primary-10)] via-surface to-surface p-5">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+          <LayoutDashboard className="h-6 w-6" />
+        </span>
+        <div>
+          <span className="text-xs font-bold uppercase tracking-wide text-muted">Visão geral</span>
+          <h2 className="text-xl font-bold text-brand-ink">Resumo do negócio</h2>
+          <p className="text-sm text-muted">Acompanhe serviços e financeiro por semana, mês ou período personalizado.</p>
+        </div>
       </div>
 
-      <AttentionStrip data={attention} />
+      <AttentionStrip data={data.attention} />
       <InnerTabs active={tab} onChange={setTab} />
-      {tab === "finance" && <FinanceSummaryStrip data={financeSummary} />}
+      {tab === "finance" && <FinanceSummaryStrip data={data.financeSummary} />}
       <PeriodControls
         period={period}
         mode={mode}
@@ -93,39 +74,39 @@ export function Dashboard() {
 
       {tab === "services" ? (
         <>
-          <ServiceMetricCards metrics={snapshot.serviceMetrics} />
+          <ServiceMetricCards metrics={data.snapshot.serviceMetrics} />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <StatusBar
               title="Status dos serviços"
-              total={snapshot.serviceMetrics.primaryServices.length}
+              total={data.snapshot.serviceMetrics.primaryServices.length}
               segments={[
-                { key: "pending", label: "A fazer", count: snapshot.serviceMetrics.pending.length, colorClass: "bg-amber-500" },
-                { key: "done", label: "Feitos", count: snapshot.serviceMetrics.done.length, colorClass: "bg-emerald-500" },
-                { key: "delivered", label: "Entregues", count: snapshot.serviceMetrics.delivered.length, colorClass: "bg-sky-500" }
+                { key: "pending", label: "A fazer", count: data.snapshot.serviceMetrics.pending.length, colorClass: "bg-amber-500" },
+                { key: "done", label: "Feitos", count: data.snapshot.serviceMetrics.done.length, colorClass: "bg-emerald-500" },
+                { key: "delivered", label: "Entregues", count: data.snapshot.serviceMetrics.delivered.length, colorClass: "bg-sky-500" }
               ]}
             />
-            <VolumeChart points={dailyVolumes} />
+            <VolumeChart points={data.dailyVolumes} />
           </div>
-          <ClientRanking items={clientRanking} />
-          <ServiceAlertPanel data={serviceAlerts} />
+          <ClientRanking items={data.clientRanking} />
+          <ServiceAlertPanel data={data.serviceAlerts} />
         </>
       ) : (
         <>
-          <FinanceMetricCards metrics={snapshot.financeMetrics} />
+          <FinanceMetricCards metrics={data.snapshot.financeMetrics} />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <PaymentChart points={dailyPayments} />
+            <PaymentChart points={data.dailyPayments} />
             <StatusBar
               title="Status das cobranças"
-              total={billingStatusCounts.paid + billingStatusCounts.partial + billingStatusCounts.open}
+              total={data.billingStatusCounts.paid + data.billingStatusCounts.partial + data.billingStatusCounts.open}
               segments={[
-                { key: "paid", label: "Pagas", count: billingStatusCounts.paid, colorClass: "bg-emerald-500" },
-                { key: "partial", label: "Parciais", count: billingStatusCounts.partial, colorClass: "bg-amber-500" },
-                { key: "open", label: "Em aberto", count: billingStatusCounts.open, colorClass: "bg-slate-400" }
+                { key: "paid", label: "Pagas", count: data.billingStatusCounts.paid, colorClass: "bg-emerald-500" },
+                { key: "partial", label: "Parciais", count: data.billingStatusCounts.partial, colorClass: "bg-amber-500" },
+                { key: "open", label: "Em aberto", count: data.billingStatusCounts.open, colorClass: "bg-slate-400" }
               ]}
             />
           </div>
-          <BillingAlertPanel data={billingAlerts} />
-          <AccountList rows={accountRows} />
+          <BillingAlertPanel data={data.billingAlerts} />
+          <AccountList rows={data.accountRows} />
         </>
       )}
     </div>
