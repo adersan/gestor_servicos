@@ -45,6 +45,9 @@ const initialState = {
 };
 
 let state = loadState();
+// Ponte read-only pro Dashboard em React (Fase 1 da migracao) - getter fechado
+// sobre o binding vivo, seguro contra as reatribuicoes de `state` por referencia.
+window.getAppState = () => state;
 let deferredInstallPrompt;
 let remoteReady = false;
 let serviceReferenceValues = [];
@@ -2365,6 +2368,7 @@ function render() {
   renderBillings();
   renderFinanceSummary();
   window.supplierModule?.render();
+  document.dispatchEvent(new CustomEvent("gestor:render"));
 }
 
 function renderSystemSettings() {

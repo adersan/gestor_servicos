@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Preflight esta desligado (tailwind.config.ts) para nao colidir com o reset
+ * global do styles.css vanilla. As variaveis abaixo só remapeiam nomes que o
+ * shadcn/ui espera (--background, --primary etc.) para as variaveis de tema
+ * que o resto do sistema ja define em :root/:root[data-theme] no styles.css -
+ * troca de tema continua automatica, sem nenhum estado React envolvido.
+ */
+#rdDashboardRoot {
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: var(--white);
+  --border: var(--line);
+  --destructive: var(--danger);
+}

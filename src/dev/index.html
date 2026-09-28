@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dashboard React - harness de dev</title>
+    <!-- Carrega o styles.css REAL do projeto de proposito: o objetivo deste
+         harness e provar que o Tailwind escopado em #rdDashboardRoot convive
+         com o CSS global vanilla sem vazar nem ser sobrescrito por ele. -->
+    <link rel="stylesheet" href="../../styles.css" />
+    <style>
+      body { padding: 24px; }
+      .theme-switcher { display: flex; gap: 8px; margin-bottom: 16px; }
+    </style>
+  </head>
+  <body>
+    <div class="theme-switcher">
+      <button type="button" onclick="document.documentElement.removeAttribute('data-theme')">verde (padrão)</button>
+      <button type="button" onclick="document.documentElement.dataset.theme='azul'">azul</button>
+      <button type="button" onclick="document.documentElement.dataset.theme='grafite'">grafite</button>
+      <button type="button" onclick="document.documentElement.dataset.theme='dark'">dark</button>
+      <button type="button" onclick="document.documentElement.dataset.theme='bluedark'">bluedark</button>
+    </div>
+    <div id="rdDashboardRoot"></div>
+    <script type="module" src="./harness.tsx"></script>
+  </body>
+</html>

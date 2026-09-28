@@ -76,6 +76,7 @@
 
   <main>
     <section id="dashboard" class="view active">
+      <div id="dashboardVanilla">
       <div class="dashboard-heading">
         <div>
           <span class="eyebrow">Visão geral</span>
@@ -176,6 +177,8 @@
         </section>
       </section>
 
+      </div>
+      <div id="rdDashboardRoot" class="hidden"></div>
     </section>
 
     <section id="clients" class="view">
@@ -2754,5 +2757,23 @@
   <script src="data.js?v=58"></script>
   <script src="app.js?v=217"></script>
   <script src="supplier.js?v=69"></script>
+  <link rel="stylesheet" href="react/dashboard.css?v=1">
+  <script src="react/dashboard.js?v=1"></script>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newDashboard")) {
+        localStorage.setItem("gestor-servicos-react-dashboard", params.get("newDashboard") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-dashboard") === "1";
+      var vanilla = document.getElementById("dashboardVanilla");
+      var root = document.getElementById("rdDashboardRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactDashboard && window.mountReactDashboard(root);
+      }
+    })();
+  </script>
 </body>
 </html>
