@@ -63,7 +63,7 @@ export function Billing() {
           <button
             type="button"
             data-dialog="billingBatchDialog"
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-semibold text-ink transition-colors hover:bg-surface-2"
+            className="flex h-9 items-center gap-1.5 rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-ink transition-colors hover:bg-surface-2"
           >
             <Layers className="h-4 w-4" />
             Gerar todas
@@ -71,7 +71,7 @@ export function Billing() {
           <button
             type="button"
             data-dialog="billingDialog"
-            className="flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
             <FilePlus className="h-4 w-4" />
             Gerar cobrança

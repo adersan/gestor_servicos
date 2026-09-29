@@ -74,7 +74,7 @@ export function BillingCard({ item, isAccessOwner }: { item: Billing; isAccessOw
           Histórico no portal: <strong className="text-ink">{item.historyEnabled ? "Liberado" : "Bloqueado"}</strong>
         </p>
 
-        <div className="access-box rounded-lg bg-surface-2 p-3">
+        <div className="access-box rounded-xl bg-surface-2 p-3">
           {item.identifier ? (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
@@ -85,7 +85,7 @@ export function BillingCard({ item, isAccessOwner }: { item: Billing; isAccessOw
                   type="button"
                   data-copy-access="identifier"
                   data-billing-id={item.id}
-                  className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-ink"
+                  className="rounded-lg border border-border px-2 py-1 text-xs font-semibold text-ink"
                 >
                   Copiar ID
                 </button>
@@ -99,7 +99,7 @@ export function BillingCard({ item, isAccessOwner }: { item: Billing; isAccessOw
                     type="button"
                     data-copy-access="password"
                     data-billing-id={item.id}
-                    className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-ink"
+                    className="rounded-lg border border-border px-2 py-1 text-xs font-semibold text-ink"
                   >
                     Copiar senha
                   </button>
@@ -114,17 +114,17 @@ export function BillingCard({ item, isAccessOwner }: { item: Billing; isAccessOw
         </div>
 
         <div className="card-actions flex flex-wrap gap-2 pt-1">
-          <button type="button" data-view-report={item.id} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink">
+          <button type="button" data-view-report={item.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
             Ver relatório
           </button>
-          <button type="button" data-share-whatsapp={item.id} className="rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-600">
+          <button type="button" data-share-whatsapp={item.id} className="rounded-xl border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-600">
             WhatsApp
           </button>
-          <button type="button" data-share-report={item.id} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink">
+          <button type="button" data-share-report={item.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
             Compartilhar relatório
           </button>
           {canSharePaymentLink && (
-            <button type="button" data-share-payment-link={item.id} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink">
+            <button type="button" data-share-payment-link={item.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
               Compartilhar link de pagamento
             </button>
           )}
@@ -134,7 +134,7 @@ export function BillingCard({ item, isAccessOwner }: { item: Billing; isAccessOw
                 type="button"
                 data-pay-billing={item.id}
                 data-payment-mode="partial"
-                className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink"
+                className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink"
               >
                 Pagar parcialmente
               </button>
@@ -142,26 +142,26 @@ export function BillingCard({ item, isAccessOwner }: { item: Billing; isAccessOw
                 type="button"
                 data-pay-billing={item.id}
                 data-payment-mode="full"
-                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
+                className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
               >
                 Quitar
               </button>
             </>
           )}
-          <button type="button" data-renew-access={item.id} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink">
+          <button type="button" data-renew-access={item.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
             Gerar novo acesso
           </button>
           {item.identifier && isAccessOwner && (
-            <button type="button" data-toggle-history={item.id} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink">
+            <button type="button" data-toggle-history={item.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
               {item.historyEnabled ? "Bloquear histórico" : "Liberar histórico"}
             </button>
           )}
           {canCancel && (
-            <button type="button" data-cancel-billing={item.id} className="rounded-lg border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger">
+            <button type="button" data-cancel-billing={item.id} className="rounded-xl border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger">
               Cancelar
             </button>
           )}
-          <button type="button" data-delete-billing={item.id} className="rounded-lg border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger">
+          <button type="button" data-delete-billing={item.id} className="rounded-xl border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger">
             Excluir
           </button>
         </div>

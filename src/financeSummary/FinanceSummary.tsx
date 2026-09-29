@@ -56,7 +56,7 @@ export function FinanceSummary() {
         </div>
       </div>
 
-      <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">
+      <p className="rounded-2xl bg-surface-2 p-3 text-sm text-muted">
         Saldo em aberto acumulado de cada cliente, mesmo sem cobrança fechada — inclui serviços já lançados e
         pagamentos já registrados no período, independente do status da cobrança.
       </p>

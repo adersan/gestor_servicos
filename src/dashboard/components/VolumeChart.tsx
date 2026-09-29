@@ -15,7 +15,7 @@ export function VolumeChart({ points }: { points: DailyPoint[] }) {
           {points.map((point) => (
             <div key={point.date} className="group flex flex-1 flex-col items-center gap-1.5" title={`${point.date}: ${point.value}`}>
               <div
-                className="w-full rounded-t-md bg-gradient-to-t from-primary to-[var(--primary-60)] transition-all duration-500 ease-out group-hover:to-primary"
+                className="w-full rounded-t-lg bg-gradient-to-t from-primary to-[var(--primary-60)] transition-all duration-500 ease-out group-hover:to-primary"
                 style={{ height: `${point.value ? Math.max(6, (point.value / max) * 100) : 2}%` }}
               />
               <span className="text-[10px] text-muted">{point.date.slice(8, 10)}</span>

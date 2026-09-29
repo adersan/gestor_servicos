@@ -16,7 +16,7 @@ export function ServiceAlertPanel({ data }: { data: ServiceAlerts }) {
         </div>
         <button
           type="button"
-          className="rounded-lg px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-[var(--primary-10)]"
+          className="rounded-xl px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-[var(--primary-10)]"
           onClick={() => window.showView("services")}
         >
           Ver lançamentos

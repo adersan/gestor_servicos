@@ -34,20 +34,20 @@ export function BillingFilters({
           const client = window.uniqueClientMatch(event.target.value);
           if (client) onClientChange(client.id, client.name);
         }}
-        className="min-w-[200px] flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-ink"
+        className="min-w-[200px] flex-1 rounded-xl border border-border bg-background px-3 py-1.5 text-sm text-ink"
       />
       {showStatus && (
         <select
           value={status}
           onChange={(event) => onStatusChange(event.target.value as BillingStatusFilter)}
-          className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-ink"
+          className="rounded-xl border border-border bg-background px-3 py-1.5 text-sm text-ink"
         >
           <option value="">Todas</option>
           <option value="paid">Quitadas</option>
           <option value="open">Em aberto</option>
         </select>
       )}
-      <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5">
+      <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3 py-1.5">
         <Search className="h-4 w-4 text-muted" />
         <input
           type="search"

@@ -23,11 +23,11 @@ function Strip({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-shadow hover:shadow-md ${
+      className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-shadow hover:shadow-md ${
         danger ? "border-[var(--danger-40)]" : "border-border"
       } bg-surface`}
     >
-      <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>
+      <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${tone}`}>
         <Icon className="h-4 w-4" />
       </span>
       <div>

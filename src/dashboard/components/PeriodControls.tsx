@@ -29,7 +29,7 @@ export function PeriodControls({
           Mês atual
         </Button>
         {mode === "month" && (
-          <div className="flex items-center overflow-hidden rounded-lg border border-border">
+          <div className="flex items-center overflow-hidden rounded-xl border border-border">
             <button
               type="button"
               onClick={() => onShiftMonth(-1)}
@@ -56,14 +56,14 @@ export function PeriodControls({
           type="date"
           value={period.startDate}
           onChange={(event) => onCustomDates(event.target.value, period.endDate)}
-          className="rounded-lg border border-border bg-background px-2 py-1 text-ink"
+          className="rounded-xl border border-border bg-background px-2 py-1 text-ink"
         />
         <span>até</span>
         <input
           type="date"
           value={period.endDate}
           onChange={(event) => onCustomDates(period.startDate, event.target.value)}
-          className="rounded-lg border border-border bg-background px-2 py-1 text-ink"
+          className="rounded-xl border border-border bg-background px-2 py-1 text-ink"
         />
       </div>
     </div>

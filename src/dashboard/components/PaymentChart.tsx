@@ -23,7 +23,7 @@ export function PaymentChart({ points }: { points: DailyPoint[] }) {
             title={`${point.date}: ${money.format(point.value)}`}
           >
             <div
-              className="w-full rounded-t-md bg-gradient-to-t from-accent to-accent/60 transition-all duration-500 ease-out group-hover:from-accent group-hover:to-accent"
+              className="w-full rounded-t-lg bg-gradient-to-t from-accent to-accent/60 transition-all duration-500 ease-out group-hover:from-accent group-hover:to-accent"
               style={{ height: `${point.value ? Math.max(6, (point.value / max) * 100) : 2}%` }}
             />
             <span className="text-[10px] text-muted">{point.date.slice(8, 10)}</span>

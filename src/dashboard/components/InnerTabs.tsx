@@ -10,7 +10,7 @@ export function InnerTabs({ active, onChange }: { active: DashboardTab; onChange
     { key: "finance", label: "Financeiro", icon: Wallet }
   ];
   return (
-    <div className="inline-flex gap-1 rounded-xl border border-border bg-surface p-1" role="tablist">
+    <div className="inline-flex gap-1 rounded-2xl border border-border bg-surface p-1" role="tablist">
       {tabs.map((tab) => (
         <button
           key={tab.key}
@@ -19,7 +19,7 @@ export function InnerTabs({ active, onChange }: { active: DashboardTab; onChange
           aria-selected={active === tab.key}
           onClick={() => onChange(tab.key)}
           className={cn(
-            "flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors",
+            "flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-sm font-semibold transition-colors",
             active === tab.key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted hover:bg-surface-2 hover:text-ink"
           )}
         >

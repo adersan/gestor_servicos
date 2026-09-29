@@ -27,7 +27,7 @@ export function Clients() {
         <button
           type="button"
           data-dialog="clientDialog"
-          className="flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
           <UserPlus className="h-4 w-4" />
           Adicionar cliente

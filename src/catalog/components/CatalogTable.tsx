@@ -44,14 +44,14 @@ export function CatalogTable({ items, priceTableNames }: { items: CatalogItem[];
                   <button
                     type="button"
                     data-edit-catalog={item.id}
-                    className="whitespace-nowrap rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink"
+                    className="whitespace-nowrap rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink"
                   >
                     Editar
                   </button>
                   <button
                     type="button"
                     data-delete-catalog={item.id}
-                    className="whitespace-nowrap rounded-lg border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger"
+                    className="whitespace-nowrap rounded-xl border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger"
                   >
                     Excluir
                   </button>

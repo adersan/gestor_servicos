@@ -57,7 +57,7 @@ export function Payments() {
           <button
             type="button"
             data-dialog="paymentLinkDialog"
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-sm font-semibold text-ink transition-colors hover:bg-surface-2"
+            className="flex h-9 items-center gap-1.5 rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-ink transition-colors hover:bg-surface-2"
           >
             <Link2 className="h-4 w-4" />
             Link de pagamento
@@ -65,7 +65,7 @@ export function Payments() {
           <button
             type="button"
             data-dialog="paymentDialog"
-            className="flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
             Registrar pagamento

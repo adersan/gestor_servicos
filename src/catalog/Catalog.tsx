@@ -29,7 +29,7 @@ export function Catalog() {
   };
 
   const switchButtons = (
-    <div className="flex gap-2 rounded-xl border border-border bg-surface p-1 lg:hidden" role="tablist">
+    <div className="flex gap-2 rounded-2xl border border-border bg-surface p-1 lg:hidden" role="tablist">
       {(
         [
           { key: "catalogPanel", label: "Ver serviços" },
@@ -41,7 +41,7 @@ export function Catalog() {
           type="button"
           onClick={() => scrollToPanel(button.key)}
           className={cn(
-            "flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
+            "flex-1 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors",
             activePanel === button.key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted hover:bg-surface-2 hover:text-ink"
           )}
         >
@@ -59,7 +59,7 @@ export function Catalog() {
         <section ref={catalogPanelRef} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
                 <Wrench className="h-5 w-5" />
               </span>
               <div>
@@ -70,7 +70,7 @@ export function Catalog() {
             <button
               type="button"
               data-dialog="catalogDialog"
-              className="flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
               <PlusCircle className="h-4 w-4" />
               Adicionar serviço
@@ -84,7 +84,7 @@ export function Catalog() {
             placeholder="Buscar nome do serviço"
             value={catalogSearch}
             onChange={(event) => setCatalogSearch(event.target.value)}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-ink outline-none"
+            className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-ink outline-none"
           />
           <CatalogTable items={catalogItems} priceTableNames={priceTableNames} />
         </section>
@@ -92,7 +92,7 @@ export function Catalog() {
         <section ref={priceTablesPanelRef} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
                 <Tags className="h-5 w-5" />
               </span>
               <div>
@@ -103,7 +103,7 @@ export function Catalog() {
             <button
               type="button"
               data-dialog="priceTableDialog"
-              className="flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              className="flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
               <PlusCircle className="h-4 w-4" />
               Adicionar tabela
@@ -114,7 +114,7 @@ export function Catalog() {
             placeholder="Buscar tabela de preço"
             value={priceTableSearch}
             onChange={(event) => setPriceTableSearch(event.target.value)}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-ink outline-none"
+            className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-sm text-ink outline-none"
           />
           {priceTables.length ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

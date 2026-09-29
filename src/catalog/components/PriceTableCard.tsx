@@ -11,14 +11,14 @@ export function PriceTableCard({ row }: { row: PriceTableRow }) {
         <button
           type="button"
           data-edit-table={row.name}
-          className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink"
+          className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink"
         >
           Editar
         </button>
         <button
           type="button"
           data-delete-table={row.name}
-          className="rounded-lg border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger"
+          className="rounded-xl border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger"
         >
           Excluir
         </button>

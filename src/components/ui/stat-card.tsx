@@ -41,7 +41,7 @@ export function StatCard({
       )}
     >
       <div className="flex items-center justify-between">
-        <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", iconClass)}>
+        <span className={cn("flex h-10 w-10 items-center justify-center rounded-2xl", iconClass)}>
           <Icon className="h-5 w-5" strokeWidth={2.25} />
         </span>
         {showTrendIcon && (

@@ -27,26 +27,26 @@ export function ClientCard({ row }: { row: ClientRow }) {
         )}
       </div>
 
-      <div className="mt-3 rounded-lg bg-surface-2 p-3 text-sm">
+      <div className="mt-3 rounded-xl bg-surface-2 p-3 text-sm">
         Saldo atual:{" "}
         <strong className={balance > 0 ? "text-danger" : "text-ink"}>{money.format(balance)}</strong>
       </div>
 
       <div className="card-actions mt-3 flex flex-wrap gap-2">
-        <button type="button" data-edit-client={client.id} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink">
+        <button type="button" data-edit-client={client.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
           Editar
         </button>
         <button
           type="button"
           data-manage-client-requesters={client.id}
-          className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink"
+          className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink"
         >
           Gerenciar solicitantes
         </button>
         <button
           type="button"
           data-delete-client={client.id}
-          className="rounded-lg border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger"
+          className="rounded-xl border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger"
         >
           Excluir
         </button>
