@@ -10965,7 +10965,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=238").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=239").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
