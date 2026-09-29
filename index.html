@@ -188,6 +188,7 @@
         <button class="active" type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
         <button class="" type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Serviços</small></button>
       </div>
+      <div id="clientsVanilla">
       <div class="section-heading">
         <div><span class="eyebrow">Cadastro</span><h2>Clientes</h2></div>
         <button class="primary" data-dialog="clientDialog">Adicionar cliente</button>
@@ -196,6 +197,8 @@
         <input id="clientSearch" type="search" placeholder="Buscar cliente, telefone ou tabela">
       </div>
       <div id="clientList" class="card-grid"></div>
+      </div>
+      <div id="rdClientsRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="catalog" class="view">
@@ -2774,6 +2777,8 @@
   <script src="react/billing.js?v=1"></script>
   <link rel="stylesheet" href="react/financeSummary.css?v=1">
   <script src="react/financeSummary.js?v=1"></script>
+  <link rel="stylesheet" href="react/clients.css?v=1">
+  <script src="react/clients.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -2829,6 +2834,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactFinanceSummary && window.mountReactFinanceSummary(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newClients")) {
+        localStorage.setItem("gestor-servicos-react-clients", params.get("newClients") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-clients") === "1";
+      var vanilla = document.getElementById("clientsVanilla");
+      var root = document.getElementById("rdClientsRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactClients && window.mountReactClients(root);
       }
     })();
   </script>

@@ -17,6 +17,10 @@ export interface Client {
   phone?: string;
   priceGroup: string;
   billingFrequency?: "semanal" | "quinzenal" | "mensal";
+  document?: string;
+  email?: string;
+  city?: string;
+  state?: string;
 }
 
 export interface ServiceEntry {
@@ -143,6 +147,7 @@ declare global {
     clientById: (id: string) => Client | undefined;
     balanceFor: (clientId: string, endDate?: string | null) => number;
     previousBalanceFor: (clientId: string, startFilter: string) => number;
+    billingFrequencyLabel: (frequency: string) => string;
     isOverdueService: (item: ServiceEntry) => boolean;
     formatServiceAge: (item: ServiceEntry) => string;
     dashboardNotifications: () => DashboardNotifications;
@@ -169,5 +174,6 @@ declare global {
     mountReactPayments?: (root: HTMLElement) => void;
     mountReactBilling?: (root: HTMLElement) => void;
     mountReactFinanceSummary?: (root: HTMLElement) => void;
+    mountReactClients?: (root: HTMLElement) => void;
   }
 }
