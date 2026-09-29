@@ -142,6 +142,7 @@ declare global {
 
     clientById: (id: string) => Client | undefined;
     balanceFor: (clientId: string, endDate?: string | null) => number;
+    previousBalanceFor: (clientId: string, startFilter: string) => number;
     isOverdueService: (item: ServiceEntry) => boolean;
     formatServiceAge: (item: ServiceEntry) => string;
     dashboardNotifications: () => DashboardNotifications;
@@ -167,5 +168,6 @@ declare global {
     mountReactDashboard?: (root: HTMLElement) => void;
     mountReactPayments?: (root: HTMLElement) => void;
     mountReactBilling?: (root: HTMLElement) => void;
+    mountReactFinanceSummary?: (root: HTMLElement) => void;
   }
 }

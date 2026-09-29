@@ -446,6 +446,7 @@
         <button type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobranças</small></button>
         <button class="active" type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
       </div>
+      <div id="financeSummaryVanilla">
       <div class="section-heading">
         <div><span class="eyebrow">Consumo, pagamentos e saldo real</span><h2>Resumo por cliente</h2></div>
       </div>
@@ -471,6 +472,8 @@
         <input id="financeSummarySearch" type="search" placeholder="Buscar cliente">
       </div>
       <div class="account-list" id="financeSummaryList"></div>
+      </div>
+      <div id="rdFinanceSummaryRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="suppliers" class="view">
@@ -2769,6 +2772,8 @@
   <script src="react/payments.js?v=1"></script>
   <link rel="stylesheet" href="react/billing.css?v=1">
   <script src="react/billing.js?v=1"></script>
+  <link rel="stylesheet" href="react/financeSummary.css?v=1">
+  <script src="react/financeSummary.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -2810,6 +2815,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactBilling && window.mountReactBilling(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newFinanceSummary")) {
+        localStorage.setItem("gestor-servicos-react-financeSummary", params.get("newFinanceSummary") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-financeSummary") === "1";
+      var vanilla = document.getElementById("financeSummaryVanilla");
+      var root = document.getElementById("rdFinanceSummaryRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactFinanceSummary && window.mountReactFinanceSummary(root);
       }
     })();
   </script>
