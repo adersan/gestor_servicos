@@ -55,8 +55,8 @@ export function Catalog() {
     <div className="flex flex-col gap-4 p-4">
       {switchButtons}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
-        <section ref={catalogPanelRef} className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
+      <div className="grid grid-cols-1 gap-4 lg:items-start lg:[grid-template-columns:minmax(420px,1.2fr)_minmax(260px,0.8fr)]">
+        <section ref={catalogPanelRef} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
@@ -89,7 +89,7 @@ export function Catalog() {
           <CatalogTable items={catalogItems} priceTableNames={priceTableNames} />
         </section>
 
-        <section ref={priceTablesPanelRef} className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
+        <section ref={priceTablesPanelRef} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
