@@ -178,7 +178,7 @@
       </section>
 
       </div>
-      <div id="rdDashboardRoot" class="hidden"></div>
+      <div id="rdDashboardRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="clients" class="view">
@@ -329,6 +329,7 @@
         <button type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobranças</small></button>
         <button type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
       </div>
+      <div id="paymentsVanilla">
       <div class="section-heading">
         <div><span class="eyebrow">Baixas</span><h2>Pagamentos</h2></div>
       </div>
@@ -362,6 +363,8 @@
         </div>
       </div>
       <div id="paymentList"></div>
+      </div>
+      <div id="rdPaymentsRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="paymentMethods" class="view">
@@ -2757,8 +2760,10 @@
   <script src="data.js?v=58"></script>
   <script src="app.js?v=218"></script>
   <script src="supplier.js?v=69"></script>
-  <link rel="stylesheet" href="react/dashboard.css?v=2">
-  <script src="react/dashboard.js?v=2"></script>
+  <link rel="stylesheet" href="react/dashboard.css?v=3">
+  <script src="react/dashboard.js?v=3"></script>
+  <link rel="stylesheet" href="react/payments.css?v=1">
+  <script src="react/payments.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -2772,6 +2777,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactDashboard && window.mountReactDashboard(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newPayments")) {
+        localStorage.setItem("gestor-servicos-react-payments", params.get("newPayments") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-payments") === "1";
+      var vanilla = document.getElementById("paymentsVanilla");
+      var root = document.getElementById("rdPaymentsRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactPayments && window.mountReactPayments(root);
       }
     })();
   </script>

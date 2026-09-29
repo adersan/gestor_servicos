@@ -45,6 +45,9 @@ export interface Payment {
   amount: number;
   billingId?: string;
   createdAt?: string;
+  note?: string;
+  method?: string;
+  paymentSource?: string;
 }
 
 export interface Billing {
@@ -57,6 +60,7 @@ export interface Billing {
   rolledIntoBillingId?: string;
   paymentMethods?: unknown[];
   paymentMethodIds?: string[];
+  billingNumber?: number;
 }
 
 export interface ServiceRequest {
@@ -135,8 +139,18 @@ declare global {
     formatServiceAge: (item: ServiceEntry) => string;
     dashboardNotifications: () => DashboardNotifications;
 
+    matchesSearch: (search: string, ...values: Array<string | undefined | null>) => boolean;
+    uniqueClientMatch: (value: string) => Client | null;
+
+    paymentIsCredit: (payment: Payment) => boolean;
+    paymentAllocationState: (payment: Payment) => "credit" | "loose" | "linked-open" | "linked-paid";
+    paymentAllocationLabel: (payment: Payment) => string;
+    billingNumberLabel: (billing: Billing) => string;
+    openPaymentDetail: (payment: Payment) => void;
+
     showView: (viewId: string) => void;
 
     mountReactDashboard?: (root: HTMLElement) => void;
+    mountReactPayments?: (root: HTMLElement) => void;
   }
 }

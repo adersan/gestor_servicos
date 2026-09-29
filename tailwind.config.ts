@@ -1,15 +1,18 @@
 import type { Config } from "tailwindcss";
 
-// Preflight desligado e "important" escopado em #rdDashboardRoot: o Tailwind
-// nunca reseta elementos fora da raiz de montagem do React, e nenhum utilitario
-// gerado consegue casar com nada fora dela - convive com o reset proprio do
-// styles.css vanilla sem colidir (ver plano em .claude/plans, secao Fase 0).
+// Preflight desligado e "important" escopado na classe .rd-root (presente em
+// TODA raiz de montagem React - #rdDashboardRoot, #rdPaymentsRoot etc.): o
+// Tailwind nunca reseta elementos fora dessas raizes, e nenhum utilitario
+// gerado consegue casar com nada fora delas - convive com o reset proprio do
+// styles.css vanilla sem colidir. Uma classe compartilhada (em vez de um id
+// fixo) permite que cada tela nova migrada reaproveite o mesmo config sem
+// precisar trocar essa string a cada fase (ver plano em .claude/plans, Fase 2).
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   corePlugins: {
     preflight: false
   },
-  important: "#rdDashboardRoot",
+  important: ".rd-root",
   theme: {
     extend: {
       colors: {

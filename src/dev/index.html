@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>Dashboard React - harness de dev</title>
     <!-- Carrega o styles.css REAL do projeto de proposito: o objetivo deste
-         harness e provar que o Tailwind escopado em #rdDashboardRoot convive
+         harness e provar que o Tailwind escopado na classe .rd-root convive
          com o CSS global vanilla sem vazar nem ser sobrescrito por ele. -->
     <link rel="stylesheet" href="../../styles.css" />
     <style>
@@ -20,7 +20,7 @@
       <button type="button" onclick="document.documentElement.dataset.theme='dark'">dark</button>
       <button type="button" onclick="document.documentElement.dataset.theme='bluedark'">bluedark</button>
     </div>
-    <div id="rdDashboardRoot"></div>
+    <div id="rdDashboardRoot" class="rd-root"></div>
     <script type="module" src="./harness.tsx"></script>
   </body>
 </html>

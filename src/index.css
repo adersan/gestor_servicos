@@ -9,7 +9,7 @@
  * que o resto do sistema ja define em :root/:root[data-theme] no styles.css -
  * troca de tema continua automatica, sem nenhum estado React envolvido.
  */
-#rdDashboardRoot {
+.rd-root {
   --background: var(--paper);
   --foreground: var(--ink);
   --primary: var(--brand);
