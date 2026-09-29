@@ -1,4 +1,4 @@
-const CACHE = "gestor-servicos-v276";
+const CACHE = "gestor-servicos-v277";
 const ASSETS = [
   "./",
   "index.html",
@@ -13,8 +13,10 @@ const ASSETS = [
   "data.js?v=58",
   "app.js?v=218",
   "supplier.js?v=69",
-  "react/dashboard.js?v=2",
-  "react/dashboard.css?v=2",
+  "react/dashboard.js?v=3",
+  "react/dashboard.css?v=3",
+  "react/payments.js?v=1",
+  "react/payments.css?v=1",
   "fornecedor.html",
   "fornecedor.css?v=26",
   "fornecedor.js?v=30",
