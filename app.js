@@ -9,6 +9,8 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 const shortDateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "2-digit" });
 const SERVICE_SIMPLE_STATUS_INITIALS = { "A fazer": "AF", Pronto: "F", Entregue: "E", Cancelado: "C" };
+// Ponte pro modo simples/selecao em massa de Lancamento em React (Fase 7).
+window.SERVICE_SIMPLE_STATUS_INITIALS = SERVICE_SIMPLE_STATUS_INITIALS;
 
 const initialState = {
   priceTables: ["Tabela 01", "Tabela 02", "Tabela 03"],
@@ -61,6 +63,10 @@ let financePeriodMode = null;
 let billingOverdueOnly = false;
 let selectedPaymentId = null;
 const serviceGroupsById = new Map();
+// Ponte pro modo simples de Lancamento em React (Fase 7) - o React escreve
+// direto neste Map depois de calcular seus proprios grupos, pra openServiceQuickView
+// e a aplicacao de status em massa funcionarem com o que esta na tela React.
+window.serviceGroupsById = serviceGroupsById;
 let remoteRefreshInProgress = false;
 let remoteLoadInProgress = false;
 let lastRemoteRefreshAt = 0;
@@ -80,6 +86,10 @@ const SERVICE_STATUS_NEXT_TARGETS = {
   "Entregue": ["Pronto"]
 };
 const SERVICE_BULK_STATUS_LABELS = { "Pronto": "Marcar como Feito", "Entregue": "Marcar como Entregue", "A fazer": "Marcar como A fazer" };
+// Ponte pra selecao em massa de Lancamento em React (Fase 7) - evita duplicar
+// a regra de transicao de status em TypeScript.
+window.SERVICE_STATUS_NEXT_TARGETS = SERVICE_STATUS_NEXT_TARGETS;
+window.SERVICE_BULK_STATUS_LABELS = SERVICE_BULK_STATUS_LABELS;
 let alertAudioContext = null;
 let currentAdminName = "Administrador";
 let systemSettings = loadSystemSettings();

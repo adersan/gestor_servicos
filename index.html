@@ -251,6 +251,7 @@
         <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
         <button type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Serviços</small></button>
       </div>
+      <div id="servicesVanilla">
       <div class="section-heading">
         <div><span class="eyebrow">Movimento diário</span><h2>Lançamentos</h2></div>
         <div class="heading-actions">
@@ -286,6 +287,8 @@
       </div>
       <div id="serviceBulkActions" class="bulk-actions-bar hidden"></div>
       <div id="serviceList" class="timeline"></div>
+      </div>
+      <div id="rdServicesRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="requests" class="view">
@@ -2784,6 +2787,8 @@
   <script src="react/clients.js?v=2"></script>
   <link rel="stylesheet" href="react/catalog.css?v=2">
   <script src="react/catalog.js?v=2"></script>
+  <link rel="stylesheet" href="react/services.css?v=1">
+  <script src="react/services.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -2867,6 +2872,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactCatalog && window.mountReactCatalog(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newServices")) {
+        localStorage.setItem("gestor-servicos-react-services", params.get("newServices") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-services") === "1";
+      var vanilla = document.getElementById("servicesVanilla");
+      var root = document.getElementById("rdServicesRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactServices && window.mountReactServices(root);
       }
     })();
   </script>

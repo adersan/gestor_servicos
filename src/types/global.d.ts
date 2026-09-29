@@ -33,6 +33,24 @@ export interface ServiceEntry {
   description?: string;
   reference?: string;
   createdAt?: string;
+  requestedBy?: string;
+  serviceGroupId?: string;
+  primaryEntryId?: string;
+  notes?: string;
+  cancellationReason?: string;
+  cancellationOriginalAmount?: number | null;
+  confirmationRequestedAt?: string;
+  deliveredAt?: string | null;
+  deliverySource?: string;
+  deliveryCode?: string;
+  doneAt?: string | null;
+  updatedAt?: string;
+}
+
+export interface ServiceGroup {
+  primary: ServiceEntry;
+  complementary: ServiceEntry[];
+  ordered: ServiceEntry[];
 }
 
 export interface SupplierEntry {
@@ -161,6 +179,20 @@ declare global {
     formatServiceAge: (item: ServiceEntry) => string;
     dashboardNotifications: () => DashboardNotifications;
 
+    serviceStatusLabel: (status: string) => string;
+    deliveredLabel: (item: ServiceEntry) => string;
+    serviceStatusDates: (item: ServiceEntry) => string;
+    originCancelledNote: (item: ServiceEntry) => string;
+    applyServiceStatus: (entry: ServiceEntry, status: string, changedAt?: string) => void;
+    saveState: () => void;
+    showAppConfirm: (message: string, opts?: { title?: string; confirmText?: string; cancelText?: string; danger?: boolean }) => Promise<boolean>;
+    showAppAlert: (message: string, opts?: { type?: "success" | "warning" | "error" | "info" }) => void;
+    openServiceQuickView: (primaryId: string) => void;
+    serviceGroupsById: Map<string, ServiceGroup>;
+    SERVICE_STATUS_NEXT_TARGETS: Record<string, string[]>;
+    SERVICE_BULK_STATUS_LABELS: Record<string, string>;
+    SERVICE_SIMPLE_STATUS_INITIALS: Record<string, string>;
+
     matchesSearch: (search: string, ...values: Array<string | undefined | null>) => boolean;
     uniqueClientMatch: (value: string) => Client | null;
 
@@ -185,5 +217,6 @@ declare global {
     mountReactFinanceSummary?: (root: HTMLElement) => void;
     mountReactClients?: (root: HTMLElement) => void;
     mountReactCatalog?: (root: HTMLElement) => void;
+    mountReactServices?: (root: HTMLElement) => void;
   }
 }
