@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=160">
+  <link rel="stylesheet" href="styles.css?v=161">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -49,14 +49,14 @@
   </header>
 
   <nav id="mainNavigation" class="tabs" aria-label="Navegação principal">
-    <button class="tab active" data-view="dashboard">Resumo</button>
-    <button class="tab" data-view="services">Clientes</button>
-    <button class="tab" data-view="suppliers">Fornecedores</button>
-    <button class="tab" data-view="payments">Financeiro</button>
-    <button class="tab" data-view="relatorios">Relatórios</button>
-    <button class="tab" data-view="settings">Configurações</button>
-    <button class="tab" data-view="extras">Extras</button>
-    <button class="tab" data-view="help">Ajuda</button>
+    <button class="tab active" data-view="dashboard"><span class="tab-icon" aria-hidden="true">⌂</span>Resumo</button>
+    <button class="tab" data-view="services"><span class="tab-icon" aria-hidden="true">▤</span>Clientes</button>
+    <button class="tab" data-view="suppliers"><span class="tab-icon" aria-hidden="true">⇄</span>Fornecedores</button>
+    <button class="tab" data-view="payments"><span class="tab-icon" aria-hidden="true">$</span>Financeiro</button>
+    <button class="tab" data-view="relatorios"><span class="tab-icon" aria-hidden="true">▨</span>Relatórios</button>
+    <button class="tab" data-view="settings"><span class="tab-icon" aria-hidden="true">⚙</span>Configurações</button>
+    <button class="tab" data-view="extras"><span class="tab-icon" aria-hidden="true">✂</span>Extras</button>
+    <button class="tab" data-view="help"><span class="tab-icon" aria-hidden="true">?</span>Ajuda</button>
     <div class="mobile-nav-actions">
       <button id="mobileInstallButton" class="hidden" type="button">Instalar aplicativo</button>
     </div>

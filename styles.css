@@ -133,9 +133,11 @@ h1 { font-family: Georgia, serif; font-size: clamp(26px, 4vw, 40px); }
 h2 { font-family: Georgia, serif; font-size: 28px; }
 .eyebrow { display: block; margin-bottom: 6px; color: inherit; opacity: .7; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 10px; overflow-x: auto; padding: 12px max(20px, calc((100vw - 1180px) / 2)); background: var(--tabs-bg); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }
-.tab { padding: 10px 16px; border: 1px solid rgba(23,63,53,.1); border-radius: 999px; background: var(--pill-bg); color: var(--brand-ink); font-weight: 800; white-space: nowrap; box-shadow: 0 8px 22px rgba(23,63,53,.05); }
+.tab { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border: 1px solid rgba(23,63,53,.1); border-radius: 999px; background: var(--pill-bg); color: var(--brand-ink); font-weight: 800; white-space: nowrap; box-shadow: 0 8px 22px rgba(23,63,53,.05); transition: transform .15s ease, background .15s ease, box-shadow .15s ease; }
 .tab:hover { transform: translateY(-1px); background: var(--surface); }
 .tab.active { background: var(--brand); color: white; box-shadow: 0 10px 24px rgba(23,63,53,.16); }
+.tab .tab-icon { font-size: 15px; line-height: 1; opacity: .85; }
+.tab.active .tab-icon { opacity: 1; }
 main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .about-brand { display: flex; align-items: center; gap: 14px; }
 .about-brand img { width: 46px; height: 46px; border-radius: 13px; box-shadow: 0 8px 20px rgba(23,63,53,.14); }
@@ -425,10 +427,10 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .service-card-title { min-width: 0; }
 .service-card-title .service-card-reference { margin: 6px 0 0; }
 .service-card-status-pill { display: inline-block; flex-shrink: 0; margin: 0 8px 2px 0; padding: 4px 10px; border-radius: 999px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; vertical-align: middle; }
-.service-card-status-pill.status-a-fazer { background: #fff5e8; }
-.service-card-status-pill.status-pronto { background: #eef7ff; }
-.service-card-status-pill.status-entregue { background: #edf9f2; }
-.service-card-status-pill.status-cancelado { background: #fde8e5; }
+.service-card-status-pill.status-a-fazer { background: #fdeceb; color: var(--danger); }
+.service-card-status-pill.status-pronto { background: #eef7ff; color: #155f9f; }
+.service-card-status-pill.status-entregue { background: #edf9f2; color: #117440; }
+.service-card-status-pill.status-cancelado { background: #fde8e5; color: var(--danger); font-style: italic; }
 .timeline-item h3 { margin: 0; font-size: 17px; }
 .service-card-description { color: var(--ink); font-weight: 850; }
 .service-card-reference { display: inline-flex; align-items: center; margin: 5px 0 7px; padding: 5px 10px; border: 1px solid #bdd8ef; border-radius: 8px; color: #155f9f; background: #eef7ff; font-size: 15px; font-weight: 850; letter-spacing: .035em; line-height: 1.2; }
