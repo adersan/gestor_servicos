@@ -56,6 +56,7 @@
 :root[data-theme="dark"] .service-overdue, :root[data-theme="bluedark"] .service-overdue,
 :root[data-theme="dark"] .receivable-overdue, :root[data-theme="bluedark"] .receivable-overdue,
 :root[data-theme="dark"] .request-card-new, :root[data-theme="bluedark"] .request-card-new,
+:root[data-theme="dark"] .request-novo, :root[data-theme="bluedark"] .request-novo,
 :root[data-theme="dark"] .request-importado, :root[data-theme="bluedark"] .request-importado,
 :root[data-theme="dark"] .request-cancelado, :root[data-theme="bluedark"] .request-cancelado,
 :root[data-theme="dark"] .secondary-service, :root[data-theme="bluedark"] .secondary-service,
@@ -257,6 +258,19 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .amount.negative { color: var(--danger); }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
 .client-card h3, .billing-card h3, .price-table-card h3 { margin: 0 0 8px; font-size: 20px; }
+.client-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.client-card-head h3 { margin: 0; }
+.client-overdue-badge { flex-shrink: 0; padding: 4px 9px; border-radius: 999px; background: #fde8e5; color: var(--danger); font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+.client-card-contact { margin-top: 6px; }
+.client-card-contact .meta { margin: 3px 0; }
+.client-card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.client-card-tag { display: inline-block; padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.client-card-tag-price { background: var(--brand-soft); color: var(--brand-ink); }
+.client-card-tag-frequency { background: #eee8fa; color: #654697; }
+.client-card-balance { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.client-card-balance > span { color: var(--muted); font-size: 12px; font-weight: 750; }
+.client-card-balance strong { font-size: 18px; font-weight: 900; }
+.client-balance-clear { color: #117440; }
 .badge { display: inline-block; margin-top: 14px; padding: 6px 9px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-ink); font-size: 12px; font-weight: 800; }
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
 #supplierEntriesPanel .filters { grid-template-columns: minmax(150px, 1.1fr) minmax(150px, 1.1fr) 170px 140px 140px minmax(160px, 1.3fr); }
@@ -276,11 +290,22 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .request-card-value { border-top: 4px solid #2d72c4; background: #eef6ff; }
 .request-card-imported { border-top: 4px solid #18864b; background: #edf9f2; }
 .request-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-.request-card { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: inset 0 4px 0 var(--request-color, #d9902f); }
+.request-card { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: inset 4px 0 0 var(--request-color, #d9902f); }
+.request-novo { --request-color: var(--danger); background: #fdeceb; }
 .request-importado { --request-color: #18864b; background: #f4fbf7; }
 .request-cancelado { --request-color: var(--danger); background: #fff7f6; opacity: .85; }
 .request-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .request-card-head h3 { margin: 0; }
+.request-status.request-status-a-fazer { color: var(--danger); background: #fdeceb; }
+.request-status.request-status-entregue { color: #117440; background: #edf9f2; }
+.request-status.request-status-cancelado { color: var(--danger); background: #fde8e5; font-style: italic; }
+.request-reference-list span.ref-a-fazer { border-color: #f2c1b8; background: #fdeceb; color: var(--danger); }
+.request-reference-list span.ref-entregue { border-color: #a9ddbd; background: #edf9f2; color: #117440; }
+.request-reference-list span.ref-cancelado { border-color: #f2c1b8; background: #fdeceb; color: var(--danger); font-style: italic; }
+.request-amount-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed var(--line); }
+.request-amount-row > span { color: var(--muted); font-size: 12px; font-weight: 750; }
+.request-amount-value { font-size: 17px; font-weight: 900; color: var(--brand-ink); }
+.request-card .card-actions { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .tracking-link-card { --request-color: #7654a8; display: grid; gap: 12px; padding: 20px; }
 .tracking-link-card .request-card-head h3 { font-size: 17px; }
 .tracking-link-meta { margin: -6px 0 0; color: var(--muted); font-size: 12px; }
@@ -624,8 +649,12 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .billing-card .card-actions .table-action { width: 100%; min-width: 0; white-space: normal; }
 .billing-card .card-actions .table-action:last-child { grid-column: 1 / -1; }
 .price-table-card { padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
-.price-table-card .card-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.price-table-card.price-table-card-active { box-shadow: inset 4px 0 0 var(--brand); }
+.price-table-card-count { display: inline-block; margin-top: 4px; padding: 5px 10px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-ink); font-size: 12px; font-weight: 800; }
+.price-table-card .card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
 .price-table-card .card-actions .table-action { width: 100%; min-width: 0; padding-inline: 6px; }
+.catalog-code-badge { display: inline-block; margin-right: 8px; padding: 3px 8px; border: 1px solid #bdd8ef; border-radius: 7px; background: #eef7ff; color: #155f9f; font-family: ui-monospace, monospace; font-size: 12px; font-weight: 850; letter-spacing: .02em; }
+.catalog-service-name { color: var(--ink); font-weight: 800; }
 .price-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .field-hint { color: var(--muted); font-size: 12px; font-weight: 400; }
 .reference-entry-row { display: grid; grid-template-columns: 1fr 48px; gap: 8px; align-items: stretch; }

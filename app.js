@@ -1277,7 +1277,7 @@ function renderCatalog() {
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
     .map((item) => `
       <tr>
-        <td><strong>${item.code ? `${escapeHtml(item.code)} - ` : ""}${escapeHtml(item.name)}</strong></td>
+        <td>${item.code ? `<span class="catalog-code-badge">${escapeHtml(item.code)}</span>` : ""}<strong class="catalog-service-name">${escapeHtml(item.name)}</strong></td>
         ${state.priceTables.map((name) => `<td>${money.format(item.prices[name] || 0)}</td>`).join("")}
         <td><div class="row-actions">
           <button class="table-action" data-edit-catalog="${item.id}">Editar</button>
@@ -1297,9 +1297,9 @@ function renderPriceTables() {
   const items = state.priceTables.filter((name) => matchesSearch(search, name));
   target.innerHTML = items.length ? items.map((name) => {
     const clients = state.clients.filter((client) => client.priceGroup === name).length;
-    return `<article class="price-table-card">
+    return `<article class="price-table-card ${clients ? "price-table-card-active" : ""}">
       <h3>${escapeHtml(name)}</h3>
-      <p class="meta">${clients} cliente(s) usando esta tabela</p>
+      <span class="price-table-card-count">${clients} cliente(s) usando esta tabela</span>
       <div class="card-actions">
         <button class="table-action" data-edit-table="${escapeHtml(name)}">Editar</button>
         <button class="table-action danger" data-delete-table="${escapeHtml(name)}">Excluir</button>
@@ -1761,14 +1761,24 @@ function renderClients() {
     const clientOverdue = state.billings.some((billing) => billing.clientId === client.id && isBillingOverdue(billing));
     return `
     <article class="client-card ${clientOverdue ? "client-overdue" : ""}">
-      <h3>${escapeHtml(client.name)}</h3>
-      <p class="meta">${escapeHtml(client.phone)}</p>
-      ${client.document ? `<p class="meta">${escapeHtml(client.document)}</p>` : ""}
-      ${client.email ? `<p class="meta">${escapeHtml(client.email)}</p>` : ""}
-      ${client.city || client.state ? `<p class="meta">${escapeHtml([client.city, client.state].filter(Boolean).join(" - "))}</p>` : ""}
-      <span class="badge">${escapeHtml(client.priceGroup)}</span>
-      <span class="badge">${billingFrequencyLabel(client.billingFrequency)}</span>
-      <div class="access-box">Saldo atual: <strong class="${balance > 0 ? "client-balance-due" : ""}">${money.format(balance)}</strong></div>
+      <header class="client-card-head">
+        <h3>${escapeHtml(client.name)}</h3>
+        ${clientOverdue ? `<span class="client-overdue-badge">Cobrança atrasada</span>` : ""}
+      </header>
+      <div class="client-card-contact">
+        <p class="meta">${escapeHtml(client.phone)}</p>
+        ${client.document ? `<p class="meta">${escapeHtml(client.document)}</p>` : ""}
+        ${client.email ? `<p class="meta">${escapeHtml(client.email)}</p>` : ""}
+        ${client.city || client.state ? `<p class="meta">${escapeHtml([client.city, client.state].filter(Boolean).join(" - "))}</p>` : ""}
+      </div>
+      <div class="client-card-tags">
+        <span class="client-card-tag client-card-tag-price">${escapeHtml(client.priceGroup)}</span>
+        <span class="client-card-tag client-card-tag-frequency">${billingFrequencyLabel(client.billingFrequency)}</span>
+      </div>
+      <div class="client-card-balance">
+        <span>Saldo atual</span>
+        <strong class="${balance > 0 ? "client-balance-due" : "client-balance-clear"}">${money.format(balance)}</strong>
+      </div>
       <div class="card-actions">
         <button class="table-action" data-edit-client="${client.id}">Editar</button>
         <button class="table-action" data-manage-client-requesters="${client.id}">Gerenciar solicitantes</button>
@@ -2012,16 +2022,18 @@ function renderServiceRequests() {
     <article class="metric-card metric-main"><span>Total recebido</span><strong>${requests.length}</strong><small>Histórico de pedidos</small></article>`;
   document.getElementById("requestList").innerHTML = filtered.length ? filtered.map((request) => {
     const references = request.references || [];
-    return `<article class="request-card request-${String(request.status || "Novo").toLowerCase()}">
+    const status = String(request.status || "Novo");
+    const statusKey = status === "Importado" ? "entregue" : status === "Cancelado" ? "cancelado" : "a-fazer";
+    return `<article class="request-card request-${status.toLowerCase()}">
       <div class="request-card-head">
         <div><span class="eyebrow">${formatDate(request.requestedDate)}</span><h3>${escapeHtml(clientById(request.clientId)?.name || "Cliente")}</h3></div>
-        <span class="request-status">${escapeHtml(request.status || "Novo")}</span>
+        <span class="request-status request-status-${statusKey}">${escapeHtml(status)}</span>
       </div>
       <strong class="request-service-name">${escapeHtml(request.serviceName || "Serviço")}</strong>
-      <div class="request-reference-list">${references.length ? references.map((reference) => `<span>${escapeHtml(reference)}</span>`).join("") : `<span>Sem referência</span>`}</div>
+      <div class="request-reference-list">${references.length ? references.map((reference) => `<span class="ref-${statusKey}">${escapeHtml(reference)}</span>`).join("") : `<span class="ref-${statusKey}">Sem referência</span>`}</div>
       <p class="meta">Solicitante: ${escapeHtml(request.requestedBy || "Não informado")}</p>
       ${request.notes ? `<p class="request-notes">${escapeHtml(request.notes)}</p>` : ""}
-      <p class="meta">Valor unitário: <strong>${money.format(Number(request.amount || 0))}</strong></p>
+      <div class="request-amount-row"><span>Valor unitário</span><strong class="request-amount-value">${money.format(Number(request.amount || 0))}</strong></div>
       <div class="card-actions">
         ${request.status === "Novo"
     ? `<button class="table-action success" data-import-client-request="${request.id}">Importar para lan\u00E7amento</button><button class="table-action danger" data-cancel-client-request="${request.id}">Cancelar pedido</button>`
@@ -10999,7 +11011,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=243").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=244").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
