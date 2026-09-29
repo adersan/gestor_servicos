@@ -53,6 +53,7 @@ export interface Payment {
 export interface Billing {
   id: string;
   clientId: string;
+  amount: number;
   startDate: string;
   endDate: string;
   status: "Aberta" | "Parcial" | "Paga" | "Cancelada";
@@ -61,6 +62,12 @@ export interface Billing {
   paymentMethods?: unknown[];
   paymentMethodIds?: string[];
   billingNumber?: number;
+  statusReason?: string;
+  creditGenerated?: number;
+  sendHistory?: { sentAt: string }[];
+  historyEnabled?: boolean;
+  identifier?: string;
+  password?: string;
 }
 
 export interface ServiceRequest {
@@ -148,9 +155,17 @@ declare global {
     billingNumberLabel: (billing: Billing) => string;
     openPaymentDetail: (payment: Payment) => void;
 
+    billingPaymentSummary: (billing: Billing) => string;
+    billingRolloverTarget: (billing: Billing) => Billing | null;
+    billingHasCardPaymentMethod: (billing: Billing) => boolean;
+    billingStatusLabel: (billing: Billing) => string;
+    billingCardStatusClass: (billing: Billing) => string;
+    openBillingReport: (billingId: string) => void;
+
     showView: (viewId: string) => void;
 
     mountReactDashboard?: (root: HTMLElement) => void;
     mountReactPayments?: (root: HTMLElement) => void;
+    mountReactBilling?: (root: HTMLElement) => void;
   }
 }

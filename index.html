@@ -397,6 +397,7 @@
         <button class="active" type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobranças</small></button>
         <button type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
       </div>
+      <div id="billingVanilla">
       <div class="section-heading">
         <div><span class="eyebrow">Fechamento flexível</span><h2>Cobranças</h2></div>
         <div class="card-actions">
@@ -434,6 +435,8 @@
         <button id="billingDeleteClientButton" class="danger-button hidden" type="button">Excluir cobranças deste cliente</button>
       </div>
       <div id="billingList" class="card-grid"></div>
+      </div>
+      <div id="rdBillingRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="financeSummary" class="view">
@@ -2764,6 +2767,8 @@
   <script src="react/dashboard.js?v=3"></script>
   <link rel="stylesheet" href="react/payments.css?v=1">
   <script src="react/payments.js?v=1"></script>
+  <link rel="stylesheet" href="react/billing.css?v=1">
+  <script src="react/billing.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -2791,6 +2796,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactPayments && window.mountReactPayments(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newBilling")) {
+        localStorage.setItem("gestor-servicos-react-billing", params.get("newBilling") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-billing") === "1";
+      var vanilla = document.getElementById("billingVanilla");
+      var root = document.getElementById("rdBillingRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactBilling && window.mountReactBilling(root);
       }
     })();
   </script>

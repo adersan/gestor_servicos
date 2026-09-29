@@ -5,7 +5,8 @@
     "dev": "vite",
     "build:dashboard": "vite build",
     "build:payments": "vite build --config vite.payments.config.ts",
-    "build": "npm run build:dashboard && npm run build:payments"
+    "build:billing": "vite build --config vite.billing.config.ts",
+    "build": "npm run build:dashboard && npm run build:payments && npm run build:billing"
   },
   "dependencies": {
     "web-push": "^3.6.7"
