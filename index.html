@@ -208,6 +208,7 @@
         <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
         <button class="active" type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Serviços</small></button>
       </div>
+      <div id="catalogVanilla">
       <div class="client-service-switch" aria-label="Alternar serviços e tabelas">
         <button class="active" type="button" data-scroll-client-services="catalogPanel">Ver serviços</button>
         <button type="button" data-scroll-client-services="priceTablesPanel">Ver tabelas</button>
@@ -239,6 +240,8 @@
         <button class="active" type="button" data-scroll-client-services="catalogPanel">Ver serviços</button>
         <button type="button" data-scroll-client-services="priceTablesPanel">Ver tabelas</button>
       </div>
+      </div>
+      <div id="rdCatalogRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="services" class="view">
@@ -2779,6 +2782,8 @@
   <script src="react/financeSummary.js?v=1"></script>
   <link rel="stylesheet" href="react/clients.css?v=1">
   <script src="react/clients.js?v=1"></script>
+  <link rel="stylesheet" href="react/catalog.css?v=1">
+  <script src="react/catalog.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -2848,6 +2853,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactClients && window.mountReactClients(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newCatalog")) {
+        localStorage.setItem("gestor-servicos-react-catalog", params.get("newCatalog") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-catalog") === "1";
+      var vanilla = document.getElementById("catalogVanilla");
+      var root = document.getElementById("rdCatalogRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactCatalog && window.mountReactCatalog(root);
       }
     })();
   </script>

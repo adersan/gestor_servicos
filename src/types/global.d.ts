@@ -79,6 +79,13 @@ export interface ServiceRequest {
   status: "Novo" | string;
 }
 
+export interface CatalogItem {
+  id: string;
+  code?: string;
+  name: string;
+  prices: Record<string, number>;
+}
+
 export interface ServiceMetrics {
   services: ServiceEntry[];
   primaryServices: ServiceEntry[];
@@ -111,6 +118,8 @@ export interface AppState {
   payments: Payment[];
   billings: Billing[];
   serviceRequests: ServiceRequest[];
+  catalog: CatalogItem[];
+  priceTables: string[];
 }
 
 declare global {
@@ -175,5 +184,6 @@ declare global {
     mountReactBilling?: (root: HTMLElement) => void;
     mountReactFinanceSummary?: (root: HTMLElement) => void;
     mountReactClients?: (root: HTMLElement) => void;
+    mountReactCatalog?: (root: HTMLElement) => void;
   }
 }
