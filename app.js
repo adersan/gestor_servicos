@@ -8,6 +8,7 @@ const APP_THEMES = ["verde", "azul", "grafite", "dark", "bluedark"];
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
 const shortDateFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "2-digit" });
+const cardMonthFormat = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", month: "short" });
 const SERVICE_SIMPLE_STATUS_INITIALS = { "A fazer": "AF", Pronto: "F", Entregue: "E", Cancelado: "C" };
 // Ponte pro modo simples/selecao em massa de Lancamento em React (Fase 7).
 window.SERVICE_SIMPLE_STATUS_INITIALS = SERVICE_SIMPLE_STATUS_INITIALS;
@@ -1777,19 +1778,42 @@ function renderClients() {
   }).join("") : emptyMarkup();
 }
 
+function serviceCardDateParts(dateStr) {
+  const date = new Date(`${dateStr}T00:00:00Z`);
+  return {
+    day: String(date.getUTCDate()).padStart(2, "0"),
+    month: cardMonthFormat.format(date).replace(".", "")
+  };
+}
+
 function serviceItemMarkup(item, linked = false) {
+  const { day, month } = serviceCardDateParts(item.date);
+  const statusClass = item.status.toLowerCase().replace(" ", "-");
+  const log = serviceStatusDates(item);
+  const tags = [
+    item.requestedBy ? `<span class="service-card-tag">Solicitante: ${escapeHtml(item.requestedBy)}</span>` : "",
+    item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : "",
+    isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : "",
+    item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : "",
+    item.deliveredAt ? `<span class="delivered-label">${escapeHtml(deliveredLabel(item))}</span>` : "",
+    originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""
+  ].filter(Boolean).join("");
   return `
     <article class="timeline-item ${linked ? "linked-service-entry" : ""} ${isOverdueService(item) ? "service-overdue" : ""} ${item.isSecondary ? "secondary-service" : ""}">
-      <time>${dateFormat.format(new Date(`${item.date}T00:00:00Z`))}</time>
-      <div>
-        <h3 class="service-card-description">${escapeHtml(item.description)}</h3>
-        <p class="service-card-reference">${escapeHtml(item.reference || "Sem referência")}</p>
-        <p class="meta service-card-context">${escapeHtml(clientById(item.clientId)?.name || "")}</p>
-        ${item.requestedBy ? `<p class="meta">Solicitante: ${escapeHtml(item.requestedBy)}</p>` : ""}
-        ${originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""}
-        <span class="status status-${item.status.toLowerCase().replace(" ", "-")}">${escapeHtml(serviceStatusLabel(item.status))}</span>${item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : ""}${isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : ""}${item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : ""}${item.deliveredAt ? `<span class="delivered-label">${escapeHtml(deliveredLabel(item))}</span>` : ""}${serviceStatusDates(item) ? `<p class="service-status-dates">${escapeHtml(serviceStatusDates(item))}</p>` : ""}${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
+      <header class="service-card-head">
+        <div class="service-card-date"><strong>${day}</strong><span>${escapeHtml(month)}</span></div>
+        <div class="service-card-title">
+          <h3 class="service-card-description"><span class="status status-${statusClass} service-card-status-pill">${escapeHtml(serviceStatusLabel(item.status))}</span>${escapeHtml(item.description)}</h3>
+          <span class="service-card-reference ref-${statusClass}">${escapeHtml(item.reference || "Sem referência")}</span>
+        </div>
+      </header>
+      <div class="service-card-body">
+        <span class="service-card-client">${escapeHtml(clientById(item.clientId)?.name || "Sem cliente")}</span>
+        <strong class="service-card-amount">${money.format(item.amount)}</strong>
       </div>
-      <strong>${money.format(item.amount)}</strong>
+      ${tags ? `<div class="service-card-tags">${tags}</div>` : ""}
+      ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
+      ${log ? `<p class="service-status-dates service-card-log">${escapeHtml(log)}</p>` : ""}
       <div class="service-actions">
         <div class="status-actions">
           ${item.status === "A fazer" ? `<button class="table-action success" data-service-status="Pronto" data-entry-id="${item.id}">Marcar feito</button>` : ""}
@@ -1894,8 +1918,8 @@ function renderServices() {
     const statusInitial = SERVICE_SIMPLE_STATUS_INITIALS[primary.status] || statusLabel;
     return `<tr class="${isOverdueService(primary) ? "service-overdue" : ""}" data-view-entry-group="${primary.id}">
       <td>${shortDateFormat.format(new Date(`${primary.date}T00:00:00Z`))}</td>
-      <td><strong>${escapeHtml(primary.reference || "Sem referência")}</strong></td>
-      <td>${escapeHtml(clientById(primary.clientId)?.name || "")}</td>
+      <td><strong class="ref-${statusClass}">${escapeHtml(primary.reference || "Sem referência")}</strong></td>
+      <td class="service-simple-client">${escapeHtml(clientById(primary.clientId)?.name || "")}</td>
       <td class="service-simple-truncate">${escapeHtml(fullServiceLabel)}</td>
       <td><span class="status status-${statusClass} service-simple-full">${escapeHtml(statusLabel)}</span><span class="status status-${statusClass} service-simple-compact">${escapeHtml(statusInitial)}</span></td>
       <td class="service-simple-amount">${money.format(total)}</td>
@@ -10975,7 +10999,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=242").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=243").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
