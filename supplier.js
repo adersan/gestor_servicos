@@ -2383,6 +2383,7 @@
     payableStatus,
     payableOpen,
     payablePaid,
+    supplierPreferencesOf,
     supplierPaymentAllocationLabel,
     supplierEntryStatusDates,
     clientName,

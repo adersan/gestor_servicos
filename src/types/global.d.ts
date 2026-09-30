@@ -83,6 +83,36 @@ export interface Supplier {
   isDefault?: boolean;
 }
 
+export interface SupplierPaymentPreference {
+  id: string;
+  method: string;
+  amount: number;
+}
+
+export interface SupplierPayable {
+  id: string;
+  supplierId: string;
+  startDate: string;
+  endDate: string;
+  amount: number;
+  status: "Aberta" | "Parcial" | "Paga" | "Cancelada" | string;
+  createdAt?: string;
+  snapshot?: {
+    paymentPreferences?: SupplierPaymentPreference[];
+    paymentPreference?: { method: string; amount: number };
+  };
+}
+
+export interface SupplierPayment {
+  id: string;
+  payableId?: string;
+  supplierId?: string;
+  amount: number;
+  date: string;
+  method?: string;
+  note?: string;
+}
+
 export interface Payment {
   id: string;
   clientId: string;
@@ -190,6 +220,8 @@ export interface AppState {
   services: ServiceEntry[];
   suppliers: Supplier[];
   supplierEntries: SupplierEntry[];
+  supplierPayables: SupplierPayable[];
+  supplierPayments: SupplierPayment[];
   payments: Payment[];
   billings: Billing[];
   serviceRequests: ServiceRequest[];
@@ -285,6 +317,7 @@ declare global {
     mountReactSupplierRecords?: (root: HTMLElement) => void;
     mountReactSupplierEntries?: (root: HTMLElement) => void;
     mountReactSupplierAccess?: (root: HTMLElement) => void;
+    mountReactSupplierPayables?: (root: HTMLElement) => void;
 
     supplierModule: {
       clientName: (id: string) => string;
@@ -294,6 +327,10 @@ declare global {
       openSupplierEntryQuickView: (id: string) => void;
       supplierEntryBulkStatusEligible: (entry: SupplierEntry, targetStatus: string) => boolean;
       applySupplierEntryStatus: (entry: SupplierEntry, targetStatus: string, changedAt: string) => void;
+      payableStatus: (payable: SupplierPayable) => "Aberta" | "Parcial" | "Paga" | "Cancelada";
+      payableOpen: (payable: SupplierPayable) => number;
+      payablePaid: (payable: SupplierPayable) => number;
+      supplierPreferencesOf: (payable: SupplierPayable) => SupplierPaymentPreference[];
       SUPPLIER_ENTRY_STATUS_NEXT_TARGETS: Record<string, string[]>;
       SUPPLIER_ENTRY_BULK_STATUS_LABELS: Record<string, string>;
       SUPPLIER_ENTRY_SIMPLE_STATUS_INITIALS: Record<string, string>;
