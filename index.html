@@ -2773,29 +2773,29 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=222"></script>
+  <script src="app.js?v=223"></script>
   <script src="supplier.js?v=69"></script>
-  <link rel="stylesheet" href="react/dashboard.css?v=4">
-  <script src="react/dashboard.js?v=4"></script>
-  <link rel="stylesheet" href="react/payments.css?v=2">
-  <script src="react/payments.js?v=2"></script>
-  <link rel="stylesheet" href="react/billing.css?v=2">
-  <script src="react/billing.js?v=2"></script>
-  <link rel="stylesheet" href="react/financeSummary.css?v=2">
-  <script src="react/financeSummary.js?v=2"></script>
-  <link rel="stylesheet" href="react/clients.css?v=2">
-  <script src="react/clients.js?v=2"></script>
-  <link rel="stylesheet" href="react/catalog.css?v=2">
-  <script src="react/catalog.js?v=2"></script>
-  <link rel="stylesheet" href="react/services.css?v=1">
-  <script src="react/services.js?v=1"></script>
+  <link rel="stylesheet" href="react/dashboard.css?v=5">
+  <script src="react/dashboard.js?v=5"></script>
+  <link rel="stylesheet" href="react/payments.css?v=3">
+  <script src="react/payments.js?v=3"></script>
+  <link rel="stylesheet" href="react/billing.css?v=3">
+  <script src="react/billing.js?v=3"></script>
+  <link rel="stylesheet" href="react/financeSummary.css?v=3">
+  <script src="react/financeSummary.js?v=3"></script>
+  <link rel="stylesheet" href="react/clients.css?v=3">
+  <script src="react/clients.js?v=3"></script>
+  <link rel="stylesheet" href="react/catalog.css?v=3">
+  <script src="react/catalog.js?v=3"></script>
+  <link rel="stylesheet" href="react/services.css?v=2">
+  <script src="react/services.js?v=2"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
       if (params.has("newDashboard")) {
         localStorage.setItem("gestor-servicos-react-dashboard", params.get("newDashboard") === "1" ? "1" : "0");
       }
-      var enabled = localStorage.getItem("gestor-servicos-react-dashboard") === "1";
+      var enabled = localStorage.getItem("gestor-servicos-react-dashboard") !== "0";
       var vanilla = document.getElementById("dashboardVanilla");
       var root = document.getElementById("rdDashboardRoot");
       if (enabled && vanilla && root) {
@@ -2809,7 +2809,7 @@
       if (params.has("newPayments")) {
         localStorage.setItem("gestor-servicos-react-payments", params.get("newPayments") === "1" ? "1" : "0");
       }
-      var enabled = localStorage.getItem("gestor-servicos-react-payments") === "1";
+      var enabled = localStorage.getItem("gestor-servicos-react-payments") !== "0";
       var vanilla = document.getElementById("paymentsVanilla");
       var root = document.getElementById("rdPaymentsRoot");
       if (enabled && vanilla && root) {
@@ -2823,7 +2823,7 @@
       if (params.has("newBilling")) {
         localStorage.setItem("gestor-servicos-react-billing", params.get("newBilling") === "1" ? "1" : "0");
       }
-      var enabled = localStorage.getItem("gestor-servicos-react-billing") === "1";
+      var enabled = localStorage.getItem("gestor-servicos-react-billing") !== "0";
       var vanilla = document.getElementById("billingVanilla");
       var root = document.getElementById("rdBillingRoot");
       if (enabled && vanilla && root) {
@@ -2837,7 +2837,7 @@
       if (params.has("newFinanceSummary")) {
         localStorage.setItem("gestor-servicos-react-financeSummary", params.get("newFinanceSummary") === "1" ? "1" : "0");
       }
-      var enabled = localStorage.getItem("gestor-servicos-react-financeSummary") === "1";
+      var enabled = localStorage.getItem("gestor-servicos-react-financeSummary") !== "0";
       var vanilla = document.getElementById("financeSummaryVanilla");
       var root = document.getElementById("rdFinanceSummaryRoot");
       if (enabled && vanilla && root) {
@@ -2851,7 +2851,7 @@
       if (params.has("newClients")) {
         localStorage.setItem("gestor-servicos-react-clients", params.get("newClients") === "1" ? "1" : "0");
       }
-      var enabled = localStorage.getItem("gestor-servicos-react-clients") === "1";
+      var enabled = localStorage.getItem("gestor-servicos-react-clients") !== "0";
       var vanilla = document.getElementById("clientsVanilla");
       var root = document.getElementById("rdClientsRoot");
       if (enabled && vanilla && root) {
@@ -2865,7 +2865,7 @@
       if (params.has("newCatalog")) {
         localStorage.setItem("gestor-servicos-react-catalog", params.get("newCatalog") === "1" ? "1" : "0");
       }
-      var enabled = localStorage.getItem("gestor-servicos-react-catalog") === "1";
+      var enabled = localStorage.getItem("gestor-servicos-react-catalog") !== "0";
       var vanilla = document.getElementById("catalogVanilla");
       var root = document.getElementById("rdCatalogRoot");
       if (enabled && vanilla && root) {
@@ -2879,7 +2879,7 @@
       if (params.has("newServices")) {
         localStorage.setItem("gestor-servicos-react-services", params.get("newServices") === "1" ? "1" : "0");
       }
-      var enabled = localStorage.getItem("gestor-servicos-react-services") === "1";
+      var enabled = localStorage.getItem("gestor-servicos-react-services") !== "0";
       var vanilla = document.getElementById("servicesVanilla");
       var root = document.getElementById("rdServicesRoot");
       if (enabled && vanilla && root) {
