@@ -60,6 +60,14 @@ export interface SupplierEntry {
   status: string;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  phone?: string;
+  document?: string;
+  isDefault?: boolean;
+}
+
 export interface Payment {
   id: string;
   clientId: string;
@@ -153,6 +161,7 @@ export interface DashboardNotifications {
 export interface AppState {
   clients: Client[];
   services: ServiceEntry[];
+  suppliers: Supplier[];
   supplierEntries: SupplierEntry[];
   payments: Payment[];
   billings: Billing[];
@@ -246,5 +255,6 @@ declare global {
     mountReactCatalog?: (root: HTMLElement) => void;
     mountReactServices?: (root: HTMLElement) => void;
     mountReactRequests?: (root: HTMLElement) => void;
+    mountReactSupplierRecords?: (root: HTMLElement) => void;
   }
 }

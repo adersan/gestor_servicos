@@ -533,9 +533,12 @@
         </div>
       </div>
       <div id="supplierRecordsPanel" class="supplier-panel hidden">
+        <div id="supplierRecordsVanilla">
         <div class="subsection-heading supplier-section-title"><div><span class="eyebrow">Cadastro</span><h3>Fornecedores</h3></div><button class="primary" type="button" data-supplier-action="supplier">Adicionar</button></div>
         <input id="supplierSearch" class="supplier-search" type="search" placeholder="Buscar fornecedor">
         <div id="supplierList" class="card-grid"></div>
+        </div>
+        <div id="rdSupplierRecordsRoot" class="hidden rd-root"></div>
       </div>
       <div id="supplierEntriesPanel" class="supplier-panel">
         <div class="supplier-entry-period">
@@ -2776,7 +2779,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=226"></script>
+  <script src="app.js?v=227"></script>
   <script src="supplier.js?v=69"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
@@ -2794,6 +2797,8 @@
   <script src="react/services.js?v=4"></script>
   <link rel="stylesheet" href="react/requests.css?v=1">
   <script src="react/requests.js?v=1"></script>
+  <link rel="stylesheet" href="react/supplierRecords.css?v=1">
+  <script src="react/supplierRecords.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -2905,6 +2910,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactRequests && window.mountReactRequests(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newSupplierRecords")) {
+        localStorage.setItem("gestor-servicos-react-supplierRecords", params.get("newSupplierRecords") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-supplierRecords") !== "0";
+      var vanilla = document.getElementById("supplierRecordsVanilla");
+      var root = document.getElementById("rdSupplierRecordsRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactSupplierRecords && window.mountReactSupplierRecords(root);
       }
     })();
   </script>

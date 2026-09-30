@@ -11,7 +11,8 @@
     "build:catalog": "vite build --config vite.catalog.config.ts",
     "build:services": "vite build --config vite.services.config.ts",
     "build:requests": "vite build --config vite.requests.config.ts",
-    "build": "npm run build:dashboard && npm run build:payments && npm run build:billing && npm run build:financeSummary && npm run build:clients && npm run build:catalog && npm run build:services && npm run build:requests"
+    "build:supplierRecords": "vite build --config vite.supplierRecords.config.ts",
+    "build": "npm run build:dashboard && npm run build:payments && npm run build:billing && npm run build:financeSummary && npm run build:clients && npm run build:catalog && npm run build:services && npm run build:requests && npm run build:supplierRecords"
   },
   "dependencies": {
     "web-push": "^3.6.7"
