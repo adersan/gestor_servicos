@@ -13,7 +13,7 @@ export function PaymentStatusPill({ payment }: { payment: Payment }) {
   const state = window.paymentAllocationState(payment);
   const label = window.paymentAllocationLabel(payment);
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${TONE[state]}`}>
+    <span className={`hidden shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold sm:inline-flex ${TONE[state]}`}>
       {label}
     </span>
   );

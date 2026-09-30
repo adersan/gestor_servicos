@@ -111,6 +111,8 @@ export interface SupplierPayment {
   date: string;
   method?: string;
   note?: string;
+  createdAt?: string;
+  paymentSource?: string;
 }
 
 export interface Payment {
@@ -318,6 +320,7 @@ declare global {
     mountReactSupplierEntries?: (root: HTMLElement) => void;
     mountReactSupplierAccess?: (root: HTMLElement) => void;
     mountReactSupplierPayables?: (root: HTMLElement) => void;
+    mountReactSupplierPayments?: (root: HTMLElement) => void;
 
     supplierModule: {
       clientName: (id: string) => string;
@@ -331,6 +334,9 @@ declare global {
       payableOpen: (payable: SupplierPayable) => number;
       payablePaid: (payable: SupplierPayable) => number;
       supplierPreferencesOf: (payable: SupplierPayable) => SupplierPaymentPreference[];
+      supplierPaymentAllocationState: (payment: SupplierPayment) => "credit" | "loose" | "linked-open" | "linked-paid";
+      supplierPaymentAllocationLabel: (payment: SupplierPayment) => string;
+      openSupplierPaymentDetail: (payment: SupplierPayment) => void;
       SUPPLIER_ENTRY_STATUS_NEXT_TARGETS: Record<string, string[]>;
       SUPPLIER_ENTRY_BULK_STATUS_LABELS: Record<string, string>;
       SUPPLIER_ENTRY_SIMPLE_STATUS_INITIALS: Record<string, string>;

@@ -591,6 +591,7 @@
         <div id="rdSupplierPayablesRoot" class="hidden rd-root"></div>
       </div>
       <div id="supplierPaymentsPanel" class="supplier-panel hidden">
+        <div id="supplierPaymentsVanilla">
         <section class="finance-period-bar" aria-label="Período de pagamentos a fornecedores">
           <div class="period-shortcuts">
             <button class="active" type="button" data-finance-period="week">Semana atual</button>
@@ -616,6 +617,8 @@
           </div>
         </div>
         <div id="supplierPaymentList"></div>
+        </div>
+        <div id="rdSupplierPaymentsRoot" class="hidden rd-root"></div>
       </div>
       <div id="supplierAccessPanel" class="supplier-panel hidden">
         <div id="supplierAccessVanilla">
@@ -2788,8 +2791,8 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=230"></script>
-  <script src="supplier.js?v=70"></script>
+  <script src="app.js?v=231"></script>
+  <script src="supplier.js?v=71"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
   <link rel="stylesheet" href="react/payments.css?v=3">
@@ -2814,6 +2817,8 @@
   <script src="react/supplierAccess.js?v=1"></script>
   <link rel="stylesheet" href="react/supplierPayables.css?v=1">
   <script src="react/supplierPayables.js?v=1"></script>
+  <link rel="stylesheet" href="react/supplierPayments.css?v=1">
+  <script src="react/supplierPayments.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -2981,6 +2986,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactSupplierPayables && window.mountReactSupplierPayables(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newSupplierPayments")) {
+        localStorage.setItem("gestor-servicos-react-supplierPayments", params.get("newSupplierPayments") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-supplierPayments") !== "0";
+      var vanilla = document.getElementById("supplierPaymentsVanilla");
+      var root = document.getElementById("rdSupplierPaymentsRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactSupplierPayments && window.mountReactSupplierPayments(root);
       }
     })();
   </script>
