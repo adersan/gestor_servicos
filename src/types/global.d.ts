@@ -57,7 +57,22 @@ export interface SupplierEntry {
   id: string;
   date: string;
   amount: number;
-  status: string;
+  status: "A fazer" | "Feito" | "Entregue" | "Cancelado" | string;
+  supplierId: string;
+  clientId?: string;
+  description: string;
+  reference?: string;
+  source: string;
+  payableId?: string;
+  cancellationReason?: string;
+  cancellationOriginalAmount?: number | null;
+  lastChangedBy?: string;
+  notes?: string;
+  clientServiceEntryId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  doneAt?: string | null;
+  deliveredAt?: string | null;
 }
 
 export interface Supplier {
@@ -256,5 +271,19 @@ declare global {
     mountReactServices?: (root: HTMLElement) => void;
     mountReactRequests?: (root: HTMLElement) => void;
     mountReactSupplierRecords?: (root: HTMLElement) => void;
+    mountReactSupplierEntries?: (root: HTMLElement) => void;
+
+    supplierModule: {
+      clientName: (id: string) => string;
+      supplierById: (id: string) => Supplier | undefined;
+      originCancelledNote: (item: SupplierEntry) => string;
+      supplierEntryStatusDates: (item: SupplierEntry) => string;
+      openSupplierEntryQuickView: (id: string) => void;
+      supplierEntryBulkStatusEligible: (entry: SupplierEntry, targetStatus: string) => boolean;
+      applySupplierEntryStatus: (entry: SupplierEntry, targetStatus: string, changedAt: string) => void;
+      SUPPLIER_ENTRY_STATUS_NEXT_TARGETS: Record<string, string[]>;
+      SUPPLIER_ENTRY_BULK_STATUS_LABELS: Record<string, string>;
+      SUPPLIER_ENTRY_SIMPLE_STATUS_INITIALS: Record<string, string>;
+    };
   }
 }

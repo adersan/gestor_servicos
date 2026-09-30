@@ -51,6 +51,20 @@
     return parts.join(" · ");
   }
 
+  function supplierEntryBulkStatusEligible(entry, targetStatus) {
+    return !entry.payableId && (SUPPLIER_ENTRY_STATUS_NEXT_TARGETS[entry.status] || []).includes(targetStatus);
+  }
+
+  function applySupplierEntryStatus(entry, targetStatus, changedAt) {
+    entry.status = targetStatus;
+    if (["Feito", "Entregue"].includes(targetStatus)) entry.doneAt ||= changedAt;
+    if (targetStatus === "Entregue") entry.deliveredAt = changedAt;
+    else entry.deliveredAt = null;
+    if (targetStatus === "A fazer") entry.doneAt = null;
+    entry.lastChangedBy = "Administrador";
+    entry.updatedAt = changedAt;
+  }
+
   function defaultSupplier() {
     return state.suppliers.find((item) => item.isDefault) || state.suppliers[0];
   }
@@ -2370,7 +2384,16 @@
     payableOpen,
     payablePaid,
     supplierPaymentAllocationLabel,
-    supplierEntryStatusDates
+    supplierEntryStatusDates,
+    clientName,
+    supplierById,
+    originCancelledNote,
+    openSupplierEntryQuickView,
+    supplierEntryBulkStatusEligible,
+    applySupplierEntryStatus,
+    SUPPLIER_ENTRY_STATUS_NEXT_TARGETS,
+    SUPPLIER_ENTRY_BULK_STATUS_LABELS,
+    SUPPLIER_ENTRY_SIMPLE_STATUS_INITIALS
   };
   resetClientEntryOptions();
   byId("supplierRequestShareDialog").addEventListener("cancel", (event) => {
@@ -2415,21 +2438,12 @@
     if (!statusButton) return;
     const targetStatus = statusButton.dataset.bulkSupplierEntryStatus;
     const selectedEntries = [...selectedSupplierEntryIds].map((id) => state.supplierEntries.find((item) => item.id === id)).filter(Boolean);
-    const eligible = selectedEntries.filter((entry) => !entry.payableId
-      && (SUPPLIER_ENTRY_STATUS_NEXT_TARGETS[entry.status] || []).includes(targetStatus));
+    const eligible = selectedEntries.filter((entry) => supplierEntryBulkStatusEligible(entry, targetStatus));
     if (!eligible.length) return;
     const confirmed = await showAppConfirm(`Aplicar "${targetStatus}" a ${eligible.length} lançamento(s) selecionado(s)?`);
     if (!confirmed) return;
     const changedAt = new Date().toISOString();
-    eligible.forEach((entry) => {
-      entry.status = targetStatus;
-      if (["Feito", "Entregue"].includes(targetStatus)) entry.doneAt ||= changedAt;
-      if (targetStatus === "Entregue") entry.deliveredAt = changedAt;
-      else entry.deliveredAt = null;
-      if (targetStatus === "A fazer") entry.doneAt = null;
-      entry.lastChangedBy = "Administrador";
-      entry.updatedAt = changedAt;
-    });
+    eligible.forEach((entry) => applySupplierEntryStatus(entry, targetStatus, changedAt));
     const skipped = selectedEntries.length - eligible.length;
     selectedSupplierEntryIds.clear();
     saveState();
