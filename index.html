@@ -298,6 +298,7 @@
         <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
         <button type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Serviços</small></button>
       </div>
+      <div id="requestsVanilla">
       <div class="section-heading">
         <div><span class="eyebrow">Entrada do cliente</span><h2>Pedidos recebidos</h2></div>
         <button class="secondary" data-open-view="services">Ir para lançamentos</button>
@@ -329,6 +330,8 @@
         </div>
         <div id="trackingLinksList" class="request-grid"></div>
       </section>
+      </div>
+      <div id="rdRequestsRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="payments" class="view">
@@ -2773,7 +2776,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=225"></script>
+  <script src="app.js?v=226"></script>
   <script src="supplier.js?v=69"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
@@ -2789,6 +2792,8 @@
   <script src="react/catalog.js?v=3"></script>
   <link rel="stylesheet" href="react/services.css?v=4">
   <script src="react/services.js?v=4"></script>
+  <link rel="stylesheet" href="react/requests.css?v=1">
+  <script src="react/requests.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -2886,6 +2891,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactServices && window.mountReactServices(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newRequests")) {
+        localStorage.setItem("gestor-servicos-react-requests", params.get("newRequests") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-requests") !== "0";
+      var vanilla = document.getElementById("requestsVanilla");
+      var root = document.getElementById("rdRequestsRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactRequests && window.mountReactRequests(root);
       }
     })();
   </script>

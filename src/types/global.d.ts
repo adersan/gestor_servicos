@@ -94,7 +94,28 @@ export interface Billing {
 
 export interface ServiceRequest {
   id: string;
-  status: "Novo" | string;
+  clientId: string;
+  status: "Novo" | "Importado" | "Cancelado" | string;
+  serviceName?: string;
+  requestedBy?: string;
+  notes?: string;
+  references?: string[];
+  amount?: number;
+  requestedDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TrackingLink {
+  id: string;
+  clientName: string;
+  periodStart: string;
+  periodEnd: string;
+  createdAt: string;
+  accessCode: string;
+  fullAccessCode?: string;
+  identifier?: string;
+  password?: string;
 }
 
 export interface CatalogItem {
@@ -211,6 +232,12 @@ declare global {
 
     showView: (viewId: string) => void;
 
+    supabaseClient: {
+      auth: {
+        getSession: () => Promise<{ data: { session: { access_token: string } | null } }>;
+      };
+    };
+
     mountReactDashboard?: (root: HTMLElement) => void;
     mountReactPayments?: (root: HTMLElement) => void;
     mountReactBilling?: (root: HTMLElement) => void;
@@ -218,5 +245,6 @@ declare global {
     mountReactClients?: (root: HTMLElement) => void;
     mountReactCatalog?: (root: HTMLElement) => void;
     mountReactServices?: (root: HTMLElement) => void;
+    mountReactRequests?: (root: HTMLElement) => void;
   }
 }
