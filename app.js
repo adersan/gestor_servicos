@@ -1815,7 +1815,7 @@ function serviceItemMarkup(item, linked = false, complementary = []) {
       <header class="service-card-head">
         <div class="service-card-date"><strong>${day}</strong><span>${escapeHtml(month)}</span></div>
         <div class="service-card-title">
-          <h3 class="service-card-description"><span class="status status-${statusClass} service-card-status-pill">${escapeHtml(serviceStatusLabel(item.status))}</span>${escapeHtml(item.description)}</h3>
+          <h3 class="service-card-description"><span class="status status-${statusClass} service-card-status-pill service-card-status-inline">${escapeHtml(serviceStatusLabel(item.status))}</span>${escapeHtml(item.description)}</h3>
           <span class="service-card-reference ref-${statusClass}">${escapeHtml(item.reference || "Sem referência")}</span>
         </div>
       </header>
@@ -1823,6 +1823,7 @@ function serviceItemMarkup(item, linked = false, complementary = []) {
         <div class="service-card-body">
           <span class="service-card-client">${escapeHtml(clientById(item.clientId)?.name || "Sem cliente")}</span>
           <strong class="service-card-amount">${money.format(item.amount)}</strong>
+          <span class="status status-${statusClass} service-card-status-pill service-card-status-desktop">${escapeHtml(serviceStatusLabel(item.status))}</span>
         </div>
         ${tags ? `<div class="service-card-tags">${tags}</div>` : ""}
         ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
@@ -11025,7 +11026,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=248").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=249").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

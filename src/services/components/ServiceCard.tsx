@@ -77,7 +77,9 @@ export function ServiceCard({
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-extrabold text-ink">
-            <span className={`mr-2 mb-0.5 inline-block rounded-full px-2.5 py-1 align-middle text-xs font-semibold ${statusPillClass}`}>
+            <span
+              className={`mr-2 mb-0.5 inline-block rounded-full px-2.5 py-1 align-middle text-xs font-semibold [@media(min-width:1025px)]:hidden ${statusPillClass}`}
+            >
               {window.serviceStatusLabel(item.status)}
             </span>
             {item.description}
@@ -89,9 +91,14 @@ export function ServiceCard({
       </div>
 
       <div className="mt-3 flex flex-col gap-2.5 rounded-xl bg-surface-2 p-3">
-        <div className="flex items-center justify-between gap-3">
-          <span className="truncate text-sm font-extrabold text-[#1768ad]">{client?.name || "Sem cliente"}</span>
+        <div className="flex items-center gap-2.5">
+          <span className="min-w-0 flex-1 truncate text-sm font-extrabold text-[#1768ad]">{client?.name || "Sem cliente"}</span>
           <strong className="shrink-0 whitespace-nowrap text-lg font-extrabold text-ink">{money.format(item.amount)}</strong>
+          <span
+            className={`hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold [@media(min-width:1025px)]:inline-block ${statusPillClass}`}
+          >
+            {window.serviceStatusLabel(item.status)}
+          </span>
         </div>
 
         {hasTags && (
