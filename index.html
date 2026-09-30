@@ -386,6 +386,7 @@
         <button class="" type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobranças</small></button>
         <button class="" type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
       </div>
+      <div id="paymentMethodsVanilla">
       <div class="section-heading">
         <div><span class="eyebrow">Recebimento</span><h2>Formas de pagamento</h2></div>
         <button class="primary" data-dialog="paymentMethodDialog">Adicionar forma</button>
@@ -400,6 +401,8 @@
         <input id="paymentMethodSearch" type="search" placeholder="Buscar tipo, nome ou chave">
       </div>
       <div id="paymentMethodList" class="card-grid"></div>
+      </div>
+      <div id="rdPaymentMethodsRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="billing" class="view">
@@ -2794,7 +2797,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=232"></script>
+  <script src="app.js?v=233"></script>
   <script src="supplier.js?v=71"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
@@ -2824,6 +2827,8 @@
   <script src="react/supplierPayments.js?v=1"></script>
   <link rel="stylesheet" href="react/supplierDashboard.css?v=1">
   <script src="react/supplierDashboard.js?v=1"></script>
+  <link rel="stylesheet" href="react/paymentMethods.css?v=1">
+  <script src="react/paymentMethods.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -3019,6 +3024,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactSupplierDashboard && window.mountReactSupplierDashboard(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newPaymentMethods")) {
+        localStorage.setItem("gestor-servicos-react-paymentMethods", params.get("newPaymentMethods") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-paymentMethods") !== "0";
+      var vanilla = document.getElementById("paymentMethodsVanilla");
+      var root = document.getElementById("rdPaymentMethodsRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactPaymentMethods && window.mountReactPaymentMethods(root);
       }
     })();
   </script>

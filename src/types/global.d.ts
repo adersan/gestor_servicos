@@ -185,6 +185,15 @@ export interface SupplierLink {
   expiresAt?: string | null;
 }
 
+export interface PaymentMethod {
+  id: string;
+  type: string;
+  name: string;
+  details?: string;
+  link?: string;
+  active: boolean;
+}
+
 export interface CatalogItem {
   id: string;
   code?: string;
@@ -225,6 +234,7 @@ export interface AppState {
   supplierPayables: SupplierPayable[];
   supplierPayments: SupplierPayment[];
   payments: Payment[];
+  paymentMethods: PaymentMethod[];
   billings: Billing[];
   serviceRequests: ServiceRequest[];
   catalog: CatalogItem[];
@@ -322,6 +332,7 @@ declare global {
     mountReactSupplierPayables?: (root: HTMLElement) => void;
     mountReactSupplierPayments?: (root: HTMLElement) => void;
     mountReactSupplierDashboard?: (root: HTMLElement) => void;
+    mountReactPaymentMethods?: (root: HTMLElement) => void;
 
     supplierModule: {
       clientName: (id: string) => string;
