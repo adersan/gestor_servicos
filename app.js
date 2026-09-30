@@ -383,27 +383,34 @@ function pushSupported() {
   return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 
+async function pushToggleState() {
+  if (!pushSupported()) {
+    return { supported: false, disabled: true, label: "Notificações push não suportadas neste navegador", status: "" };
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (subscription) {
+    localStorage.setItem(PUSH_ENABLED_KEY, "true");
+    return { supported: true, disabled: false, label: "Desativar notificações push neste aparelho", status: "Ativas neste aparelho." };
+  }
+  return { supported: true, disabled: false, label: "Ativar notificações push neste aparelho", status: "" };
+}
+
+async function togglePushNotifications() {
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (subscription) await disablePushNotifications();
+  else await enablePushNotifications();
+}
+
 async function updatePushToggleButton() {
   const button = document.getElementById("settingsPushToggle");
   const status = document.getElementById("settingsPushStatus");
   if (!button) return;
-  if (!pushSupported()) {
-    button.disabled = true;
-    button.textContent = "Notificações push não suportadas neste navegador";
-    if (status) status.textContent = "";
-    return;
-  }
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.getSubscription();
-  button.disabled = false;
-  if (subscription) {
-    localStorage.setItem(PUSH_ENABLED_KEY, "true");
-    button.textContent = "Desativar notificações push neste aparelho";
-    if (status) status.textContent = "Ativas neste aparelho.";
-  } else {
-    button.textContent = "Ativar notificações push neste aparelho";
-    if (status) status.textContent = "";
-  }
+  const state = await pushToggleState();
+  button.disabled = state.disabled;
+  button.textContent = state.label;
+  if (status) status.textContent = state.status;
 }
 
 async function enablePushNotifications() {
@@ -4820,7 +4827,7 @@ document.addEventListener("click", async (event) => {
   const dashboardPeriodButton = event.target.closest("[data-dashboard-period]");
   const dashboardMonthButton = event.target.closest("[data-dashboard-month]");
   const clientDialogTab = event.target.closest("[data-client-dialog-tab]");
-  const soundAlertButton = event.target.closest("#soundAlertButton, #settingsSoundShortcut");
+  const soundAlertButton = event.target.closest("#soundAlertButton, #settingsSoundShortcut, [data-settings-sound-shortcut]");
   const clientServiceScrollButton = event.target.closest("[data-scroll-client-services]");
   const addRequesterButton = event.target.closest("#addRequesterButton");
   const addManagedRequesterButton = event.target.closest("[data-add-managed-requester]");
@@ -6731,27 +6738,26 @@ function syncPeriodSettingsToRemote() {
   };
   saveState();
 }
-["weekStartDay", "weekEndDay"].forEach((id) => {
-  document.getElementById(id)?.addEventListener("change", () => {
-    systemSettings = {
-      ...systemSettings,
-      weekStartDay: Number(document.getElementById("weekStartDay").value),
-      weekEndDay: Number(document.getElementById("weekEndDay").value)
-    };
-    saveSystemSettings();
-    syncPeriodSettingsToRemote();
-    dashboardPeriod = currentOperationalWeek();
-    document.querySelectorAll("[data-dashboard-period]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.dashboardPeriod === "week");
-    });
-    renderDashboardV2();
-    setFinancePeriod(defaultPeriod(), "week");
-    refreshFinanceViews();
-    showToast("Período padrão atualizado.");
+function getSystemSettings() {
+  return { ...systemSettings };
+}
+
+function updateWeekDays(startDay, endDay) {
+  systemSettings = { ...systemSettings, weekStartDay: startDay, weekEndDay: endDay };
+  saveSystemSettings();
+  syncPeriodSettingsToRemote();
+  dashboardPeriod = currentOperationalWeek();
+  document.querySelectorAll("[data-dashboard-period]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.dashboardPeriod === "week");
   });
-});
-document.getElementById("periodMode")?.addEventListener("change", (event) => {
-  const periodMode = event.currentTarget.value === "month" ? "month" : "week";
+  renderDashboardV2();
+  setFinancePeriod(defaultPeriod(), "week");
+  refreshFinanceViews();
+  showToast("Período padrão atualizado.");
+}
+
+function updatePeriodMode(mode) {
+  const periodMode = mode === "month" ? "month" : "week";
   systemSettings = { ...systemSettings, periodMode };
   saveSystemSettings();
   syncPeriodSettingsToRemote();
@@ -6765,23 +6771,37 @@ document.getElementById("periodMode")?.addEventListener("change", (event) => {
   setFinancePeriod(defaultPeriod(), periodMode);
   refreshFinanceViews();
   showToast("Período padrão atualizado.");
+}
+
+function updateAskEntryContinuation(checked) {
+  systemSettings = { ...systemSettings, askEntryContinuation: checked };
+  saveSystemSettings();
+}
+
+function updateOfferSupplierShare(checked) {
+  systemSettings = { ...systemSettings, offerSupplierShare: checked };
+  saveSystemSettings();
+}
+
+["weekStartDay", "weekEndDay"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("change", () => {
+    updateWeekDays(Number(document.getElementById("weekStartDay").value), Number(document.getElementById("weekEndDay").value));
+  });
+});
+document.getElementById("periodMode")?.addEventListener("change", (event) => {
+  updatePeriodMode(event.currentTarget.value);
 });
 document.getElementById("settingsAskEntryContinuation")?.addEventListener("change", (event) => {
-  systemSettings = { ...systemSettings, askEntryContinuation: event.currentTarget.checked };
-  saveSystemSettings();
+  updateAskEntryContinuation(event.currentTarget.checked);
 });
 document.getElementById("settingsOfferSupplierShare")?.addEventListener("change", (event) => {
-  systemSettings = { ...systemSettings, offerSupplierShare: event.currentTarget.checked };
-  saveSystemSettings();
+  updateOfferSupplierShare(event.currentTarget.checked);
 });
 document.getElementById("settingsPushToggle")?.addEventListener("click", async () => {
   const button = document.getElementById("settingsPushToggle");
   button.disabled = true;
   try {
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    if (subscription) await disablePushNotifications();
-    else await enablePushNotifications();
+    await togglePushNotifications();
   } catch (error) {
     showAppAlert(error.message, { type: "warning" });
   } finally {
@@ -11034,7 +11054,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=258").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=259").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

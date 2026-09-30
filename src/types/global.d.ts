@@ -201,6 +201,22 @@ export interface CatalogItem {
   prices: Record<string, number>;
 }
 
+export interface SystemSettings {
+  periodMode: "week" | "month";
+  weekStartDay: number;
+  weekEndDay: number;
+  askEntryContinuation: boolean;
+  offerSupplierShare: boolean;
+  theme: string;
+}
+
+export interface PushToggleState {
+  supported: boolean;
+  disabled: boolean;
+  label: string;
+  status: string;
+}
+
 export interface ReportColumn {
   key: string;
   label: string;
@@ -354,6 +370,15 @@ declare global {
     reportColumnStorageKey: (typeId: string) => string;
     downloadReportPdfFor: (typeId: string, filters: ReportFilters, columnKeys: string[]) => void;
 
+    getSystemSettings: () => SystemSettings;
+    updatePeriodMode: (mode: "week" | "month") => void;
+    updateWeekDays: (startDay: number, endDay: number) => void;
+    updateAskEntryContinuation: (checked: boolean) => void;
+    updateOfferSupplierShare: (checked: boolean) => void;
+    applyTheme: () => void;
+    pushToggleState: () => Promise<PushToggleState>;
+    togglePushNotifications: () => Promise<void>;
+
     supabaseClient: {
       auth: {
         getSession: () => Promise<{ data: { session: { access_token: string } | null } }>;
@@ -376,6 +401,7 @@ declare global {
     mountReactSupplierDashboard?: (root: HTMLElement) => void;
     mountReactPaymentMethods?: (root: HTMLElement) => void;
     mountReactReports?: (root: HTMLElement) => void;
+    mountReactSettings?: (root: HTMLElement) => void;
 
     supplierModule: {
       clientName: (id: string) => string;
