@@ -615,6 +615,7 @@
         <div id="supplierPaymentList"></div>
       </div>
       <div id="supplierAccessPanel" class="supplier-panel hidden">
+        <div id="supplierAccessVanilla">
         <div class="dashboard-inner-tabs" role="tablist">
           <button class="active" type="button" data-supplier-access-tab="online">Serviço online</button>
           <button type="button" data-supplier-access-tab="links">Links gerados</button>
@@ -640,6 +641,8 @@
           </div>
           <div id="supplierLinksList" class="request-grid"></div>
         </div>
+        </div>
+        <div id="rdSupplierAccessRoot" class="hidden rd-root"></div>
       </div>
     </section>
 
@@ -2782,7 +2785,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=228"></script>
+  <script src="app.js?v=229"></script>
   <script src="supplier.js?v=70"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
@@ -2804,6 +2807,8 @@
   <script src="react/supplierRecords.js?v=1"></script>
   <link rel="stylesheet" href="react/supplierEntries.css?v=1">
   <script src="react/supplierEntries.js?v=1"></script>
+  <link rel="stylesheet" href="react/supplierAccess.css?v=1">
+  <script src="react/supplierAccess.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -2943,6 +2948,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactSupplierEntries && window.mountReactSupplierEntries(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newSupplierAccess")) {
+        localStorage.setItem("gestor-servicos-react-supplierAccess", params.get("newSupplierAccess") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-supplierAccess") !== "0";
+      var vanilla = document.getElementById("supplierAccessVanilla");
+      var root = document.getElementById("rdSupplierAccessRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactSupplierAccess && window.mountReactSupplierAccess(root);
       }
     })();
   </script>

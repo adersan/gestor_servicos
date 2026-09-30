@@ -141,6 +141,18 @@ export interface TrackingLink {
   password?: string;
 }
 
+export interface SupplierLink {
+  id: string;
+  supplierName: string;
+  periodStart: string;
+  periodEnd: string;
+  createdAt: string;
+  accessCode: string;
+  identifier?: string;
+  password?: string;
+  expiresAt?: string | null;
+}
+
 export interface CatalogItem {
   id: string;
   code?: string;
@@ -272,6 +284,7 @@ declare global {
     mountReactRequests?: (root: HTMLElement) => void;
     mountReactSupplierRecords?: (root: HTMLElement) => void;
     mountReactSupplierEntries?: (root: HTMLElement) => void;
+    mountReactSupplierAccess?: (root: HTMLElement) => void;
 
     supplierModule: {
       clientName: (id: string) => string;
