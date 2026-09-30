@@ -1237,6 +1237,7 @@
     </section>
 
     <section id="help" class="view">
+      <div id="helpVanilla">
       <div class="section-heading help-heading">
         <div>
           <span class="eyebrow">Manual do sistema</span>
@@ -1342,6 +1343,8 @@
           </div>
         </details>
       </div>
+      </div>
+      <div id="rdHelpRoot" class="hidden rd-root"></div>
     </section>
   </main>
 
@@ -2803,7 +2806,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=235"></script>
+  <script src="app.js?v=236"></script>
   <script src="supplier.js?v=71"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
@@ -2839,6 +2842,8 @@
   <script src="react/reports.js?v=1"></script>
   <link rel="stylesheet" href="react/settings.css?v=1">
   <script src="react/settings.js?v=1"></script>
+  <link rel="stylesheet" href="react/help.css?v=1">
+  <script src="react/help.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -3076,6 +3081,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactSettings && window.mountReactSettings(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newHelp")) {
+        localStorage.setItem("gestor-servicos-react-help", params.get("newHelp") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-help") !== "0";
+      var vanilla = document.getElementById("helpVanilla");
+      var root = document.getElementById("rdHelpRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactHelp && window.mountReactHelp(root);
       }
     })();
   </script>

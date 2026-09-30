@@ -402,6 +402,7 @@ declare global {
     mountReactPaymentMethods?: (root: HTMLElement) => void;
     mountReactReports?: (root: HTMLElement) => void;
     mountReactSettings?: (root: HTMLElement) => void;
+    mountReactHelp?: (root: HTMLElement) => void;
 
     supplierModule: {
       clientName: (id: string) => string;
