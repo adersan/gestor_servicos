@@ -444,14 +444,21 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .service-card-reference.ref-cancelado { border-color: #f2c1b8; background: #fdeceb; }
 .service-simple-client { color: #1768ad; font-weight: 900; }
 .service-card-context { margin: 0 0 8px; }
-.service-card-body { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.service-card-details { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
+.service-card-body { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .service-card-client { overflow: hidden; min-width: 0; color: #1768ad; font-size: 13px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
 .service-card-amount { flex-shrink: 0; font-size: 19px; font-weight: 900; color: var(--brand-ink); white-space: nowrap; }
-.service-card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.service-card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .service-card-tags > span { margin: 0; }
-.service-card-tag { display: inline-block; padding: 4px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 750; }
-.service-status-dates.service-card-log { display: block; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
-.timeline-item .service-actions { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.service-card-tag { display: inline-block; padding: 4px 8px; border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 750; }
+.service-card-comp-toggle { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--brand-ink); font-size: 11px; font-weight: 800; cursor: pointer; }
+.service-card-comp-toggle:hover { background: var(--brand-soft); }
+.comp-toggle-arrow { display: inline-block; font-size: 9px; transition: transform .15s ease; }
+.service-card-comp-toggle[aria-expanded="true"] .comp-toggle-arrow { transform: rotate(90deg); }
+.service-card-complementary { display: grid; gap: 10px; margin-top: 12px; }
+.service-card-complementary.hidden { display: none; }
+.service-status-dates.service-card-log { display: block; }
+.timeline-item .service-actions { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--brand-soft); }
 .payment-origin { display: inline-block; margin-top: 5px; color: var(--brand-ink); font-size: 11px; font-weight: 750; }
 .payment-allocation { display: block; margin: 7px 0 0; color: #176f4b; font-size: 13px; font-weight: 700; }
 .payment-allocation.credit { color: #9a5a00; }

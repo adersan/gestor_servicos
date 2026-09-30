@@ -1796,17 +1796,19 @@ function serviceCardDateParts(dateStr) {
   };
 }
 
-function serviceItemMarkup(item, linked = false) {
+function serviceItemMarkup(item, linked = false, complementary = []) {
   const { day, month } = serviceCardDateParts(item.date);
   const statusClass = item.status.toLowerCase().replace(" ", "-");
   const log = serviceStatusDates(item);
+  const hasComplementary = !linked && complementary.length > 0;
   const tags = [
     item.requestedBy ? `<span class="service-card-tag">Solicitante: ${escapeHtml(item.requestedBy)}</span>` : "",
     item.isSecondary ? `<span class="secondary-service-label">Serviço complementar</span>` : "",
     isOverdueService(item) ? `<span class="overdue-label">${formatServiceAge(item)}</span>` : "",
     item.confirmationRequestedAt && item.status === "Pronto" ? `<span class="confirmation-label">Confirmação solicitada</span>` : "",
     item.deliveredAt ? `<span class="delivered-label">${escapeHtml(deliveredLabel(item))}</span>` : "",
-    originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : ""
+    originCancelledNote(item) ? `<span class="origin-cancelled-label">${escapeHtml(originCancelledNote(item))}</span>` : "",
+    hasComplementary ? `<button type="button" class="service-card-comp-toggle" data-toggle-complementary="${item.id}" aria-expanded="false"><span class="comp-toggle-arrow">▸</span>${complementary.length} serviço${complementary.length > 1 ? "s" : ""} complementar${complementary.length > 1 ? "es" : ""}</button>` : ""
   ].filter(Boolean).join("");
   return `
     <article class="timeline-item ${linked ? "linked-service-entry" : ""} ${isOverdueService(item) ? "service-overdue" : ""} ${item.isSecondary ? "secondary-service" : ""}">
@@ -1817,13 +1819,15 @@ function serviceItemMarkup(item, linked = false) {
           <span class="service-card-reference ref-${statusClass}">${escapeHtml(item.reference || "Sem referência")}</span>
         </div>
       </header>
-      <div class="service-card-body">
-        <span class="service-card-client">${escapeHtml(clientById(item.clientId)?.name || "Sem cliente")}</span>
-        <strong class="service-card-amount">${money.format(item.amount)}</strong>
+      <div class="service-card-details">
+        <div class="service-card-body">
+          <span class="service-card-client">${escapeHtml(clientById(item.clientId)?.name || "Sem cliente")}</span>
+          <strong class="service-card-amount">${money.format(item.amount)}</strong>
+        </div>
+        ${tags ? `<div class="service-card-tags">${tags}</div>` : ""}
+        ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
+        ${log ? `<p class="service-status-dates service-card-log">${escapeHtml(log)}</p>` : ""}
       </div>
-      ${tags ? `<div class="service-card-tags">${tags}</div>` : ""}
-      ${item.status === "Cancelado" ? `<p class="cancellation-reason"><strong>Motivo:</strong> ${escapeHtml(item.cancellationReason || "Não informado")}${item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}` : ""}</p>` : ""}
-      ${log ? `<p class="service-status-dates service-card-log">${escapeHtml(log)}</p>` : ""}
       <div class="service-actions">
         <div class="status-actions">
           ${item.status === "A fazer" ? `<button class="table-action success" data-service-status="Pronto" data-entry-id="${item.id}">Marcar feito</button>` : ""}
@@ -1838,6 +1842,7 @@ function serviceItemMarkup(item, linked = false) {
           <button class="table-action danger" data-delete-entry="${item.id}">Excluir</button>
         </div>
       </div>
+      ${hasComplementary ? `<div class="service-card-complementary hidden" data-complementary-for="${item.id}">${complementary.map((entry) => serviceItemMarkup(entry, true)).join("")}</div>` : ""}
     </article>`;
 }
 
@@ -1944,9 +1949,7 @@ function renderServices() {
         <thead><tr><th>Data</th><th><span class="service-simple-full">Referência</span><span class="service-simple-compact">REF</span></th><th>Cliente</th><th>Serviço</th><th>Status</th><th>Valor</th>${selectionActive ? `<th><input type="checkbox" data-select-all-entries aria-label="Selecionar todos"></th>` : ""}</tr></thead>
         <tbody>${groupedItems.map(serviceSimpleRowMarkup).join("")}</tbody>
       </table></div>`
-    : groupedItems.map(({ ordered }) => ordered.length > 1
-      ? `<section class="linked-service-group">${ordered.map((item) => serviceItemMarkup(item, true)).join("")}</section>`
-      : serviceItemMarkup(ordered[0])).join("");
+    : groupedItems.map(({ ordered }) => serviceItemMarkup(ordered[0], false, ordered.slice(1))).join("");
   renderServiceBulkActionsBar();
 }
 
@@ -6561,6 +6564,17 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   const filterButton = event.target.closest("[data-toggle-service-filters]");
   const actionButton = event.target.closest("[data-toggle-service-actions]");
+  const compToggleButton = event.target.closest("[data-toggle-complementary]");
+  if (compToggleButton) {
+    const card = compToggleButton.closest(".timeline-item");
+    const panel = card?.querySelector(`[data-complementary-for="${compToggleButton.dataset.toggleComplementary}"]`);
+    if (panel) {
+      const expanded = panel.classList.contains("hidden");
+      panel.classList.toggle("hidden", !expanded);
+      compToggleButton.setAttribute("aria-expanded", String(expanded));
+    }
+    return;
+  }
   if (filterButton) {
     const section = document.getElementById("services");
     const expanded = !section.classList.contains("mobile-filters-open");
@@ -11011,7 +11025,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=247").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=248").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

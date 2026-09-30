@@ -163,17 +163,9 @@ export function Services() {
         />
       ) : groups.length ? (
         <div className="flex flex-col gap-3">
-          {groups.map((group) =>
-            group.ordered.length > 1 ? (
-              <div key={group.primary.id} className="flex flex-col gap-2">
-                {group.ordered.map((item) => (
-                  <ServiceCard key={item.id} item={item} linked />
-                ))}
-              </div>
-            ) : (
-              <ServiceCard key={group.primary.id} item={group.ordered[0]} />
-            )
-          )}
+          {groups.map((group) => (
+            <ServiceCard key={group.primary.id} item={group.ordered[0]} complementary={group.ordered.slice(1)} />
+          ))}
         </div>
       ) : (
         <p className="rounded-2xl border border-border bg-surface p-6 text-center text-sm text-muted">

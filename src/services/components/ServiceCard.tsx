@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { money } from "@/lib/format";
 import type { ServiceEntry } from "@/types/global";
 
@@ -15,9 +17,9 @@ const REFERENCE_STYLES: Record<string, string> = {
   Cancelado: "border-[#f2c1b8] bg-[#fdeceb] text-danger italic"
 };
 
-const ACTION_BUTTON = "rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-surface-2";
+const ACTION_BUTTON = "rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-surface-2";
 const POSITIVE_BUTTON = "rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500/20";
-const DANGER_BUTTON = "rounded-lg border border-[var(--danger-40)] px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-[var(--danger-10)]";
+const DANGER_BUTTON = "rounded-lg border border-[var(--danger-40)] bg-surface px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-[var(--danger-10)]";
 
 function cardDateParts(dateStr: string) {
   const date = new Date(`${dateStr}T00:00:00Z`);
@@ -26,14 +28,23 @@ function cardDateParts(dateStr: string) {
   return { day, month };
 }
 
-// Replica serviceItemMarkup() (app.js) em card Tailwind - cabecalho com selo de
-// data + status na frente do servico + referencia colorida por status, linha de
-// cliente/valor, tags, log e acoes - mesma linguagem visual do card vanilla
-// (.timeline-item/.service-card-*), so que em componente React. Todas as acoes
-// reais sempre visiveis (sem accordion "Mais opções" do vanilla mobile, ver
-// plano Fase 7). Botoes sem handler React, so os data-* que o listener
-// generico ja existente (app.js) escuta.
-export function ServiceCard({ item, linked = false }: { item: ServiceEntry; linked?: boolean }) {
+// Replica serviceItemMarkup() (app.js) em card Tailwind - 3 grupos visuais sem
+// linhas divisorias: cabecalho (data+status+servico+referencia), um bloco
+// pastel com cliente/valor/tags/log, e um bloco pastel com os botoes de acao.
+// Servicos complementares nao aparecem como card separado por padrao - ficam
+// recolhidos atras de um botao na linha de tags, revelados por clique (mesmo
+// padrao do vanilla). Botoes de acao sem handler React, so os data-* que o
+// listener generico ja existente (app.js) escuta.
+export function ServiceCard({
+  item,
+  linked = false,
+  complementary = []
+}: {
+  item: ServiceEntry;
+  linked?: boolean;
+  complementary?: ServiceEntry[];
+}) {
+  const [expanded, setExpanded] = useState(false);
   const overdue = window.isOverdueService(item);
   const originNote = window.originCancelledNote(item);
   const statusDates = window.serviceStatusDates(item);
@@ -42,8 +53,15 @@ export function ServiceCard({ item, linked = false }: { item: ServiceEntry; link
   const client = window.clientById(item.clientId);
   const { day, month } = cardDateParts(item.date);
   const showStatusActions = item.status !== "Cancelado";
+  const hasComplementary = !linked && complementary.length > 0;
   const hasTags = Boolean(
-    item.requestedBy || item.isSecondary || overdue || (item.confirmationRequestedAt && item.status === "Pronto") || item.deliveredAt || originNote
+    hasComplementary ||
+      item.requestedBy ||
+      item.isSecondary ||
+      overdue ||
+      (item.confirmationRequestedAt && item.status === "Pronto") ||
+      item.deliveredAt ||
+      originNote
   );
 
   return (
@@ -70,44 +88,57 @@ export function ServiceCard({ item, linked = false }: { item: ServiceEntry; link
         </div>
       </div>
 
-      <div className="mt-3.5 flex items-center justify-between gap-3 border-t border-dashed border-border pt-3">
-        <span className="truncate text-sm font-extrabold text-[#1768ad]">{client?.name || "Sem cliente"}</span>
-        <strong className="shrink-0 whitespace-nowrap text-lg font-extrabold text-ink">{money.format(item.amount)}</strong>
+      <div className="mt-3 flex flex-col gap-2.5 rounded-xl bg-surface-2 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="truncate text-sm font-extrabold text-[#1768ad]">{client?.name || "Sem cliente"}</span>
+          <strong className="shrink-0 whitespace-nowrap text-lg font-extrabold text-ink">{money.format(item.amount)}</strong>
+        </div>
+
+        {hasTags && (
+          <div className="flex flex-wrap gap-1.5">
+            {hasComplementary && (
+              <button
+                type="button"
+                onClick={() => setExpanded((current) => !current)}
+                aria-expanded={expanded}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-semibold text-brand-ink"
+              >
+                <span className={`inline-block text-[9px] transition-transform ${expanded ? "rotate-90" : ""}`}>▸</span>
+                {complementary.length} serviço{complementary.length > 1 ? "s" : ""} complementar{complementary.length > 1 ? "es" : ""}
+              </button>
+            )}
+            {item.requestedBy && (
+              <span className="rounded-full bg-surface px-2 py-1 text-xs font-semibold text-muted">Solicitante: {item.requestedBy}</span>
+            )}
+            {item.isSecondary && (
+              <span className="rounded-full bg-[#eee8fa] px-2 py-1 text-xs font-semibold text-[#654697]">Serviço complementar</span>
+            )}
+            {overdue && (
+              <span className="rounded-full bg-[var(--danger-15)] px-2 py-1 text-xs font-semibold text-danger">{window.formatServiceAge(item)}</span>
+            )}
+            {item.confirmationRequestedAt && item.status === "Pronto" && (
+              <span className="rounded-full bg-[#fff5e8] px-2 py-1 text-xs font-semibold text-[#a45b10]">Confirmação solicitada</span>
+            )}
+            {item.deliveredAt && (
+              <span className="rounded-full bg-[#edf9f2] px-2 py-1 text-xs font-semibold text-[#117440]">{window.deliveredLabel(item)}</span>
+            )}
+            {originNote && <span className="rounded-full bg-[#fff2d7] px-2 py-1 text-xs font-semibold text-[#7d4b05]">{originNote}</span>}
+          </div>
+        )}
+
+        {item.status === "Cancelado" && (
+          <p className="rounded-lg bg-[#fdecea] px-2.5 py-2 text-xs leading-relaxed text-[#8d3d35]">
+            <strong>Motivo:</strong> {item.cancellationReason || "Não informado"}
+            {item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined
+              ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}`
+              : ""}
+          </p>
+        )}
+
+        {statusDates && <p className="text-xs text-muted">{statusDates}</p>}
       </div>
 
-      {hasTags && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {item.requestedBy && (
-            <span className="rounded-full bg-surface-2 px-2 py-1 text-xs font-semibold text-muted">Solicitante: {item.requestedBy}</span>
-          )}
-          {item.isSecondary && (
-            <span className="rounded-full bg-[#eee8fa] px-2 py-1 text-xs font-semibold text-[#654697]">Serviço complementar</span>
-          )}
-          {overdue && (
-            <span className="rounded-full bg-[var(--danger-15)] px-2 py-1 text-xs font-semibold text-danger">{window.formatServiceAge(item)}</span>
-          )}
-          {item.confirmationRequestedAt && item.status === "Pronto" && (
-            <span className="rounded-full bg-[#fff5e8] px-2 py-1 text-xs font-semibold text-[#a45b10]">Confirmação solicitada</span>
-          )}
-          {item.deliveredAt && (
-            <span className="rounded-full bg-[#edf9f2] px-2 py-1 text-xs font-semibold text-[#117440]">{window.deliveredLabel(item)}</span>
-          )}
-          {originNote && <span className="rounded-full bg-[#fff2d7] px-2 py-1 text-xs font-semibold text-[#7d4b05]">{originNote}</span>}
-        </div>
-      )}
-
-      {item.status === "Cancelado" && (
-        <p className="mt-2.5 rounded-lg bg-[#fdecea] px-2.5 py-2 text-xs leading-relaxed text-[#8d3d35]">
-          <strong>Motivo:</strong> {item.cancellationReason || "Não informado"}
-          {item.cancellationOriginalAmount !== null && item.cancellationOriginalAmount !== undefined
-            ? ` · Valor anterior: ${money.format(item.cancellationOriginalAmount)}`
-            : ""}
-        </p>
-      )}
-
-      {statusDates && <p className="mt-2.5 border-t border-dashed border-border pt-2.5 text-xs text-muted">{statusDates}</p>}
-
-      <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-border pt-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--primary-15)] p-3">
         <div className="flex flex-wrap gap-2">
           {item.status === "A fazer" && (
             <button type="button" data-service-status="Pronto" data-entry-id={item.id} className={POSITIVE_BUTTON}>
@@ -149,6 +180,14 @@ export function ServiceCard({ item, linked = false }: { item: ServiceEntry; link
           </button>
         </div>
       </div>
+
+      {hasComplementary && expanded && (
+        <div className="mt-3 flex flex-col gap-2.5">
+          {complementary.map((entry) => (
+            <ServiceCard key={entry.id} item={entry} linked />
+          ))}
+        </div>
+      )}
     </article>
   );
 }
