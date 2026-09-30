@@ -1158,6 +1158,7 @@
     </section>
 
     <section id="relatorios" class="view">
+      <div id="relatoriosVanilla">
       <div class="section-heading">
         <div><span class="eyebrow">Auditoria e conferência</span><h2>Relatórios</h2></div>
       </div>
@@ -1228,6 +1229,8 @@
       <p id="reportRowLimitWarning" class="meta reports-warning hidden">Muitos registros encontrados — considere estreitar o período ou os filtros antes de exportar em PDF.</p>
 
       <div id="reportResults" class="catalog-table-wrap scroll-8"></div>
+      </div>
+      <div id="rdReportsRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="help" class="view">
@@ -2797,7 +2800,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=233"></script>
+  <script src="app.js?v=234"></script>
   <script src="supplier.js?v=71"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
@@ -2829,6 +2832,8 @@
   <script src="react/supplierDashboard.js?v=1"></script>
   <link rel="stylesheet" href="react/paymentMethods.css?v=1">
   <script src="react/paymentMethods.js?v=1"></script>
+  <link rel="stylesheet" href="react/reports.css?v=1">
+  <script src="react/reports.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -3038,6 +3043,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactPaymentMethods && window.mountReactPaymentMethods(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newReports")) {
+        localStorage.setItem("gestor-servicos-react-reports", params.get("newReports") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-reports") !== "0";
+      var vanilla = document.getElementById("relatoriosVanilla");
+      var root = document.getElementById("rdReportsRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactReports && window.mountReactReports(root);
       }
     })();
   </script>

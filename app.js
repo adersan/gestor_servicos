@@ -9586,6 +9586,9 @@ const REPORT_DEFINITIONS = [
   }
 ];
 
+window.REPORT_DEFINITIONS = REPORT_DEFINITIONS;
+window.REPORT_ROW_WARNING_LIMIT = REPORT_ROW_WARNING_LIMIT;
+
 function activeReportDefinition() {
   const typeId = document.getElementById("reportTypeSelect")?.value;
   return REPORT_DEFINITIONS.find((def) => def.id === typeId) || null;
@@ -9823,10 +9826,9 @@ function buildTablePdf({ title, subtitle, columns, rows }) {
   return new Blob([pdf], { type: "application/pdf" });
 }
 
-function downloadReportPdf() {
-  const def = activeReportDefinition();
+function downloadReportPdfFor(typeId, filters, columnKeys) {
+  const def = REPORT_DEFINITIONS.find((item) => item.id === typeId);
   if (!def) return;
-  const filters = reportFiltersFromDom();
   let rows;
   try {
     rows = def.getRows(filters) || [];
@@ -9835,7 +9837,7 @@ function downloadReportPdf() {
     showAppAlert("Não foi possível gerar este relatório com os filtros atuais.", { type: "error" });
     return;
   }
-  const columns = currentReportColumns(def);
+  const columns = def.columns.filter((column) => columnKeys.includes(column.key));
   if (!rows.length || !columns.length) {
     showAppAlert("Gere o relatório antes de exportar em PDF.", { type: "warning" });
     return;
@@ -9854,6 +9856,12 @@ function downloadReportPdf() {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function downloadReportPdf() {
+  const def = activeReportDefinition();
+  if (!def) return;
+  downloadReportPdfFor(def.id, reportFiltersFromDom(), currentReportColumns(def).map((column) => column.key));
 }
 
 function initializeReportsTools() {
@@ -11026,7 +11034,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=257").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=258").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

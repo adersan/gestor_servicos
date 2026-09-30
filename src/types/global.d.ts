@@ -201,6 +201,43 @@ export interface CatalogItem {
   prices: Record<string, number>;
 }
 
+export interface ReportColumn {
+  key: string;
+  label: string;
+  align?: "right";
+  summable?: boolean;
+  pdfWidth?: number;
+  raw?: (row: any) => number;
+  value: (row: any) => string;
+}
+
+export interface ReportFilters {
+  period: Period;
+  clientId?: string;
+  supplierId?: string;
+  status?: string;
+  extra?: string;
+  search?: string;
+}
+
+export interface ReportOption {
+  value: string;
+  label: string;
+}
+
+export interface ReportDefinition {
+  id: string;
+  group: string;
+  label: string;
+  needsClient?: boolean;
+  needsSupplier?: boolean;
+  searchable?: boolean;
+  statusOptions?: ReportOption[];
+  extraFilter?: { label: string; options: ReportOption[] };
+  columns: ReportColumn[];
+  getRows: (filters: ReportFilters) => any[];
+}
+
 export interface ServiceMetrics {
   services: ServiceEntry[];
   primaryServices: ServiceEntry[];
@@ -312,6 +349,11 @@ declare global {
 
     showView: (viewId: string) => void;
 
+    REPORT_DEFINITIONS: ReportDefinition[];
+    REPORT_ROW_WARNING_LIMIT: number;
+    reportColumnStorageKey: (typeId: string) => string;
+    downloadReportPdfFor: (typeId: string, filters: ReportFilters, columnKeys: string[]) => void;
+
     supabaseClient: {
       auth: {
         getSession: () => Promise<{ data: { session: { access_token: string } | null } }>;
@@ -333,6 +375,7 @@ declare global {
     mountReactSupplierPayments?: (root: HTMLElement) => void;
     mountReactSupplierDashboard?: (root: HTMLElement) => void;
     mountReactPaymentMethods?: (root: HTMLElement) => void;
+    mountReactReports?: (root: HTMLElement) => void;
 
     supplierModule: {
       clientName: (id: string) => string;
