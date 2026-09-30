@@ -321,6 +321,7 @@ declare global {
     mountReactSupplierAccess?: (root: HTMLElement) => void;
     mountReactSupplierPayables?: (root: HTMLElement) => void;
     mountReactSupplierPayments?: (root: HTMLElement) => void;
+    mountReactSupplierDashboard?: (root: HTMLElement) => void;
 
     supplierModule: {
       clientName: (id: string) => string;

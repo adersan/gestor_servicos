@@ -502,6 +502,7 @@
         <button class="primary" type="button" data-supplier-action="entry">Lançamento direto</button>
       </div>
       <div id="supplierDashboardPanel" class="supplier-panel hidden">
+        <div id="supplierDashboardVanilla">
         <div class="dashboard-inner-tabs" role="tablist">
           <button class="active" type="button" data-supplier-panel-tab="services">Serviços</button>
           <button type="button" data-supplier-panel-tab="finance">Financeiro</button>
@@ -531,6 +532,8 @@
             <article class="panel"><div class="panel-title"><div><span class="eyebrow">Saldo em aberto</span><h2>Por fornecedor</h2></div></div><div id="supplierDashboardFinanceRanking"></div></article>
           </section>
         </div>
+        </div>
+        <div id="rdSupplierDashboardRoot" class="hidden rd-root"></div>
       </div>
       <div id="supplierRecordsPanel" class="supplier-panel hidden">
         <div id="supplierRecordsVanilla">
@@ -2791,7 +2794,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=231"></script>
+  <script src="app.js?v=232"></script>
   <script src="supplier.js?v=71"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
@@ -2819,6 +2822,8 @@
   <script src="react/supplierPayables.js?v=1"></script>
   <link rel="stylesheet" href="react/supplierPayments.css?v=1">
   <script src="react/supplierPayments.js?v=1"></script>
+  <link rel="stylesheet" href="react/supplierDashboard.css?v=1">
+  <script src="react/supplierDashboard.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -3000,6 +3005,20 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactSupplierPayments && window.mountReactSupplierPayments(root);
+      }
+    })();
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newSupplierDashboard")) {
+        localStorage.setItem("gestor-servicos-react-supplierDashboard", params.get("newSupplierDashboard") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-supplierDashboard") !== "0";
+      var vanilla = document.getElementById("supplierDashboardVanilla");
+      var root = document.getElementById("rdSupplierDashboardRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactSupplierDashboard && window.mountReactSupplierDashboard(root);
       }
     })();
   </script>
