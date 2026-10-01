@@ -3118,6 +3118,22 @@
       var root = document.getElementById("rdExtrasRoot");
       if (enabled && vanilla && root) {
         vanilla.classList.add("hidden");
+        // O React (Fase 19b/19c) espelha 1:1 os ids dos paineis/ferramentas
+        // vanilla (upload, preview, sliders etc.) pra reaproveitar a delegacao
+        // generica de app.js - so a "ilha" do canvas Fabric (#extrasCanvasWrap)
+        // e adotada (movida), o resto e renderizado como copia. Isso deixa o
+        // documento com ids duplicados assim que o React monta, e
+        // document.getElementById sempre resolve pro PRIMEIRO em ordem de
+        // documento - sempre a copia vanilla, agora oculta/inerte. Resultado:
+        // toda logica de app.js que troca de painel por id (ex.: upload nunca
+        // saindo da tela inicial ao escolher/colar/arrastar uma imagem) ficava
+        // mexendo em nos invisiveis. Remove os ids da copia vanilla ociosa,
+        // preservando so a ilha do canvas (ainda precisa do id ate ser adotada).
+        var canvasIsland = document.getElementById("extrasCanvasWrap");
+        vanilla.querySelectorAll("[id]").forEach(function (el) {
+          if (canvasIsland && (el === canvasIsland || canvasIsland.contains(el))) return;
+          el.removeAttribute("id");
+        });
         root.classList.remove("hidden");
         window.mountReactExtras && window.mountReactExtras(root);
       }
