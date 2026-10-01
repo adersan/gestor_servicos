@@ -771,6 +771,7 @@
     </section>
 
     <section id="extras" class="view">
+      <div id="extrasVanilla">
       <div class="section-heading">
         <div><span class="eyebrow">Ferramentas</span><h2>Extras</h2><p class="meta">Remova o fundo de uma foto com IA e ajuste o resultado antes de baixar.</p></div>
       </div>
@@ -1158,6 +1159,8 @@
           <button type="button" class="primary" data-extras-action="download">Baixar PNG</button>
         </div>
       </div>
+      </div>
+      <div id="rdExtrasRoot" class="hidden rd-root"></div>
     </section>
 
     <section id="relatorios" class="view">
@@ -2806,7 +2809,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=237"></script>
+  <script src="app.js?v=238"></script>
   <script src="supplier.js?v=71"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
@@ -2844,6 +2847,8 @@
   <script src="react/settings.js?v=1"></script>
   <link rel="stylesheet" href="react/help.css?v=1">
   <script src="react/help.js?v=1"></script>
+  <link rel="stylesheet" href="react/extras.css?v=1">
+  <script src="react/extras.js?v=1"></script>
   <script>
     (function () {
       var params = new URLSearchParams(location.search);
@@ -3095,6 +3100,24 @@
         vanilla.classList.add("hidden");
         root.classList.remove("hidden");
         window.mountReactHelp && window.mountReactHelp(root);
+      }
+    })();
+    (function () {
+      // Flag OPT-IN (padrao desligado) - diferente de todas as outras fases.
+      // O editor de canvas (Fabric) ainda nao funciona na versao React desta
+      // tela (Fase 19b so entrega upload/preview/toolbar/propriedades; o
+      // canvas de verdade vem na Fase 19c) - ver plano em .claude/plans.
+      var params = new URLSearchParams(location.search);
+      if (params.has("newExtras")) {
+        localStorage.setItem("gestor-servicos-react-extras", params.get("newExtras") === "1" ? "1" : "0");
+      }
+      var enabled = localStorage.getItem("gestor-servicos-react-extras") === "1";
+      var vanilla = document.getElementById("extrasVanilla");
+      var root = document.getElementById("rdExtrasRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        window.mountReactExtras && window.mountReactExtras(root);
       }
     })();
   </script>

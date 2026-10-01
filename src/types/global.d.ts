@@ -403,6 +403,8 @@ declare global {
     mountReactReports?: (root: HTMLElement) => void;
     mountReactSettings?: (root: HTMLElement) => void;
     mountReactHelp?: (root: HTMLElement) => void;
+    mountReactExtras?: (root: HTMLElement) => void;
+    extrasSyncToolOptionsVisibility?: () => void;
 
     supplierModule: {
       clientName: (id: string) => string;
