@@ -4582,6 +4582,33 @@ async function shareBillingByWhatsApp(billing) {
   return "WhatsApp";
 }
 
+// Mesmo link automatico (sem senha) do shareBillingByWhatsApp, so que copiado
+// pra area de transferencia em vez de abrir o WhatsApp - usado pelo botao
+// "Compartilhar" do card de cobranca (React), que deixa o usuario escolher
+// entre os dois caminhos em vez de ir direto pro WhatsApp.
+async function copyClientBillingLink(billing) {
+  const url = await issueClientMagicLink(billing);
+  await copyText(url, "Link de acesso");
+  billing.sendHistory ||= [];
+  billing.sendHistory.push({ sentAt: new Date().toISOString(), channel: "Link copiado", mode: "Copiado" });
+  saveState();
+  return url;
+}
+
+// shareBillingByWhatsApp() sozinha nao grava sendHistory/saveState - isso
+// acontece no listener delegado de data-share-whatsapp (abaixo), que o botao
+// "Compartilhar" do card de cobranca (React) nao usa mais (chama a funcao
+// direto via window.*). Wrapper simetrico ao copyClientBillingLink pra nao
+// perder o registro de "ultimo envio" nesse caminho novo, sem duplicar
+// gravacao no listener vanilla existente (que continua intocado).
+async function shareBillingByWhatsAppAndRecord(billing) {
+  const mode = await shareBillingByWhatsApp(billing);
+  billing.sendHistory ||= [];
+  billing.sendHistory.push({ sentAt: new Date().toISOString(), channel: "WhatsApp", mode });
+  saveState();
+  return mode;
+}
+
 function openBillingReport(billingId) {
   const billing = state.billings.find((item) => item.id === billingId);
   const client = clientById(billing.clientId);
@@ -11083,7 +11110,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=264").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=265").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

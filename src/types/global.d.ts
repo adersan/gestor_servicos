@@ -141,7 +141,7 @@ export interface Billing {
   billingNumber?: number;
   statusReason?: string;
   creditGenerated?: number;
-  sendHistory?: { sentAt: string }[];
+  sendHistory?: { sentAt: string; channel?: string; mode?: string }[];
   historyEnabled?: boolean;
   identifier?: string;
   password?: string;
@@ -362,6 +362,8 @@ declare global {
     billingStatusLabel: (billing: Billing) => string;
     billingCardStatusClass: (billing: Billing) => string;
     openBillingReport: (billingId: string) => void;
+    shareBillingByWhatsAppAndRecord: (billing: Billing) => Promise<string>;
+    copyClientBillingLink: (billing: Billing) => Promise<string>;
 
     showView: (viewId: string) => void;
 

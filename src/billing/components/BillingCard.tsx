@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { money } from "@/lib/format";
 import type { Billing } from "@/types/global";
 
@@ -17,11 +19,17 @@ const CARD_STATUS_BORDER: Record<string, string> = {
   "": "border-border"
 };
 
-// Card completo, com TODOS os botoes de acao reais - cada um so renderiza o
+// Card completo, com TODOS os botoes de acao reais. A maioria so renderiza o
 // mesmo atributo data-* que o listener generico ja existente (app.js) escuta,
-// sem nenhum onClick/logica de escrita nova. O botao "Ver detalhes" e o
-// proprio listener generico cuidam do expandir/colapsar via classList, sem
-// estado React envolvido (ver plano, Fase 3).
+// sem onClick/logica de escrita nova - inclusive "Ver detalhes" (expandir/
+// colapsar via classList do proprio listener generico, sem estado React).
+// Excecao: "Compartilhar" (WhatsApp/copiar link) e local de verdade -
+// substitui os antigos botoes "WhatsApp"/"Compartilhar relatório"/"Gerar
+// novo acesso" (pedido do usuario pra reduzir a quantidade de botoes do
+// card), com um pequeno estado de abrir/fechar + chamadas diretas pro bridge
+// (window.shareBillingByWhatsAppAndRecord/copyClientBillingLink, app.js) -
+// mesmo princípio de outras telas desta migracao que precisam de interacao
+// genuinamente local (ex.: tracking-links).
 export function BillingCard({ item, isAccessOwner }: { item: Billing; isAccessOwner: boolean }) {
   const client = window.clientById(item.clientId);
   const status = window.billingCurrentStatus(item);
@@ -32,6 +40,33 @@ export function BillingCard({ item, isAccessOwner }: { item: Billing; isAccessOw
   const canPay = openAmount > 0 && item.status !== "Cancelada";
   const canSharePaymentLink = openAmount > 0.001 && item.status !== "Cancelada" && window.billingHasCardPaymentMethod(item);
   const canCancel = status === "Aberta" || status === "Parcial";
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+
+  const handleWhatsApp = async () => {
+    setShareBusy(true);
+    try {
+      await window.shareBillingByWhatsAppAndRecord(item);
+    } catch (error) {
+      window.showAppAlert((error as Error).message || "Não foi possível abrir o WhatsApp.", { type: "error" });
+    } finally {
+      setShareBusy(false);
+      setShareOpen(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    setShareBusy(true);
+    try {
+      await window.copyClientBillingLink(item);
+    } catch (error) {
+      window.showAppAlert((error as Error).message || "Não foi possível gerar o link.", { type: "error" });
+    } finally {
+      setShareBusy(false);
+      setShareOpen(false);
+    }
+  };
 
   return (
     <article className={`billing-card rounded-2xl border bg-surface p-4 ${CARD_STATUS_BORDER[cardStatusClass] ?? "border-border"}`}>
@@ -117,12 +152,43 @@ export function BillingCard({ item, isAccessOwner }: { item: Billing; isAccessOw
           <button type="button" data-view-report={item.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
             Ver relatório
           </button>
-          <button type="button" data-share-whatsapp={item.id} className="rounded-xl border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-600">
-            WhatsApp
-          </button>
-          <button type="button" data-share-report={item.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
-            Compartilhar relatório
-          </button>
+          {!shareOpen ? (
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="rounded-xl border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-600"
+            >
+              Compartilhar
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleWhatsApp}
+                disabled={shareBusy}
+                className="rounded-xl border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-600 disabled:opacity-50"
+              >
+                {shareBusy ? "Gerando link..." : "Enviar por WhatsApp"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                disabled={shareBusy}
+                className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-50"
+              >
+                {shareBusy ? "Gerando link..." : "Copiar link"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShareOpen(false)}
+                disabled={shareBusy}
+                aria-label="Cancelar compartilhamento"
+                className="rounded-xl px-2 py-1.5 text-xs font-semibold text-muted disabled:opacity-50"
+              >
+                ×
+              </button>
+            </>
+          )}
           {canSharePaymentLink && (
             <button type="button" data-share-payment-link={item.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
               Compartilhar link de pagamento
@@ -148,9 +214,6 @@ export function BillingCard({ item, isAccessOwner }: { item: Billing; isAccessOw
               </button>
             </>
           )}
-          <button type="button" data-renew-access={item.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
-            Gerar novo acesso
-          </button>
           {item.identifier && isAccessOwner && (
             <button type="button" data-toggle-history={item.id} className="rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-ink">
               {item.historyEnabled ? "Bloquear histórico" : "Liberar histórico"}
