@@ -136,7 +136,8 @@ h2 { font-family: Georgia, serif; font-size: 28px; }
 .tab { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border: 1px solid rgba(23,63,53,.1); border-radius: 999px; background: var(--pill-bg); color: var(--brand-ink); font-weight: 800; white-space: nowrap; box-shadow: 0 8px 22px rgba(23,63,53,.05); transition: transform .15s ease, background .15s ease, box-shadow .15s ease; }
 .tab:hover { transform: translateY(-1px); background: var(--surface); }
 .tab.active { background: var(--brand); color: white; box-shadow: 0 10px 24px rgba(23,63,53,.16); }
-.tab .tab-icon { font-size: 15px; line-height: 1; opacity: .85; }
+.tab .tab-icon { display: inline-flex; line-height: 1; opacity: .85; }
+.tab .tab-icon svg { width: 16px; height: 16px; }
 .tab.active .tab-icon { opacity: 1; }
 main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .about-brand { display: flex; align-items: center; gap: 14px; }
@@ -234,6 +235,11 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .quick-actions button:hover { background: var(--surface); transform: translateY(-1px); }
 .quick-actions span { color: var(--muted); font-size: 12px; }
 .primary, .secondary, .danger-button { border: 0; border-radius: 12px; padding: 12px 18px; font-weight: 750; }
+/* Secundario/perigo com raio menor que o primario (8px vs 12px) - mesma
+   hierarquia por peso visual ja usada nos botoes das telas React (rounded-xl
+   no primario, rounded-lg no secundario), em vez do raio unico que os
+   dialogs vanilla usavam pra qualquer botao. */
+.secondary, .danger-button { border-radius: 8px; }
 .primary { background: var(--accent); color: #241b0d; }
 .secondary { background: var(--surface); color: var(--brand-ink); }
 .danger-button { background: var(--danger); color: white; }
@@ -390,7 +396,18 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 #supplierEntryQuickViewDialog .service-actions .row-actions, #supplierEntryQuickViewDialog .status-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #supplierEntryQuickViewDialog .service-actions button { width: 100%; }
 #paymentDetailDialog .dialog-actions, #supplierPaymentDetailDialog .dialog-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.filters input, .filters select, label input, label select, label textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); }
+.filters input, .filters select, label input, label select, label textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); }
+/* input[type=date] em alguns navegadores mobile (Chrome/Android em
+   particular) pinta o proprio controle nativo por cima do box com cantos
+   retos, ignorando border-radius mesmo quando a classe/estilo esta correta -
+   confirmado que os campos de data das telas React ja tinham rounded-xl
+   igual os outros campos, so o render nativo do Android que nao respeitava.
+   appearance:none tira essa "pintura" nativa especial e deixa o campo seguir
+   o mesmo box normal de texto (com border-radius), sem tirar o icone de
+   calendario clicavel em nenhum navegador Chromium/Safari testado. Regra
+   global, fora de .filters/label, pra cobrir os inputs de data das telas
+   React tambem (ja usam border-radius proprio via Tailwind, so faltava isso). */
+input[type="date"] { -webkit-appearance: none; appearance: none; border-radius: 12px; }
 .timeline { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .service-display-toggle { display: inline-block; margin-bottom: 14px; }
 .service-display-toggle.active { border-color: transparent; color: white; background: var(--brand); }
@@ -550,7 +567,7 @@ main { max-width: 1180px; margin: auto; padding: 28px 20px 64px; }
 .legend-open { background: var(--accent); }
 .empty { display: grid; place-items: center; min-height: 180px; color: var(--muted); text-align: center; }
 .empty strong { color: var(--ink); }
-dialog { width: min(92vw, 480px); padding: 0; border: 0; border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+dialog { width: min(92vw, 480px); padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); box-shadow: 0 16px 48px rgba(0,0,0,.18); }
 dialog::backdrop { background: rgba(12,31,26,.58); backdrop-filter: blur(4px); }
 dialog form { display: grid; gap: 14px; padding: 24px; }
 #serviceDialog { max-height: 92vh; overflow: hidden; }
@@ -757,7 +774,8 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .client-area-tabs button, .finance-area-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); font-weight: 850; white-space: nowrap; }
 .client-area-tabs button:hover, .finance-area-tabs button:hover { background: var(--pill-bg); color: var(--brand-ink); }
 .client-area-tabs button.active, .finance-area-tabs button.active { color: white; background: var(--brand); box-shadow: 0 8px 20px rgba(23,63,53,.14); }
-.supplier-tabs .tab-icon, .client-area-tabs .tab-icon, .finance-area-tabs .tab-icon { display: inline-block; font-size: 15px; line-height: 1; }
+.supplier-tabs .tab-icon, .client-area-tabs .tab-icon, .finance-area-tabs .tab-icon { display: inline-flex; line-height: 1; }
+.supplier-tabs .tab-icon svg, .client-area-tabs .tab-icon svg, .finance-area-tabs .tab-icon svg { width: 16px; height: 16px; }
 .supplier-tabs button small, .client-area-tabs button small, .finance-area-tabs button small { font: inherit; }
 .finance-period-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 0 16px; padding: 12px 14px; border: 1px solid #d9e1dc; border-radius: 15px; background: var(--surface-2); }
 .finance-period-info { display: grid; gap: 3px; text-align: right; }
@@ -1123,7 +1141,7 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px solid #cdd5d1; border-bottom-width: 3px; border-radius: 7px; background: var(--surface-2); color: var(--ink); font-family: ui-monospace, monospace; font-size: 11px; font-weight: 800; text-align: center; }
 @media (max-width: 1024px) {
   input, select, textarea { font-size: 16px !important; }
-  dialog[open]:not(.wide-dialog) { display: flex; flex-direction: column; width: min(94vw, 480px); max-width: none; max-height: 88vh; max-height: 88dvh; margin: auto; border-radius: 20px; overflow: hidden; }
+  dialog[open]:not(.wide-dialog) { display: flex; flex-direction: column; width: min(94vw, 480px); max-width: none; max-height: 88vh; max-height: 88dvh; margin: auto; border-radius: 16px; overflow: hidden; }
   dialog[open]:not(.wide-dialog) form { flex: 0 1 auto; min-height: 0; gap: 11px; overflow-y: auto; overscroll-behavior: contain; scroll-padding: 82px 0 100px; padding: 0 14px calc(20px + env(safe-area-inset-bottom)); }
   dialog[open]:not(.wide-dialog) .payment-detail-content { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow: hidden; gap: 11px; padding: 0 14px; }
   .payment-detail-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
@@ -1217,22 +1235,25 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   }
   .mobile-bottom-nav::-webkit-scrollbar { display: none; }
   .mobile-bottom-nav-button {
-    flex: 1 0 74px;
-    min-height: 64px;
+    flex: 1 0 70px;
+    min-height: 60px;
     display: grid;
     place-items: center;
-    gap: 1px;
-    padding: 4px 6px;
+    gap: 4px;
+    padding: 8px 6px;
     border: 0;
     border-radius: 16px;
     background: transparent;
     color: var(--brand-ink);
     font: inherit;
     touch-action: manipulation;
+    transition: background-color .15s ease, color .15s ease;
   }
-  .mobile-bottom-nav-button span { font-size: 40px; line-height: 1; }
-  .mobile-bottom-nav-button small { font-size: 13px; line-height: 1.1; font-weight: 800; white-space: nowrap; }
-  .mobile-bottom-nav-button.active { background: var(--brand); color: white; }
+  .mobile-bottom-nav-button span { display: grid; place-items: center; line-height: 1; }
+  .mobile-bottom-nav-button svg { width: 24px; height: 24px; }
+  .mobile-bottom-nav-button small { font-size: 11px; line-height: 1.1; font-weight: 750; letter-spacing: .01em; white-space: nowrap; }
+  .mobile-bottom-nav-button.active { background: var(--brand); color: white; box-shadow: 0 4px 12px rgba(23,63,53,.25); }
+  .mobile-bottom-nav-button.active svg { stroke-width: 2.25; }
   .new-entry-fab { right: 16px; bottom: calc(79px + env(safe-area-inset-bottom)); width: 36px; height: 36px; font-size: 18px; }
   body.mobile-menu-open .mobile-bottom-nav { display: none; }
   body.mobile-menu-open .new-entry-fab { display: none; }
@@ -1387,7 +1408,8 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .supplier-split { grid-template-columns: 1fr; }
   .supplier-tabs, .client-area-tabs, .finance-area-tabs { width: calc(100% + 28px); max-width: none; margin-right: -14px; margin-left: -14px; padding: 6px 10px; gap: 3px; border-radius: 0; }
   .supplier-tabs button, .client-area-tabs button, .finance-area-tabs button { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 2px; white-space: normal; text-align: center; }
-  .supplier-tabs .tab-icon, .client-area-tabs .tab-icon, .finance-area-tabs .tab-icon { display: block; font-size: 20px; line-height: 1; }
+  .supplier-tabs .tab-icon, .client-area-tabs .tab-icon, .finance-area-tabs .tab-icon { display: flex; justify-content: center; line-height: 1; }
+  .supplier-tabs .tab-icon svg, .client-area-tabs .tab-icon svg, .finance-area-tabs .tab-icon svg { width: 20px; height: 20px; }
   .supplier-tabs button small, .client-area-tabs button small, .finance-area-tabs button small { display: block; font-size: 10px; line-height: 1.15; font-weight: 800; }
   .client-services-layout { grid-template-columns: 1fr; }
   .client-service-switch { width: calc(100% + 28px); margin-right: -14px; margin-left: -14px; padding-right: 14px; padding-left: 14px; border-radius: 0; }

@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=163">
+  <link rel="stylesheet" href="styles.css?v=164">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -49,27 +49,28 @@
   </header>
 
   <nav id="mainNavigation" class="tabs" aria-label="Navegação principal">
-    <button class="tab active" data-view="dashboard"><span class="tab-icon" aria-hidden="true">⌂</span>Resumo</button>
-    <button class="tab" data-view="services"><span class="tab-icon" aria-hidden="true">▤</span>Clientes</button>
-    <button class="tab" data-view="suppliers"><span class="tab-icon" aria-hidden="true">⇄</span>Fornecedores</button>
-    <button class="tab" data-view="payments"><span class="tab-icon" aria-hidden="true">$</span>Financeiro</button>
-    <button class="tab" data-view="relatorios"><span class="tab-icon" aria-hidden="true">▨</span>Relatórios</button>
-    <button class="tab" data-view="settings"><span class="tab-icon" aria-hidden="true">⚙</span>Configurações</button>
-    <button class="tab" data-view="extras"><span class="tab-icon" aria-hidden="true">✂</span>Extras</button>
-    <button class="tab" data-view="help"><span class="tab-icon" aria-hidden="true">?</span>Ajuda</button>
+    <button class="tab active" data-view="dashboard"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>Resumo</button>
+    <button class="tab" data-view="services"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Clientes</button>
+    <button class="tab" data-view="suppliers"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg></span>Fornecedores</button>
+    <button class="tab" data-view="payments"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></span>Financeiro</button>
+    <button class="tab" data-view="relatorios"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>Relatórios</button>
+    <button class="tab" data-view="settings"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>Configurações</button>
+    <button class="tab" data-view="extras"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/></svg></span>Extras</button>
+    <button class="tab" data-view="help"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span>Ajuda</button>
     <div class="mobile-nav-actions">
       <button id="mobileInstallButton" class="hidden" type="button">Instalar aplicativo</button>
     </div>
   </nav>
 
   <nav class="mobile-bottom-nav" aria-label="Navegação móvel">
-    <button class="mobile-bottom-nav-button active" type="button" data-view="dashboard"><span aria-hidden="true">⌂</span><small>Resumo</small></button>
-    <button class="mobile-bottom-nav-button" type="button" data-view="services"><span aria-hidden="true">▤</span><small>Clientes</small></button>
-    <button class="mobile-bottom-nav-button" type="button" data-view="suppliers"><span aria-hidden="true">⇄</span><small>Fornecedores</small></button>
-    <button class="mobile-bottom-nav-button" type="button" data-view="payments"><span aria-hidden="true">$</span><small>Financeiro</small></button>
-    <button class="mobile-bottom-nav-button" type="button" data-view="settings"><span aria-hidden="true">⚙</span><small>Config.</small></button>
-    <button class="mobile-bottom-nav-button" type="button" data-view="extras"><span aria-hidden="true">✂</span><small>Extras</small></button>
-    <button class="mobile-bottom-nav-button" type="button" data-view="help"><span aria-hidden="true">?</span><small>Ajuda</small></button>
+    <button class="mobile-bottom-nav-button active" type="button" data-view="dashboard"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><small>Resumo</small></button>
+    <button class="mobile-bottom-nav-button" type="button" data-view="services"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><small>Clientes</small></button>
+    <button class="mobile-bottom-nav-button" type="button" data-view="suppliers"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span><small>Fornecedores</small></button>
+    <button class="mobile-bottom-nav-button" type="button" data-view="payments"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></span><small>Financeiro</small></button>
+    <button class="mobile-bottom-nav-button" type="button" data-view="relatorios"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span><small>Relatórios</small></button>
+    <button class="mobile-bottom-nav-button" type="button" data-view="settings"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span><small>Config.</small></button>
+    <button class="mobile-bottom-nav-button" type="button" data-view="extras"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/></svg></span><small>Extras</small></button>
+    <button class="mobile-bottom-nav-button" type="button" data-view="help"><span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span><small>Ajuda</small></button>
   </nav>
 
   <button id="newEntryFab" class="new-entry-fab" type="button" data-dialog="serviceDialog" aria-label="Lançar novo serviço" title="Lançar novo serviço">+</button>
@@ -183,10 +184,10 @@
 
     <section id="clients" class="view">
       <div class="client-area-tabs" role="tablist">
-        <button class="" type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true">✎</span><small>Lançamento</small></button>
-        <button class="" type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true">✉</span><small>Pedido on-line</small></button>
-        <button class="active" type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
-        <button class="" type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Serviços</small></button>
+        <button class="" type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span><small>Lançamento</small></button>
+        <button class="" type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><small>Pedido on-line</small></button>
+        <button class="active" type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><small>Cadastros</small></button>
+        <button class="" type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><small>Serviços</small></button>
       </div>
       <div id="clientsVanilla">
       <div class="section-heading">
@@ -203,10 +204,10 @@
 
     <section id="catalog" class="view">
       <div class="client-area-tabs" role="tablist">
-        <button type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true">✎</span><small>Lançamento</small></button>
-        <button type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true">✉</span><small>Pedido on-line</small></button>
-        <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
-        <button class="active" type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Serviços</small></button>
+        <button type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span><small>Lançamento</small></button>
+        <button type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><small>Pedido on-line</small></button>
+        <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><small>Cadastros</small></button>
+        <button class="active" type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><small>Serviços</small></button>
       </div>
       <div id="catalogVanilla">
       <div class="client-service-switch" aria-label="Alternar serviços e tabelas">
@@ -246,10 +247,10 @@
 
     <section id="services" class="view">
       <div class="client-area-tabs" role="tablist">
-        <button class="active" type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true">✎</span><small>Lançamento</small></button>
-        <button type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true">✉</span><small>Pedido on-line</small></button>
-        <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
-        <button type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Serviços</small></button>
+        <button class="active" type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span><small>Lançamento</small></button>
+        <button type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><small>Pedido on-line</small></button>
+        <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><small>Cadastros</small></button>
+        <button type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><small>Serviços</small></button>
       </div>
       <div id="servicesVanilla">
       <div class="section-heading">
@@ -293,10 +294,10 @@
 
     <section id="requests" class="view">
       <div class="client-area-tabs" role="tablist">
-        <button type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true">✎</span><small>Lançamento</small></button>
-        <button class="active" type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true">✉</span><small>Pedido on-line</small></button>
-        <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
-        <button type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true">⚒</span><small>Serviços</small></button>
+        <button type="button" data-client-view="services"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span><small>Lançamento</small></button>
+        <button class="active" type="button" data-client-view="requests"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><small>Pedido on-line</small></button>
+        <button type="button" data-client-view="clients"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><small>Cadastros</small></button>
+        <button type="button" data-client-view="catalog"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><small>Serviços</small></button>
       </div>
       <div id="requestsVanilla">
       <div class="section-heading">
@@ -336,10 +337,10 @@
 
     <section id="payments" class="view">
       <div class="finance-area-tabs" role="tablist">
-        <button class="active" type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
-        <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
-        <button type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobranças</small></button>
-        <button type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
+        <button class="active" type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></span><small>Pagamentos</small></button>
+        <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span><small>Formas de pagamento</small></button>
+        <button type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></span><small>Cobranças</small></button>
+        <button type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"/></svg></span><small>Resumo por cliente</small></button>
       </div>
       <div id="paymentsVanilla">
       <div class="section-heading">
@@ -381,10 +382,10 @@
 
     <section id="paymentMethods" class="view">
       <div class="finance-area-tabs" role="tablist">
-        <button class="" type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
-        <button class="active" type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
-        <button class="" type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobranças</small></button>
-        <button class="" type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
+        <button class="" type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></span><small>Pagamentos</small></button>
+        <button class="active" type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span><small>Formas de pagamento</small></button>
+        <button class="" type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></span><small>Cobranças</small></button>
+        <button class="" type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"/></svg></span><small>Resumo por cliente</small></button>
       </div>
       <div id="paymentMethodsVanilla">
       <div class="section-heading">
@@ -407,10 +408,10 @@
 
     <section id="billing" class="view">
       <div class="finance-area-tabs" role="tablist">
-        <button type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
-        <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
-        <button class="active" type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobranças</small></button>
-        <button type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
+        <button type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></span><small>Pagamentos</small></button>
+        <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span><small>Formas de pagamento</small></button>
+        <button class="active" type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></span><small>Cobranças</small></button>
+        <button type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"/></svg></span><small>Resumo por cliente</small></button>
       </div>
       <div id="billingVanilla">
       <div class="section-heading">
@@ -456,10 +457,10 @@
 
     <section id="financeSummary" class="view">
       <div class="finance-area-tabs" role="tablist">
-        <button type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true">$</span><small>Pagamentos</small></button>
-        <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true">▥</span><small>Formas de pagamento</small></button>
-        <button type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true">▧</span><small>Cobranças</small></button>
-        <button class="active" type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true">Σ</span><small>Resumo por cliente</small></button>
+        <button type="button" data-client-view="payments"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></span><small>Pagamentos</small></button>
+        <button type="button" data-client-view="paymentMethods"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span><small>Formas de pagamento</small></button>
+        <button type="button" data-client-view="billing"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></span><small>Cobranças</small></button>
+        <button class="active" type="button" data-client-view="financeSummary"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"/></svg></span><small>Resumo por cliente</small></button>
       </div>
       <div id="financeSummaryVanilla">
       <div class="section-heading">
@@ -493,12 +494,12 @@
 
     <section id="suppliers" class="view">
       <div class="supplier-tabs" role="tablist">
-        <button class="active" type="button" data-supplier-tab="entries"><span class="tab-icon" aria-hidden="true">✎</span><small>Lançamentos</small></button>
-        <button type="button" data-supplier-tab="access"><span class="tab-icon" aria-hidden="true">⇄</span><small>Acessos</small></button>
-        <button type="button" data-supplier-tab="records"><span class="tab-icon" aria-hidden="true">▤</span><small>Cadastros</small></button>
-        <button type="button" data-supplier-tab="payables"><span class="tab-icon" aria-hidden="true">$</span><small>Contas a pagar</small></button>
-        <button type="button" data-supplier-tab="payments"><span class="tab-icon" aria-hidden="true">▥</span><small>Pagamento</small></button>
-        <button type="button" data-supplier-tab="dashboard"><span class="tab-icon" aria-hidden="true">▦</span><small>Painel</small></button>
+        <button class="active" type="button" data-supplier-tab="entries"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span><small>Lançamentos</small></button>
+        <button type="button" data-supplier-tab="access"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg></span><small>Acessos</small></button>
+        <button type="button" data-supplier-tab="records"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><small>Cadastros</small></button>
+        <button type="button" data-supplier-tab="payables"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></span><small>Contas a pagar</small></button>
+        <button type="button" data-supplier-tab="payments"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span><small>Pagamento</small></button>
+        <button type="button" data-supplier-tab="dashboard"><span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span><small>Painel</small></button>
       </div>
       <div class="section-heading">
         <div><span class="eyebrow">Contas a pagar</span><h2>Fornecedores</h2></div>
@@ -2809,7 +2810,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=239"></script>
+  <script src="app.js?v=240"></script>
   <script src="supplier.js?v=71"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
