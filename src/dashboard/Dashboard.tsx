@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, ClipboardList, CircleDollarSign, Wallet } from "lucide-react";
 
 import type { Period } from "@/types/global";
+import { cn } from "@/lib/utils";
+import { money } from "@/lib/format";
 import { shiftMonth, type PeriodMode } from "@/dashboard/data";
 import { useDashboardData } from "@/dashboard/useDashboardData";
 import { AttentionStrip } from "@/dashboard/components/AttentionStrip";
@@ -17,6 +19,30 @@ import { ClientRanking } from "@/dashboard/components/ClientRanking";
 import { ServiceAlertPanel } from "@/dashboard/components/ServiceAlertPanel";
 import { BillingAlertPanel } from "@/dashboard/components/BillingAlertPanel";
 import { AccountList } from "@/dashboard/components/AccountList";
+
+function HeroStat({
+  icon: Icon,
+  iconClass,
+  label,
+  value
+}: {
+  icon: typeof LayoutDashboard;
+  iconClass: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex min-w-[9.5rem] items-center gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5">
+      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", iconClass)}>
+        <Icon className="h-[18px] w-[18px]" strokeWidth={2.25} />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-[11px] font-bold uppercase tracking-wide text-muted">{label}</p>
+        <p className="truncate text-base font-bold text-ink">{value}</p>
+      </div>
+    </div>
+  );
+}
 
 // Fase 1: reconstrucao do "Resumo" (dashboard vanilla, app.js renderDashboardV2)
 // em React+Tailwind. Mesmos dados/metricas/destinos de navegacao de sempre, so
@@ -49,14 +75,38 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center gap-4 rounded-2xl border border-border bg-gradient-to-br from-[var(--primary-10)] via-surface to-surface p-5">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-          <LayoutDashboard className="h-6 w-6" />
-        </span>
-        <div>
-          <span className="text-xs font-bold uppercase tracking-wide text-muted">Visão geral</span>
-          <h2 className="text-xl font-bold text-brand-ink">Resumo do negócio</h2>
-          <p className="text-sm text-muted">Acompanhe serviços e financeiro por semana, mês ou período personalizado.</p>
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-[var(--primary-15)] via-[var(--primary-10)] to-surface p-5 shadow-sm">
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-[var(--primary-60)] text-primary-foreground shadow-md ring-4 ring-[var(--primary-15)]">
+              <LayoutDashboard className="h-7 w-7" />
+            </span>
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wide text-muted">Visão geral</span>
+              <h2 className="text-2xl font-bold text-brand-ink">Resumo do negócio</h2>
+              <p className="text-sm text-muted">Acompanhe serviços e financeiro por semana, mês ou período personalizado.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2.5">
+            <HeroStat
+              icon={ClipboardList}
+              iconClass="bg-sky-500/15 text-sky-600"
+              label="Serviços no período"
+              value={String(data.snapshot.serviceMetrics.primaryServices.length)}
+            />
+            <HeroStat
+              icon={CircleDollarSign}
+              iconClass="bg-emerald-500/15 text-emerald-600"
+              label="Faturado no período"
+              value={money.format(data.snapshot.financeMetrics.servicesTotal)}
+            />
+            <HeroStat
+              icon={Wallet}
+              iconClass={data.snapshot.financeMetrics.balance > 0 ? "bg-amber-500/15 text-amber-600" : "bg-emerald-500/15 text-emerald-600"}
+              label="Saldo do período"
+              value={money.format(data.snapshot.financeMetrics.balance)}
+            />
+          </div>
         </div>
       </div>
 
