@@ -2809,7 +2809,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=58"></script>
-  <script src="app.js?v=238"></script>
+  <script src="app.js?v=239"></script>
   <script src="supplier.js?v=71"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=5">
   <script src="react/dashboard.js?v=5"></script>
@@ -3103,15 +3103,16 @@
       }
     })();
     (function () {
-      // Flag OPT-IN (padrao desligado) - diferente de todas as outras fases.
-      // O editor de canvas (Fabric) ainda nao funciona na versao React desta
-      // tela (Fase 19b so entrega upload/preview/toolbar/propriedades; o
-      // canvas de verdade vem na Fase 19c) - ver plano em .claude/plans.
+      // Fase 19d: flag virou opt-out (padrao ligado), igual as demais fases -
+      // Fase 19c (adocao do canvas Fabric) testada e aprovada pelo usuario
+      // com ?newExtras=1 antes desta mudanca. ?newExtras=0 continua
+      // disponivel como rede de seguranca instantanea (HTML vanilla nunca
+      // foi removido do documento, so escondido).
       var params = new URLSearchParams(location.search);
       if (params.has("newExtras")) {
         localStorage.setItem("gestor-servicos-react-extras", params.get("newExtras") === "1" ? "1" : "0");
       }
-      var enabled = localStorage.getItem("gestor-servicos-react-extras") === "1";
+      var enabled = localStorage.getItem("gestor-servicos-react-extras") !== "0";
       var vanilla = document.getElementById("extrasVanilla");
       var root = document.getElementById("rdExtrasRoot");
       if (enabled && vanilla && root) {
