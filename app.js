@@ -8009,17 +8009,19 @@ function extrasBeginLiveEdit() {
 }
 
 function extrasWireGestureInput(inputId, applyFn) {
-  const input = document.getElementById(inputId);
-  if (!input) return;
   let dragStarted = false;
-  input.addEventListener("input", (event) => {
+  document.addEventListener("input", (event) => {
+    if (event.target.id !== inputId) return;
     if (!dragStarted) {
       dragStarted = true;
       extrasBeginLiveEdit();
     }
     applyFn(event.target.value);
   });
-  input.addEventListener("change", () => { dragStarted = false; });
+  document.addEventListener("change", (event) => {
+    if (event.target.id !== inputId) return;
+    dragStarted = false;
+  });
 }
 
 function extrasSetDrawColor(color) {
@@ -10767,81 +10769,100 @@ function initializeSavedSignaturesTools() {
 }
 
 function initializeExtrasTools() {
-  const dropzone = document.getElementById("extrasDropzone");
-  const fileInput = document.getElementById("extrasFileInput");
-  if (!dropzone || !fileInput) return;
+  if (!document.getElementById("extrasDropzone")) return;
 
   initializeExtrasFabricLayer();
 
-  dropzone.addEventListener("click", () => fileInput.click());
-  dropzone.addEventListener("keydown", (event) => {
+  // Dropzone / file input / drag-drop. Delegado em document em vez de preso
+  // ao no especifico - sobrevive independente de quem renderizou o DOM
+  // (vanilla ou React), ja que so um dropzone fica visivel/interativo por vez.
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("#extrasDropzone")) document.getElementById("extrasFileInput")?.click();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (!event.target.closest("#extrasDropzone")) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      fileInput.click();
+      document.getElementById("extrasFileInput")?.click();
     }
   });
-  fileInput.addEventListener("change", () => {
-    const file = fileInput.files?.[0];
-    fileInput.value = "";
+  document.addEventListener("change", (event) => {
+    if (event.target.id !== "extrasFileInput") return;
+    const file = event.target.files?.[0];
+    event.target.value = "";
     extrasHandlePickedFile(file);
   });
   ["dragenter", "dragover"].forEach((eventName) => {
-    dropzone.addEventListener(eventName, (event) => {
+    document.addEventListener(eventName, (event) => {
+      const dropzone = event.target.closest("#extrasDropzone");
+      if (!dropzone) return;
       event.preventDefault();
       dropzone.classList.add("dragover");
     });
   });
   ["dragleave", "drop"].forEach((eventName) => {
-    dropzone.addEventListener(eventName, (event) => {
+    document.addEventListener(eventName, (event) => {
+      const dropzone = event.target.closest("#extrasDropzone");
+      if (!dropzone) return;
       event.preventDefault();
       dropzone.classList.remove("dragover");
     });
   });
-  dropzone.addEventListener("drop", (event) => {
+  document.addEventListener("drop", (event) => {
+    if (!event.target.closest("#extrasDropzone")) return;
     const file = event.dataTransfer?.files?.[0];
     extrasHandlePickedFile(file);
   });
 
-  document.querySelectorAll("[data-extras-preview-action]").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (button.dataset.extrasPreviewAction === "edit") extrasProceedEdit();
-      else if (button.dataset.extrasPreviewAction === "remove-bg") extrasProceedRemoveBg();
-      else if (button.dataset.extrasPreviewAction === "generate-handwriting") {
-        document.getElementById("extrasPreviewActions").classList.add("hidden");
-        document.getElementById("extrasHandwritingForm").classList.remove("hidden");
-        document.getElementById("extrasHandwritingText").focus();
-      } else if (button.dataset.extrasPreviewAction === "cancel") {
-        extrasCancelPreview();
-      }
-    });
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extras-preview-action]");
+    if (!button) return;
+    if (button.dataset.extrasPreviewAction === "edit") extrasProceedEdit();
+    else if (button.dataset.extrasPreviewAction === "remove-bg") extrasProceedRemoveBg();
+    else if (button.dataset.extrasPreviewAction === "generate-handwriting") {
+      document.getElementById("extrasPreviewActions").classList.add("hidden");
+      document.getElementById("extrasHandwritingForm").classList.remove("hidden");
+      document.getElementById("extrasHandwritingText").focus();
+    } else if (button.dataset.extrasPreviewAction === "cancel") {
+      extrasCancelPreview();
+    }
   });
 
-  document.getElementById("extrasHandwritingCancelButton").addEventListener("click", () => {
-    document.getElementById("extrasHandwritingForm").classList.add("hidden");
-    document.getElementById("extrasPreviewActions").classList.remove("hidden");
-    document.getElementById("extrasHandwritingText").value = "";
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("#extrasHandwritingCancelButton")) {
+      document.getElementById("extrasHandwritingForm").classList.add("hidden");
+      document.getElementById("extrasPreviewActions").classList.remove("hidden");
+      document.getElementById("extrasHandwritingText").value = "";
+    } else if (event.target.closest("#extrasHandwritingGenerateButton")) {
+      extrasProceedGenerateHandwriting();
+    }
   });
-  document.getElementById("extrasHandwritingGenerateButton").addEventListener("click", extrasProceedGenerateHandwriting);
-  document.getElementById("extrasHandwritingText").addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
+  document.addEventListener("keydown", (event) => {
+    if (event.target.id !== "extrasHandwritingText" || event.key !== "Enter") return;
     event.preventDefault();
     extrasProceedGenerateHandwriting();
   });
 
-  document.getElementById("extrasSaveSignatureButton").addEventListener("click", () => extrasShowSaveSignatureForm(true));
-  document.getElementById("extrasSaveSignatureCancelButton").addEventListener("click", () => extrasShowSaveSignatureForm(false));
-  document.getElementById("extrasSaveSignatureConfirmButton").addEventListener("click", extrasConfirmSaveSignature);
-  document.getElementById("extrasSaveSignatureName").addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("#extrasSaveSignatureButton")) extrasShowSaveSignatureForm(true);
+    else if (event.target.closest("#extrasSaveSignatureCancelButton")) extrasShowSaveSignatureForm(false);
+    else if (event.target.closest("#extrasSaveSignatureConfirmButton")) extrasConfirmSaveSignature();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.target.id !== "extrasSaveSignatureName" || event.key !== "Enter") return;
     event.preventDefault();
     extrasConfirmSaveSignature();
   });
 
-  document.getElementById("extrasSensitivity").addEventListener("input", (event) => {
+  document.addEventListener("input", (event) => {
+    if (event.target.id !== "extrasSensitivity") return;
     extrasSensitivity = Number(event.target.value);
     extrasRenderSensitivityPreview();
   });
 
+  // Canvas bruto e cursor do pincel: nao precisam de delegacao - fazem parte
+  // da "ilha" de canvas Fabric que a Fase 19c adota/realoca sem recriar, entao
+  // o mesmo no (e os mesmos listeners presos a ele) sobrevive intacto.
   const canvas = document.getElementById("extrasCanvas");
   canvas.addEventListener("pointerdown", extrasPointerDown);
   canvas.addEventListener("pointermove", extrasPointerMove);
@@ -10858,23 +10879,25 @@ function initializeExtrasTools() {
   });
   window.addEventListener("pointerup", extrasPointerUp);
 
-  document.getElementById("extrasEditorPanel").addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-tool]");
     if (!button) return;
     extrasSelectTool(button.dataset.extrasTool);
   });
 
-  document.getElementById("extrasBrushSize").addEventListener("input", (event) => {
+  document.addEventListener("input", (event) => {
+    if (event.target.id !== "extrasBrushSize") return;
     extrasState.brushSize = Number(event.target.value);
     if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
     if (extrasFabricCanvas?.freeDrawingBrush) extrasFabricCanvas.freeDrawingBrush.width = extrasState.brushSize;
   });
 
-  document.getElementById("extrasOpacity").addEventListener("input", (event) => {
+  document.addEventListener("input", (event) => {
+    if (event.target.id !== "extrasOpacity") return;
     extrasState.opacity = Number(event.target.value);
   });
 
-  document.getElementById("extrasTipShapeOptions").addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-tip-shape]");
     if (!button) return;
     extrasState.tipShape = button.dataset.extrasTipShape;
@@ -10882,7 +10905,7 @@ function initializeExtrasTools() {
     if (extrasLastCursorEvent) extrasUpdateBrushCursor(extrasLastCursorEvent);
   });
 
-  document.getElementById("extrasFillOptions").addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-fill]");
     if (!button) return;
     extrasState.shapeFill = button.dataset.extrasFill;
@@ -10891,7 +10914,7 @@ function initializeExtrasTools() {
     extrasApplyToSelection((obj) => { if (obj.type === "rect" || obj.type === "ellipse") obj.set({ fill: extrasState.shapeFill === "filled" ? extrasState.drawColor : "" }); });
   });
 
-  document.getElementById("extrasDrawColorOptions").addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-draw-color]");
     if (!button) return;
     extrasBeginLiveEdit();
@@ -10899,7 +10922,7 @@ function initializeExtrasTools() {
   });
   extrasWireGestureInput("extrasDrawColorInput", (value) => extrasSetDrawColor(value));
 
-  document.getElementById("extrasStrokeColorOptions").addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-stroke-color]");
     if (!button) return;
     extrasBeginLiveEdit();
@@ -10911,31 +10934,36 @@ function initializeExtrasTools() {
     extrasApplyToSelection((obj) => { if (obj.type === "textbox") obj.set({ fontSize: Number(value) }); });
   });
 
-  document.getElementById("extrasFontFamily").addEventListener("change", (event) => {
+  document.addEventListener("change", (event) => {
+    if (event.target.id !== "extrasFontFamily") return;
     extrasBeginLiveEdit();
     extrasSetFontFamily(event.target.value);
   });
 
-  document.getElementById("extrasTextStyleOptions").addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-text-style]");
     if (!button) return;
     extrasToggleTextStyle(button.dataset.extrasTextStyle);
   });
 
-  document.getElementById("extrasBackgroundOptions").addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-bg]");
     if (!button) return;
     extrasSetBackground(button.dataset.extrasBg);
   });
-  document.getElementById("extrasBackgroundColorInput").addEventListener("input", (event) => {
+  document.addEventListener("input", (event) => {
+    if (event.target.id !== "extrasBackgroundColorInput") return;
     extrasSetBackground(event.target.value);
   });
 
-  const backgroundImageInput = document.getElementById("extrasBackgroundImageInput");
-  document.querySelector('[data-extras-action="background-image-upload"]').addEventListener("click", () => backgroundImageInput.click());
-  backgroundImageInput.addEventListener("change", () => {
-    const file = backgroundImageInput.files?.[0];
-    backgroundImageInput.value = "";
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest('[data-extras-action="background-image-upload"]')) return;
+    document.getElementById("extrasBackgroundImageInput")?.click();
+  });
+  document.addEventListener("change", (event) => {
+    if (event.target.id !== "extrasBackgroundImageInput") return;
+    const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
     if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) {
       showAppAlert("Envie uma imagem PNG, JPG ou WEBP.", { type: "warning" });
@@ -10946,42 +10974,43 @@ function initializeExtrasTools() {
     reader.readAsDataURL(file);
   });
 
-  document.getElementById("extrasBrightness").addEventListener("input", extrasPreviewAdjust);
-  document.getElementById("extrasContrast").addEventListener("input", extrasPreviewAdjust);
-  document.getElementById("extrasSaturate").addEventListener("input", extrasPreviewAdjust);
-  document.getElementById("extrasHue").addEventListener("input", extrasPreviewAdjust);
-  document.getElementById("extrasBlur").addEventListener("input", extrasPreviewAdjust);
+  document.addEventListener("input", (event) => {
+    if (["extrasBrightness", "extrasContrast", "extrasSaturate", "extrasHue", "extrasBlur"].includes(event.target.id)) {
+      extrasPreviewAdjust();
+    }
+  });
 
-  document.getElementById("extrasFilterOptions").addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-filter]");
     if (!button) return;
     extrasApplyFilterPreset(button.dataset.extrasFilter);
   });
 
-  document.getElementById("extrasFrameStyleOptions").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-extras-frame-style]");
-    if (!button) return;
-    extrasSetFrameStyle(button.dataset.extrasFrameStyle);
+  document.addEventListener("click", (event) => {
+    const styleButton = event.target.closest("[data-extras-frame-style]");
+    const colorButton = event.target.closest("[data-extras-frame-color]");
+    if (styleButton) extrasSetFrameStyle(styleButton.dataset.extrasFrameStyle);
+    else if (colorButton) extrasSetFrameColor(colorButton.dataset.extrasFrameColor);
   });
-  document.getElementById("extrasFrameColorOptions").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-extras-frame-color]");
-    if (!button) return;
-    extrasSetFrameColor(button.dataset.extrasFrameColor);
-  });
-  document.getElementById("extrasFrameColorInput").addEventListener("input", (event) => {
+  document.addEventListener("input", (event) => {
+    if (event.target.id !== "extrasFrameColorInput") return;
     extrasSetFrameColor(event.target.value);
   });
 
-  document.getElementById("extrasStickerOptions").addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-extras-sticker]");
     if (!button) return;
     extrasInsertSticker(button.dataset.extrasSticker);
   });
 
-  document.querySelectorAll("#extras [data-extras-action]").forEach((button) => {
-    button.addEventListener("click", () => extrasHandleAction(button.dataset.extrasAction));
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("#extras [data-extras-action]");
+    if (!button) return;
+    extrasHandleAction(button.dataset.extrasAction);
   });
 
+  // Overlay/handles de recorte: tambem fazem parte da "ilha" de canvas
+  // persistente (ver Fase 19c) - sem necessidade de delegacao.
   extrasInitCropHandlers();
   window.addEventListener("resize", () => {
     if (extrasState.cropping) extrasExitCropMode();
@@ -11054,7 +11083,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=260").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=261").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
