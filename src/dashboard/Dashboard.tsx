@@ -34,7 +34,7 @@ function HeroAction({
   return (
     <button
       type="button"
-      className="flex min-w-[9.5rem] items-center gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
+      className="flex min-w-[9.5rem] items-center gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md lg:min-w-0 lg:flex-initial lg:whitespace-nowrap"
       {...buttonProps}
     >
       <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", iconClass)}>
@@ -78,17 +78,17 @@ export function Dashboard() {
     <div className="flex flex-col gap-4 p-4">
       <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-[var(--primary-15)] via-[var(--primary-10)] to-surface p-5 shadow-sm">
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 items-center gap-4 lg:shrink">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-[var(--primary-60)] text-primary-foreground shadow-md ring-4 ring-[var(--primary-15)]">
               <LayoutDashboard className="h-7 w-7" />
             </span>
-            <div>
+            <div className="min-w-0">
               <span className="text-xs font-bold uppercase tracking-wide text-muted">Visão geral</span>
               <h2 className="text-2xl font-bold text-brand-ink">Resumo do negócio</h2>
               <p className="text-sm text-muted">Acompanhe serviços e financeiro por semana, mês ou período personalizado.</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-2.5 lg:flex-nowrap">
             <HeroAction icon={ClipboardPlus} iconClass="bg-sky-500/15 text-sky-600" label="Lançar serviço" data-dialog="serviceDialog" />
             <HeroAction icon={Truck} iconClass="bg-violet-500/15 text-violet-600" label="Fornecedores" data-open-view="suppliers" />
             <HeroAction icon={Wallet} iconClass="bg-emerald-500/15 text-emerald-600" label="Financeiro" data-open-view="payments" />
