@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { LayoutDashboard, ClipboardList, CircleDollarSign, Wallet } from "lucide-react";
+import type { ButtonHTMLAttributes } from "react";
+import type { LucideIcon } from "lucide-react";
+import { LayoutDashboard, ClipboardPlus, Truck, Wallet } from "lucide-react";
 
 import type { Period } from "@/types/global";
 import { cn } from "@/lib/utils";
-import { money } from "@/lib/format";
 import { shiftMonth, type PeriodMode } from "@/dashboard/data";
 import { useDashboardData } from "@/dashboard/useDashboardData";
 import { AttentionStrip } from "@/dashboard/components/AttentionStrip";
@@ -20,27 +21,27 @@ import { ServiceAlertPanel } from "@/dashboard/components/ServiceAlertPanel";
 import { BillingAlertPanel } from "@/dashboard/components/BillingAlertPanel";
 import { AccountList } from "@/dashboard/components/AccountList";
 
-function HeroStat({
+function HeroAction({
   icon: Icon,
   iconClass,
   label,
-  value
+  ...buttonProps
 }: {
-  icon: typeof LayoutDashboard;
+  icon: LucideIcon;
   iconClass: string;
   label: string;
-  value: string;
-}) {
+} & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <div className="flex min-w-[9.5rem] items-center gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5">
+    <button
+      type="button"
+      className="flex min-w-[9.5rem] items-center gap-3 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
+      {...buttonProps}
+    >
       <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", iconClass)}>
         <Icon className="h-[18px] w-[18px]" strokeWidth={2.25} />
       </span>
-      <div className="min-w-0">
-        <p className="truncate text-[11px] font-bold uppercase tracking-wide text-muted">{label}</p>
-        <p className="truncate text-base font-bold text-ink">{value}</p>
-      </div>
-    </div>
+      <span className="truncate text-sm font-bold text-ink">{label}</span>
+    </button>
   );
 }
 
@@ -88,24 +89,9 @@ export function Dashboard() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2.5">
-            <HeroStat
-              icon={ClipboardList}
-              iconClass="bg-sky-500/15 text-sky-600"
-              label="Serviços no período"
-              value={String(data.snapshot.serviceMetrics.primaryServices.length)}
-            />
-            <HeroStat
-              icon={CircleDollarSign}
-              iconClass="bg-emerald-500/15 text-emerald-600"
-              label="Faturado no período"
-              value={money.format(data.snapshot.financeMetrics.servicesTotal)}
-            />
-            <HeroStat
-              icon={Wallet}
-              iconClass={data.snapshot.financeMetrics.balance > 0 ? "bg-amber-500/15 text-amber-600" : "bg-emerald-500/15 text-emerald-600"}
-              label="Saldo do período"
-              value={money.format(data.snapshot.financeMetrics.balance)}
-            />
+            <HeroAction icon={ClipboardPlus} iconClass="bg-sky-500/15 text-sky-600" label="Lançar serviço" data-dialog="serviceDialog" />
+            <HeroAction icon={Truck} iconClass="bg-violet-500/15 text-violet-600" label="Fornecedores" data-open-view="suppliers" />
+            <HeroAction icon={Wallet} iconClass="bg-emerald-500/15 text-emerald-600" label="Financeiro" data-open-view="payments" />
           </div>
         </div>
       </div>
