@@ -63,7 +63,7 @@ export function ToolProperties() {
             <input type="color" id="extrasStrokeColorInput" defaultValue="#000000" />
           </label>
           <button type="button" className="extras-icon-btn" data-extras-action="pick-stroke-color" title="Conta-gotas (clonar cor)" aria-label="Conta-gotas">
-            💧
+            <svg viewBox="0 0 24 24"><path d="M14.5 5.5 18 2l3 3-3.5 3.5"/><path d="M14.5 5.5 5 15l-3 6 6-3L17.5 8.5"/></svg>
           </button>
         </div>
         <label className="extras-range-label">
@@ -133,7 +133,7 @@ export function ToolProperties() {
             <input type="color" id="extrasDrawColorInput" defaultValue="#e5342b" />
           </label>
           <button type="button" className="extras-icon-btn" data-extras-action="pick-draw-color" title="Conta-gotas (clonar cor)" aria-label="Conta-gotas">
-            💧
+            <svg viewBox="0 0 24 24"><path d="M14.5 5.5 18 2l3 3-3.5 3.5"/><path d="M14.5 5.5 5 15l-3 6 6-3L17.5 8.5"/></svg>
           </button>
         </div>
       </div>
@@ -166,7 +166,7 @@ export function ToolProperties() {
             <input type="color" id="extrasBackgroundColorInput" defaultValue="#ffffff" />
           </label>
           <button type="button" className="extras-icon-btn" data-extras-action="pick-background-color" title="Conta-gotas (clonar cor)" aria-label="Conta-gotas">
-            💧
+            <svg viewBox="0 0 24 24"><path d="M14.5 5.5 18 2l3 3-3.5 3.5"/><path d="M14.5 5.5 5 15l-3 6 6-3L17.5 8.5"/></svg>
           </button>
         </div>
         <span className="extras-subeyebrow">Imagem de fundo</span>
@@ -307,7 +307,7 @@ export function ToolProperties() {
 
       <div id="extrasZoomGroup" className="hidden extras-inline-actions">
         <button type="button" className="extras-icon-btn" id="extrasZoomPanToggle" data-extras-action="zoom-pan-toggle" title="Mão (arrastar para navegar)" aria-label="Mão">
-          ✋
+          <svg viewBox="0 0 24 24"><path d="M12 3v7M12 21v-7M3 12h7M21 12h-7"/><path d="M12 3l-2 2M12 3l2 2M12 21l-2-2M12 21l2-2M3 12l2-2M3 12l2 2M21 12l-2-2M21 12l-2 2"/></svg>
         </button>
         <button type="button" className="extras-icon-btn" data-extras-action="zoom-out" title="Diminuir zoom" aria-label="Diminuir zoom">
           −
