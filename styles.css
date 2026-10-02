@@ -843,6 +843,7 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .extras-dropzone { display: grid; justify-items: center; gap: 6px; width: 100%; padding: 18px 20px; border: 2px dashed var(--line); border-radius: 16px; cursor: pointer; color: var(--ink); background: none; }
 .extras-dropzone:hover, .extras-dropzone:focus-visible, .extras-dropzone.dragover { border-color: var(--brand-ink); background: var(--brand-soft); outline: none; }
 .extras-dropzone-icon { font-size: 24px; line-height: 1; }
+.extras-dropzone-icon svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .extras-spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--brand-ink); animation: extras-spin .8s linear infinite; }
 @keyframes extras-spin { to { transform: rotate(360deg); } }
 .extras-error-panel strong { color: var(--danger); }
@@ -994,7 +995,9 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 750; }
 .signature-color-field input { width: 100%; height: 40px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; }
 .signature-preview-wrap { display: flex; align-items: center; justify-content: center; min-height: 140px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; overflow: auto; box-shadow: inset 0 0 0 1px rgba(0,0,0,.03); }
 .extras-signature-entry { display: flex; align-items: center; gap: 14px; width: 100%; margin-top: 12px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); color: var(--ink); text-align: left; }
-.extras-signature-entry > span:first-child { font-size: 24px; }
+.extras-signature-entry > span:first-child { font-size: 24px; flex: none; }
+.extras-signature-entry > span:first-child svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+#extrasStickerOptions button svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .extras-signature-entry strong { display: block; }
 .extras-signature-entry small { color: var(--muted); }
 .signature-preview-wrap canvas { max-width: 100%; }

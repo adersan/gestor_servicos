@@ -285,22 +285,22 @@ export function ToolProperties() {
         <span className="extras-subeyebrow">Toque para adicionar ao centro da imagem</span>
         <div className="extras-choice-options" id="extrasStickerOptions">
           <button type="button" data-extras-sticker="arrow">
-            <span aria-hidden="true">➜</span> Seta
+            <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span> Seta
           </button>
           <button type="button" data-extras-sticker="star">
-            <span aria-hidden="true">★</span> Estrela
+            <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.2.6-4.7 4.2 1.4 6.1L12 16.4 6.5 19.5l1.4-6.1-4.7-4.2 6.2-.6Z"/></svg></span> Estrela
           </button>
           <button type="button" data-extras-sticker="heart">
-            <span aria-hidden="true">♥</span> Coração
+            <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7-4.2-9.3-8.6C1 8.4 2.7 5 6.1 5c1.9 0 3.3 1 3.9 2.3.6-1.3 2-2.3 3.9-2.3 3.4 0 5.1 3.4 3.4 6.9C19 16.3 12 20.5 12 20.5Z"/></svg></span> Coração
           </button>
           <button type="button" data-extras-sticker="check">
-            <span aria-hidden="true">✔</span> Check
+            <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5 9.5 18 20 6"/></svg></span> Check
           </button>
           <button type="button" data-extras-sticker="banner">
-            <span aria-hidden="true">🎗️</span> Faixa
+            <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4Z"/></svg></span> Faixa
           </button>
           <button type="button" data-extras-sticker="speech">
-            <span aria-hidden="true">💬</span> Balão
+            <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4 3v-3H6a2 2 0 0 1-2-2V6Z"/></svg></span> Balão
           </button>
         </div>
       </div>
