@@ -532,6 +532,7 @@ input[type="date"] { -webkit-appearance: none; appearance: none; border-radius: 
 .status { font-size: 12px; font-weight: 800; color: var(--brand-ink); }
 .status-a-fazer { color: #a45b10; }
 .status-pronto { color: #1768ad; }
+.status-feito { color: #1768ad; }
 .status-entregue { color: #117440; }
 .status-cancelado { color: var(--danger); }
 .overdue-label { display: inline-block; margin-left: 8px; padding: 4px 7px; border-radius: 999px; background: #fde8e5; color: var(--danger); font-size: 11px; font-weight: 800; }
@@ -1445,7 +1446,7 @@ kbd { display: inline-block; min-width: 28px; padding: 5px 7px; border: 1px soli
   .report { padding: 18px; }
   .supplier-split { grid-template-columns: 1fr; }
   .supplier-tabs, .client-area-tabs, .finance-area-tabs { width: calc(100% + 28px); max-width: none; margin-right: -14px; margin-left: -14px; padding: 6px 10px; gap: 3px; border-radius: 0; }
-  .supplier-tabs button, .client-area-tabs button, .finance-area-tabs button { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 2px; white-space: normal; text-align: center; }
+  .supplier-tabs button, .client-area-tabs button, .finance-area-tabs button { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 5px; white-space: normal; text-align: center; }
   .supplier-tabs .tab-icon, .client-area-tabs .tab-icon, .finance-area-tabs .tab-icon { display: flex; justify-content: center; line-height: 1; }
   .supplier-tabs .tab-icon svg, .client-area-tabs .tab-icon svg, .finance-area-tabs .tab-icon svg { width: 20px; height: 20px; }
   .supplier-tabs button small, .client-area-tabs button small, .finance-area-tabs button small { display: block; font-size: 10px; line-height: 1.15; font-weight: 800; }
