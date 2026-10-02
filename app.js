@@ -11110,7 +11110,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=269").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=270").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
