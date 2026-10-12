@@ -80,16 +80,16 @@ function ServiceSimpleRow({ group, showAmounts }: { group: ServiceGroup<Tracking
   return (
     <tr className="border-b border-line last:border-0">
       <td className="py-2 pr-2 text-xs text-muted">
-        <span className="hidden sm:inline">{formatDate(item.service_date)}</span>
+        <span className="max-sm:hidden">{formatDate(item.service_date)}</span>
         <span className="sm:hidden">{formatServiceDay(item.service_date)}</span>
       </td>
       <td className="py-2 pr-2 text-xs font-semibold text-ink">{item.reference || "Sem referência"}</td>
       <td className="max-w-[160px] truncate py-2 pr-2 text-xs text-ink">
-        <span className="hidden sm:inline">{fullServiceLabel}</span>
+        <span className="max-sm:hidden">{fullServiceLabel}</span>
         <span className="sm:hidden">{compactServiceLabel}</span>
       </td>
       <td className="py-2 pr-2">
-        <span className="hidden sm:inline">
+        <span className="max-sm:hidden">
           <StatusBadge status={item.status} />
         </span>
         <span className="text-xs font-semibold text-ink sm:hidden">{statusInitial}</span>
