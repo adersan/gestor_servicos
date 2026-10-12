@@ -5,7 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#164f43">
   <title>Acompanhamento de serviços</title>
-  <link rel="stylesheet" href="acompanhamento.css?v=36">
+  <link rel="stylesheet" href="acompanhamento.css?v=37">
+  <script>
+    // Sincroniza a flag ANTES do acompanhamento.js (vanilla) carregar mais abaixo -
+    // sem isso, na primeira visita com ?newAcompanhamento=1 o vanilla ainda leria
+    // a flag como desligada (fetch duplicado) ate o script no fim do body setar
+    // o localStorage depois dele.
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.has("newAcompanhamento")) {
+        localStorage.setItem("gestor-servicos-react-acompanhamento", params.get("newAcompanhamento") === "1" ? "1" : "0");
+      }
+    })();
+  </script>
 </head>
 <body>
   <header class="tracking-header">
@@ -13,6 +25,7 @@
     <button id="refreshButton" type="button">Atualizar</button>
   </header>
   <main class="tracking-main">
+    <div id="trackingVanilla">
     <section id="loadingPanel" class="tracking-card tracking-message">Carregando serviços...</section>
     <section id="errorPanel" class="tracking-card tracking-message tracking-error hidden"></section>
     <section id="trackingAccessChoice" class="tracking-card tracking-access-choice hidden">
@@ -99,6 +112,8 @@
       </div>
       <p id="expiryText" class="tracking-expiry"></p>
     </section>
+    </div>
+    <div id="rdAcompanhamentoRoot" class="hidden rd-root"></div>
   </main>
   <dialog id="trackingRequestDialog">
     <form id="trackingRequestForm" class="tracking-request-form tracking-wizard-form" method="dialog">
@@ -164,6 +179,29 @@
       <button type="button" class="tracking-primary" data-wizard-next>Continuar</button>
     </div>
   </dialog>
-  <script src="acompanhamento.js?v=50"></script>
+  <script src="acompanhamento.js?v=51"></script>
+  <link rel="stylesheet" href="react/acompanhamento.css?v=1">
+  <script src="react/acompanhamento.js?v=1"></script>
+  <script>
+    (function () {
+      // Primeira fase da migracao React dos portais publicos (fora do index.html
+      // do admin) - flag opt-in por enquanto (diferente da maioria das fases do
+      // admin, que ja nasceram opt-out): ainda nao validado em producao fora do
+      // admin. Vira opt-out so depois de aprovado, igual ao historico do Extras.
+      // A flag em si ja foi sincronizada com a querystring no <head>.
+      var enabled = localStorage.getItem("gestor-servicos-react-acompanhamento") === "1";
+      var vanilla = document.getElementById("trackingVanilla");
+      var root = document.getElementById("rdAcompanhamentoRoot");
+      if (enabled && vanilla && root) {
+        vanilla.classList.add("hidden");
+        root.classList.remove("hidden");
+        // O cabecalho de marca (fora do #trackingVanilla, e chrome de pagina de
+        // qualquer forma) fica visivel, mas o botao "Atualizar" dali e
+        // redundante com o botao proprio do painel React abaixo.
+        document.getElementById("refreshButton")?.classList.add("hidden");
+        window.mountReactAcompanhamento && window.mountReactAcompanhamento(root);
+      }
+    })();
+  </script>
 </body>
 </html>

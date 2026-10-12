@@ -1,4 +1,6 @@
-:root { --brand:#164f43; --ink:#1d2d28; --muted:#6f7d78; --line:#dce4e0; --bg:#f5f3eb; --white:#fff; --orange:#a45b10; --blue:#1768ad; --green:#117440; --purple:#654697; }
+:root { --brand:#164f43; --ink:#1d2d28; --muted:#6f7d78; --line:#dce4e0; --bg:#f5f3eb; --white:#fff; --orange:#a45b10; --blue:#1768ad; --green:#117440; --purple:#654697;
+  /* Pontes extras so para o bundle React (src/index.css espera --paper/--danger; tailwind.config.ts usa --surface/--surface-2/--accent/--brand-soft) - mesmos tons do tema padrao do admin (styles.css), nao afetam nenhuma regra vanilla existente. */
+  --paper:#f5f3eb; --danger:#9c3026; --surface:#ffffff; --surface-2:#eef6f2; --accent:#d89b45; --brand-soft:#dcebe6; }
 * { box-sizing:border-box; }
 body { margin:0; color:var(--ink); background:linear-gradient(180deg,#f5f3eb,#eef6f2); font-family:Arial,Helvetica,sans-serif; }
 button { padding:10px 15px; border:1px solid rgba(255,255,255,.4); border-radius:10px; color:white; background:rgba(255,255,255,.12); font-weight:750; }

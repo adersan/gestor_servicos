@@ -22,7 +22,8 @@
     "build:settings": "vite build --config vite.settings.config.ts",
     "build:help": "vite build --config vite.help.config.ts",
     "build:extras": "vite build --config vite.extras.config.ts",
-    "build": "npm run build:dashboard && npm run build:payments && npm run build:billing && npm run build:financeSummary && npm run build:clients && npm run build:catalog && npm run build:services && npm run build:requests && npm run build:supplierRecords && npm run build:supplierEntries && npm run build:supplierAccess && npm run build:supplierPayables && npm run build:supplierPayments && npm run build:supplierDashboard && npm run build:paymentMethods && npm run build:reports && npm run build:settings && npm run build:help && npm run build:extras"
+    "build:acompanhamento": "vite build --config vite.acompanhamento.config.ts",
+    "build": "npm run build:dashboard && npm run build:payments && npm run build:billing && npm run build:financeSummary && npm run build:clients && npm run build:catalog && npm run build:services && npm run build:requests && npm run build:supplierRecords && npm run build:supplierEntries && npm run build:supplierAccess && npm run build:supplierPayables && npm run build:supplierPayments && npm run build:supplierDashboard && npm run build:paymentMethods && npm run build:reports && npm run build:settings && npm run build:help && npm run build:extras && npm run build:acompanhamento"
   },
   "dependencies": {
     "web-push": "^3.6.7"

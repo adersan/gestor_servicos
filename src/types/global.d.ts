@@ -406,6 +406,7 @@ declare global {
     mountReactSettings?: (root: HTMLElement) => void;
     mountReactHelp?: (root: HTMLElement) => void;
     mountReactExtras?: (root: HTMLElement) => void;
+    mountReactAcompanhamento?: (root: HTMLElement) => void;
     extrasSyncToolOptionsVisibility?: () => void;
 
     supplierModule: {

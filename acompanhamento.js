@@ -4,6 +4,12 @@ const trackingIdentifierKey = "gestor_servicos_tracking_identifier";
 const trackingPasswordKey = "gestor_servicos_tracking_password";
 const trackingChoiceKey = "gestor_servicos_tracking_choice";
 const trackingServiceDisplayKey = "gestor_servicos_tracking_service_display";
+// Quando o bundle React (react/acompanhamento.js) esta ativo, ele assume 100%
+// a interacao da pagina - sem isso, os listeners/polling abaixo continuariam
+// disparando fetch reais contra as mesmas Netlify Functions por baixo do
+// painel React (DOM escondido, mas a rede nao), reacendendo o problema de
+// egress ja enfrentado neste projeto.
+const trackingReactActive = localStorage.getItem("gestor-servicos-react-acompanhamento") === "1";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 let refreshInProgress = false;
 let trackingData = null;
@@ -830,6 +836,7 @@ async function enterFullAccess(credentials) {
   render(data);
 }
 
+if (!trackingReactActive) {
 document.getElementById("refreshButton").addEventListener("click", refreshTracking);
 document.getElementById("trackingPeriodPrev").addEventListener("click", () => navigateTrackingWeek(-1));
 document.getElementById("trackingPeriodNext").addEventListener("click", () => navigateTrackingWeek(1));
@@ -946,6 +953,7 @@ document.addEventListener("keydown", (event) => {
   const next = fields[fields.indexOf(event.target) + 1];
   if (next) next.focus();
 });
+}
 const TRACKING_REQUEST_STEP_COUNT = 5;
 let trackingRequestStep = 1;
 let trackingRequestReferenceValues = [];
@@ -1099,6 +1107,7 @@ function validateTrackingRequestStep(step) {
   return true;
 }
 
+if (!trackingReactActive) {
 document.getElementById("openTrackingRequestDialog").addEventListener("click", () => {
   trackingPickerPages.service = 0;
   trackingPickerPages.requester = 0;
@@ -1277,3 +1286,4 @@ setInterval(() => {
 }, 20000);
 
 loadTracking().catch(showError);
+}
