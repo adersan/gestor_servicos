@@ -326,7 +326,7 @@ declare global {
     localDateKey: (date: Date) => string;
 
     clientById: (id: string) => Client | undefined;
-    balanceFor: (clientId: string, endDate?: string | null) => number;
+    clientCurrentBalance: (clientId: string) => number;
     previousBalanceFor: (clientId: string, startFilter: string) => number;
     billingFrequencyLabel: (frequency: string) => string;
     isOverdueService: (item: ServiceEntry) => boolean;

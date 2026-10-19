@@ -1714,6 +1714,10 @@
     showAppAlert("O PDF foi salvo. Anexe o arquivo na conversa do fornecedor.", { type: "success" });
   }
 
+  byId("supplierForm").querySelector('input[name="document"]').addEventListener("input", (event) => {
+    event.target.value = formatCpfCnpjInput(event.target.value);
+  });
+
   byId("supplierForm").addEventListener("submit", (event) => {
     if (event.submitter?.value === "cancel") return;
     event.preventDefault();

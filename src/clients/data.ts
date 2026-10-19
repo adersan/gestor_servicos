@@ -11,8 +11,8 @@ export interface ClientRow {
 
 // Espelha renderClients() (app.js) - mesmo filtro (matchesSearch sobre
 // nome/telefone/tabela/documento/email/cidade) e mesmo calculo de saldo
-// (balanceFor) e atraso (isBillingOverdue) por cliente, sem duplicar nenhuma
-// regra - so chama as funcoes ja existentes via window.*.
+// (clientCurrentBalance) e atraso (isBillingOverdue) por cliente, sem duplicar
+// nenhuma regra - so chama as funcoes ja existentes via window.*.
 export function loadClientList(search: string): ClientRow[] {
   const state = window.getAppState();
   return state.clients
@@ -21,7 +21,7 @@ export function loadClientList(search: string): ClientRow[] {
     )
     .map((client): ClientRow => ({
       client,
-      balance: window.balanceFor(client.id),
+      balance: window.clientCurrentBalance(client.id),
       overdue: state.billings.some((billing) => billing.clientId === client.id && window.isBillingOverdue(billing))
     }));
 }

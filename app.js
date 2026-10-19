@@ -598,14 +598,6 @@ function addClientRequester(clientId, name) {
   return { ok: true, name: cleanName };
 }
 
-function balanceFor(clientId, endDate = null) {
-  const allowed = (item) => item.clientId === clientId && (!endDate || item.date <= endDate);
-  const debits = state.services.filter((item) => allowed(item) && item.status !== "Cancelado")
-    .reduce((sum, item) => sum + item.amount, 0);
-  const credits = state.payments.filter(allowed).reduce((sum, item) => sum + item.amount, 0);
-  return debits - credits;
-}
-
 // Divida antiga real do cliente: soma o saldo em aberto das cobrancas anteriores ainda nao quitadas.
 // Usa o valor JA GRAVADO de cada cobranca (nao recalcula servicos antigos), entao edicoes/cancelamentos
 // feitos DEPOIS que um servico ja foi cobrado (e talvez pago) nunca corrompem o valor de cobrancas futuras.
@@ -651,6 +643,21 @@ function unbilledConsumptionFor(clientId) {
     .filter((item) => item.clientId === clientId && item.status !== "Cancelado"
       && item.date >= period.startDate && item.date <= period.endDate)
     .reduce((sum, item) => sum + Number(item.amount), 0);
+}
+
+// Saldo atual real do cliente "agora": saldo ainda aberto das cobrancas ja geradas
+// (openPriorBalanceFor, usa o valor JA GRAVADO de cada cobranca) + consumo do periodo
+// atual que ainda nao virou cobranca - credito de pagamento adiantado ainda nao usado.
+// Substitui o antigo balanceFor(), que recalculava o historico INTEIRO de servicos/pagamentos
+// a cada chamada - se um servico ja cobrado (e pago) fosse editado/cancelado/excluido depois,
+// sumia do recalculo mas o pagamento continuava contado, gerando saldo errado (geralmente
+// aparentando credito que nao existe). Mesmo principio ja usado por previousBalanceFor()
+// (Resumo por cliente) e openPriorBalanceFor() (geracao de cobranca).
+function clientCurrentBalance(clientId) {
+  const openBillings = openPriorBalanceFor(clientId);
+  const unbilled = unbilledConsumptionFor(clientId);
+  const advanceCredit = availableAdvancePayments(clientId).reduce((sum, item) => sum + Number(item.amount), 0);
+  return openBillings + unbilled - advanceCredit;
 }
 
 function serviceStatusLabel(status) {
@@ -1228,6 +1235,25 @@ function formatDate(value) {
   return value ? value.split("-").reverse().join("/") : "-";
 }
 
+// Mascara progressiva de CPF/CNPJ enquanto digita: ate 11 digitos vira CPF
+// (000.000.000-00), a partir do 12o digito vira CNPJ (00.000.000/0000-00).
+// Sempre recalcula a partir dos digitos puros (ignora o que ja estava
+// formatado), entao funciona tanto digitando quanto colando o numero.
+function formatCpfCnpjInput(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 11) {
+    return digits
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
+
 function renderSelects() {
   const clientDatalistOptions = [...state.clients]
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
@@ -1405,7 +1431,7 @@ function renderDashboard() {
     </div>`;
   const list = document.getElementById("accountList");
   list.innerHTML = state.clients.length ? state.clients.map((client) => {
-    const balance = balanceFor(client.id);
+    const balance = clientCurrentBalance(client.id);
     const count = state.services.filter((item) => item.clientId === client.id && !item.isSecondary).length;
     return `<div class="account-row">
       <div><strong>${escapeHtml(client.name)}</strong><span class="meta">${escapeHtml(client.priceGroup)}</span></div>
@@ -1764,7 +1790,7 @@ function renderClients() {
   const items = state.clients.filter((client) =>
     matchesSearch(search, client.name, client.phone, client.priceGroup, client.document, client.email, client.city));
   target.innerHTML = items.length ? items.map((client) => {
-    const balance = balanceFor(client.id);
+    const balance = clientCurrentBalance(client.id);
     const clientOverdue = state.billings.some((billing) => billing.clientId === client.id && isBillingOverdue(billing));
     return `
     <article class="client-card ${clientOverdue ? "client-overdue" : ""}">
@@ -5623,6 +5649,10 @@ document.addEventListener("click", async (event) => {
       }
     }
   }
+});
+
+document.querySelector('#clientForm input[name="document"]').addEventListener("input", (event) => {
+  event.target.value = formatCpfCnpjInput(event.target.value);
 });
 
 document.getElementById("clientForm").addEventListener("submit", (event) => {
@@ -11110,7 +11140,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=271").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=272").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
