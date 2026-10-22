@@ -717,7 +717,7 @@ function serviceAgeHours(item) {
 }
 
 function isOverdueService(item) {
-  return item.status === "A fazer" && serviceAgeHours(item) >= 24;
+  return (item.status === "A fazer" || item.status === "Pronto") && serviceAgeHours(item) >= 24;
 }
 
 function formatServiceAge(item) {
@@ -1350,7 +1350,7 @@ function renderDashboard() {
   document.getElementById("serviceTotal").textContent = money.format(serviceTotal);
   document.getElementById("paymentTotal").textContent = money.format(paymentTotal);
   const pending = state.services.filter((item) => item.status === "A fazer" && !item.isSecondary);
-  const overdue = pending.filter(isOverdueService);
+  const overdue = state.services.filter((item) => !item.isSecondary && isOverdueService(item));
   const alertPanel = document.getElementById("serviceAlertPanel");
   alertPanel.classList.toggle("has-alerts", overdue.length > 0);
   alertPanel.innerHTML = `
@@ -1585,7 +1585,7 @@ function renderDashboardV2() {
     : `<p class="meta">Nenhum serviço no período selecionado.</p>`;
 
   const pending = state.services.filter((item) => item.status === "A fazer" && !item.isSecondary);
-  const overdue = pending.filter(isOverdueService);
+  const overdue = state.services.filter((item) => !item.isSecondary && isOverdueService(item));
   const serviceAlertPanel = document.getElementById("serviceAlertPanel");
   serviceAlertPanel.classList.toggle("has-alerts", overdue.length > 0);
   serviceAlertPanel.innerHTML = `
@@ -11140,7 +11140,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=273").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=274").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

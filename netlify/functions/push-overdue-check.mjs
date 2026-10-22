@@ -23,7 +23,7 @@ async function markNotified(key) {
 async function checkOverdueServices() {
   const cutoff = new Date(Date.now() - 24 * 3600000).toISOString();
   const rows = await supabase(
-    `/rest/v1/service_entries?status=eq.${encodeURIComponent("A fazer")}&created_at=lte.${encodeURIComponent(cutoff)}&select=id,service_name,clients(name)`
+    `/rest/v1/service_entries?status=${encodeURIComponent('in.("A fazer","Pronto")')}&created_at=lte.${encodeURIComponent(cutoff)}&select=id,service_name,clients(name)`
   );
   for (const row of rows) {
     const key = `service:${row.id}`;
