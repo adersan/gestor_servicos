@@ -44,6 +44,27 @@
     knownRemoteIds.priceTableNames = new Set(source.priceTables || []);
   }
 
+  // O Supabase/PostgREST limita cada resposta a um numero fixo de linhas (Max Rows do
+  // projeto, por padrao 1000) - acima disso, o restante e descartado em silencio, sem erro.
+  // Tabelas que so crescem com o uso diario (lancamentos, pagamentos, cobrancas) acabam
+  // passando desse limite mais cedo ou mais tarde, e os registros mais antigos (a ordenacao
+  // e sempre do mais recente pro mais antigo) somem da busca/relatorios sem ninguem perceber.
+  // fetchAllPages percorre em paginas de ate FETCH_PAGE_SIZE linhas ate trazer tudo.
+  const FETCH_PAGE_SIZE = 1000;
+
+  async function fetchAllPages(buildQuery) {
+    let from = 0;
+    let rows = [];
+    while (true) {
+      const { data, error } = await buildQuery().range(from, from + FETCH_PAGE_SIZE - 1);
+      if (error) return { data: null, error };
+      rows = rows.concat(data || []);
+      if (!data || data.length < FETCH_PAGE_SIZE) break;
+      from += FETCH_PAGE_SIZE;
+    }
+    return { data: rows, error: null };
+  }
+
   async function fetchAll() {
     const client = requireClient();
     const [
@@ -65,15 +86,15 @@
       client.from("clients").select("*").eq("active", true).order("name"),
       client.from("service_catalog").select("*").eq("active", true).order("name"),
       client.from("service_prices").select("*"),
-      client.from("service_entries").select("*").order("service_date", { ascending: false }),
-      client.from("payments").select("*").order("payment_date", { ascending: false }),
+      fetchAllPages(() => client.from("service_entries").select("*").order("service_date", { ascending: false }).order("id", { ascending: true })),
+      fetchAllPages(() => client.from("payments").select("*").order("payment_date", { ascending: false }).order("id", { ascending: true })),
       client.from("payment_methods").select("*").order("created_at"),
-      client.from("billings").select("*").order("created_at", { ascending: false }),
+      fetchAllPages(() => client.from("billings").select("*").order("created_at", { ascending: false }).order("id", { ascending: true })),
       client.from("suppliers").select("*").eq("active", true).order("name"),
       client.from("supplier_services").select("*").eq("active", true).order("name"),
-      client.from("supplier_entries").select("*").order("service_date", { ascending: false }),
-      client.from("supplier_payables").select("*").order("created_at", { ascending: false }),
-      client.from("supplier_payments").select("*").order("payment_date", { ascending: false })
+      fetchAllPages(() => client.from("supplier_entries").select("*").order("service_date", { ascending: false }).order("id", { ascending: true })),
+      fetchAllPages(() => client.from("supplier_payables").select("*").order("created_at", { ascending: false }).order("id", { ascending: true })),
+      fetchAllPages(() => client.from("supplier_payments").select("*").order("payment_date", { ascending: false }).order("id", { ascending: true }))
     ]);
 
     const results = [
