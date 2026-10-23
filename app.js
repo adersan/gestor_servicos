@@ -62,6 +62,7 @@ let dashboardPeriod = null;
 let financePeriod = null;
 let financePeriodMode = null;
 let billingOverdueOnly = false;
+let servicePendingOnly = false;
 let selectedPaymentId = null;
 const serviceGroupsById = new Map();
 // Ponte pro modo simples de Lancamento em React (Fase 7) - o React escreve
@@ -718,6 +719,15 @@ function serviceAgeHours(item) {
 
 function isOverdueService(item) {
   return (item.status === "A fazer" || item.status === "Pronto") && serviceAgeHours(item) >= 24;
+}
+
+// Diferente de isOverdueService (atraso por horas, qualquer semana): aqui o criterio e
+// ter ficado pra tras de uma virada de periodo (semana/mes) - servico ainda nao entregue
+// cuja data e anterior ao periodo operacional atual, mesmo que tenha poucas horas.
+function isServicePendingBacklog(item, cutoffDate) {
+  return !item.isSecondary
+    && (item.status === "A fazer" || item.status === "Pronto")
+    && item.date < cutoffDate;
 }
 
 function formatServiceAge(item) {
@@ -1908,7 +1918,20 @@ function renderServices() {
   const search = document.getElementById("serviceSearch").value.trim();
   const searchAcrossHistory = Boolean(search) && state.services.some((item) =>
     matchesSearch(search, item.reference));
-  document.getElementById("serviceEntryPeriodLabel").textContent = searchAcrossHistory
+  const pendingCutoff = defaultPeriod().startDate;
+  const pendingCount = state.services.filter((item) => isServicePendingBacklog(item, pendingCutoff)).length;
+  const pendingTab = document.getElementById("servicePendingTab");
+  if (pendingTab) {
+    document.getElementById("servicePendingCount").textContent = pendingCount;
+    pendingTab.classList.toggle("active", servicePendingOnly);
+    pendingTab.classList.toggle("has-overdue", pendingCount > 0);
+  }
+  document.getElementById("serviceStartDate").classList.toggle("hidden", servicePendingOnly);
+  document.getElementById("serviceEndDate").classList.toggle("hidden", servicePendingOnly);
+  document.getElementById("serviceStatusFilter").classList.toggle("hidden", servicePendingOnly);
+  document.getElementById("serviceEntryPeriodLabel").textContent = servicePendingOnly
+    ? "Pendências de semanas/meses anteriores"
+    : searchAcrossHistory
     ? "Busca por referência em todo o histórico"
     : startDate && endDate
     ? `${formatDate(startDate)} a ${formatDate(endDate)}`
@@ -1919,10 +1942,10 @@ function renderServices() {
   const generallyEligible = state.services
     .filter((item) => !clientFilter || item.clientId === clientFilter)
     .filter((item) => !clientNameFilter || matchesSearch(clientNameFilter, clientById(item.clientId)?.name))
-    .filter((item) => searchAcrossHistory || !startDate || item.date >= startDate)
-    .filter((item) => searchAcrossHistory || !endDate || item.date <= endDate);
+    .filter((item) => servicePendingOnly || searchAcrossHistory || !startDate || item.date >= startDate)
+    .filter((item) => servicePendingOnly || searchAcrossHistory || !endDate || item.date <= endDate);
   const matchingItems = generallyEligible
-    .filter((item) => !statusFilter || item.status === statusFilter)
+    .filter((item) => servicePendingOnly ? isServicePendingBacklog(item, pendingCutoff) : !statusFilter || item.status === statusFilter)
     .filter((item) => matchesSearch(
       search,
       item.description,
@@ -1952,6 +1975,10 @@ function renderServices() {
       : [primary, ...complementary];
     return { primary, complementary, ordered };
   }).sort((a, b) => {
+    if (servicePendingOnly) {
+      return a.primary.date.localeCompare(b.primary.date)
+        || String(a.primary.createdAt || "").localeCompare(String(b.primary.createdAt || ""));
+    }
     const statusOrder = { "A fazer": 0, Pronto: 1, Entregue: 2, Cancelado: 3 };
     const statusDifference = (statusOrder[a.primary.status] ?? 4) - (statusOrder[b.primary.status] ?? 4);
     return statusDifference || b.primary.date.localeCompare(a.primary.date)
@@ -6686,9 +6713,16 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   const currentWeekButton = event.target.closest("[data-service-current-week]");
   if (!currentWeekButton) return;
+  servicePendingOnly = false;
   const week = currentOperationalWeek();
   document.getElementById("serviceStartDate").value = week.startDate;
   document.getElementById("serviceEndDate").value = week.endDate;
+  renderServices();
+});
+document.addEventListener("click", (event) => {
+  const pendingToggle = event.target.closest("[data-service-pending-toggle]");
+  if (!pendingToggle) return;
+  servicePendingOnly = !servicePendingOnly;
   renderServices();
 });
 document.getElementById("serviceDisplayToggle").addEventListener("click", () => {
@@ -11146,7 +11180,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=275").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=276").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();

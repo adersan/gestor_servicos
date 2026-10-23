@@ -12,7 +12,7 @@
       if (savedTheme && savedTheme !== "verde") document.documentElement.dataset.theme = savedTheme;
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="styles.css?v=170">
+  <link rel="stylesheet" href="styles.css?v=171">
 </head>
 <body class="auth-loading">
   <section id="authScreen" class="auth-screen" aria-live="polite">
@@ -285,6 +285,7 @@
       <div class="entry-list-toolbar">
         <button id="serviceDisplayToggle" class="table-action service-display-toggle" type="button" aria-pressed="false">Exibir simples</button>
         <button id="serviceSelectionToggle" class="table-action" type="button" aria-pressed="false">Selecionar</button>
+        <button id="servicePendingTab" class="table-action" type="button" data-service-pending-toggle>Pendências anteriores (<span id="servicePendingCount">0</span>)</button>
       </div>
       <div id="serviceBulkActions" class="bulk-actions-bar hidden"></div>
       <div id="serviceList" class="timeline"></div>
@@ -2810,7 +2811,7 @@
   <script src="config.js?v=31"></script>
   <script src="auth.js?v=30"></script>
   <script src="data.js?v=59"></script>
-  <script src="app.js?v=247"></script>
+  <script src="app.js?v=248"></script>
   <script src="supplier.js?v=72"></script>
   <link rel="stylesheet" href="react/dashboard.css?v=8">
   <script src="react/dashboard.js?v=8"></script>

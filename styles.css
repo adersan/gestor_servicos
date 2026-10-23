@@ -464,6 +464,9 @@ input[type="date"] { -webkit-appearance: none; appearance: none; border-radius: 
 .service-simple-table th:nth-child(7), .service-simple-table td:nth-child(7) { width: 1%; text-align: center; }
 .entry-list-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
 .entry-list-toolbar .service-display-toggle { margin-bottom: 0; }
+.entry-list-toolbar .table-action.active { border-color: transparent; color: white; background: var(--brand); }
+.entry-list-toolbar .table-action.has-overdue { border-color: var(--danger); color: var(--danger); }
+.entry-list-toolbar .table-action.has-overdue.active { background: var(--danger); border-color: var(--danger); color: white; }
 .bulk-actions-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--brand-soft); }
 .bulk-actions-bar.hidden { display: none; }
 .bulk-actions-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
