@@ -32,7 +32,7 @@ async function checkOverdueServices() {
       title: "Serviço atrasado",
       body: `${row.clients?.name || "Cliente"}: ${row.service_name}`,
       tag: key,
-      url: "/#services"
+      url: `/#services:${row.id}`
     }).catch((error) => console.error("Falha ao enviar push de serviço atrasado:", error.message));
     await markNotified(key);
   }

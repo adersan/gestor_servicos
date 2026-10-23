@@ -1171,9 +1171,15 @@ function showView(viewId) {
 }
 
 function applyNotificationDeepLink() {
-  const target = location.hash.replace(/^#/, "");
+  if (!remoteReady) return;
+  const raw = location.hash.replace(/^#/, "");
+  if (!raw) return;
+  const separatorIndex = raw.indexOf(":");
+  const target = separatorIndex === -1 ? raw : raw.slice(0, separatorIndex);
+  const detailId = separatorIndex === -1 ? null : raw.slice(separatorIndex + 1);
   if (!target || !document.getElementById(target)) return;
   showView(target);
+  if (detailId && target === "services") openServiceQuickView(detailId);
   history.replaceState(null, "", location.pathname + location.search);
 }
 
@@ -11140,7 +11146,7 @@ function initializeExtrasTools() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js?v=274").then((registration) => registration.update());
+  navigator.serviceWorker.register("sw.js?v=275").then((registration) => registration.update());
 }
 updateSoundAlertButton();
 updatePushToggleButton();
@@ -11158,6 +11164,7 @@ window.addEventListener("app-authenticated", (event) => {
   initializeRemoteState();
   refreshPushSubscriptionIfEnabled();
 });
+window.addEventListener("hashchange", applyNotificationDeepLink);
 window.addEventListener("focus", () => refreshRemoteState());
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshRemoteState();

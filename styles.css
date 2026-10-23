@@ -451,7 +451,8 @@ input[type="date"] { -webkit-appearance: none; appearance: none; border-radius: 
 .service-simple-table tbody tr:nth-child(even) { background: var(--surface-2); }
 .service-simple-table tbody tr[data-view-entry-group], .service-simple-table tbody tr[data-view-supplier-entry] { cursor: pointer; }
 .service-simple-table tbody tr[data-view-entry-group]:hover, .service-simple-table tbody tr[data-view-supplier-entry]:hover { background: var(--brand-soft); }
-.service-simple-table tr.service-overdue { box-shadow: inset 4px 0 0 var(--danger); }
+.service-simple-table tbody tr.service-overdue { background: #fdeceb; }
+.service-simple-table tr.service-overdue td:first-child { box-shadow: inset 4px 0 0 var(--danger); }
 .service-simple-truncate { max-width: 0; width: 100%; }
 .service-simple-amount { font-weight: 800; text-align: right; }
 .service-simple-compact { display: none; }
